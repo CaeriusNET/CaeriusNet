@@ -2,24 +2,30 @@
 
 namespace CaeriusNet.Builders;
 
-public sealed record StoredProcedureParametersBuilder(string ProcedureName, int Capacity = 1000)
+public sealed record StoredProcedureParametersBuilder(string ProcedureName, int Capacity = 1)
 {
-    public string ProcedureName { get; } = ProcedureName;
-    public int Capacity { get; } = Capacity;
     public List<SqlParameter> Parameters { get; } = [];
 
-    public StoredProcedureParametersBuilder AddStoredProcedureParameter(string name, object value, SqlDbType type)
+    public StoredProcedureParametersBuilder AddParameter(
+        string storedProcedureName,
+        object value,
+        SqlDbType dbType)
     {
-        Parameters.Add(new SqlParameter(name, type) { Value = value });
+        Parameters.Add(new SqlParameter(storedProcedureName, dbType) { Value = value });
+
         return this;
     }
 
-    public StoredProcedureParametersBuilder AddTableValuedParameter<T>(string parameterName, string tvpName,
+    public StoredProcedureParametersBuilder AddParameterAsTvp<T>(
+        string parameterName,
+        string tvpName,
         IEnumerable<T> items)
         where T : class, ITvpMapper<T>
     {
-        var tvp = items.FirstOrDefault() ?? throw new ArgumentException("No items to map to Table-Valued Parameters");
-        var dataTable = tvp.MapToDataTable(items);
+        var tvpMappers = items.ToList();
+        var tvp = tvpMappers.FirstOrDefault() ??
+                  throw new ArgumentException("No items to map to Table-Valued Parameters");
+        var dataTable = tvp.MapToDataTable(tvpMappers);
         SqlParameter parameter = new(parameterName, SqlDbType.Structured)
         {
             TypeName = tvpName,

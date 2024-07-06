@@ -18,7 +18,7 @@ public sealed record SandboxRepository(ICaeriusDbConnectionFactory Connection) :
 
     public async Task<IEnumerable<UsersDto>> GetUsers()
     {
-        var spParameters = new StoredProcedureParametersBuilder("dbo.sp_get_users");
+        var spParameters = new StoredProcedureParametersBuilder("dbo.sp_get_users", 100);
         IEnumerable<UsersDto> users = await Connection.QueryAsync<UsersDto>(spParameters);
         return users;
     }
@@ -26,7 +26,7 @@ public sealed record SandboxRepository(ICaeriusDbConnectionFactory Connection) :
     public async Task CreateListOfUsers(IEnumerable<NewUsersTvp> users)
     {
         var spParameters = new StoredProcedureParametersBuilder("dbo.sp_create_users_with_tvp")
-            .AddTableValuedParameter("MyTvpUsers", "dbo.tvp_newUsers", users);
+            .AddParameterAsTvp("MyTvpUsers", "dbo.tvp_newUsers", users);
 
         var dbResults = await Connection.ExecuteAsync(spParameters);
 
@@ -36,7 +36,7 @@ public sealed record SandboxRepository(ICaeriusDbConnectionFactory Connection) :
     public Task UpdateRandomUserAge(IEnumerable<UserAgeTvp> users)
     {
         var spParameters = new StoredProcedureParametersBuilder("dbo.sp_update_user_age")
-            .AddTableValuedParameter("MyTvpUserAge", "dbo.tvp_userAge", users);
+            .AddParameterAsTvp("MyTvpUserAge", "dbo.tvp_userAge", users);
 
         return Connection.ExecuteScalarAsync(spParameters);
     }
