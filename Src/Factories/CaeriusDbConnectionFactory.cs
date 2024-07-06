@@ -1,7 +1,6 @@
 ﻿namespace CaeriusNet.Factories;
 
-public sealed record CaeriusDbConnectionFactory(string ConnectionString)
-    : ICaeriusDbConnectionFactory
+public sealed record CaeriusDbConnectionFactory(string ConnectionString) : ICaeriusDbConnectionFactory
 {
     public IDbConnection DbConnection()
     {

@@ -5,8 +5,6 @@ using Microsoft.Extensions.Configuration;
 
 #region > Dependency Injection Container
 
-ServiceCollection servicess = [];
-
 var services = new ServiceCollection();
 
 var configuration = new ConfigurationBuilder()
