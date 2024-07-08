@@ -24,7 +24,7 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
     {
         var tvpMappers = items.ToList();
         var tvp = tvpMappers.FirstOrDefault() ??
-                  throw new ArgumentException("No items to map to Table-Valued Parameters");
+                  throw new ArgumentException("No items found in the collection to map to a Table-Valued Parameter.");
         var dataTable = tvp.MapToDataTable(tvpMappers);
         SqlParameter parameter = new(parameterName, SqlDbType.Structured)
         {

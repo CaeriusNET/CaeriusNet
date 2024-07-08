@@ -35,4 +35,15 @@ public static class SqlCommandUtility
 
         return items;
     }
+
+    public static async Task<T> SingleResultSet<T>(SqlDataReader reader)
+        where T : class, ISpMapper<T>
+    {
+        var item = default(T)!;
+
+        if (await reader.ReadAsync())
+            item = T.MapFromReader(reader);
+
+        return item;
+    }
 }
