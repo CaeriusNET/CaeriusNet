@@ -35,7 +35,8 @@ public static class WriteSqlAsyncCommands
             using (connection)
             {
                 await using var command = await SqlCommandUtility.CreateSqlCommand(spParameters, connection);
-                return await command.ExecuteNonQueryAsync();
+                var rowResults = await command.ExecuteNonQueryAsync();
+                return rowResults;
             }
         }
         catch (SqlException ex)

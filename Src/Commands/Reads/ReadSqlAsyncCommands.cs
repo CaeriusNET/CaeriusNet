@@ -7,7 +7,7 @@ namespace CaeriusNet.Commands.Reads;
 
 public static class ReadSqlAsyncCommands
 {
-    public static async Task<ReadOnlyCollection<T>> QueryAsync<T>(
+    public static async Task<T> FirstQueryAsync<T>(
         this ICaeriusDbConnectionFactory connectionFactory,
         StoredProcedureParametersBuilder spParameters)
         where T : class, ISpMapper<T>
@@ -20,8 +20,8 @@ public static class ReadSqlAsyncCommands
             {
                 await using var command = await SqlCommandUtility.CreateSqlCommand(spParameters, connection);
                 await using var reader = await command.ExecuteReaderAsync();
-                var results = await SqlCommandUtility.ResultsSets<T>(spParameters, reader);
-                return results.AsReadOnly();
+                var results = await SqlCommandUtility.SingleResultSet<T>(reader);
+                return results;
             }
         }
         catch (SqlException ex)
@@ -30,7 +30,7 @@ public static class ReadSqlAsyncCommands
         }
     }
 
-    public static async Task<ReadOnlyCollection<T>> FirstOrDefaultAsync<T>(
+    public static async Task<ReadOnlyCollection<T>> QueryAsync<T>(
         this ICaeriusDbConnectionFactory connectionFactory,
         StoredProcedureParametersBuilder spParameters)
         where T : class, ISpMapper<T>

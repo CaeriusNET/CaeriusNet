@@ -4,6 +4,14 @@
         <TargetFramework>net8.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <Version>1.0.3</Version>
+        <Title>CaeriusNet</Title>
+        <Authors>AriusII &amp; CaeriusNet</Authors>
+        <Description>Blazing fast µORM for T-SQL</Description>
+        <Copyright>2024</Copyright>
+        <PackageProjectUrl>https://caerius.net</PackageProjectUrl>
+        <PackageTags>dapper, ef, orm, fast, stored, procedure</PackageTags>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
