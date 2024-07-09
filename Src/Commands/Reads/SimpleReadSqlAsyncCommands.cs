@@ -5,12 +5,12 @@ using CaeriusNet.Utilities;
 
 namespace CaeriusNet.Commands.Reads;
 
-public static class ReadSqlAsyncCommands
+public static class SimpleReadSqlAsyncCommands
 {
-    public static async Task<T> FirstQueryAsync<T>(
+    public static async Task<TResultSet> FirstQueryAsync<TResultSet>(
         this ICaeriusDbConnectionFactory connectionFactory,
         StoredProcedureParametersBuilder spParameters)
-        where T : class, ISpMapper<T>
+        where TResultSet : class, ISpMapper<TResultSet>
     {
         try
         {
@@ -20,7 +20,7 @@ public static class ReadSqlAsyncCommands
             {
                 await using var command = await SqlCommandUtility.CreateSqlCommand(spParameters, connection);
                 await using var reader = await command.ExecuteReaderAsync();
-                var results = await SqlCommandUtility.SingleResultSet<T>(reader);
+                var results = await SqlCommandUtility.SingleResultSet<TResultSet>(reader);
                 return results;
             }
         }
@@ -30,10 +30,10 @@ public static class ReadSqlAsyncCommands
         }
     }
 
-    public static async Task<ReadOnlyCollection<T>> QueryAsync<T>(
+    public static async Task<ReadOnlyCollection<TResultSet>> QueryAsync<TResultSet>(
         this ICaeriusDbConnectionFactory connectionFactory,
         StoredProcedureParametersBuilder spParameters)
-        where T : class, ISpMapper<T>
+        where TResultSet : class, ISpMapper<TResultSet>
     {
         try
         {
@@ -43,7 +43,7 @@ public static class ReadSqlAsyncCommands
             {
                 await using var command = await SqlCommandUtility.CreateSqlCommand(spParameters, connection);
                 await using var reader = await command.ExecuteReaderAsync();
-                var results = await SqlCommandUtility.ResultsSets<T>(spParameters, reader);
+                var results = await SqlCommandUtility.ResultsSets<TResultSet>(spParameters, reader);
                 return results.AsReadOnly();
             }
         }
@@ -53,10 +53,10 @@ public static class ReadSqlAsyncCommands
         }
     }
 
-    public static async Task<IEnumerable<T>> EnumerableQueryAsync<T>(
+    public static async Task<IEnumerable<TResultSet>> EnumerableQueryAsync<TResultSet>(
         this ICaeriusDbConnectionFactory connectionFactory,
         StoredProcedureParametersBuilder spParameters)
-        where T : class, ISpMapper<T>
+        where TResultSet : class, ISpMapper<TResultSet>
     {
         try
         {
@@ -66,7 +66,7 @@ public static class ReadSqlAsyncCommands
             {
                 await using var command = await SqlCommandUtility.CreateSqlCommand(spParameters, connection);
                 await using var reader = await command.ExecuteReaderAsync();
-                var results = await SqlCommandUtility.ResultsSets<T>(spParameters, reader);
+                var results = await SqlCommandUtility.ResultsSets<TResultSet>(spParameters, reader);
                 return results.AsEnumerable();
             }
         }
@@ -76,10 +76,10 @@ public static class ReadSqlAsyncCommands
         }
     }
 
-    public static async Task<ImmutableArray<T>> ImmutableQueryAsync<T>(
+    public static async Task<ImmutableArray<TResultSet>> ImmutableQueryAsync<TResultSet>(
         this ICaeriusDbConnectionFactory connectionFactory,
         StoredProcedureParametersBuilder spParameters)
-        where T : class, ISpMapper<T>
+        where TResultSet : class, ISpMapper<TResultSet>
     {
         try
         {
@@ -90,10 +90,10 @@ public static class ReadSqlAsyncCommands
                 await using var command = await SqlCommandUtility.CreateSqlCommand(spParameters, connection);
                 await using var reader = await command.ExecuteReaderAsync();
 
-                var results = ImmutableArray.CreateBuilder<T>(spParameters.Capacity);
+                var results = ImmutableArray.CreateBuilder<TResultSet>(spParameters.Capacity);
 
                 while (await reader.ReadAsync())
-                    results.AddRange(T.MapFromReader(reader));
+                    results.AddRange(TResultSet.MapFromReader(reader));
 
                 return results.ToImmutable();
             }
