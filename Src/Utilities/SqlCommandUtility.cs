@@ -14,7 +14,7 @@ public static class SqlCommandUtility
             command = new SqlCommand(spParameters.ProcedureName, connection as SqlConnection);
             command.CommandType = CommandType.StoredProcedure;
 
-            command.Parameters.AddRange([..spParameters.Parameters]);
+            command.Parameters.AddRange([..spParameters.Parameters.ToArray()]);
             return command;
         }
         catch
@@ -45,5 +45,41 @@ public static class SqlCommandUtility
             item = T.MapFromReader(reader);
 
         return item;
+    }
+
+    public static async Task<object[]> MultipleQueryAsync(IDbConnection connection,
+        StoredProcedureParametersBuilder spParameters)
+    {
+        if (connection == null) throw new ArgumentNullException(nameof(connection));
+        if (spParameters == null) throw new ArgumentNullException(nameof(spParameters));
+
+        await using var command = await CreateSqlCommand(spParameters, connection);
+        await using var reader = await command.ExecuteReaderAsync();
+        var results = await ReadMultipleResultSetsAsync(spParameters, reader);
+        return results;
+    }
+
+    private static async Task<object[]> ReadMultipleResultSetsAsync(StoredProcedureParametersBuilder spParameters,
+        SqlDataReader reader)
+    {
+        var results = new object[spParameters.Mappers.Count];
+
+        for (var i = 0; i < spParameters.Mappers.Count; i++)
+        {
+            var listType = typeof(List<>).MakeGenericType(spParameters.Mappers[i].Method.ReturnType);
+            var list = Activator.CreateInstance(listType);
+
+            while (await reader.ReadAsync())
+            {
+                var item = spParameters.Mappers[i].DynamicInvoke(reader);
+                listType.GetMethod("Add")?.Invoke(list, [item]);
+            }
+
+            results[i] = list!;
+
+            if (!await reader.NextResultAsync()) break;
+        }
+
+        return results;
     }
 }
