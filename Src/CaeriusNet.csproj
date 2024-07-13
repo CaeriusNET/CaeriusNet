@@ -5,10 +5,10 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <Version>1.1.0</Version>
+        <Version>1.5.0</Version>
         <Title>CaeriusNet</Title>
         <Authors>AriusII &amp; CaeriusNet</Authors>
-        <Description>Blazing fast µORM for T-SQL</Description>
+        <Description>C# &amp; TSQL enchanced by performance Micro-ORM, Stored Procedure to DTO in µseconds !</Description>
         <Copyright>2024</Copyright>
         <PackageProjectUrl>https://caerius.net</PackageProjectUrl>
         <PackageTags>dapper, ef, orm, fast, stored, procedure</PackageTags>
