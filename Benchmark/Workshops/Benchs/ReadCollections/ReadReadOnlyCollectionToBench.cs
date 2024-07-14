@@ -7,89 +7,62 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.ReadCollections;
 public class ReadReadOnlyCollectionToBench
 {
     private static readonly ReadOnlyCollection<SimpleDto> ReadOnlyCollection =
-        ReadCollectionBogusSetup.FakingReadOnlyCollectionOf1MItemsDto;
+        ReadCollectionBogusSetup.FakingReadOnlyCollectionOf100KItemsDto;
+    
+    private readonly Consumer _consumer = new();
 
-    private ReadOnlyCollection<SimpleDto> _readOnlyCollectionOf100Items = null!;
-    private ReadOnlyCollection<SimpleDto> _readOnlyCollectionOf100KItems = null!;
-    private ReadOnlyCollection<SimpleDto> _readOnlyCollectionOf10Items = null!;
-    private ReadOnlyCollection<SimpleDto> _readOnlyCollectionOf10KItems = null!;
-
-    private ReadOnlyCollection<SimpleDto> _readOnlyCollectionOf1Item = null!;
-    private ReadOnlyCollection<SimpleDto> _readOnlyCollectionOf1KItems = null!;
-    private ReadOnlyCollection<SimpleDto> _readOnlyCollectionOf1MItems = null!;
-
-    [GlobalSetup]
-    public void Setup()
-    {
-        _readOnlyCollectionOf1Item = ReadOnlyCollection.Take(1).ToList().AsReadOnly();
-        _readOnlyCollectionOf10Items = ReadOnlyCollection.Take(10).ToList().AsReadOnly();
-        _readOnlyCollectionOf100Items = ReadOnlyCollection.Take(100).ToList().AsReadOnly();
-        _readOnlyCollectionOf1KItems = ReadOnlyCollection.Take(1000).ToList().AsReadOnly();
-        _readOnlyCollectionOf10KItems = ReadOnlyCollection.Take(10000).ToList().AsReadOnly();
-        _readOnlyCollectionOf100KItems = ReadOnlyCollection.Take(100000).ToList().AsReadOnly();
-        _readOnlyCollectionOf1MItems = ReadOnlyCollection;
-    }
+    private readonly ReadOnlyCollection<SimpleDto> _readOnlyCollectionOf100Items = ReadOnlyCollection.Take(100).ToList().AsReadOnly();
+    private readonly ReadOnlyCollection<SimpleDto> _readOnlyCollectionOf100KItems = ReadOnlyCollection;
+    private readonly ReadOnlyCollection<SimpleDto> _readOnlyCollectionOf10Items = ReadOnlyCollection.Take(10).ToList().AsReadOnly();
+    private readonly ReadOnlyCollection<SimpleDto> _readOnlyCollectionOf10KItems = ReadOnlyCollection.Take(10000).ToList().AsReadOnly();
+    private readonly ReadOnlyCollection<SimpleDto> _readOnlyCollectionOf1Item = ReadOnlyCollection.Take(1).ToList().AsReadOnly();
+    private readonly ReadOnlyCollection<SimpleDto> _readOnlyCollectionOf1KItems = ReadOnlyCollection.Take(1000).ToList().AsReadOnly();
 
     [Benchmark]
     public void Read_ReadOnlyCollection_Of_1_Item()
     {
-        var sum = 0;
-        foreach (var item in _readOnlyCollectionOf1Item) sum += item.Id;
-
+        var sum = _readOnlyCollectionOf1Item.Sum(item => item.Id);
+        _consumer.Consume(sum);
         _ = sum;
     }
 
     [Benchmark]
     public void Read_ReadOnlyCollection_Of_10_Items()
     {
-        var sum = 0;
-        foreach (var item in _readOnlyCollectionOf10Items) sum += item.Id;
-
+        var sum = _readOnlyCollectionOf10Items.Sum(item => item.Id);
+        _consumer.Consume(sum);
         _ = sum;
     }
 
     [Benchmark]
     public void Read_ReadOnlyCollection_Of_100_Items()
     {
-        var sum = 0;
-        foreach (var item in _readOnlyCollectionOf100Items) sum += item.Id;
-
+        var sum = _readOnlyCollectionOf100Items.Sum(item => item.Id);
+        _consumer.Consume(sum);
         _ = sum;
     }
 
     [Benchmark]
     public void Read_ReadOnlyCollection_Of_1K_Items()
     {
-        var sum = 0;
-        foreach (var item in _readOnlyCollectionOf1KItems) sum += item.Id;
-
+        var sum = _readOnlyCollectionOf1KItems.Sum(item => item.Id);
+        _consumer.Consume(sum);
         _ = sum;
     }
 
     [Benchmark]
     public void Read_ReadOnlyCollection_Of_10K_Items()
     {
-        var sum = 0;
-        foreach (var item in _readOnlyCollectionOf10KItems) sum += item.Id;
-
+        var sum = _readOnlyCollectionOf10KItems.Sum(item => item.Id);
+        _consumer.Consume(sum);
         _ = sum;
     }
 
     [Benchmark]
     public void Read_ReadOnlyCollection_Of_100K_Items()
     {
-        var sum = 0;
-        foreach (var item in _readOnlyCollectionOf100KItems) sum += item.Id;
-
-        _ = sum;
-    }
-
-    [Benchmark]
-    public void Read_ReadOnlyCollection_Of_1M_Items()
-    {
-        var sum = 0;
-        foreach (var item in _readOnlyCollectionOf1MItems) sum += item.Id;
-
+        var sum = _readOnlyCollectionOf100KItems.Sum(item => item.Id);
+        _consumer.Consume(sum);
         _ = sum;
     }
 }
