@@ -9,12 +9,12 @@ public class ListWithLessCapacityThanNeededToBench
     private static readonly ReadOnlyCollection<SimpleDto> Data = ListCapacityBogusSetup.Faking50KItemsDto;
 
     private readonly Consumer _consumer = new();
-    
+
     private readonly List<SimpleDto> _data10 = Data.Take(10).ToList();
     private readonly List<SimpleDto> _data100 = Data.Take(100).ToList();
-    private readonly List<SimpleDto> _data1K = Data.Take(1000).ToList();
-    private readonly List<SimpleDto> _data10K = Data.Take(10000).ToList();
     private readonly List<SimpleDto> _data100K = Data.ToList();
+    private readonly List<SimpleDto> _data10K = Data.Take(10000).ToList();
+    private readonly List<SimpleDto> _data1K = Data.Take(1000).ToList();
 
     [Benchmark]
     public List<SimpleDto> Set_Capacity_With_2_Items_But_Add_1_Item()
@@ -60,7 +60,7 @@ public class ListWithLessCapacityThanNeededToBench
         _consumer.Consume(list);
         return list;
     }
-    
+
     [Benchmark]
     public List<SimpleDto> Set_Capacity_With_100K_Items_But_Add_50K_Item()
     {

@@ -14,7 +14,9 @@ public class ReadAllCollectionTypesToBench
     private static readonly ImmutableArray<SimpleDto> ImmutableArray =
         ReadCollectionBogusSetup.FakingImmutableArrayOf100KItemsDto;
 
-    private static readonly IEnumerable<SimpleDto> Enumerable = ReadCollectionBogusSetup.FakingIEnumerableOf100KItemsDto;
+    private static readonly IEnumerable<SimpleDto>
+        Enumerable = ReadCollectionBogusSetup.FakingIEnumerableOf100KItemsDto;
+
     private IEnumerable<SimpleDto> _enumerableOf25KItems = null!;
     private ImmutableArray<SimpleDto> _immutableArrayOf25KItems;
     private List<SimpleDto> _listOf25KItems = null!;

@@ -8,7 +8,7 @@ public class ReadImmutableArrayToBench
 {
     private static readonly ImmutableArray<SimpleDto> ImmutableArray =
         ReadCollectionBogusSetup.FakingImmutableArrayOf100KItemsDto;
-    
+
     private readonly Consumer _consumer = new();
 
     private readonly ImmutableArray<SimpleDto> _immutableArrayOf100Items = [..ImmutableArray.Take(100)];

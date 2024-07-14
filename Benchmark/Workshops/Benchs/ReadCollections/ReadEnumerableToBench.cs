@@ -6,10 +6,11 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.ReadCollections;
 [MemoryDiagnoser]
 public class ReadEnumerableToBench
 {
-    private static readonly IEnumerable<SimpleDto> Enumerable = ReadCollectionBogusSetup.FakingIEnumerableOf100KItemsDto;
-    
+    private static readonly IEnumerable<SimpleDto>
+        Enumerable = ReadCollectionBogusSetup.FakingIEnumerableOf100KItemsDto;
+
     private readonly Consumer _consumer = new();
-    
+
     private readonly IEnumerable<SimpleDto> _enumerableOf100Items = Enumerable.Take(100);
     private readonly IEnumerable<SimpleDto> _enumerableOf100KItems = Enumerable.Take(100000);
     private readonly IEnumerable<SimpleDto> _enumerableOf10Items = Enumerable.Take(10);

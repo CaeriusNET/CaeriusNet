@@ -7,15 +7,15 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.ListCapacity;
 public class ListWithCapacityToBench
 {
     private static readonly ReadOnlyCollection<SimpleDto> Data = ListCapacityBogusSetup.Faking50KItemsDto;
-    
+
     private readonly Consumer _consumer = new();
-    
+
     private readonly List<SimpleDto> _data1 = Data.Take(1).ToList();
     private readonly List<SimpleDto> _data10 = Data.Take(10).ToList();
     private readonly List<SimpleDto> _data100 = Data.Take(100).ToList();
-    private readonly List<SimpleDto> _data1K = Data.Take(1000).ToList();
-    private readonly List<SimpleDto> _data10K = Data.Take(10000).ToList();
     private readonly List<SimpleDto> _data100K = Data.ToList();
+    private readonly List<SimpleDto> _data10K = Data.Take(10000).ToList();
+    private readonly List<SimpleDto> _data1K = Data.Take(1000).ToList();
 
     [Benchmark]
     public List<SimpleDto> Set_Capacity_With_1_Item_To_Add()
