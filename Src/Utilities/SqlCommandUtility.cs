@@ -5,16 +5,18 @@ namespace CaeriusNet.Utilities;
 
 public static class SqlCommandUtility
 {
-    public static async Task<SqlCommand> CreateSqlCommand(StoredProcedureParametersBuilder spParameters,
+    public static async Task<SqlCommand> ExecuteSqlCommand(StoredProcedureParametersBuilder spParameters,
         IDbConnection connection)
     {
         SqlCommand? command = null;
         try
         {
-            command = new SqlCommand(spParameters.ProcedureName, connection as SqlConnection);
-            command.CommandType = CommandType.StoredProcedure;
+            command = new SqlCommand(spParameters.ProcedureName, connection as SqlConnection)
+            {
+                CommandType = CommandType.StoredProcedure
+            };
 
-            command.Parameters.AddRange([..spParameters.Parameters.ToArray()]);
+            command.Parameters.AddRange([..spParameters.Parameters]);
             return command;
         }
         catch
@@ -24,62 +26,26 @@ public static class SqlCommandUtility
         }
     }
 
-    public static async Task<List<T>> ResultsSets<T>(StoredProcedureParametersBuilder spParameters,
+    public static async Task<List<TResultSet>> ResultsSets<TResultSet>(StoredProcedureParametersBuilder spParameters,
         SqlDataReader reader)
-        where T : class, ISpMapper<T>
+        where TResultSet : class, ISpMapper<TResultSet>
     {
-        var items = new List<T>(spParameters.Capacity);
+        var items = new List<TResultSet>(spParameters.Capacity);
 
         while (await reader.ReadAsync())
-            items.Add(T.MapFromReader(reader));
+            items.Add(TResultSet.MapFromReader(reader));
 
         return items;
     }
 
-    public static async Task<T> SingleResultSet<T>(SqlDataReader reader)
-        where T : class, ISpMapper<T>
+    public static async Task<TResultSet> SingleResultSet<TResultSet>(SqlDataReader reader)
+        where TResultSet : class, ISpMapper<TResultSet>
     {
-        var item = default(T)!;
+        var item = default(TResultSet)!;
 
         if (await reader.ReadAsync())
-            item = T.MapFromReader(reader);
+            item = TResultSet.MapFromReader(reader);
 
         return item;
-    }
-
-    public static async Task<object[]> MultipleQueryAsync(IDbConnection connection,
-        StoredProcedureParametersBuilder spParameters)
-    {
-        if (connection == null) throw new ArgumentNullException(nameof(connection));
-        if (spParameters == null) throw new ArgumentNullException(nameof(spParameters));
-
-        await using var command = await CreateSqlCommand(spParameters, connection);
-        await using var reader = await command.ExecuteReaderAsync();
-        var results = await ReadMultipleResultSetsAsync(spParameters, reader);
-        return results;
-    }
-
-    private static async Task<object[]> ReadMultipleResultSetsAsync(StoredProcedureParametersBuilder spParameters,
-        SqlDataReader reader)
-    {
-        var results = new object[spParameters.Mappers.Count];
-
-        for (var i = 0; i < spParameters.Mappers.Count; i++)
-        {
-            var listType = typeof(List<>).MakeGenericType(spParameters.Mappers[i].Method.ReturnType);
-            var list = Activator.CreateInstance(listType);
-
-            while (await reader.ReadAsync())
-            {
-                var item = spParameters.Mappers[i].DynamicInvoke(reader);
-                listType.GetMethod("Add")?.Invoke(list, [item]);
-            }
-
-            results[i] = list!;
-
-            if (!await reader.NextResultAsync()) break;
-        }
-
-        return results;
     }
 }

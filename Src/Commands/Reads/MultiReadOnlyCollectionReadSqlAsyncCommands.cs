@@ -5,71 +5,133 @@ using CaeriusNet.Utilities;
 
 namespace CaeriusNet.Commands.Reads;
 
+/// <summary>
+///     Contains methods for querying multiple result sets from a database and mapping them to ReadOnlyCollection
+///     collections.
+/// </summary>
 public static class MultiReadOnlyCollectionReadSqlAsyncCommands
 {
-    public static async Task<(ReadOnlyCollection<TResultSets1>, ReadOnlyCollection<TResultSets3>)>
-        QueryMultipleReadOnlyCollectionAsync<TResultSets1,
-            TResultSets3>(
+    /// <summary>
+    ///     Asynchronously queries the database for two result sets and maps them to ReadOnlyCollection collections.
+    /// </summary>
+    /// <typeparam name="TResultSet1">The type of objects in the first result set, must implement <see cref="ISpMapper{T}" />.</typeparam>
+    /// <typeparam name="TResultSet2">The type of objects in the second result set, must implement <see cref="ISpMapper{T}" />.</typeparam>
+    /// <param name="connectionFactory">The database connection factory used to create a new database connection.</param>
+    /// <param name="spParameters">The stored procedure parameters builder used to configure the command.</param>
+    /// <param name="map1">A function to map the first result set to <typeparamref name="TResultSet1" />.</param>
+    /// <param name="map2">A function to map the second result set to <typeparamref name="TResultSet2" />.</param>
+    /// <returns>The task result is a tuple where each item is an IReadOnlyCollection of the result set objects.</returns>
+    public static async Task<(ReadOnlyCollection<TResultSet1>, ReadOnlyCollection<TResultSet2>)>
+        QueryMultipleReadOnlyCollectionAsync<TResultSet1, TResultSet2>(
             this ICaeriusDbConnectionFactory connectionFactory,
-            StoredProcedureParametersBuilder spParameters)
-        where TResultSets1 : class, ISpMapper<TResultSets1>
-        where TResultSets3 : class, ISpMapper<TResultSets3>
+            StoredProcedureParametersBuilder spParameters,
+            Func<SqlDataReader, TResultSet1> map1,
+            Func<SqlDataReader, TResultSet2> map2)
+        where TResultSet1 : class, ISpMapper<TResultSet1>
+        where TResultSet2 : class, ISpMapper<TResultSet2>
     {
-        var results = await connectionFactory.QueryMultipleAsync(spParameters);
-        return ((ReadOnlyCollection<TResultSets1>)results[0], (ReadOnlyCollection<TResultSets3>)results[1]);
+        var results =
+            await connectionFactory.ReadMultipleIReadOnlyCollectionResultSetsAsync(spParameters, map1, map2);
+
+        return (new ReadOnlyCollection<TResultSet1>(results[0].Cast<TResultSet1>().ToList()),
+            new ReadOnlyCollection<TResultSet2>(results[1].Cast<TResultSet2>().ToList()));
     }
 
-    public static async Task<(ReadOnlyCollection<TResultSets1>, ReadOnlyCollection<TResultSets2>,
-            ReadOnlyCollection<TResultSets3>)>
-        QueryMultipleReadOnlyCollectionAsync<TResultSets1, TResultSets2, TResultSets3>(
+    public static async Task<(ReadOnlyCollection<TResultSet1>, ReadOnlyCollection<TResultSet2>,
+            ReadOnlyCollection<TResultSet3>)>
+        QueryMultipleReadOnlyCollectionAsync<TResultSet1, TResultSet2, TResultSet3>(
             this ICaeriusDbConnectionFactory connectionFactory,
-            StoredProcedureParametersBuilder spParameters)
-        where TResultSets1 : class, ISpMapper<TResultSets1>
-        where TResultSets2 : class, ISpMapper<TResultSets2>
-        where TResultSets3 : class, ISpMapper<TResultSets3>
+            StoredProcedureParametersBuilder spParameters,
+            Func<SqlDataReader, TResultSet1> map1,
+            Func<SqlDataReader, TResultSet2> map2,
+            Func<SqlDataReader, TResultSet3> map3)
+        where TResultSet1 : class, ISpMapper<TResultSet1>
+        where TResultSet2 : class, ISpMapper<TResultSet2>
+        where TResultSet3 : class, ISpMapper<TResultSet3>
     {
-        var results = await connectionFactory.QueryMultipleAsync(spParameters);
-        return ((ReadOnlyCollection<TResultSets1>)results[0], (ReadOnlyCollection<TResultSets2>)results[1],
-            (ReadOnlyCollection<TResultSets3>)results[2]);
+        var results =
+            await connectionFactory.ReadMultipleIReadOnlyCollectionResultSetsAsync(spParameters, map1, map2, map3);
+
+        return (new ReadOnlyCollection<TResultSet1>(results[0].Cast<TResultSet1>().ToList()),
+            new ReadOnlyCollection<TResultSet2>(results[1].Cast<TResultSet2>().ToList()),
+            new ReadOnlyCollection<TResultSet3>(results[2].Cast<TResultSet3>().ToList()));
     }
 
-    public static async Task<(ReadOnlyCollection<TResultSets1>, ReadOnlyCollection<TResultSets2>,
-            ReadOnlyCollection<TResultSets3>, ReadOnlyCollection<TResultSets4>)>
-        QueryMultipleReadOnlyCollectionAsync<TResultSets1, TResultSets2, TResultSets3, TResultSets4>(
+    public static async Task<(ReadOnlyCollection<TResultSet1>, ReadOnlyCollection<TResultSet2>,
+            ReadOnlyCollection<TResultSet3>, ReadOnlyCollection<TResultSet4>)>
+        QueryMultipleReadOnlyCollectionAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4>(
             this ICaeriusDbConnectionFactory connectionFactory,
-            StoredProcedureParametersBuilder spParameters)
-        where TResultSets1 : class, ISpMapper<TResultSets1>
-        where TResultSets2 : class, ISpMapper<TResultSets2>
-        where TResultSets3 : class, ISpMapper<TResultSets3>
-        where TResultSets4 : class, ISpMapper<TResultSets4>
+            StoredProcedureParametersBuilder spParameters,
+            Func<SqlDataReader, TResultSet1> map1,
+            Func<SqlDataReader, TResultSet2> map2,
+            Func<SqlDataReader, TResultSet3> map3,
+            Func<SqlDataReader, TResultSet4> map4)
+        where TResultSet1 : class, ISpMapper<TResultSet1>
+        where TResultSet2 : class, ISpMapper<TResultSet2>
+        where TResultSet3 : class, ISpMapper<TResultSet3>
+        where TResultSet4 : class, ISpMapper<TResultSet4>
     {
-        var results = await connectionFactory.QueryMultipleAsync(spParameters);
-        return ((ReadOnlyCollection<TResultSets1>)results[0], (ReadOnlyCollection<TResultSets2>)results[1],
-            (ReadOnlyCollection<TResultSets3>)results[2],
-            (ReadOnlyCollection<TResultSets4>)results[3]);
+        var results =
+            await connectionFactory.ReadMultipleIReadOnlyCollectionResultSetsAsync(spParameters, map1, map2, map3,
+                map4);
+
+        return (new ReadOnlyCollection<TResultSet1>(results[0].Cast<TResultSet1>().ToList()),
+            new ReadOnlyCollection<TResultSet2>(results[1].Cast<TResultSet2>().ToList()),
+            new ReadOnlyCollection<TResultSet3>(results[2].Cast<TResultSet3>().ToList()),
+            new ReadOnlyCollection<TResultSet4>(results[3].Cast<TResultSet4>().ToList()));
     }
 
-    public static async Task<(ReadOnlyCollection<TResultSets1>, ReadOnlyCollection<TResultSets2>,
-            ReadOnlyCollection<TResultSets3>, ReadOnlyCollection<TResultSets4>, ReadOnlyCollection<TResultSets5>)>
-        QueryMultipleReadOnlyCollectionAsync<TResultSets1, TResultSets2, TResultSets3, TResultSets4, TResultSets5>(
+    public static async Task<(ReadOnlyCollection<TResultSet1>, ReadOnlyCollection<TResultSet2>,
+            ReadOnlyCollection<TResultSet3>, ReadOnlyCollection<TResultSet4>, ReadOnlyCollection<TResultSet5>)>
+        QueryMultipleReadOnlyCollectionAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4, TResultSet5>(
             this ICaeriusDbConnectionFactory connectionFactory,
-            StoredProcedureParametersBuilder spParameters)
-        where TResultSets1 : class, ISpMapper<TResultSets1>
-        where TResultSets2 : class, ISpMapper<TResultSets2>
-        where TResultSets3 : class, ISpMapper<TResultSets3>
-        where TResultSets4 : class, ISpMapper<TResultSets4>
-        where TResultSets5 : class, ISpMapper<TResultSets5>
+            StoredProcedureParametersBuilder spParameters,
+            Func<SqlDataReader, TResultSet1> map1,
+            Func<SqlDataReader, TResultSet2> map2,
+            Func<SqlDataReader, TResultSet3> map3,
+            Func<SqlDataReader, TResultSet4> map4,
+            Func<SqlDataReader, TResultSet5> map5)
+        where TResultSet1 : class, ISpMapper<TResultSet1>
+        where TResultSet2 : class, ISpMapper<TResultSet2>
+        where TResultSet3 : class, ISpMapper<TResultSet3>
+        where TResultSet4 : class, ISpMapper<TResultSet4>
+        where TResultSet5 : class, ISpMapper<TResultSet5>
     {
-        var results = await connectionFactory.QueryMultipleAsync(spParameters);
-        return ((ReadOnlyCollection<TResultSets1>)results[0], (ReadOnlyCollection<TResultSets2>)results[1],
-            (ReadOnlyCollection<TResultSets3>)results[2],
-            (ReadOnlyCollection<TResultSets4>)results[3], (ReadOnlyCollection<TResultSets5>)results[4]);
+        var results =
+            await connectionFactory.ReadMultipleIReadOnlyCollectionResultSetsAsync(spParameters, map1, map2, map3, map4,
+                map5);
+
+        return (new ReadOnlyCollection<TResultSet1>(results[0].Cast<TResultSet1>().ToList()),
+            new ReadOnlyCollection<TResultSet2>(results[1].Cast<TResultSet2>().ToList()),
+            new ReadOnlyCollection<TResultSet3>(results[2].Cast<TResultSet3>().ToList()),
+            new ReadOnlyCollection<TResultSet4>(results[3].Cast<TResultSet4>().ToList()),
+            new ReadOnlyCollection<TResultSet5>(results[4].Cast<TResultSet5>().ToList()));
     }
 
-    private static async Task<object[]> QueryMultipleAsync(this ICaeriusDbConnectionFactory connectionFactory,
-        StoredProcedureParametersBuilder spParameters)
+    private static async Task<List<IReadOnlyCollection<object>>> ReadMultipleIReadOnlyCollectionResultSetsAsync(
+        this ICaeriusDbConnectionFactory connectionFactory,
+        StoredProcedureParametersBuilder spParameters,
+        params Func<SqlDataReader, object>[] mappers)
     {
-        var connection = connectionFactory.DbConnection();
-        return await SqlCommandUtility.MultipleQueryAsync(connection, spParameters);
+        if (mappers.Length == 0)
+            throw new ArgumentException("At least one mapper function must be provided.", nameof(mappers));
+
+        using var connection = connectionFactory.DbConnection();
+        await using var command = await SqlCommandUtility.ExecuteSqlCommand(spParameters, connection);
+        await using var reader = await command.ExecuteReaderAsync();
+
+        var results = new List<IReadOnlyCollection<object>>(mappers.Length);
+        foreach (var mapper in mappers)
+        {
+            var items = new List<object>(spParameters.Capacity);
+            while (await reader.ReadAsync())
+                items.Add(mapper(reader));
+            results.Add(items);
+
+            if (!await reader.NextResultAsync())
+                break;
+        }
+
+        return results;
     }
 }

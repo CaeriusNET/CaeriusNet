@@ -11,15 +11,15 @@ public class CreateListToBench
     private readonly List<SimpleDto> _data1 = Data.Take(1).ToList();
     private readonly List<SimpleDto> _data10 = Data.Take(10).ToList();
     private readonly List<SimpleDto> _data100 = Data.Take(100).ToList();
-    private readonly List<SimpleDto> _data1000 = Data.Take(1000).ToList();
-    private readonly List<SimpleDto> _data10000 = Data.Take(10000).ToList();
+    private readonly List<SimpleDto> _data100K = Data.ToList();
+    private readonly List<SimpleDto> _data10K = Data.Take(10000).ToList();
+    private readonly List<SimpleDto> _data1K = Data.Take(1000).ToList();
 
     [Benchmark]
     public List<SimpleDto> Set_Capacity_And_Return_1_Item_Collection_As_List()
     {
         var list = new List<SimpleDto>(1);
-        foreach (var item in _data1) list.Add(item);
-
+        list.AddRange(_data1);
         return list;
     }
 
@@ -27,7 +27,7 @@ public class CreateListToBench
     public List<SimpleDto> Set_Capacity_And_Return_10_Items_Collection_As_List()
     {
         var list = new List<SimpleDto>(10);
-        foreach (var item in _data10) list.Add(item);
+        list.AddRange(_data10);
         return list;
     }
 
@@ -35,24 +35,32 @@ public class CreateListToBench
     public List<SimpleDto> Set_Capacity_And_Return_100_Items_Collection_As_List()
     {
         var list = new List<SimpleDto>(100);
-        foreach (var item in _data100) list.Add(item);
+        list.AddRange(_data100);
 
         return list;
     }
 
     [Benchmark]
-    public List<SimpleDto> Set_Capacity_And_Return_1000_Items_Collection_As_List()
+    public List<SimpleDto> Set_Capacity_And_Return_1K_Items_Collection_As_List()
     {
         var list = new List<SimpleDto>(1000);
-        foreach (var item in _data1000) list.Add(item);
+        list.AddRange(_data1K);
         return list;
     }
 
     [Benchmark]
-    public List<SimpleDto> Set_Capacity_And_Return_10000_Items_Collection_As_List()
+    public List<SimpleDto> Set_Capacity_And_Return_10K_Items_Collection_As_List()
     {
         var list = new List<SimpleDto>(10000);
-        foreach (var item in _data10000) list.Add(item);
+        list.AddRange(_data10K);
+        return list;
+    }
+
+    [Benchmark]
+    public List<SimpleDto> Set_Capacity_And_Return_100K_Items_Collection_As_List()
+    {
+        var list = new List<SimpleDto>(100000);
+        list.AddRange(_data100K);
         return list;
     }
 }

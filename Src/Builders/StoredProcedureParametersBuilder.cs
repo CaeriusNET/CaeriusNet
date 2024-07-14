@@ -2,21 +2,41 @@
 
 namespace CaeriusNet.Builders;
 
+/// <summary>
+///     Builds the parameters for a stored procedure call, including support for Table-Valued Parameters (TVPs).
+/// </summary>
 public sealed record StoredProcedureParametersBuilder(string ProcedureName, int Capacity = 1)
 {
+    /// <summary>
+    ///     Gets the list of TSQL parameters to be used in the stored procedure call.
+    /// </summary>
     public List<SqlParameter> Parameters { get; } = [];
-    public List<Delegate> Mappers { get; } = [];
 
+    /// <summary>
+    ///     Adds a parameter to the stored procedure call.
+    /// </summary>
+    /// <param name="parameter">The name of the parameter.</param>
+    /// <param name="value">The value of the parameter.</param>
+    /// <param name="dbType">The TSQL data type of the parameter. Use <see cref="SqlDbType" /> enumeration.</param>
+    /// <returns>The <see cref="StoredProcedureParametersBuilder" /> instance for chaining.</returns>
     public StoredProcedureParametersBuilder AddParameter(
-        string storedProcedureName,
+        string parameter,
         object value,
         SqlDbType dbType)
     {
-        Parameters.Add(new SqlParameter(storedProcedureName, dbType) { Value = value });
-
+        Parameters.Add(new SqlParameter(parameter, dbType) { Value = value });
         return this;
     }
 
+    /// <summary>
+    ///     Adds a Table-Valued Parameter (TVP) to the stored procedure call.
+    /// </summary>
+    /// <typeparam name="T">The type of the object that maps to the TVP.</typeparam>
+    /// <param name="parameterName">The name of the TVP parameter.</param>
+    /// <param name="tvpName">The name of the TVP type in SQL Server.</param>
+    /// <param name="items">The collection of items to map to the TVP using the <see cref="ITvpMapper{T}" /> interface.</param>
+    /// <returns>The <see cref="StoredProcedureParametersBuilder" /> instance for chaining.</returns>
+    /// <exception cref="ArgumentException">Thrown when the items collection is empty.</exception>
     public StoredProcedureParametersBuilder AddParameterAsTvp<T>(
         string parameterName,
         string tvpName,
@@ -34,13 +54,6 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
         };
 
         Parameters.Add(parameter);
-        return this;
-    }
-
-    public StoredProcedureParametersBuilder AddMapper<T>(MapFromReaderDelegate<T> mapper)
-        where T : class
-    {
-        Mappers.Add(mapper);
         return this;
     }
 }

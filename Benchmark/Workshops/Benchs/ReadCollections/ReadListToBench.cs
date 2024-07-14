@@ -6,88 +6,62 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.ReadCollections;
 [MemoryDiagnoser]
 public class ReadListToBench
 {
-    private static readonly List<SimpleDto> List = ReadCollectionBogusSetup.FakingListOf1MItemsDto;
-    private List<SimpleDto> _listOf100Items = null!;
-    private List<SimpleDto> _listOf100KItems = null!;
-    private List<SimpleDto> _listOf10Items = null!;
-    private List<SimpleDto> _listOf10KItems = null!;
+    private static readonly List<SimpleDto> List = ReadCollectionBogusSetup.FakingListOf100KItemsDto;
 
-    private List<SimpleDto> _listOf1Item = null!;
-    private List<SimpleDto> _listOf1KItems = null!;
-    private List<SimpleDto> _listOf1MItems = null!;
+    private readonly Consumer _consumer = new();
 
-    [GlobalSetup]
-    public void Setup()
-    {
-        _listOf1Item = List.Take(1).ToList();
-        _listOf10Items = List.Take(10).ToList();
-        _listOf100Items = List.Take(100).ToList();
-        _listOf1KItems = List.Take(1000).ToList();
-        _listOf10KItems = List.Take(10000).ToList();
-        _listOf100KItems = List.Take(100000).ToList();
-        _listOf1MItems = List;
-    }
+    private readonly List<SimpleDto> _listOf100Items = List.Take(100).ToList();
+    private readonly List<SimpleDto> _listOf100KItems = List;
+    private readonly List<SimpleDto> _listOf10Items = List.Take(10).ToList();
+    private readonly List<SimpleDto> _listOf10KItems = List.Take(10000).ToList();
+    private readonly List<SimpleDto> _listOf1Item = List.Take(1).ToList();
+    private readonly List<SimpleDto> _listOf1KItems = List.Take(1000).ToList();
 
     [Benchmark]
     public void Read_List_Of_1_Item()
     {
-        var sum = 0;
-        foreach (var item in _listOf1Item) sum += item.Id;
-
+        var sum = _listOf1Item.Sum(item => item.Id);
+        _consumer.Consume(sum);
         _ = sum;
     }
 
     [Benchmark]
     public void Read_List_Of_10_Items()
     {
-        var sum = 0;
-        foreach (var item in _listOf10Items) sum += item.Id;
-
+        var sum = _listOf10Items.Sum(item => item.Id);
+        _consumer.Consume(sum);
         _ = sum;
     }
 
     [Benchmark]
     public void Read_List_Of_100_Items()
     {
-        var sum = 0;
-        foreach (var item in _listOf100Items) sum += item.Id;
-
+        var sum = _listOf100Items.Sum(item => item.Id);
+        _consumer.Consume(sum);
         _ = sum;
     }
 
     [Benchmark]
     public void Read_List_Of_1K_Items()
     {
-        var sum = 0;
-        foreach (var item in _listOf1KItems) sum += item.Id;
-
+        var sum = _listOf1KItems.Sum(item => item.Id);
+        _consumer.Consume(sum);
         _ = sum;
     }
 
     [Benchmark]
     public void Read_List_Of_10K_Items()
     {
-        var sum = 0;
-        foreach (var item in _listOf10KItems) sum += item.Id;
-
+        var sum = _listOf10KItems.Sum(item => item.Id);
+        _consumer.Consume(sum);
         _ = sum;
     }
 
     [Benchmark]
     public void Read_List_Of_100K_Items()
     {
-        var sum = 0;
-        foreach (var item in _listOf100KItems) sum += item.Id;
-
-        _ = sum;
-    }
-
-    [Benchmark]
-    public void Read_List_Of_1M_Items()
-    {
-        var sum = 0;
-        foreach (var item in _listOf1MItems) sum += item.Id;
-
+        var sum = _listOf100KItems.Sum(item => item.Id);
+        _consumer.Consume(sum);
         _ = sum;
     }
 }
