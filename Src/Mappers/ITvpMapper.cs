@@ -15,5 +15,5 @@ public interface ITvpMapper<in T> where T : class
     /// </summary>
     /// <param name="items">The collection of <typeparamref name="T" /> objects to map.</param>
     /// <returns>A DataTable representing the collection of objects, suitable for use as a TVP.</returns>
-    DataTable MapToDataTable(IEnumerable<T> items);
+    public DataTable MapAsDataTable(IEnumerable<T> items);
 }

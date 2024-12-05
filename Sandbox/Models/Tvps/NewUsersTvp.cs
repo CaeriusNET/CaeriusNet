@@ -5,7 +5,7 @@ namespace CaeriusNet.Sandbox.Models.Tvps;
 
 public sealed record NewUsersTvp(string Username, string Password) : ITvpMapper<NewUsersTvp>
 {
-    public DataTable MapToDataTable(IEnumerable<NewUsersTvp> items)
+    public DataTable MapAsDataTable(IEnumerable<NewUsersTvp> items)
     {
         var dataTable = new DataTable("MyTvpUsers");
         dataTable.Columns.Add("User", typeof(string));

@@ -53,8 +53,7 @@ public static class SimpleReadSqlAsyncCommands
     /// </returns>
     /// <exception cref="SqlException">Thrown when the query execution fails.</exception>
     public static async Task<ReadOnlyCollection<TResultSet>> QueryAsync<TResultSet>(
-        this ICaeriusDbConnectionFactory connectionFactory,
-        StoredProcedureParametersBuilder spParameters)
+        this ICaeriusDbConnectionFactory connectionFactory, StoredProcedureParametersBuilder spParameters)
         where TResultSet : class, ISpMapper<TResultSet>
     {
         try

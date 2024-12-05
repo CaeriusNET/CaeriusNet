@@ -31,10 +31,7 @@ public static class SqlCommandUtility
         where TResultSet : class, ISpMapper<TResultSet>
     {
         var items = new List<TResultSet>(spParameters.Capacity);
-
-        while (await reader.ReadAsync())
-            items.Add(TResultSet.MapFromReader(reader));
-
+        while (await reader.ReadAsync()) items.Add(TResultSet.MapFromReader(reader));
         return items;
     }
 
@@ -42,10 +39,7 @@ public static class SqlCommandUtility
         where TResultSet : class, ISpMapper<TResultSet>
     {
         var item = default(TResultSet)!;
-
-        if (await reader.ReadAsync())
-            item = TResultSet.MapFromReader(reader);
-
+        if (await reader.ReadAsync()) item = TResultSet.MapFromReader(reader);
         return item;
     }
 }

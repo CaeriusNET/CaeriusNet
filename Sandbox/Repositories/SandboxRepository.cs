@@ -26,7 +26,7 @@ public sealed record SandboxRepository(ICaeriusDbConnectionFactory Connection) :
     public async Task CreateListOfUsers(IEnumerable<NewUsersTvp> users)
     {
         var spParameters = new StoredProcedureParametersBuilder("dbo.sp_create_users_with_tvp")
-            .AddParameterAsTvp("MyTvpUsers", "dbo.tvp_newUsers", users);
+            .AddTvpParameter("MyTvpUsers", "dbo.tvp_newUsers", users);
 
         var dbResults = await Connection.ExecuteAsync(spParameters);
 
@@ -36,7 +36,7 @@ public sealed record SandboxRepository(ICaeriusDbConnectionFactory Connection) :
     public Task UpdateRandomUserAge(IEnumerable<UserAgeTvp> users)
     {
         var spParameters = new StoredProcedureParametersBuilder("dbo.sp_update_user_age")
-            .AddParameterAsTvp("MyTvpUserAge", "dbo.tvp_userAge", users);
+            .AddTvpParameter("MyTvpUserAge", "dbo.tvp_userAge", users);
 
         return Connection.ExecuteScalarAsync(spParameters);
     }
