@@ -5,7 +5,7 @@ namespace CaeriusNet.Sandbox.Models.Tvps;
 
 public sealed record UserAgeTvp(Guid Guid, short Age) : ITvpMapper<UserAgeTvp>
 {
-    public DataTable MapToDataTable(IEnumerable<UserAgeTvp> items)
+    public DataTable MapAsDataTable(IEnumerable<UserAgeTvp> items)
     {
         var dataTable = new DataTable("MyTvpUserAge");
         dataTable.Columns.Add("Guid", typeof(Guid));

@@ -19,10 +19,7 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
     /// <param name="value">The value of the parameter.</param>
     /// <param name="dbType">The TSQL data type of the parameter. Use <see cref="SqlDbType" /> enumeration.</param>
     /// <returns>The <see cref="StoredProcedureParametersBuilder" /> instance for chaining.</returns>
-    public StoredProcedureParametersBuilder AddParameter(
-        string parameter,
-        object value,
-        SqlDbType dbType)
+    public StoredProcedureParametersBuilder AddParameter(string parameter, object value, SqlDbType dbType)
     {
         Parameters.Add(new SqlParameter(parameter, dbType) { Value = value });
         return this;
@@ -37,16 +34,14 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
     /// <param name="items">The collection of items to map to the TVP using the <see cref="ITvpMapper{T}" /> interface.</param>
     /// <returns>The <see cref="StoredProcedureParametersBuilder" /> instance for chaining.</returns>
     /// <exception cref="ArgumentException">Thrown when the items collection is empty.</exception>
-    public StoredProcedureParametersBuilder AddParameterAsTvp<T>(
-        string parameterName,
-        string tvpName,
+    public StoredProcedureParametersBuilder AddTvpParameter<T>(string parameterName, string tvpName,
         IEnumerable<T> items)
         where T : class, ITvpMapper<T>
     {
         var tvpMappers = items.ToList();
         if (tvpMappers.Count == 0)
             throw new ArgumentException("No items found in the collection to map to a Table-Valued Parameter.");
-        var dataTable = tvpMappers[0].MapToDataTable(tvpMappers);
+        var dataTable = tvpMappers[0].MapAsDataTable(tvpMappers);
         var parameter = new SqlParameter(parameterName, SqlDbType.Structured)
         {
             TypeName = tvpName,
