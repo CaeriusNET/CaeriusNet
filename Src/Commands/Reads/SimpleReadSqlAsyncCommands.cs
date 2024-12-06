@@ -6,7 +6,7 @@ using CaeriusNet.Utilities;
 namespace CaeriusNet.Commands.Reads;
 
 /// <summary>
-///     Provides asynchronous TSQL query execution methods extending <see cref="ICaeriusDbConnectionFactory" />.
+///     Provides asynchronous TSQL query execution methods extending <see cref="ICaeriusDbContext" />.
 /// </summary>
 public static class SimpleReadSqlAsyncCommands
 {
@@ -14,18 +14,17 @@ public static class SimpleReadSqlAsyncCommands
     ///     Executes a TSQL query asynchronously and returns the first result as a specified type.
     /// </summary>
     /// <typeparam name="TResultSet">The type of the result set.</typeparam>
-    /// <param name="connectionFactory">The database connection factory to create a connection.</param>
+    /// <param name="context">The database connection factory to create a connection.</param>
     /// <param name="spParameters">The stored procedure parameters builder containing the procedure name and parameters.</param>
     /// <returns>The first result of the query as the specified type mapped by <see cref="ISpMapper{T}" />.</returns>
     /// <exception cref="SqlException">Thrown when the query execution fails.</exception>
     public static async Task<TResultSet> FirstQueryAsync<TResultSet>(
-        this ICaeriusDbConnectionFactory connectionFactory,
-        StoredProcedureParametersBuilder spParameters)
+        this ICaeriusDbContext context, StoredProcedureParametersBuilder spParameters)
         where TResultSet : class, ISpMapper<TResultSet>
     {
         try
         {
-            var connection = connectionFactory.DbConnection();
+            var connection = context.DbConnection();
 
             using (connection)
             {
@@ -45,7 +44,7 @@ public static class SimpleReadSqlAsyncCommands
     ///     Executes a TSQL query asynchronously and returns all results as a read-only collection of a specified type.
     /// </summary>
     /// <typeparam name="TResultSet">The type of the result set.</typeparam>
-    /// <param name="connectionFactory">The database connection factory to create a connection.</param>
+    /// <param name="context">The database connection factory to create a connection.</param>
     /// <param name="spParameters">The stored procedure parameters builder containing the procedure name and parameters.</param>
     /// <returns>
     ///     A read-only collection of all results of the query as the specified type mapped by <see cref="ISpMapper{T}" />
@@ -53,12 +52,12 @@ public static class SimpleReadSqlAsyncCommands
     /// </returns>
     /// <exception cref="SqlException">Thrown when the query execution fails.</exception>
     public static async Task<ReadOnlyCollection<TResultSet>> QueryAsync<TResultSet>(
-        this ICaeriusDbConnectionFactory connectionFactory, StoredProcedureParametersBuilder spParameters)
+        this ICaeriusDbContext context, StoredProcedureParametersBuilder spParameters)
         where TResultSet : class, ISpMapper<TResultSet>
     {
         try
         {
-            var connection = connectionFactory.DbConnection();
+            var connection = context.DbConnection();
 
             using (connection)
             {
@@ -78,18 +77,17 @@ public static class SimpleReadSqlAsyncCommands
     ///     Executes a TSQL query asynchronously and returns all results as an enumerable of a specified type.
     /// </summary>
     /// <typeparam name="TResultSet">The type of the result set.</typeparam>
-    /// <param name="connectionFactory">The database connection factory to create a connection.</param>
+    /// <param name="context">The database connection factory to create a connection.</param>
     /// <param name="spParameters">The stored procedure parameters builder containing the procedure name and parameters.</param>
     /// <returns>An enumerable of all results of the query as the specified type mapped by <see cref="ISpMapper{T}" />.</returns>
     /// <exception cref="SqlException">Thrown when the query execution fails.</exception>
     public static async Task<IEnumerable<TResultSet>> EnumerableQueryAsync<TResultSet>(
-        this ICaeriusDbConnectionFactory connectionFactory,
-        StoredProcedureParametersBuilder spParameters)
+        this ICaeriusDbContext context, StoredProcedureParametersBuilder spParameters)
         where TResultSet : class, ISpMapper<TResultSet>
     {
         try
         {
-            var connection = connectionFactory.DbConnection();
+            var connection = context.DbConnection();
 
             using (connection)
             {
@@ -109,18 +107,17 @@ public static class SimpleReadSqlAsyncCommands
     ///     Executes a TSQL query asynchronously and returns all results as an immutable array of a specified type.
     /// </summary>
     /// <typeparam name="TResultSet">The type of the result set.</typeparam>
-    /// <param name="connectionFactory">The database connection factory to create a connection.</param>
+    /// <param name="context">The database connection factory to create a connection.</param>
     /// <param name="spParameters">The stored procedure parameters builder containing the procedure name and parameters.</param>
     /// <returns>An immutable array of all results of the query as the specified type mapped by <see cref="ISpMapper{T}" />.</returns>
     /// <exception cref="SqlException">Thrown when the query execution fails.</exception>
     public static async Task<ImmutableArray<TResultSet>> ImmutableQueryAsync<TResultSet>(
-        this ICaeriusDbConnectionFactory connectionFactory,
-        StoredProcedureParametersBuilder spParameters)
+        this ICaeriusDbContext context, StoredProcedureParametersBuilder spParameters)
         where TResultSet : class, ISpMapper<TResultSet>
     {
         try
         {
-            var connection = connectionFactory.DbConnection();
+            var connection = context.DbConnection();
 
             using (connection)
             {

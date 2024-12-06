@@ -15,14 +15,14 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
     /// </summary>
     /// <typeparam name="TResultSet1">The type of objects in the first result set, must implement <see cref="ISpMapper{T}" />.</typeparam>
     /// <typeparam name="TResultSet2">The type of the second result set, must implement <see cref="ISpMapper{T}" />.</typeparam>
-    /// <param name="connectionFactory">The factory to create a database connection.</param>
+    /// <param name="context">The factory to create a database connection.</param>
     /// <param name="spParameters">The parameters for the stored procedure.</param>
     /// <param name="map1">A function to map the first result set to <typeparamref name="TResultSet1" />.</param>
     /// <param name="map2">A function to map the second result set to <typeparamref name="TResultSet2" />.</param>
     /// <returns>The task result is a tuple where each item is an ImmutableArray of the mapped result sets.</returns>
     public static async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>)>
         QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2>(
-            this ICaeriusDbConnectionFactory connectionFactory,
+            this ICaeriusDbContext context,
             StoredProcedureParametersBuilder spParameters,
             Func<SqlDataReader, TResultSet1> map1,
             Func<SqlDataReader, TResultSet2> map2)
@@ -30,7 +30,7 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
         where TResultSet2 : class, ISpMapper<TResultSet2>
     {
         var results =
-            await connectionFactory.ReadMultipleImmutableArrayResultSetsAsync(spParameters, map1, map2);
+            await context.ReadMultipleImmutableArrayResultSetsAsync(spParameters, map1, map2);
 
         return ([..results[0].Cast<TResultSet1>()],
             [..results[1].Cast<TResultSet2>()]);
@@ -42,7 +42,7 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
     /// <typeparam name="TResultSet1">The type of the first result set, must implement <see cref="ISpMapper{T}" />.</typeparam>
     /// <typeparam name="TResultSet2">The type of the second result set, must implement <see cref="ISpMapper{T}" />.</typeparam>
     /// <typeparam name="TResultSet3">The type of the third result set, must implement <see cref="ISpMapper{T}" />.</typeparam>
-    /// <param name="connectionFactory">The factory to create a database connection.</param>
+    /// <param name="context">The factory to create a database connection.</param>
     /// <param name="spParameters">The parameters for the stored procedure.</param>
     /// <param name="map1">A function to map the first result set to <typeparamref name="TResultSet1" />.</param>
     /// <param name="map2">A function to map the second result set to <typeparamref name="TResultSet2" />.</param>
@@ -50,7 +50,7 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
     /// <returns>The task result is a tuple where each item is an ImmutableArray of the mapped result sets.</returns>
     public static async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>, ImmutableArray<TResultSet3>)>
         QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2, TResultSet3>(
-            this ICaeriusDbConnectionFactory connectionFactory,
+            this ICaeriusDbContext context,
             StoredProcedureParametersBuilder spParameters,
             Func<SqlDataReader, TResultSet1> map1,
             Func<SqlDataReader, TResultSet2> map2,
@@ -60,7 +60,7 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
         where TResultSet3 : class, ISpMapper<TResultSet3>
     {
         var results =
-            await connectionFactory.ReadMultipleImmutableArrayResultSetsAsync(spParameters, map1, map2, map3);
+            await context.ReadMultipleImmutableArrayResultSetsAsync(spParameters, map1, map2, map3);
 
         return ([..results[0].Cast<TResultSet1>()],
             [..results[1].Cast<TResultSet2>()],
@@ -74,18 +74,19 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
     /// <typeparam name="TResultSet2">The type of objects in the second result set.</typeparam>
     /// <typeparam name="TResultSet3">The type of objects in the third result set.</typeparam>
     /// <typeparam name="TResultSet4">The type of objects in the fourth result set.</typeparam>
-    /// <param name="connectionFactory">The factory to create a database connection.</param>
+    /// <param name="context">The factory to create a database connection.</param>
     /// <param name="spParameters">The parameters for the stored procedure.</param>
     /// <param name="map1">A function to map the first result set to <typeparamref name="TResultSet1" />.</param>
     /// <param name="map2">A function to map the second result set to <typeparamref name="TResultSet2" />.</param>
     /// <param name="map3">A function to map the third result set to <typeparamref name="TResultSet3" />.</param>
     /// <param name="map4">A function to map the fourth result set to <typeparamref name="TResultSet4" />.</param>
     /// <returns>The task result is a tuple where each item is an ImmutableArray of the mapped result sets.</returns>
-    public static async
-        Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>, ImmutableArray<TResultSet3>,
+    public static async Task<(ImmutableArray<TResultSet1>,
+            ImmutableArray<TResultSet2>,
+            ImmutableArray<TResultSet3>,
             ImmutableArray<TResultSet4>)>
         QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4>(
-            this ICaeriusDbConnectionFactory connectionFactory,
+            this ICaeriusDbContext context,
             StoredProcedureParametersBuilder spParameters,
             Func<SqlDataReader, TResultSet1> map1,
             Func<SqlDataReader, TResultSet2> map2,
@@ -97,7 +98,7 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
         where TResultSet4 : class, ISpMapper<TResultSet4>
     {
         var results =
-            await connectionFactory.ReadMultipleImmutableArrayResultSetsAsync(spParameters, map1, map2, map3, map4);
+            await context.ReadMultipleImmutableArrayResultSetsAsync(spParameters, map1, map2, map3, map4);
 
         return ([..results[0].Cast<TResultSet1>()],
             [..results[1].Cast<TResultSet2>()],
@@ -113,7 +114,7 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
     /// <typeparam name="TResultSet3">The type of objects in the third result set.</typeparam>
     /// <typeparam name="TResultSet4">The type of objects in the fourth result set.</typeparam>
     /// <typeparam name="TResultSet5">The type of objects in the fifth result set.</typeparam>
-    /// <param name="connectionFactory">The factory to create a database connection.</param>
+    /// <param name="context">The factory to create a database connection.</param>
     /// <param name="spParameters">The parameters for the stored procedure.</param>
     /// <param name="map1">A function to map the first result set to <typeparamref name="TResultSet1" />.</param>
     /// <param name="map2">A function to map the second result set to <typeparamref name="TResultSet2" />.</param>
@@ -127,7 +128,7 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
             ImmutableArray<TResultSet4>,
             ImmutableArray<TResultSet5>)> QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2, TResultSet3,
             TResultSet4, TResultSet5>(
-            this ICaeriusDbConnectionFactory connectionFactory,
+            this ICaeriusDbContext context,
             StoredProcedureParametersBuilder spParameters,
             Func<SqlDataReader, TResultSet1> map1,
             Func<SqlDataReader, TResultSet2> map2,
@@ -141,7 +142,7 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
         where TResultSet5 : class, ISpMapper<TResultSet5>
     {
         var results =
-            await connectionFactory.ReadMultipleImmutableArrayResultSetsAsync(spParameters, map1, map2, map3, map4,
+            await context.ReadMultipleImmutableArrayResultSetsAsync(spParameters, map1, map2, map3, map4,
                 map5);
 
         return ([..results[0].Cast<TResultSet1>()],
@@ -154,7 +155,7 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
     /// <summary>
     ///     Asynchronously queries the database for multiple result sets and maps them to a list of ImmutableArray collections.
     /// </summary>
-    /// <param name="connectionFactory">The database connection factory to create a connection.</param>
+    /// <param name="context">The database connection factory to create a connection.</param>
     /// <param name="spParameters">The stored procedure parameters builder to configure the command.</param>
     /// <param name="mappers">An array of functions to map each result set to a specific object type.</param>
     /// <returns>
@@ -167,14 +168,14 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
     ///     converting each result set into a strongly-typed ImmutableArray based on the provided mapper functions.
     /// </remarks>
     private static async Task<List<ImmutableArray<object>>> ReadMultipleImmutableArrayResultSetsAsync(
-        this ICaeriusDbConnectionFactory connectionFactory,
+        this ICaeriusDbContext context,
         StoredProcedureParametersBuilder spParameters,
         params Func<SqlDataReader, object>[] mappers)
     {
         if (mappers.Length == 0)
             throw new ArgumentException("At least one mapper function must be provided.", nameof(mappers));
 
-        using var connection = connectionFactory.DbConnection();
+        using var connection = context.DbConnection();
         await using var command = await SqlCommandUtility.ExecuteSqlCommand(spParameters, connection);
         await using var reader = await command.ExecuteReaderAsync();
 

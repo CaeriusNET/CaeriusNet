@@ -3,7 +3,7 @@ namespace CaeriusNet.Factories;
 /// <summary>
 ///     Defines the interface for a factory that creates database connections.
 /// </summary>
-public interface ICaeriusDbConnectionFactory
+public interface ICaeriusDbContext
 {
     /// <summary>
     ///     Creates and returns a new database connection instance.

@@ -9,7 +9,7 @@ using CaeriusNet.Sandbox.Repositories.Interfaces;
 
 namespace CaeriusNet.Sandbox.Repositories;
 
-public sealed record SandboxRepository(ICaeriusDbConnectionFactory Connection) : ISandboxRepository
+public sealed record SandboxRepository(ICaeriusDbContext Context) : ISandboxRepository
 {
     public string GetSandboxMessage()
     {
@@ -19,7 +19,7 @@ public sealed record SandboxRepository(ICaeriusDbConnectionFactory Connection) :
     public async Task<IEnumerable<UsersDto>> GetUsers()
     {
         var spParameters = new StoredProcedureParametersBuilder("dbo.sp_get_users", 100);
-        IEnumerable<UsersDto> users = await Connection.QueryAsync<UsersDto>(spParameters);
+        IEnumerable<UsersDto> users = await Context.QueryAsync<UsersDto>(spParameters);
         return users;
     }
 
@@ -28,7 +28,7 @@ public sealed record SandboxRepository(ICaeriusDbConnectionFactory Connection) :
         var spParameters = new StoredProcedureParametersBuilder("dbo.sp_create_users_with_tvp")
             .AddTvpParameter("MyTvpUsers", "dbo.tvp_newUsers", users);
 
-        var dbResults = await Connection.ExecuteAsync(spParameters);
+        var dbResults = await Context.ExecuteAsync(spParameters);
 
         Console.WriteLine($"Rows affected: {dbResults}");
     }
@@ -38,12 +38,12 @@ public sealed record SandboxRepository(ICaeriusDbConnectionFactory Connection) :
         var spParameters = new StoredProcedureParametersBuilder("dbo.sp_update_user_age")
             .AddTvpParameter("MyTvpUserAge", "dbo.tvp_userAge", users);
 
-        return Connection.ExecuteScalarAsync(spParameters);
+        return Context.ExecuteScalarAsync(spParameters);
     }
 
     public Task<ReadOnlyCollection<UsersTestingDto>> GetUsersTesting()
     {
         var spParameters = new StoredProcedureParametersBuilder("dbo.sp_get_all_users", 38000);
-        return Connection.QueryAsync<UsersTestingDto>(spParameters);
+        return Context.QueryAsync<UsersTestingDto>(spParameters);
     }
 }

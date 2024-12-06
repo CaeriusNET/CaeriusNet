@@ -3,7 +3,7 @@
 /// <summary>
 ///     Factory for creating database connections using a specified connection string.
 /// </summary>
-public sealed record CaeriusDbConnectionFactory(string ConnectionString) : ICaeriusDbConnectionFactory
+public sealed record CaeriusDbContext(string ConnectionString) : ICaeriusDbContext
 {
     /// <summary>
     ///     Creates and opens a database connection.
