@@ -21,7 +21,8 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
     /// <returns>The <see cref="StoredProcedureParametersBuilder" /> instance for chaining.</returns>
     public StoredProcedureParametersBuilder AddParameter(string parameter, object value, SqlDbType dbType)
     {
-        Parameters.Add(new SqlParameter(parameter, dbType) { Value = value });
+        var itemParameter = new SqlParameter(parameter, dbType) { Value = value };
+        Parameters.Add(itemParameter);
         return this;
     }
 

@@ -15,8 +15,6 @@ public static class CaeriusServiceCollectionExtensions
     /// <returns>The IServiceCollection for chaining.</returns>
     public static IServiceCollection RegisterCaeriusOrm(this IServiceCollection services, string connectionString)
     {
-        return services
-            .AddSingleton<ICaeriusDbConnectionFactory, CaeriusDbConnectionFactory>(_ =>
-                new CaeriusDbConnectionFactory(connectionString));
+        return services.AddSingleton<ICaeriusDbContext, CaeriusDbContext>(_ => new CaeriusDbContext(connectionString));
     }
 }

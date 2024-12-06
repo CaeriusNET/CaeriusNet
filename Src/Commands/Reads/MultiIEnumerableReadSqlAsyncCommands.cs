@@ -15,24 +15,22 @@ public static class MultiIEnumerableReadSqlAsyncCommands
     /// </summary>
     /// <typeparam name="TResultSet1">The type of the first result set, must implement <see cref="ISpMapper{T}" />.</typeparam>
     /// <typeparam name="TResultSet2">The type of the second result set, must implement <see cref="ISpMapper{T}" />.</typeparam>
-    /// <param name="connectionFactory">The database connection factory.</param>
+    /// <param name="context">The database connection factory.</param>
     /// <param name="spParameters">The stored procedure parameters builder.</param>
-    /// <param name="map1">A function to map the first result set to <typeparamref name="TResultSet1" />.</param>
-    /// <param name="map2">A function to map the second result set to <typeparamref name="TResultSet2" />.</param>
+    /// <param name="resultSet1">A function to map the first result set to <typeparamref name="TResultSet1" />.</param>
+    /// <param name="resultSet2">A function to map the second result set to <typeparamref name="TResultSet2" />.</param>
     /// <returns>The task result is a tuple where each item is an IEnumerable of the mapped result sets.</returns>
-    public static async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>)> QueryMultipleIEnumerableAsync<
-        TResultSet1, TResultSet2>(
-        this ICaeriusDbConnectionFactory connectionFactory,
-        StoredProcedureParametersBuilder spParameters,
-        Func<SqlDataReader, TResultSet1> map1,
-        Func<SqlDataReader, TResultSet2> map2)
+    public static async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>)>
+        QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2>(
+            this ICaeriusDbContext context, StoredProcedureParametersBuilder spParameters,
+            Func<SqlDataReader, TResultSet1> resultSet1, Func<SqlDataReader, TResultSet2> resultSet2)
         where TResultSet1 : class
         where TResultSet2 : class
     {
-        var results = await connectionFactory.ReadMultipleIEnumerableResultSetsAsync(spParameters, map1, map2);
+        var results = await context
+            .ReadMultipleIEnumerableResultSetsAsync(spParameters, resultSet1, resultSet2);
 
-        return (results[0].Cast<TResultSet1>(),
-            results[1].Cast<TResultSet2>());
+        return (results[0].Cast<TResultSet1>(), results[1].Cast<TResultSet2>());
     }
 
     /// <summary>
@@ -41,30 +39,27 @@ public static class MultiIEnumerableReadSqlAsyncCommands
     /// <typeparam name="TResultSet1">The type of the first result set, must implement <see cref="ISpMapper{T}" />.</typeparam>
     /// <typeparam name="TResultSet2">The type of the second result set, must implement <see cref="ISpMapper{T}" />.</typeparam>
     /// <typeparam name="TResultSet3">The type of the third result set, must implement <see cref="ISpMapper{T}" />.</typeparam>
-    /// <param name="connectionFactory">The database connection factory.</param>
+    /// <param name="context">The database connection factory.</param>
     /// <param name="spParameters">The stored procedure parameters builder.</param>
-    /// <param name="map1">A function to map the first result set to <typeparamref name="TResultSet1" />.</param>
-    /// <param name="map2">A function to map the second result set to <typeparamref name="TResultSet2" />.</param>
-    /// <param name="map3">A function to map the third result set to <typeparamref name="TResultSet3" />.</param>
+    /// <param name="resultSet1">A function to map the first result set to <typeparamref name="TResultSet1" />.</param>
+    /// <param name="resultSet2">A function to map the second result set to <typeparamref name="TResultSet2" />.</param>
+    /// <param name="resultSet3">A function to map the third result set to <typeparamref name="TResultSet3" />.</param>
     /// <returns>The task result is a tuple where each item is an IEnumerable of the mapped result sets.</returns>
     public static async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>)>
-        QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2,
-            TResultSet3>(
-            this ICaeriusDbConnectionFactory connectionFactory,
+        QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3>(
+            this ICaeriusDbContext context,
             StoredProcedureParametersBuilder spParameters,
-            Func<SqlDataReader, TResultSet1> map1,
-            Func<SqlDataReader, TResultSet2> map2,
-            Func<SqlDataReader, TResultSet3> map3)
+            Func<SqlDataReader, TResultSet1> resultSet1,
+            Func<SqlDataReader, TResultSet2> resultSet2,
+            Func<SqlDataReader, TResultSet3> resultSet3)
         where TResultSet1 : class, ISpMapper<TResultSet1>
         where TResultSet2 : class, ISpMapper<TResultSet2>
         where TResultSet3 : class, ISpMapper<TResultSet3>
     {
-        var results =
-            await connectionFactory.ReadMultipleIEnumerableResultSetsAsync(spParameters, map1, map2, map3);
+        var results = await context
+            .ReadMultipleIEnumerableResultSetsAsync(spParameters, resultSet1, resultSet2, resultSet3);
 
-        return (results[0].Cast<TResultSet1>(),
-            results[1].Cast<TResultSet2>(),
-            results[2].Cast<TResultSet3>());
+        return (results[0].Cast<TResultSet1>(), results[1].Cast<TResultSet2>(), results[2].Cast<TResultSet3>());
     }
 
     /// <summary>
@@ -74,33 +69,31 @@ public static class MultiIEnumerableReadSqlAsyncCommands
     /// <typeparam name="TResultSet2">The type of the second result set, must implement <see cref="ISpMapper{T}" />.</typeparam>
     /// <typeparam name="TResultSet3">The type of the third result set, must implement <see cref="ISpMapper{T}" />.</typeparam>
     /// <typeparam name="TResultSet4">The type of the fourth result set, must implement <see cref="ISpMapper{T}" />.</typeparam>
-    /// <param name="connectionFactory">The database connection factory.</param>
+    /// <param name="context">The database connection factory.</param>
     /// <param name="spParameters">The stored procedure parameters builder.</param>
-    /// <param name="map1">A function to map the first result set to <typeparamref name="TResultSet1" />.</param>
-    /// <param name="map2">A function to map the second result set to <typeparamref name="TResultSet2" />.</param>
-    /// <param name="map3">A function to map the third result set to <typeparamref name="TResultSet3" />.</param>
-    /// <param name="map4">A function to map the fourth result set to <typeparamref name="TResultSet4" />.</param>
+    /// <param name="resultSet1">A function to map the first result set to <typeparamref name="TResultSet1" />.</param>
+    /// <param name="resultSet2">A function to map the second result set to <typeparamref name="TResultSet2" />.</param>
+    /// <param name="resultSet3">A function to map the third result set to <typeparamref name="TResultSet3" />.</param>
+    /// <param name="resultSet4">A function to map the fourth result set to <typeparamref name="TResultSet4" />.</param>
     /// <returns>The task result is a tuple where each item is an IEnumerable of the mapped result sets.</returns>
     public static async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>,
             IEnumerable<TResultSet4>)>
         QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4>(
-            this ICaeriusDbConnectionFactory connectionFactory,
+            this ICaeriusDbContext context,
             StoredProcedureParametersBuilder spParameters,
-            Func<SqlDataReader, TResultSet1> map1,
-            Func<SqlDataReader, TResultSet2> map2,
-            Func<SqlDataReader, TResultSet3> map3,
-            Func<SqlDataReader, TResultSet4> map4)
+            Func<SqlDataReader, TResultSet1> resultSet1,
+            Func<SqlDataReader, TResultSet2> resultSet2,
+            Func<SqlDataReader, TResultSet3> resultSet3,
+            Func<SqlDataReader, TResultSet4> resultSet4)
         where TResultSet1 : class, ISpMapper<TResultSet1>
         where TResultSet2 : class, ISpMapper<TResultSet2>
         where TResultSet3 : class, ISpMapper<TResultSet3>
         where TResultSet4 : class, ISpMapper<TResultSet4>
     {
-        var results =
-            await connectionFactory.ReadMultipleIEnumerableResultSetsAsync(spParameters, map1, map2, map3, map4);
+        var results = await context
+            .ReadMultipleIEnumerableResultSetsAsync(spParameters, resultSet1, resultSet2, resultSet3, resultSet4);
 
-        return (results[0].Cast<TResultSet1>(),
-            results[1].Cast<TResultSet2>(),
-            results[2].Cast<TResultSet3>(),
+        return (results[0].Cast<TResultSet1>(), results[1].Cast<TResultSet2>(), results[2].Cast<TResultSet3>(),
             results[3].Cast<TResultSet4>());
     }
 
@@ -112,24 +105,24 @@ public static class MultiIEnumerableReadSqlAsyncCommands
     /// <typeparam name="TResultSet3">The type of the third result set, must implement <see cref="ISpMapper{T}" />.</typeparam>
     /// <typeparam name="TResultSet4">The type of the fourth result set, must implement <see cref="ISpMapper{T}" />.</typeparam>
     /// <typeparam name="TResultSet5">The type of the fifth result set, must implement <see cref="ISpMapper{T}" />.</typeparam>
-    /// <param name="connectionFactory">The database connection factory.</param>
+    /// <param name="context">The database connection factory.</param>
     /// <param name="spParameters">The stored procedure parameters builder.</param>
-    /// <param name="map1">A function to map the first result set to <typeparamref name="TResultSet1" />.</param>
-    /// <param name="map2">A function to map the second result set to <typeparamref name="TResultSet2" />.</param>
-    /// <param name="map3">A function to map the third result set to <typeparamref name="TResultSet3" />.</param>
-    /// <param name="map4">A function to map the fourth result set to <typeparamref name="TResultSet4" />.</param>
-    /// <param name="map5">A function to map the fifth result set to <typeparamref name="TResultSet5" />.</param>
+    /// <param name="resultSet1">A function to map the first result set to <typeparamref name="TResultSet1" />.</param>
+    /// <param name="resultSet2">A function to map the second result set to <typeparamref name="TResultSet2" />.</param>
+    /// <param name="resultSet3">A function to map the third result set to <typeparamref name="TResultSet3" />.</param>
+    /// <param name="resultSet4">A function to map the fourth result set to <typeparamref name="TResultSet4" />.</param>
+    /// <param name="resultSet5">A function to map the fifth result set to <typeparamref name="TResultSet5" />.</param>
     /// <returns>The task result is a tuple where each item is an IEnumerable of the mapped result sets.</returns>
     public static async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>,
             IEnumerable<TResultSet4>, IEnumerable<TResultSet5>)>
         QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4, TResultSet5>(
-            this ICaeriusDbConnectionFactory connectionFactory,
+            this ICaeriusDbContext context,
             StoredProcedureParametersBuilder spParameters,
-            Func<SqlDataReader, TResultSet1> map1,
-            Func<SqlDataReader, TResultSet2> map2,
-            Func<SqlDataReader, TResultSet3> map3,
-            Func<SqlDataReader, TResultSet4> map4,
-            Func<SqlDataReader, TResultSet5> map5)
+            Func<SqlDataReader, TResultSet1> resultSet1,
+            Func<SqlDataReader, TResultSet2> resultSet2,
+            Func<SqlDataReader, TResultSet3> resultSet3,
+            Func<SqlDataReader, TResultSet4> resultSet4,
+            Func<SqlDataReader, TResultSet5> resultSet5)
         where TResultSet1 : class, ISpMapper<TResultSet1>
         where TResultSet2 : class, ISpMapper<TResultSet2>
         where TResultSet3 : class, ISpMapper<TResultSet3>
@@ -137,19 +130,17 @@ public static class MultiIEnumerableReadSqlAsyncCommands
         where TResultSet5 : class, ISpMapper<TResultSet5>
     {
         var results =
-            await connectionFactory.ReadMultipleIEnumerableResultSetsAsync(spParameters, map1, map2, map3, map4, map5);
+            await context.ReadMultipleIEnumerableResultSetsAsync(spParameters, resultSet1, resultSet2, resultSet3,
+                resultSet4, resultSet5);
 
-        return (results[0].Cast<TResultSet1>(),
-            results[1].Cast<TResultSet2>(),
-            results[2].Cast<TResultSet3>(),
-            results[3].Cast<TResultSet4>(),
-            results[4].Cast<TResultSet5>());
+        return (results[0].Cast<TResultSet1>(), results[1].Cast<TResultSet2>(), results[2].Cast<TResultSet3>(),
+            results[3].Cast<TResultSet4>(), results[4].Cast<TResultSet5>());
     }
 
     /// <summary>
     ///     Asynchronously queries the database for multiple result sets and maps them to a list of IEnumerable collections.
     /// </summary>
-    /// <param name="connectionFactory">The database connection factory to create a connection.</param>
+    /// <param name="context">The database connection factory to create a connection.</param>
     /// <param name="spParameters">The stored procedure parameters builder to configure the command.</param>
     /// <param name="mappers">An array of functions to map each result set to a specific object type.</param>
     /// <returns>
@@ -158,14 +149,13 @@ public static class MultiIEnumerableReadSqlAsyncCommands
     /// </returns>
     /// <exception cref="ArgumentException">Thrown when no mapper functions are provided.</exception>
     private static async Task<List<IEnumerable<object>>> ReadMultipleIEnumerableResultSetsAsync(
-        this ICaeriusDbConnectionFactory connectionFactory,
-        StoredProcedureParametersBuilder spParameters,
+        this ICaeriusDbContext context, StoredProcedureParametersBuilder spParameters,
         params Func<SqlDataReader, object>[] mappers)
     {
         if (mappers.Length == 0)
             throw new ArgumentException("At least one mapper function must be provided.", nameof(mappers));
 
-        using var connection = connectionFactory.DbConnection();
+        using var connection = context.DbConnection();
         await using var command = await SqlCommandUtility.ExecuteSqlCommand(spParameters, connection);
         await using var reader = await command.ExecuteReaderAsync();
 
