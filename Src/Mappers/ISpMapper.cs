@@ -11,5 +11,5 @@ public interface ISpMapper<out T> where T : class
     /// </summary>
     /// <param name="reader">The <see cref="SqlDataReader" /> containing the data to map.</param>
     /// <returns>An instance of <typeparamref name="T" /> populated with data from the reader.</returns>
-    public static abstract T MapFromReader(SqlDataReader reader);
+    public static abstract T MapFromDataReader(SqlDataReader reader);
 }

@@ -1,11 +1,8 @@
-﻿using CaeriusNet.Builders;
-using CaeriusNet.Mappers;
-
-namespace CaeriusNet.Utilities;
+﻿namespace CaeriusNet.Utilities;
 
 public static class SqlCommandUtility
 {
-    public static async Task<SqlCommand> ExecuteSqlCommand(StoredProcedureParametersBuilder spParameters,
+    public static async Task<SqlCommand> ExecuteSqlCommand(StoredProcedureParameters spParameters,
         IDbConnection connection)
     {
         SqlCommand? command = null;
@@ -26,12 +23,12 @@ public static class SqlCommandUtility
         }
     }
 
-    public static async Task<List<TResultSet>> ResultsSets<TResultSet>(StoredProcedureParametersBuilder spParameters,
+    public static async Task<List<TResultSet>> ResultsSets<TResultSet>(StoredProcedureParameters spParameters,
         SqlDataReader reader)
         where TResultSet : class, ISpMapper<TResultSet>
     {
         var items = new List<TResultSet>(spParameters.Capacity);
-        while (await reader.ReadAsync()) items.Add(TResultSet.MapFromReader(reader));
+        while (await reader.ReadAsync()) items.Add(TResultSet.MapFromDataReader(reader));
         return items;
     }
 
@@ -39,7 +36,7 @@ public static class SqlCommandUtility
         where TResultSet : class, ISpMapper<TResultSet>
     {
         var item = default(TResultSet)!;
-        if (await reader.ReadAsync()) item = TResultSet.MapFromReader(reader);
+        if (await reader.ReadAsync()) item = TResultSet.MapFromDataReader(reader);
         return item;
     }
 }

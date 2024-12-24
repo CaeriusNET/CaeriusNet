@@ -1,6 +1,4 @@
-﻿using CaeriusNet.Factories;
-
-namespace CaeriusNet.Extensions;
+﻿namespace CaeriusNet.Extensions;
 
 /// <summary>
 ///     Extension methods for IServiceCollection to support CaeriusNET ORM registration.
@@ -13,7 +11,7 @@ public static class CaeriusServiceCollectionExtensions
     /// <param name="services">The IServiceCollection to add services to.</param>
     /// <param name="connectionString">The database connection string.</param>
     /// <returns>The IServiceCollection for chaining.</returns>
-    public static IServiceCollection RegisterCaeriusOrm(this IServiceCollection services, string connectionString)
+    public static IServiceCollection AddCaeriusNet(this IServiceCollection services, string connectionString)
     {
         return services.AddSingleton<ICaeriusDbContext, CaeriusDbContext>(_ => new CaeriusDbContext(connectionString));
     }

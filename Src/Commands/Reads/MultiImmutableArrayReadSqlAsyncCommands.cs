@@ -1,9 +1,4 @@
-﻿using CaeriusNet.Builders;
-using CaeriusNet.Factories;
-using CaeriusNet.Mappers;
-using CaeriusNet.Utilities;
-
-namespace CaeriusNet.Commands.Reads;
+﻿namespace CaeriusNet.Commands.Reads;
 
 /// <summary>
 ///     Contains methods for querying multiple result sets from a database and mapping them to ImmutableArray collections.
@@ -23,7 +18,7 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
     public static async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>)>
         QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2>(
             this ICaeriusDbContext context,
-            StoredProcedureParametersBuilder spParameters,
+            StoredProcedureParameters spParameters,
             Func<SqlDataReader, TResultSet1> map1,
             Func<SqlDataReader, TResultSet2> map2)
         where TResultSet1 : class, ISpMapper<TResultSet1>
@@ -51,7 +46,7 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
     public static async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>, ImmutableArray<TResultSet3>)>
         QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2, TResultSet3>(
             this ICaeriusDbContext context,
-            StoredProcedureParametersBuilder spParameters,
+            StoredProcedureParameters spParameters,
             Func<SqlDataReader, TResultSet1> map1,
             Func<SqlDataReader, TResultSet2> map2,
             Func<SqlDataReader, TResultSet3> map3)
@@ -87,7 +82,7 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
             ImmutableArray<TResultSet4>)>
         QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4>(
             this ICaeriusDbContext context,
-            StoredProcedureParametersBuilder spParameters,
+            StoredProcedureParameters spParameters,
             Func<SqlDataReader, TResultSet1> map1,
             Func<SqlDataReader, TResultSet2> map2,
             Func<SqlDataReader, TResultSet3> map3,
@@ -129,7 +124,7 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
             ImmutableArray<TResultSet5>)> QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2, TResultSet3,
             TResultSet4, TResultSet5>(
             this ICaeriusDbContext context,
-            StoredProcedureParametersBuilder spParameters,
+            StoredProcedureParameters spParameters,
             Func<SqlDataReader, TResultSet1> map1,
             Func<SqlDataReader, TResultSet2> map2,
             Func<SqlDataReader, TResultSet3> map3,
@@ -169,7 +164,7 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
     /// </remarks>
     private static async Task<List<ImmutableArray<object>>> ReadMultipleImmutableArrayResultSetsAsync(
         this ICaeriusDbContext context,
-        StoredProcedureParametersBuilder spParameters,
+        StoredProcedureParameters spParameters,
         params Func<SqlDataReader, object>[] mappers)
     {
         if (mappers.Length == 0)

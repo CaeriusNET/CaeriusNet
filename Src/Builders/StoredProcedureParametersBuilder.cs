@@ -1,6 +1,4 @@
-﻿using CaeriusNet.Mappers;
-
-namespace CaeriusNet.Builders;
+﻿namespace CaeriusNet.Builders;
 
 /// <summary>
 ///     Builds the parameters for a stored procedure call, including support for Table-Valued Parameters (TVPs).
@@ -10,7 +8,7 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
     /// <summary>
     ///     Gets the list of TSQL parameters to be used in the stored procedure call.
     /// </summary>
-    public List<SqlParameter> Parameters { get; } = [];
+    private List<SqlParameter> Parameters { get; } = [];
 
     /// <summary>
     ///     Adds a parameter to the stored procedure call.
@@ -51,5 +49,13 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
 
         Parameters.Add(parameter);
         return this;
+    }
+
+    /// <summary>
+    ///     Builds and returns a StoredProcedureParameters object containing all configured parameters.
+    /// </summary>
+    public StoredProcedureParameters Build()
+    {
+        return new StoredProcedureParameters(ProcedureName, Capacity, Parameters);
     }
 }

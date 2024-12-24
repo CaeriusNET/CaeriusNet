@@ -9,7 +9,7 @@ public sealed record CaeriusDbContext(string ConnectionString) : ICaeriusDbConte
     ///     Creates and opens a database connection.
     /// </summary>
     /// <returns>An open <see cref="IDbConnection" />.</returns>
-    /// <exception cref="Exception">Thrown when the connection fails to open.</exception>
+    /// <exception cref="CaeriusSqlException">Thrown when the connection fails to open.</exception>
     public IDbConnection DbConnection()
     {
         try
@@ -20,7 +20,7 @@ public sealed record CaeriusDbContext(string ConnectionString) : ICaeriusDbConte
         }
         catch (SqlException ex)
         {
-            throw new Exception("Failed to open database connection ; ", ex);
+            throw new CaeriusSqlException("Failed to open database connection : ", ex);
         }
     }
 }
