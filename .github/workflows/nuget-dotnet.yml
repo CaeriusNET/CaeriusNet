@@ -1,16 +1,13 @@
-﻿name: Build and Publish to NuGet
+﻿name: Build and Publish CaeriusNet
 
 on:
   push:
     branches:
       - main
-    tags:
-      - 'v*.*.*'
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -23,13 +20,42 @@ jobs:
             8.0.x
 
       - name: Restore dependencies
-        run: dotnet restore
+        run: dotnet restore Src/CaeriusNet.csproj
 
       - name: Build
-        run: dotnet build --configuration Release --no-restore
+        run: dotnet build Src/CaeriusNet.csproj --configuration Release --no-restore
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: caeriusnet-build
+          path: |
+            Src/bin/Release/
+            Src/CaeriusNet.csproj
+          retention-days: 5
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: |
+            9.0.x
+            8.0.x
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: caeriusnet-build
+          path: Src/
 
       - name: Pack NuGet Package
-        run: dotnet pack --configuration Release --no-build --output ./output
+        run: dotnet pack Src/CaeriusNet.csproj --configuration Release --no-build --output ./output
 
       - name: Publish to NuGet
         run: dotnet nuget push ./output/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
