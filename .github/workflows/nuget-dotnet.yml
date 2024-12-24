@@ -32,5 +32,4 @@ jobs:
         run: dotnet pack --configuration Release --no-build --output ./output
 
       - name: Publish to NuGet
-        if: startsWith(github.ref, 'refs/tags/v')
         run: dotnet nuget push ./output/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
