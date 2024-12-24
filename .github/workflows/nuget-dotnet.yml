@@ -54,6 +54,9 @@ jobs:
           name: caeriusnet-build
           path: Src/
 
+      - name: Restore dependencies
+        run: dotnet restore Src/CaeriusNet.csproj  # ← AJOUT DE CETTE ÉTAPE
+
       - name: Pack NuGet Package
         run: dotnet pack Src/CaeriusNet.csproj --configuration Release --no-build --output ./output
 
