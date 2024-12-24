@@ -1,9 +1,4 @@
-﻿using CaeriusNet.Builders;
-using CaeriusNet.Factories;
-using CaeriusNet.Mappers;
-using CaeriusNet.Utilities;
-
-namespace CaeriusNet.Commands.Reads;
+﻿namespace CaeriusNet.Commands.Reads;
 
 /// <summary>
 ///     Contains methods for querying multiple result sets from a database and mapping them to ReadOnlyCollection
@@ -24,7 +19,7 @@ public static class MultiReadOnlyCollectionReadSqlAsyncCommands
     public static async Task<(ReadOnlyCollection<TResultSet1>, ReadOnlyCollection<TResultSet2>)>
         QueryMultipleReadOnlyCollectionAsync<TResultSet1, TResultSet2>(
             this ICaeriusDbContext context,
-            StoredProcedureParametersBuilder spParameters,
+            StoredProcedureParameters spParameters,
             Func<SqlDataReader, TResultSet1> resultSet1,
             Func<SqlDataReader, TResultSet2> resultSet2)
         where TResultSet1 : class, ISpMapper<TResultSet1>
@@ -41,7 +36,7 @@ public static class MultiReadOnlyCollectionReadSqlAsyncCommands
             ReadOnlyCollection<TResultSet3>)>
         QueryMultipleReadOnlyCollectionAsync<TResultSet1, TResultSet2, TResultSet3>(
             this ICaeriusDbContext context,
-            StoredProcedureParametersBuilder spParameters,
+            StoredProcedureParameters spParameters,
             Func<SqlDataReader, TResultSet1> resultSet1,
             Func<SqlDataReader, TResultSet2> resultSet2,
             Func<SqlDataReader, TResultSet3> resultSet3)
@@ -61,7 +56,7 @@ public static class MultiReadOnlyCollectionReadSqlAsyncCommands
             ReadOnlyCollection<TResultSet3>, ReadOnlyCollection<TResultSet4>)>
         QueryMultipleReadOnlyCollectionAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4>(
             this ICaeriusDbContext context,
-            StoredProcedureParametersBuilder spParameters,
+            StoredProcedureParameters spParameters,
             Func<SqlDataReader, TResultSet1> resultSet1,
             Func<SqlDataReader, TResultSet2> resultSet2,
             Func<SqlDataReader, TResultSet3> resultSet3,
@@ -85,7 +80,7 @@ public static class MultiReadOnlyCollectionReadSqlAsyncCommands
             ReadOnlyCollection<TResultSet3>, ReadOnlyCollection<TResultSet4>, ReadOnlyCollection<TResultSet5>)>
         QueryMultipleReadOnlyCollectionAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4, TResultSet5>(
             this ICaeriusDbContext context,
-            StoredProcedureParametersBuilder spParameters,
+            StoredProcedureParameters spParameters,
             Func<SqlDataReader, TResultSet1> resultSet1,
             Func<SqlDataReader, TResultSet2> resultSet2,
             Func<SqlDataReader, TResultSet3> resultSet3,
@@ -109,7 +104,7 @@ public static class MultiReadOnlyCollectionReadSqlAsyncCommands
     }
 
     private static async Task<List<IReadOnlyCollection<object>>> ReadMultipleIReadOnlyCollectionResultSetsAsync(
-        this ICaeriusDbContext context, StoredProcedureParametersBuilder spParameters,
+        this ICaeriusDbContext context, StoredProcedureParameters spParameters,
         params Func<SqlDataReader, object>[] mappers)
     {
         if (mappers.Length == 0)

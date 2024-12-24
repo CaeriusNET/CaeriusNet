@@ -1,9 +1,4 @@
-﻿using CaeriusNet.Builders;
-using CaeriusNet.Factories;
-using CaeriusNet.Mappers;
-using CaeriusNet.Utilities;
-
-namespace CaeriusNet.Commands.Reads;
+﻿namespace CaeriusNet.Commands.Reads;
 
 /// <summary>
 ///     Contains methods for querying multiple result sets from a database and mapping them to IEnumerable collections.
@@ -22,7 +17,7 @@ public static class MultiIEnumerableReadSqlAsyncCommands
     /// <returns>The task result is a tuple where each item is an IEnumerable of the mapped result sets.</returns>
     public static async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>)>
         QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2>(
-            this ICaeriusDbContext context, StoredProcedureParametersBuilder spParameters,
+            this ICaeriusDbContext context, StoredProcedureParameters spParameters,
             Func<SqlDataReader, TResultSet1> resultSet1, Func<SqlDataReader, TResultSet2> resultSet2)
         where TResultSet1 : class
         where TResultSet2 : class
@@ -48,7 +43,7 @@ public static class MultiIEnumerableReadSqlAsyncCommands
     public static async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>)>
         QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3>(
             this ICaeriusDbContext context,
-            StoredProcedureParametersBuilder spParameters,
+            StoredProcedureParameters spParameters,
             Func<SqlDataReader, TResultSet1> resultSet1,
             Func<SqlDataReader, TResultSet2> resultSet2,
             Func<SqlDataReader, TResultSet3> resultSet3)
@@ -80,7 +75,7 @@ public static class MultiIEnumerableReadSqlAsyncCommands
             IEnumerable<TResultSet4>)>
         QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4>(
             this ICaeriusDbContext context,
-            StoredProcedureParametersBuilder spParameters,
+            StoredProcedureParameters spParameters,
             Func<SqlDataReader, TResultSet1> resultSet1,
             Func<SqlDataReader, TResultSet2> resultSet2,
             Func<SqlDataReader, TResultSet3> resultSet3,
@@ -117,7 +112,7 @@ public static class MultiIEnumerableReadSqlAsyncCommands
             IEnumerable<TResultSet4>, IEnumerable<TResultSet5>)>
         QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4, TResultSet5>(
             this ICaeriusDbContext context,
-            StoredProcedureParametersBuilder spParameters,
+            StoredProcedureParameters spParameters,
             Func<SqlDataReader, TResultSet1> resultSet1,
             Func<SqlDataReader, TResultSet2> resultSet2,
             Func<SqlDataReader, TResultSet3> resultSet3,
@@ -149,7 +144,7 @@ public static class MultiIEnumerableReadSqlAsyncCommands
     /// </returns>
     /// <exception cref="ArgumentException">Thrown when no mapper functions are provided.</exception>
     private static async Task<List<IEnumerable<object>>> ReadMultipleIEnumerableResultSetsAsync(
-        this ICaeriusDbContext context, StoredProcedureParametersBuilder spParameters,
+        this ICaeriusDbContext context, StoredProcedureParameters spParameters,
         params Func<SqlDataReader, object>[] mappers)
     {
         if (mappers.Length == 0)

@@ -1,8 +1,3 @@
-using CaeriusNet.Builders;
-using CaeriusNet.Factories;
-using CaeriusNet.Mappers;
-using CaeriusNet.Utilities;
-
 namespace CaeriusNet.Commands.Reads;
 
 /// <summary>
@@ -17,9 +12,9 @@ public static class SimpleReadSqlAsyncCommands
     /// <param name="context">The database connection factory to create a connection.</param>
     /// <param name="spParameters">The stored procedure parameters builder containing the procedure name and parameters.</param>
     /// <returns>The first result of the query as the specified type mapped by <see cref="ISpMapper{T}" />.</returns>
-    /// <exception cref="SqlException">Thrown when the query execution fails.</exception>
+    /// <exception cref="CaeriusSqlException">Thrown when the query execution fails.</exception>
     public static async Task<TResultSet> FirstQueryAsync<TResultSet>(
-        this ICaeriusDbContext context, StoredProcedureParametersBuilder spParameters)
+        this ICaeriusDbContext context, StoredProcedureParameters spParameters)
         where TResultSet : class, ISpMapper<TResultSet>
     {
         try
@@ -36,7 +31,7 @@ public static class SimpleReadSqlAsyncCommands
         }
         catch (SqlException ex)
         {
-            throw new Exception($"Failed to execute query for stored procedure : {spParameters.ProcedureName} ;", ex);
+            throw new CaeriusSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName} ::", ex);
         }
     }
 
@@ -50,9 +45,9 @@ public static class SimpleReadSqlAsyncCommands
     ///     A read-only collection of all results of the query as the specified type mapped by <see cref="ISpMapper{T}" />
     ///     .
     /// </returns>
-    /// <exception cref="SqlException">Thrown when the query execution fails.</exception>
+    /// <exception cref="CaeriusSqlException">Thrown when the query execution fails.</exception>
     public static async Task<ReadOnlyCollection<TResultSet>> QueryAsync<TResultSet>(
-        this ICaeriusDbContext context, StoredProcedureParametersBuilder spParameters)
+        this ICaeriusDbContext context, StoredProcedureParameters spParameters)
         where TResultSet : class, ISpMapper<TResultSet>
     {
         try
@@ -69,7 +64,7 @@ public static class SimpleReadSqlAsyncCommands
         }
         catch (SqlException ex)
         {
-            throw new Exception($"Failed to execute query for stored procedure : {spParameters.ProcedureName} ;", ex);
+            throw new CaeriusSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName} ::", ex);
         }
     }
 
@@ -80,9 +75,9 @@ public static class SimpleReadSqlAsyncCommands
     /// <param name="context">The database connection factory to create a connection.</param>
     /// <param name="spParameters">The stored procedure parameters builder containing the procedure name and parameters.</param>
     /// <returns>An enumerable of all results of the query as the specified type mapped by <see cref="ISpMapper{T}" />.</returns>
-    /// <exception cref="SqlException">Thrown when the query execution fails.</exception>
+    /// <exception cref="CaeriusSqlException">Thrown when the query execution fails.</exception>
     public static async Task<IEnumerable<TResultSet>> EnumerableQueryAsync<TResultSet>(
-        this ICaeriusDbContext context, StoredProcedureParametersBuilder spParameters)
+        this ICaeriusDbContext context, StoredProcedureParameters spParameters)
         where TResultSet : class, ISpMapper<TResultSet>
     {
         try
@@ -99,7 +94,7 @@ public static class SimpleReadSqlAsyncCommands
         }
         catch (SqlException ex)
         {
-            throw new Exception($"Failed to execute query for stored procedure : {spParameters.ProcedureName} ;", ex);
+            throw new CaeriusSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName} ;", ex);
         }
     }
 
@@ -110,9 +105,9 @@ public static class SimpleReadSqlAsyncCommands
     /// <param name="context">The database connection factory to create a connection.</param>
     /// <param name="spParameters">The stored procedure parameters builder containing the procedure name and parameters.</param>
     /// <returns>An immutable array of all results of the query as the specified type mapped by <see cref="ISpMapper{T}" />.</returns>
-    /// <exception cref="SqlException">Thrown when the query execution fails.</exception>
+    /// <exception cref="CaeriusSqlException">Thrown when the query execution fails.</exception>
     public static async Task<ImmutableArray<TResultSet>> ImmutableQueryAsync<TResultSet>(
-        this ICaeriusDbContext context, StoredProcedureParametersBuilder spParameters)
+        this ICaeriusDbContext context, StoredProcedureParameters spParameters)
         where TResultSet : class, ISpMapper<TResultSet>
     {
         try
@@ -127,14 +122,14 @@ public static class SimpleReadSqlAsyncCommands
                 var results = ImmutableArray.CreateBuilder<TResultSet>(spParameters.Capacity);
 
                 while (await reader.ReadAsync())
-                    results.AddRange(TResultSet.MapFromReader(reader));
+                    results.AddRange(TResultSet.MapFromDataReader(reader));
 
                 return results.ToImmutable();
             }
         }
         catch (SqlException ex)
         {
-            throw new Exception($"Failed to execute query for stored procedure : {spParameters.ProcedureName} ;", ex);
+            throw new CaeriusSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName} ;", ex);
         }
     }
 }

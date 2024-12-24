@@ -19,7 +19,7 @@ var connectionString = configuration.GetConnectionString("SandboxConnection");
 if (connectionString != null)
 {
     services
-        .RegisterCaeriusOrm(connectionString)
+        .AddCaeriusNet(connectionString)
         .AddServices()
         .AddRepositories();
 }
