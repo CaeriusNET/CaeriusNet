@@ -20,7 +20,7 @@ public static class SimpleReadSqlAsyncCommands
         StoredProcedureParameters spParameters)
         where TResultSet : class, ISpMapper<TResultSet>
     {
-        if (TryRetrieveResultSetFromCache(spParameters, out TResultSet? cachedResult) && cachedResult != null)
+        if (TryRetrieveFromCache(spParameters, out TResultSet? cachedResult) && cachedResult != null)
             return cachedResult;
 
         try
@@ -32,7 +32,7 @@ public static class SimpleReadSqlAsyncCommands
                 await using var reader = await command.ExecuteReaderAsync();
                 var result = await SqlCommandUtility.SingleResultSet<TResultSet>(reader);
 
-                StoreResultSetInCache(spParameters, result);
+                StoreInCache(spParameters, result);
 
                 return result;
             }
@@ -57,7 +57,7 @@ public static class SimpleReadSqlAsyncCommands
         this ICaeriusDbContext context, StoredProcedureParameters spParameters)
         where TResultSet : class, ISpMapper<TResultSet>
     {
-        if (TryRetrieveResultSetFromCache(spParameters, out ReadOnlyCollection<TResultSet>? cachedResult) &&
+        if (TryRetrieveFromCache(spParameters, out ReadOnlyCollection<TResultSet>? cachedResult) &&
             cachedResult != null) return cachedResult;
 
         try
@@ -69,7 +69,7 @@ public static class SimpleReadSqlAsyncCommands
                 await using var reader = await command.ExecuteReaderAsync();
                 var results = await SqlCommandUtility.ResultsSets<TResultSet>(spParameters, reader);
 
-                StoreResultSetInCache(spParameters, results.AsReadOnly());
+                StoreInCache(spParameters, results.AsReadOnly());
                 return results.AsReadOnly();
             }
         }
@@ -91,8 +91,8 @@ public static class SimpleReadSqlAsyncCommands
         this ICaeriusDbContext context, StoredProcedureParameters spParameters)
         where TResultSet : class, ISpMapper<TResultSet>
     {
-        if (TryRetrieveResultSetFromCache(spParameters, out IEnumerable<TResultSet>? cachedResult) &&
-            cachedResult != null) return cachedResult;
+        if (TryRetrieveFromCache(spParameters, out IEnumerable<TResultSet>? cachedResult) && cachedResult != null)
+            return cachedResult;
 
         try
         {
@@ -103,7 +103,7 @@ public static class SimpleReadSqlAsyncCommands
                 await using var reader = await command.ExecuteReaderAsync();
                 var results = await SqlCommandUtility.ResultsSets<TResultSet>(spParameters, reader);
 
-                StoreResultSetInCache(spParameters, results.AsEnumerable());
+                StoreInCache(spParameters, results.AsEnumerable());
                 return results.AsEnumerable();
             }
         }
@@ -126,8 +126,7 @@ public static class SimpleReadSqlAsyncCommands
         StoredProcedureParameters spParameters)
         where TResultSet : class, ISpMapper<TResultSet>
     {
-        if (TryRetrieveResultSetFromCache(spParameters, out ImmutableArray<TResultSet> cachedResult) &&
-            cachedResult != null)
+        if (TryRetrieveFromCache(spParameters, out ImmutableArray<TResultSet> cachedResult) && cachedResult != null)
             return cachedResult;
 
         try
@@ -142,7 +141,7 @@ public static class SimpleReadSqlAsyncCommands
                 while (await reader.ReadAsync())
                     results.AddRange(TResultSet.MapFromDataReader(reader));
 
-                StoreResultSetInCache(spParameters, results.ToImmutable());
+                StoreInCache(spParameters, results.ToImmutable());
                 return results.ToImmutable();
             }
         }
@@ -152,71 +151,33 @@ public static class SimpleReadSqlAsyncCommands
         }
     }
 
-    private static bool TryRetrieveResultSetFromCache<TResultSet>(
-        StoredProcedureParameters spParameters,
-        out TResultSet? resultSet)
-        where TResultSet : notnull
+    private static bool TryRetrieveFromCache<T>(
+        StoredProcedureParameters spParameters, out T? result)
     {
-        resultSet = default;
-
-        if (string.IsNullOrEmpty(spParameters.CacheKey) || spParameters.CacheType == null)
+        result = default;
+        if (spParameters.CacheType is null || string.IsNullOrEmpty(spParameters.CacheKey))
             return false;
 
-        switch (spParameters.CacheType)
+        return spParameters.CacheType switch
         {
-            case CacheType.InMemory:
-                var cachedInMemory = Caching.InMemoryCacheManager.GetOrAdd(
-                    spParameters.CacheKey,
-                    () => new Dictionary<TResultSet, TResultSet>(),
-                    spParameters.CacheExpiration!.Value);
-                if (cachedInMemory.Count > 0)
-                {
-                    resultSet = cachedInMemory.Keys.First();
-                    return true;
-                }
-
-                break;
-
-            case CacheType.Frozen:
-                var cachedFrozen = Caching.GetOrAdd(
-                    spParameters.CacheKey,
-                    () => new Dictionary<TResultSet, TResultSet>());
-                if (cachedFrozen.Count > 0)
-                {
-                    resultSet = cachedFrozen.Keys.First();
-                    return true;
-                }
-
-                break;
-            case null:
-                break;
-            default:
-                throw new ArgumentOutOfRangeException();
-        }
-
-        return false;
+            CacheType.InMemory => InMemoryCacheManager.TryGet(spParameters.CacheKey, out result),
+            CacheType.Frozen => FrozenCacheManager.TryGetFrozen(spParameters.CacheKey, out result),
+            _ => false
+        };
     }
 
-    private static void StoreResultSetInCache<TResultSet>(
-        StoredProcedureParameters spParameters,
-        TResultSet resultSet)
-        where TResultSet : notnull
+    private static void StoreInCache<T>(StoredProcedureParameters spParameters, T result)
     {
-        if (string.IsNullOrEmpty(spParameters.CacheKey) || spParameters.CacheType == null) return;
+        if (spParameters.CacheType is null || string.IsNullOrEmpty(spParameters.CacheKey))
+            return;
 
         switch (spParameters.CacheType)
         {
             case CacheType.InMemory:
-                Caching.InMemoryCacheManager.GetOrAdd(
-                    spParameters.CacheKey,
-                    () => new Dictionary<TResultSet, TResultSet> { [resultSet] = resultSet },
-                    spParameters.CacheExpiration!.Value);
+                InMemoryCacheManager.Store(spParameters.CacheKey, result, spParameters.CacheExpiration!.Value);
                 break;
-
             case CacheType.Frozen:
-                Caching.GetOrAdd(
-                    spParameters.CacheKey,
-                    () => new Dictionary<TResultSet, TResultSet> { [resultSet] = resultSet });
+                FrozenCacheManager.StoreFrozen(spParameters.CacheKey, result);
                 break;
             case null:
                 break;

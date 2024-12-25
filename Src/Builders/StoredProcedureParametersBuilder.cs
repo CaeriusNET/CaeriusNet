@@ -7,14 +7,14 @@ namespace CaeriusNet.Builders;
 /// </summary>
 public sealed record StoredProcedureParametersBuilder(string ProcedureName, int Capacity = 1)
 {
+    private TimeSpan? _cacheExpiration;
+    private string? _cacheKey;
+    private CacheType? _cacheType;
+
     /// <summary>
     ///     Gets the list of TSQL parameters to be used in the stored procedure call.
     /// </summary>
     private List<SqlParameter> Parameters { get; } = [];
-
-    private string? CacheKey { get; set; }
-    private TimeSpan? CacheExpiration { get; set; }
-    private CacheType? CacheType { get; set; }
 
     /// <summary>
     ///     Adds a parameter to the stored procedure call.
@@ -57,20 +57,19 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
         return this;
     }
 
-    public StoredProcedureParametersBuilder AddFrozenCache(string cacheKey)
+    public StoredProcedureParametersBuilder AddInMemoryCache(string cacheKey, TimeSpan expiration)
     {
-        CacheKey = cacheKey;
-        CacheType = Frozen;
-        CacheExpiration = null;
+        _cacheKey = cacheKey;
+        _cacheType = InMemory;
+        _cacheExpiration = expiration;
         return this;
     }
 
-    // Ajout de l'option pour InMemoryCache avec expiration
-    public StoredProcedureParametersBuilder AddInMemoryCache(string cacheKey, TimeSpan expiration)
+    public StoredProcedureParametersBuilder AddFrozenCache(string cacheKey)
     {
-        CacheKey = cacheKey;
-        CacheType = InMemory;
-        CacheExpiration = expiration;
+        _cacheKey = cacheKey;
+        _cacheType = Frozen;
+        _cacheExpiration = null;
         return this;
     }
 
@@ -79,6 +78,7 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
     /// </summary>
     public StoredProcedureParameters Build()
     {
-        return new StoredProcedureParameters(ProcedureName, Capacity, Parameters, CacheKey, CacheExpiration, CacheType);
+        return new StoredProcedureParameters(ProcedureName, Capacity, Parameters, _cacheKey, _cacheExpiration,
+            _cacheType);
     }
 }
