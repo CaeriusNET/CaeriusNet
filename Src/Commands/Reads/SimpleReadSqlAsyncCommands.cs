@@ -54,11 +54,13 @@ public static class SimpleReadSqlAsyncCommands
     /// </returns>
     /// <exception cref="CaeriusSqlException">Thrown when the query execution fails.</exception>
     public static async Task<ReadOnlyCollection<TResultSet>> QueryAsync<TResultSet>(
-        this ICaeriusDbContext context, StoredProcedureParameters spParameters)
+        this ICaeriusDbContext context,
+        StoredProcedureParameters spParameters)
         where TResultSet : class, ISpMapper<TResultSet>
     {
         if (TryRetrieveFromCache(spParameters, out ReadOnlyCollection<TResultSet>? cachedResult) &&
-            cachedResult != null) return cachedResult;
+            cachedResult != null)
+            return cachedResult;
 
         try
         {
@@ -70,6 +72,7 @@ public static class SimpleReadSqlAsyncCommands
                 var results = await SqlCommandUtility.ResultsSets<TResultSet>(spParameters, reader);
 
                 StoreInCache(spParameters, results.AsReadOnly());
+
                 return results.AsReadOnly();
             }
         }
@@ -88,7 +91,8 @@ public static class SimpleReadSqlAsyncCommands
     /// <returns>An enumerable of all results of the query as the specified type mapped by <see cref="ISpMapper{T}" />.</returns>
     /// <exception cref="CaeriusSqlException">Thrown when the query execution fails.</exception>
     public static async Task<IEnumerable<TResultSet>> EnumerableQueryAsync<TResultSet>(
-        this ICaeriusDbContext context, StoredProcedureParameters spParameters)
+        this ICaeriusDbContext context,
+        StoredProcedureParameters spParameters)
         where TResultSet : class, ISpMapper<TResultSet>
     {
         if (TryRetrieveFromCache(spParameters, out IEnumerable<TResultSet>? cachedResult) && cachedResult != null)
@@ -104,6 +108,7 @@ public static class SimpleReadSqlAsyncCommands
                 var results = await SqlCommandUtility.ResultsSets<TResultSet>(spParameters, reader);
 
                 StoreInCache(spParameters, results.AsEnumerable());
+
                 return results.AsEnumerable();
             }
         }
@@ -142,6 +147,7 @@ public static class SimpleReadSqlAsyncCommands
                     results.AddRange(TResultSet.MapFromDataReader(reader));
 
                 StoreInCache(spParameters, results.ToImmutable());
+
                 return results.ToImmutable();
             }
         }
@@ -151,8 +157,18 @@ public static class SimpleReadSqlAsyncCommands
         }
     }
 
+    /// <summary>
+    ///     Attempts to retrieve a cached result for the given stored procedure parameters.
+    /// </summary>
+    /// <typeparam name="T">The type of the cached value.</typeparam>
+    /// <param name="spParameters">The parameters of the stored procedure, including cache configuration.</param>
+    /// <param name="result">The output parameter where the cached result will be stored if found.</param>
+    /// <returns>
+    ///     <c>true</c> if a cached result is successfully retrieved; otherwise, <c>false</c>.
+    /// </returns>
     private static bool TryRetrieveFromCache<T>(
-        StoredProcedureParameters spParameters, out T? result)
+        StoredProcedureParameters spParameters,
+        out T? result)
     {
         result = default;
         if (spParameters.CacheType is null || string.IsNullOrEmpty(spParameters.CacheKey))
@@ -166,7 +182,19 @@ public static class SimpleReadSqlAsyncCommands
         };
     }
 
-    private static void StoreInCache<T>(StoredProcedureParameters spParameters, T result)
+    /// <summary>
+    ///     Stores the specified result in a cache based on the provided stored procedure parameters.
+    /// </summary>
+    /// <typeparam name="T">The type of the result to be cached.</typeparam>
+    /// <param name="spParameters">
+    ///     The stored procedure parameters containing cache key, cache type, and expiration
+    ///     information.
+    /// </param>
+    /// <param name="result">The result to be stored in the cache.</param>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown when an invalid cache type is specified in the parameters.</exception>
+    private static void StoreInCache<T>(
+        StoredProcedureParameters spParameters,
+        T result)
     {
         if (spParameters.CacheType is null || string.IsNullOrEmpty(spParameters.CacheKey))
             return;

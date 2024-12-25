@@ -9,7 +9,7 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <Version>9.0.2</Version>
+        <Version>9.0.3</Version>
         <Title>CaeriusNet</Title>
         <Authors>AriusII &amp; CaeriusNet</Authors>
         <Description>C# &amp; TSQL enchanced by performance Micro-ORM, Stored Procedure to DTO in µseconds !</Description>
