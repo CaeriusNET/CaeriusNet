@@ -10,8 +10,7 @@ public sealed class Caching
 
     public static IReadOnlyDictionary<TKey, TValue> GetOrAdd<TKey, TValue>(
         string cacheKey,
-        Func<IReadOnlyDictionary<TKey, TValue>> dataRetriever)
-        where TKey : notnull
+        Func<IReadOnlyDictionary<TKey, TValue>> dataRetriever) where TKey : notnull
     {
         if (FrozenCache.TryGetValue(cacheKey, out var cached))
             return (IReadOnlyDictionary<TKey, TValue>)cached;
@@ -32,7 +31,7 @@ public sealed class Caching
             TimeSpan expiration)
         {
             if (MemoryCache.TryGetValue(cacheKey, out var cached))
-                return (IReadOnlyDictionary<TKey, TValue>)cached;
+                return (IReadOnlyDictionary<TKey, TValue>)cached!;
 
             var data = dataRetriever();
             var cacheEntry = MemoryCache.Set(cacheKey, data, expiration);
