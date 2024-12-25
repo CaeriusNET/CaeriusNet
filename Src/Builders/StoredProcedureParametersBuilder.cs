@@ -1,10 +1,16 @@
-﻿namespace CaeriusNet.Builders;
+﻿using static CaeriusNet.Utilities.CacheType;
+
+namespace CaeriusNet.Builders;
 
 /// <summary>
 ///     Builds the parameters for a stored procedure call, including support for Table-Valued Parameters (TVPs).
 /// </summary>
 public sealed record StoredProcedureParametersBuilder(string ProcedureName, int Capacity = 1)
 {
+    private TimeSpan? _cacheExpiration;
+    private string? _cacheKey;
+    private CacheType? _cacheType;
+
     /// <summary>
     ///     Gets the list of TSQL parameters to be used in the stored procedure call.
     /// </summary>
@@ -51,11 +57,28 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
         return this;
     }
 
+    public StoredProcedureParametersBuilder AddInMemoryCache(string cacheKey, TimeSpan expiration)
+    {
+        _cacheKey = cacheKey;
+        _cacheType = InMemory;
+        _cacheExpiration = expiration;
+        return this;
+    }
+
+    public StoredProcedureParametersBuilder AddFrozenCache(string cacheKey)
+    {
+        _cacheKey = cacheKey;
+        _cacheType = Frozen;
+        _cacheExpiration = null;
+        return this;
+    }
+
     /// <summary>
     ///     Builds and returns a StoredProcedureParameters object containing all configured parameters.
     /// </summary>
     public StoredProcedureParameters Build()
     {
-        return new StoredProcedureParameters(ProcedureName, Capacity, Parameters);
+        return new StoredProcedureParameters(ProcedureName, Capacity, Parameters, _cacheKey, _cacheExpiration,
+            _cacheType);
     }
 }
