@@ -10,4 +10,4 @@
 /// </remarks>
 /// <exception cref="SqlException">The inner exception is the underlying SQL exception that caused the error.</exception>
 public sealed class CaeriusSqlException(string message, SqlException innerException)
-    : Exception(message, innerException);
+	: Exception(message, innerException);

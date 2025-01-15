@@ -7,15 +7,15 @@ namespace CaeriusNet.Sandbox.Extensions;
 
 public static class ServiceCollectionExtension
 {
-    public static IServiceCollection AddServices(this IServiceCollection services)
-    {
-        return services
-            .AddScoped<ISandboxService, SandboxService>();
-    }
+	public static IServiceCollection AddServices(this IServiceCollection services)
+	{
+		return services
+			.AddScoped<ISandboxService, SandboxService>();
+	}
 
-    public static void AddRepositories(this IServiceCollection services)
-    {
-        services
-            .AddScoped<ISandboxRepository, SandboxRepository>();
-    }
+	public static void AddRepositories(this IServiceCollection services)
+	{
+		services
+			.AddScoped<ISandboxRepository, SandboxRepository>();
+	}
 }

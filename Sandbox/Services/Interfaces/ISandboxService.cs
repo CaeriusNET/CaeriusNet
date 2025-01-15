@@ -5,10 +5,10 @@ namespace CaeriusNet.Sandbox.Services.Interfaces;
 
 public interface ISandboxService
 {
-    string GetSandboxMessage();
-    Task<IEnumerable<UsersDto>> GetUsers();
-    Task CreateListOfUsers();
-    Task UpdateRandomUserAge(IEnumerable<UsersDto> users);
+	string GetSandboxMessage();
+	Task<IEnumerable<UsersDto>> GetUsers();
+	Task CreateListOfUsers();
+	Task UpdateRandomUserAge(IEnumerable<UsersDto> users);
 
-    Task<ReadOnlyCollection<UsersTestingDto>> GetUsersTesting();
+	Task<ReadOnlyCollection<UsersTestingDto>> GetUsersTesting();
 }
