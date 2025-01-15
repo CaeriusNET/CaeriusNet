@@ -8,9 +8,9 @@ using Microsoft.Extensions.Configuration;
 var services = new ServiceCollection();
 
 var configuration = new ConfigurationBuilder()
-    .SetBasePath(Directory.GetCurrentDirectory())
-    .AddJsonFile("appsettings.json", true, true)
-    .Build();
+	.SetBasePath(Directory.GetCurrentDirectory())
+	.AddJsonFile("appsettings.json", true, true)
+	.Build();
 
 services.AddSingleton<IConfiguration>(configuration);
 
@@ -18,18 +18,18 @@ var connectionString = configuration.GetConnectionString("SandboxConnection");
 
 if (connectionString != null)
 {
-    services
-        .AddCaeriusNet(connectionString)
-        .AddServices()
-        .AddRepositories();
+	services
+		.AddCaeriusNet(connectionString)
+		.AddServices()
+		.AddRepositories();
 }
 else
 {
-    Console.WriteLine("Connection string not found in appsettings.json");
+	Console.WriteLine("Connection string not found in appsettings.json");
 
-    services
-        .AddServices()
-        .AddRepositories();
+	services
+		.AddServices()
+		.AddRepositories();
 }
 
 var serviceProvider = services.BuildServiceProvider();
