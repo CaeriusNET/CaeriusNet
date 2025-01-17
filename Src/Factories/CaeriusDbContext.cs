@@ -1,7 +1,7 @@
 ﻿namespace CaeriusNet.Factories;
 
 /// <summary>
-///     Factory for creating database connections using a specified connection string.
+///     Represents a factory for creating and managing database connections based on a provided connection string.
 /// </summary>
 internal sealed record CaeriusDbContext(string ConnectionString) : ICaeriusDbContext
 {

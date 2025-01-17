@@ -19,7 +19,7 @@ public sealed record SandboxRepository(ICaeriusDbContext Context) : ISandboxRepo
 	public async Task<IEnumerable<UsersDto>> GetUsers()
 	{
 		var spParameters = new StoredProcedureParametersBuilder("dbo.sp_get_users", 100).Build();
-		IEnumerable<UsersDto> users = await Context.QueryAsync<UsersDto>(spParameters);
+		var users = await Context.QueryAsEnumerableAsync<UsersDto>(spParameters);
 		return users;
 	}
 
@@ -40,13 +40,13 @@ public sealed record SandboxRepository(ICaeriusDbContext Context) : ISandboxRepo
 			.AddTvpParameter("MyTvpUserAge", "dbo.tvp_userAge", users)
 			.Build();
 
-		return Context.ExecuteScalarAsync(spParameters);
+		return Context.ExecuteAsync(spParameters);
 	}
 
 	public Task<ReadOnlyCollection<UsersTestingDto>> GetUsersTesting()
 	{
 		var spParameters = new StoredProcedureParametersBuilder("dbo.sp_get_all_users", 38000)
 			.Build();
-		return Context.QueryAsync<UsersTestingDto>(spParameters);
+		return Context.QueryAsReadOnlyCollectionAsync<UsersTestingDto>(spParameters);
 	}
 }

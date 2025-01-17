@@ -1,13 +1,13 @@
 ﻿namespace CaeriusNet.Exceptions;
 
 /// <summary>
-///     Represents errors that occur during the execution of a SQL command within the CaeriusNet application.
+///     Represents exceptions that occur during SQL operations within the CaeriusNet application.
 /// </summary>
 /// <remarks>
-///     This exception is used to encapsulate database-related errors, providing specific context
-///     for SQL command or stored procedure execution failures. It includes the original
-///     <see cref="SqlException" /> as the inner exception for additional details about the failure.
+///     This exception is designed to provide clearer context for database-related failures,
+///     specifically for SQL command executions or stored procedure interactions. The initial
+///     <see cref="SqlException" /> is passed as the inner exception to provide detailed diagnostic information.
 /// </remarks>
-/// <exception cref="SqlException">The inner exception is the underlying SQL exception that caused the error.</exception>
-public sealed class CaeriusSqlException(string message, SqlException innerException)
+/// <exception cref="SqlException">Represents the original SQL exception encountered during the operation.</exception>
+internal sealed class CaeriusSqlException(string message, SqlException innerException)
 	: Exception(message, innerException);
