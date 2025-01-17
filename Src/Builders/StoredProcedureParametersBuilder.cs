@@ -3,7 +3,8 @@
 namespace CaeriusNet.Builders;
 
 /// <summary>
-///     Builds the parameters for a stored procedure call, including support for Table-Valued Parameters (TVPs).
+///     Provides functionality to build parameters for a stored procedure call, including support for regular,
+///     Table-Valued Parameters (TVPs), and caching mechanisms.
 /// </summary>
 public sealed record StoredProcedureParametersBuilder(string ProcedureName, int Capacity = 1)
 {
@@ -12,7 +13,7 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
 	private CacheType? _cacheType;
 
 	/// <summary>
-	///     Gets the list of TSQL parameters to be used in the stored procedure call.
+	///     Gets the collection of SQL parameters to be used in the stored procedure call.
 	/// </summary>
 	private List<SqlParameter> Parameters { get; } = [];
 
@@ -36,8 +37,8 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
 	/// <typeparam name="T">The type of the object that maps to the TVP.</typeparam>
 	/// <param name="parameterName">The name of the TVP parameter.</param>
 	/// <param name="tvpName">The name of the TVP type in SQL Server.</param>
-	/// <param name="items">The collection of items to map to the TVP using the <see cref="ITvpMapper{T}" /> interface.</param>
-	/// <returns>The <see cref="StoredProcedureParametersBuilder" /> instance for chaining.</returns>
+	/// <param name="items">The collection of items to map to the TVP using the ITvpMapper interface.</param>
+	/// <returns>The StoredProcedureParametersBuilder instance for chaining.</returns>
 	/// <exception cref="ArgumentException">Thrown when the items collection is empty.</exception>
 	public StoredProcedureParametersBuilder AddTvpParameter<T>(string parameterName, string tvpName,
 		IEnumerable<T> items)
@@ -74,10 +75,10 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
 	}
 
 	/// <summary>
-	///     Configures the stored procedure parameters to use an in-memory cache with a specified key and expiration time.
+	///     Configures the stored procedure parameters to use in-memory caching with a specified key and expiration time.
 	/// </summary>
 	/// <param name="cacheKey">The unique key used to identify the cache entry.</param>
-	/// <param name="expiration">The duration after which the cache will expire.</param>
+	/// <param name="expiration">The duration after which the cache entry will expire.</param>
 	/// <returns>The <see cref="StoredProcedureParametersBuilder" /> instance for chaining.</returns>
 	public StoredProcedureParametersBuilder AddInMemoryCache(string cacheKey, TimeSpan expiration)
 	{

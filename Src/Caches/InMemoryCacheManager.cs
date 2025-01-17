@@ -1,9 +1,8 @@
-﻿using Microsoft.Extensions.Caching.Memory;
-
-namespace CaeriusNet.Caches;
+﻿namespace CaeriusNet.Caches;
 
 /// <summary>
-///     Provides static methods for managing in-memory caching of data.
+///     Represents a utility class that manages caching operations in memory,
+///     such as storing and retrieving cached data.
 /// </summary>
 internal static class InMemoryCacheManager
 {
@@ -22,16 +21,16 @@ internal static class InMemoryCacheManager
 	}
 
 	/// <summary>
-	///     Attempts to retrieve a value from the in-memory cache associated with the specified cache key.
+	///     Attempts to retrieve a cached value from the in-memory cache based on the specified cache key.
 	/// </summary>
-	/// <typeparam name="T">The type of the value to be retrieved from the cache.</typeparam>
-	/// <param name="cacheKey">The unique key used to retrieve the cached value.</param>
+	/// <typeparam name="T">The type of value expected to be retrieved from the cache.</typeparam>
+	/// <param name="cacheKey">The unique identifier for the cached item.</param>
 	/// <param name="value">
-	///     When this method returns, contains the value associated with the specified cache key,
-	///     if the key exists and the value is of the specified type. Otherwise, the value is default.
+	///     An output parameter that, upon completion, will contain the retrieved value if found and of the correct type;
+	///     otherwise, contains the default value of the type.
 	/// </param>
 	/// <returns>
-	///     True if the retrieval was successful and the key exists in the cache with a matching value type; otherwise, false.
+	///     True if the cache contains an item with the specified key and the value is of the expected type; otherwise, false.
 	/// </returns>
 	internal static bool TryGet<T>(string cacheKey, out T? value)
 	{

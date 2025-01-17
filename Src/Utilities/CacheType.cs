@@ -1,7 +1,7 @@
 ﻿namespace CaeriusNet.Utilities;
 
 /// <summary>
-///     Specifies the type of cache to be used for storing and retrieving data.
+///     Defines the type of caching mechanism available for data storage and retrieval.
 /// </summary>
 public enum CacheType : byte
 {

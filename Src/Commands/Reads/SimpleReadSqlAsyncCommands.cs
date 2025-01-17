@@ -1,41 +1,50 @@
-using CaeriusNet.Caches;
-
 namespace CaeriusNet.Commands.Reads;
 
 /// <summary>
-///     Provides asynchronous TSQL query execution methods extending <see cref="ICaeriusDbContext" />.
+///     Contains a set of asynchronous methods for executing TSQL queries to retrieve data,
+///     supporting operations such as fetching single results, collections, or immutable arrays
+///     of mapped stored procedure outcomes. Extends <see cref="ICaeriusDbContext" />.
 /// </summary>
 public static class SimpleReadSqlAsyncCommands
 {
 	/// <summary>
-	///     Executes a TSQL query asynchronously and returns the first result as a specified type.
+	///     Executes a stored procedure to query a single result asynchronously and optionally retrieves the result
+	///     from cache if caching is enabled and the item is available. The result is mapped to a specified type
+	///     that implements <see cref="ISpMapper{T}" />.
 	/// </summary>
-	/// <typeparam name="TResultSet">The type of the result set.</typeparam>
-	/// <param name="context">The database connection factory to create a connection.</param>
-	/// <param name="spParameters">The stored procedure parameters builder containing the procedure name and parameters.</param>
-	/// <returns>The first result of the query as the specified type mapped by <see cref="ISpMapper{T}" />.</returns>
-	/// <exception cref="CaeriusSqlException">Thrown when the query execution fails.</exception>
-	public static async Task<TResultSet> FirstQueryAsync<TResultSet>(
-		this ICaeriusDbContext context,
-		StoredProcedureParameters spParameters)
+	/// <typeparam name="TResultSet">
+	///     The type of the result set expected from the query. Must implement <see cref="ISpMapper{T}" />.
+	/// </typeparam>
+	/// <param name="context">
+	///     An instance of <see cref="ICaeriusDbContext" /> representing the database context for establishing a connection.
+	/// </param>
+	/// <param name="spParameters">
+	///     The parameters required to execute the stored procedure, including the procedure name,
+	///     input parameters, and caching details.
+	/// </param>
+	/// <returns>
+	///     Returns a task that represents the asynchronous operation. The task result is the mapped result of type
+	///     <typeparamref name="TResultSet" /> if data is retrieved successfully; otherwise, returns null.
+	/// </returns>
+	/// <exception cref="CaeriusSqlException">
+	///     Thrown when the execution of the stored procedure fails due to a SQL exception.
+	/// </exception>
+	public static async Task<TResultSet?> FirstQueryAsync<TResultSet>(
+		this ICaeriusDbContext context, StoredProcedureParameters spParameters)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
-		if (TryRetrieveFromCache(spParameters, out TResultSet? cachedResult) && cachedResult != null)
+		if (CacheUtility.TryRetrieveFromCache(spParameters, out TResultSet? cachedResult) && cachedResult != null)
 			return cachedResult;
 
 		try
 		{
-			var connection = context.DbConnection();
-			using (connection)
-			{
-				await using var command = await SqlCommandUtility.ExecuteSqlCommand(spParameters, connection);
-				await using var reader = await command.ExecuteReaderAsync();
-				var result = await SqlCommandUtility.SingleResultSet<TResultSet>(reader);
+			using var connection = context.DbConnection();
+			var result = await SqlCommandUtility.ScalarQueryAsync<TResultSet>(spParameters, connection);
 
-				StoreInCache(spParameters, result);
+			if (result != null)
+				CacheUtility.StoreInCache(spParameters, result);
 
-				return result;
-			}
+			return result;
 		}
 		catch (SqlException ex)
 		{
@@ -44,37 +53,44 @@ public static class SimpleReadSqlAsyncCommands
 	}
 
 	/// <summary>
-	///     Executes a TSQL query asynchronously and returns all results as a read-only collection of a specified type.
+	///     Executes a stored procedure and retrieves the result set as a read-only collection asynchronously,
+	///     while optionally using caching if configured. The result is mapped to a specified type implementing
+	///     <see cref="ISpMapper{T}" />.
 	/// </summary>
-	/// <typeparam name="TResultSet">The type of the result set.</typeparam>
-	/// <param name="context">The database connection factory to create a connection.</param>
-	/// <param name="spParameters">The stored procedure parameters builder containing the procedure name and parameters.</param>
+	/// <typeparam name="TResultSet">
+	///     The type of the elements in the returned read-only collection. Must implement <see cref="ISpMapper{T}" />.
+	/// </typeparam>
+	/// <param name="context">
+	///     An instance of <see cref="ICaeriusDbContext" /> representing the database context for establishing a connection.
+	/// </param>
+	/// <param name="spParameters">
+	///     The parameters required to execute the stored procedure, including procedure name, input parameters,
+	///     caching details, and expiration policy.
+	/// </param>
 	/// <returns>
-	///     A read-only collection of all results of the query as the specified type mapped by <see cref="ISpMapper{T}" />.
+	///     Returns a task representing the asynchronous operation. The task result is a <see cref="ReadOnlyCollection{T}" />
+	///     containing the mapped results of type <typeparamref name="TResultSet" /> if the operation succeeds.
 	/// </returns>
-	/// <exception cref="CaeriusSqlException">Thrown when the query execution fails.</exception>
-	public static async Task<ReadOnlyCollection<TResultSet>> QueryAsync<TResultSet>(
-		this ICaeriusDbContext context,
-		StoredProcedureParameters spParameters)
+	/// <exception cref="CaeriusSqlException">
+	///     Thrown when the execution of the stored procedure fails due to a SQL exception.
+	/// </exception>
+	public static async Task<ReadOnlyCollection<TResultSet>> QueryAsReadOnlyCollectionAsync<TResultSet>(
+		this ICaeriusDbContext context, StoredProcedureParameters spParameters)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
-		if (TryRetrieveFromCache(spParameters, out ReadOnlyCollection<TResultSet>? cachedResult) &&
+		if (CacheUtility.TryRetrieveFromCache(spParameters, out ReadOnlyCollection<TResultSet>? cachedResult) &&
 		    cachedResult != null)
 			return cachedResult;
 
 		try
 		{
-			var connection = context.DbConnection();
-			using (connection)
-			{
-				await using var command = await SqlCommandUtility.ExecuteSqlCommand(spParameters, connection);
-				await using var reader = await command.ExecuteReaderAsync();
-				var results = await SqlCommandUtility.ResultsSets<TResultSet>(spParameters, reader);
+			using var connection = context.DbConnection();
+			var result =
+				await SqlCommandUtility.ResultSetAsReadOnlyCollectionAsync<TResultSet>(spParameters, connection);
 
-				StoreInCache(spParameters, results.AsReadOnly());
+			CacheUtility.StoreInCache(spParameters, result);
 
-				return results.AsReadOnly();
-			}
+			return result;
 		}
 		catch (SqlException ex)
 		{
@@ -83,134 +99,97 @@ public static class SimpleReadSqlAsyncCommands
 	}
 
 	/// <summary>
-	///     Executes a TSQL query asynchronously and returns all results as an enumerable of a specified type.
+	///     Executes a stored procedure asynchronously to retrieve a collection of mapped results. The results
+	///     are returned as an <see cref="IEnumerable{T}" /> and can optionally be retrieved from cache if caching
+	///     is enabled and the item is available.
 	/// </summary>
-	/// <typeparam name="TResultSet">The type of the result set.</typeparam>
-	/// <param name="context">The database connection factory to create a connection.</param>
-	/// <param name="spParameters">The stored procedure parameters builder containing the procedure name and parameters.</param>
-	/// <returns>An enumerable of all results of the query as the specified type mapped by <see cref="ISpMapper{T}" />.</returns>
-	/// <exception cref="CaeriusSqlException">Thrown when the query execution fails.</exception>
-	public static async Task<IEnumerable<TResultSet>> EnumerableQueryAsync<TResultSet>(
-		this ICaeriusDbContext context,
-		StoredProcedureParameters spParameters)
-		where TResultSet : class, ISpMapper<TResultSet>
-	{
-		if (TryRetrieveFromCache(spParameters, out IEnumerable<TResultSet>? cachedResult) && cachedResult != null)
-			return cachedResult;
-
-		try
-		{
-			var connection = context.DbConnection();
-			using (connection)
-			{
-				await using var command = await SqlCommandUtility.ExecuteSqlCommand(spParameters, connection);
-				await using var reader = await command.ExecuteReaderAsync();
-				var results = await SqlCommandUtility.ResultsSets<TResultSet>(spParameters, reader);
-
-				StoreInCache(spParameters, results.AsEnumerable());
-
-				return results.AsEnumerable();
-			}
-		}
-		catch (SqlException ex)
-		{
-			throw new CaeriusSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex);
-		}
-	}
-
-	/// <summary>
-	///     Executes a TSQL query asynchronously and returns all results as an immutable array of a specified type.
-	/// </summary>
-	/// <typeparam name="TResultSet">The type of the result set.</typeparam>
-	/// <param name="context">The database connection factory to create a connection.</param>
-	/// <param name="spParameters">The stored procedure parameters builder containing the procedure name and parameters.</param>
-	/// <returns>An immutable array of all results of the query as the specified type mapped by <see cref="ISpMapper{T}" />.</returns>
-	/// <exception cref="CaeriusSqlException">Thrown when the query execution fails.</exception>
-	public static async Task<ImmutableArray<TResultSet>> ImmutableQueryAsync<TResultSet>(
-		this ICaeriusDbContext context,
-		StoredProcedureParameters spParameters)
-		where TResultSet : class, ISpMapper<TResultSet>
-	{
-		if (TryRetrieveFromCache(spParameters, out ImmutableArray<TResultSet> cachedResult) && cachedResult != null)
-			return cachedResult;
-
-		try
-		{
-			var connection = context.DbConnection();
-			using (connection)
-			{
-				await using var command = await SqlCommandUtility.ExecuteSqlCommand(spParameters, connection);
-				await using var reader = await command.ExecuteReaderAsync();
-
-				var results = ImmutableArray.CreateBuilder<TResultSet>(spParameters.Capacity);
-				while (await reader.ReadAsync())
-					results.AddRange(TResultSet.MapFromDataReader(reader));
-
-				StoreInCache(spParameters, results.ToImmutable());
-
-				return results.ToImmutable();
-			}
-		}
-		catch (SqlException ex)
-		{
-			throw new CaeriusSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex);
-		}
-	}
-
-	/// <summary>
-	///     Attempts to retrieve a cached result for the given stored procedure parameters.
-	/// </summary>
-	/// <typeparam name="T">The type of the cached value.</typeparam>
-	/// <param name="spParameters">The parameters of the stored procedure, including cache configuration.</param>
-	/// <param name="result">The output parameter where the cached result will be stored if found.</param>
-	/// <returns>
-	///     <c>true</c> if a cached result is successfully retrieved; otherwise, <c>false</c>.
-	/// </returns>
-	private static bool TryRetrieveFromCache<T>(
-		StoredProcedureParameters spParameters,
-		out T? result)
-	{
-		result = default;
-		if (spParameters.CacheType is null || string.IsNullOrEmpty(spParameters.CacheKey))
-			return false;
-
-		return spParameters.CacheType switch
-		{
-			CacheType.InMemory => InMemoryCacheManager.TryGet(spParameters.CacheKey, out result),
-			CacheType.Frozen => FrozenCacheManager.TryGetFrozen(spParameters.CacheKey, out result),
-			_ => false
-		};
-	}
-
-	/// <summary>
-	///     Stores the specified result in a cache based on the provided stored procedure parameters.
-	/// </summary>
-	/// <typeparam name="T">The type of the result to be cached.</typeparam>
-	/// <param name="spParameters">
-	///     The stored procedure parameters containing cache key, cache type, and expiration
-	///     information.
+	/// <typeparam name="TResultSet">
+	///     The type of the result set expected from the query. Must implement <see cref="ISpMapper{T}" />.
+	/// </typeparam>
+	/// <param name="context">
+	///     An instance of <see cref="ICaeriusDbContext" /> representing the database context for establishing a connection.
 	/// </param>
-	/// <param name="result">The result to be stored in the cache.</param>
-	/// <exception cref="ArgumentOutOfRangeException">Thrown when an invalid cache type is specified in the parameters.</exception>
-	private static void StoreInCache<T>(
-		StoredProcedureParameters spParameters,
-		T result)
+	/// <param name="spParameters">
+	///     The parameters required to execute the stored procedure, including the procedure name, input
+	///     parameters, and caching details.
+	/// </param>
+	/// <returns>
+	///     Returns a task that represents the asynchronous operation. The task result is an <see cref="IEnumerable{T}" />
+	///     collection of mapped results of type <typeparamref name="TResultSet" /> if data is retrieved successfully.
+	/// </returns>
+	/// <exception cref="CaeriusSqlException">
+	///     Thrown when the execution of the stored procedure fails due to a SQL exception.
+	/// </exception>
+	public static async Task<IEnumerable<TResultSet>> QueryAsEnumerableAsync<TResultSet>(
+		this ICaeriusDbContext context,
+		StoredProcedureParameters spParameters)
+		where TResultSet : class, ISpMapper<TResultSet>
 	{
-		if (spParameters.CacheType is null || string.IsNullOrEmpty(spParameters.CacheKey))
-			return;
+		if (CacheUtility.TryRetrieveFromCache(spParameters, out IEnumerable<TResultSet>? cachedResult) &&
+		    cachedResult != null)
+			return cachedResult;
 
-		switch (spParameters.CacheType)
+		try
 		{
-			case CacheType.InMemory:
-				InMemoryCacheManager.Store(spParameters.CacheKey, result, spParameters.CacheExpiration!.Value);
-				break;
-			case CacheType.Frozen:
-				FrozenCacheManager.StoreFrozen(spParameters.CacheKey, result);
-				break;
-			case null:
-				break;
-			default:
-				throw new ArgumentOutOfRangeException();
+			var results = new List<TResultSet>(spParameters.Capacity);
+			using var connection = context.DbConnection();
+			await foreach (var item in SqlCommandUtility.StreamQueryAsync<TResultSet>(spParameters, connection))
+				results.Add(item);
+
+			CacheUtility.StoreInCache(spParameters, results);
+
+			return results.AsEnumerable();
+		}
+		catch (SqlException ex)
+		{
+			throw new CaeriusSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex);
+		}
+	}
+
+	/// <summary>
+	///     Executes a stored procedure to retrieve a data set asynchronously and maps the result into an immutable array of a
+	///     specified type.
+	///     The result can optionally be retrieved from cache if caching is enabled and the item is available.
+	/// </summary>
+	/// <typeparam name="TResultSet">
+	///     The type of each item in the resulting immutable array. Must implement <see cref="ISpMapper{T}" />.
+	/// </typeparam>
+	/// <param name="context">
+	///     An instance of <see cref="ICaeriusDbContext" /> representing the database context used for establishing a
+	///     connection.
+	/// </param>
+	/// <param name="spParameters">
+	///     The parameters required for the execution of the stored procedure, including procedure name, input parameters,
+	///     cache details, and capacity for expected results.
+	/// </param>
+	/// <returns>
+	///     Returns a task representing the asynchronous operation. The task result is an <see cref="ImmutableArray{T}" /> of
+	///     type <typeparamref name="TResultSet" /> containing the mapped results if data is retrieved successfully.
+	/// </returns>
+	/// <exception cref="CaeriusSqlException">
+	///     Thrown when the execution of the stored procedure fails due to a SQL exception.
+	/// </exception>
+	public static async Task<ImmutableArray<TResultSet>> QueryAsImmutableArrayAsync<TResultSet>(
+		this ICaeriusDbContext context,
+		StoredProcedureParameters spParameters)
+		where TResultSet : class, ISpMapper<TResultSet>
+	{
+		if (CacheUtility.TryRetrieveFromCache(spParameters, out ImmutableArray<TResultSet>? cachedResult) &&
+		    cachedResult != null)
+			return (ImmutableArray<TResultSet>)cachedResult;
+
+		try
+		{
+			using var connection = context.DbConnection();
+			var result = await SqlCommandUtility.ResultSetAsImmutableArrayAsync<TResultSet>(spParameters, connection);
+
+			CacheUtility.StoreInCache(spParameters, result);
+
+			return result;
+		}
+		catch (SqlException ex)
+		{
+			throw new CaeriusSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex);
 		}
 	}
 }

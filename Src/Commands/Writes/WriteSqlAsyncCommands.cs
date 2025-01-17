@@ -1,60 +1,61 @@
 namespace CaeriusNet.Commands.Writes;
 
 /// <summary>
-///     Provides asynchronous TSQL command execution methods extending <see cref="ICaeriusDbContext" />.
+///     Provides a set of extension methods for asynchronous execution of SQL commands related to data writes,
+///     enabling scalar queries and non-query commands through <see cref="ICaeriusDbContext" />.
 /// </summary>
 public static class WriteSqlAsyncCommands
 {
 	/// <summary>
-	///     Executes a TSQL command that returns a single value asynchronously.
+	///     Executes a scalar SQL command asynchronously using the provided <see cref="ICaeriusDbContext" />
+	///     and stored procedure parameters, returning the result as an instance of the specified type.
 	/// </summary>
-	/// <param name="dbContext">The database connection factory to create a connection.</param>
-	/// <param name="spParameters">The stored procedure parameters builder containing the procedure name and parameters.</param>
-	/// <exception cref="CaeriusSqlException">Throws an exception if the command execution fails.</exception>
-	public static async Task<object?> ExecuteScalarAsync(this ICaeriusDbContext dbContext,
+	/// <typeparam name="T">
+	///     The type of the result expected from the scalar SQL command.
+	///     If the result from the database is <see cref="DBNull" />, the method returns <c>default</c>.
+	/// </typeparam>
+	/// <param name="dbContext">
+	///     The database context used to establish a connection for executing the SQL command.
+	///     Must implement <see cref="ICaeriusDbContext" />.
+	/// </param>
+	/// <param name="spParameters">
+	///     The parameters required for the stored procedure, including the procedure name,
+	///     associated parameters, and optional caching details.
+	/// </param>
+	/// <returns>
+	///     A task representing the asynchronous operation. The task result contains the scalar value retrieved
+	///     from the database, converted to the specified type <typeparamref name="T" />.
+	///     Returns <c>default</c> if the result is <see cref="DBNull" />.
+	/// </returns>
+	public static async Task<T?> ExecuteScalarAsync<T>(this ICaeriusDbContext dbContext,
 		StoredProcedureParameters spParameters)
 	{
-		try
+		return await SqlCommandUtility.ExecuteCommandAsync(dbContext, spParameters, async command =>
 		{
-			var connection = dbContext.DbConnection();
-
-			using (connection)
-			{
-				await using var command = await SqlCommandUtility.ExecuteSqlCommand(spParameters, connection);
-				var resultSet = await command.ExecuteScalarAsync();
-				return resultSet;
-			}
-		}
-		catch (SqlException ex)
-		{
-			throw new CaeriusSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName} ::", ex);
-		}
+			var result = await command.ExecuteScalarAsync();
+			return result is DBNull ? default : (T?)result;
+		});
 	}
 
 	/// <summary>
-	///     Executes a TSQL command that does not return a result set, but the number of rows affected, asynchronously.
+	///     Executes a non-query SQL command asynchronously using the provided <see cref="ICaeriusDbContext" />
+	///     and stored procedure parameters, returning the number of rows affected.
 	/// </summary>
-	/// <param name="dbContext">The database connection factory to create a connection.</param>
-	/// <param name="spParameters">The stored procedure parameters builder containing the procedure name and parameters.</param>
-	/// <returns>The number of rows affected.</returns>
-	/// <exception cref="CaeriusSqlException">Throws an exception if the command execution fails.</exception>
-	public static async Task<int> ExecuteAsync(this ICaeriusDbContext dbContext,
-		StoredProcedureParameters spParameters)
+	/// <param name="dbContext">
+	///     The database context used to establish a connection for executing the SQL command.
+	///     Must implement <see cref="ICaeriusDbContext" />.
+	/// </param>
+	/// <param name="spParameters">
+	///     The parameters required for the stored procedure, including the procedure name,
+	///     associated parameters, and optional caching details.
+	/// </param>
+	/// <returns>
+	///     A task representing the asynchronous operation. The task result contains the number
+	///     of rows affected by the executed SQL command.
+	/// </returns>
+	public static async Task<int> ExecuteAsync(this ICaeriusDbContext dbContext, StoredProcedureParameters spParameters)
 	{
-		try
-		{
-			var connection = dbContext.DbConnection();
-
-			using (connection)
-			{
-				await using var command = await SqlCommandUtility.ExecuteSqlCommand(spParameters, connection);
-				var resultRow = await command.ExecuteNonQueryAsync();
-				return resultRow;
-			}
-		}
-		catch (SqlException ex)
-		{
-			throw new CaeriusSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName} ::", ex);
-		}
+		return await SqlCommandUtility.ExecuteCommandAsync(dbContext, spParameters,
+			async command => await command.ExecuteNonQueryAsync());
 	}
 }

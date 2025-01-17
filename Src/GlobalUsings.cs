@@ -9,3 +9,6 @@ global using CaeriusNet.Exceptions;
 global using CaeriusNet.Factories;
 global using CaeriusNet.Mappers;
 global using CaeriusNet.Utilities;
+global using Microsoft.Extensions.Caching.Memory;
+global using System.Collections.Concurrent;
+global using System.Collections.Frozen;

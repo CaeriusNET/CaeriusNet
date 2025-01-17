@@ -1,10 +1,7 @@
-﻿using System.Collections.Concurrent;
-using System.Collections.Frozen;
-
-namespace CaeriusNet.Caches;
+﻿namespace CaeriusNet.Caches;
 
 /// <summary>
-///     Manages a thread-safe immutable cache utilizing frozen dictionaries for optimized read access.
+///     Provides methods for managing an immutable, thread-safe cache using frozen dictionaries.
 /// </summary>
 internal static class FrozenCacheManager
 {
@@ -23,10 +20,7 @@ internal static class FrozenCacheManager
 		{
 			if (_frozenCache.ContainsKey(cacheKey)) return;
 
-			var mutableCache = new ConcurrentDictionary<string, object>(_frozenCache)
-			{
-				[cacheKey] = value!
-			};
+			var mutableCache = new ConcurrentDictionary<string, object>(_frozenCache) { [cacheKey] = value! };
 			_frozenCache = mutableCache.ToFrozenDictionary();
 		}
 	}
@@ -38,8 +32,8 @@ internal static class FrozenCacheManager
 	/// <param name="cacheKey">The unique key associated with the value in the cache.</param>
 	/// <param name="value">The output parameter where the cached value will be stored if found.</param>
 	/// <returns>
-	///     <c>true</c> if the value is found in the cache and its type matches the specified type <typeparamref name="T" />;
-	///     otherwise, <c>false</c>.
+	///     true if the value is found in the cache and its type matches the specified type <typeparamref name="T" />;
+	///     otherwise, false.
 	/// </returns>
 	internal static bool TryGetFrozen<T>(string cacheKey, out T? value)
 	{
