@@ -134,9 +134,7 @@ internal static class SqlCommandUtility
 	///     Thrown when the provided connection is not of type
 	///     <see cref="SqlConnection" />.
 	/// </exception>
-	internal static Task<SqlCommand> ExecuteSqlCommand(
-		StoredProcedureParameters spParameters,
-		IDbConnection connection)
+	private static Task<SqlCommand> ExecuteSqlCommand(StoredProcedureParameters spParameters, IDbConnection connection)
 	{
 		if (connection is not SqlConnection sqlConnection)
 			throw new InvalidOperationException("Connection must be of type SqlConnection.");
@@ -185,6 +183,22 @@ internal static class SqlCommandUtility
 		}
 	}
 
+	/// <summary>
+	/// Executes a stored procedure query asynchronously and processes multiple result sets using the specified mapper
+	/// functions for each result set.
+	/// </summary>
+	/// <param name="spParameters">
+	/// An object containing the stored procedure name, parameters, and optional cache configurations.
+	/// </param>
+	/// <param name="connection">An open database connection used to execute the stored procedure.</param>
+	/// <param name="mappers">
+	/// Functions that map the data from the result sets to strongly-typed objects. Each function corresponds
+	/// to a specific result set.
+	/// </param>
+	/// <returns>
+	/// A list where each element is a read-only collection of objects representing a single result set, processed
+	/// using the corresponding mapper function.
+	/// </returns>
 	internal static async Task<List<IReadOnlyCollection<object>>> ExecuteMultipleResultSetsAsync(
 		StoredProcedureParameters spParameters, IDbConnection connection, params Func<SqlDataReader, object>[] mappers)
 	{
@@ -211,6 +225,24 @@ internal static class SqlCommandUtility
 		return results;
 	}
 
+	/// <summary>
+	/// Executes a stored procedure query asynchronously and maps its multiple result sets to immutable arrays using
+	/// the provided mapper functions.
+	/// </summary>
+	/// <param name="spParameters">
+	/// An object representing the stored procedure name, its parameters, and optional cache configuration.
+	/// </param>
+	/// <param name="connection">
+	/// An open database connection used to execute the stored procedure query.
+	/// </param>
+	/// <param name="mappers">
+	/// An array of functions that define how each result set from the query is mapped to an object. Each function must
+	/// correspond to a result set returned by the query.
+	/// </param>
+	/// <returns>
+	/// A list of immutable arrays, where each array contains objects of the corresponding result sets mapped by the
+	/// provided mapper functions.
+	/// </returns>
 	internal static async Task<List<ImmutableArray<object>>> ExecuteMultipleImmutableResultSetsAsync(
 		StoredProcedureParameters spParameters, IDbConnection connection, params Func<SqlDataReader, object>[] mappers)
 	{
@@ -236,6 +268,24 @@ internal static class SqlCommandUtility
 		return results;
 	}
 
+	/// <summary>
+	/// Executes a stored procedure query asynchronously and returns multiple result sets,
+	/// each mapped to an <see cref="IEnumerable{T}" /> of objects using the provided mapping functions.
+	/// </summary>
+	/// <param name="spParameters">
+	/// An object containing the stored procedure name, parameters, and optional cache configuration.
+	/// </param>
+	/// <param name="connection">
+	/// An open database connection that will be used to execute the stored procedure.
+	/// </param>
+	/// <param name="mappers">
+	/// An array of mapping functions, each taking a <see cref="SqlDataReader" /> as input and returning a single object.
+	/// The functions are used to process and map each result set retrieved by the query.
+	/// </param>
+	/// <returns>
+	/// A list of <see cref="IEnumerable{T}" /> objects, where each enumerable represents a result set mapped according
+	/// to the corresponding mapping function provided in <paramref name="mappers" />.
+	/// </returns>
 	internal static async Task<List<IEnumerable<object>>> ExecuteMultipleIEnumerableResultSetsAsync(
 		StoredProcedureParameters spParameters,
 		IDbConnection connection,

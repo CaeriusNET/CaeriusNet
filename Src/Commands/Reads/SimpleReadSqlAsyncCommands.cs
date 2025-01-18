@@ -78,8 +78,7 @@ public static class SimpleReadSqlAsyncCommands
 		this ICaeriusDbContext context, StoredProcedureParameters spParameters)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
-		if (CacheUtility.TryRetrieveFromCache(spParameters, out ReadOnlyCollection<TResultSet>? cachedResult) &&
-		    cachedResult != null)
+		if (CacheUtility.TryRetrieveFromCache(spParameters, out ReadOnlyCollection<TResultSet>? cachedResult) && cachedResult != null)
 			return cachedResult;
 
 		try
@@ -125,8 +124,7 @@ public static class SimpleReadSqlAsyncCommands
 		StoredProcedureParameters spParameters)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
-		if (CacheUtility.TryRetrieveFromCache(spParameters, out IEnumerable<TResultSet>? cachedResult) &&
-		    cachedResult != null)
+		if (CacheUtility.TryRetrieveFromCache(spParameters, out IEnumerable<TResultSet>? cachedResult) && cachedResult != null)
 			return cachedResult;
 
 		try
@@ -170,12 +168,10 @@ public static class SimpleReadSqlAsyncCommands
 	///     Thrown when the execution of the stored procedure fails due to a SQL exception.
 	/// </exception>
 	public static async Task<ImmutableArray<TResultSet>> QueryAsImmutableArrayAsync<TResultSet>(
-		this ICaeriusDbContext context,
-		StoredProcedureParameters spParameters)
+		this ICaeriusDbContext context, StoredProcedureParameters spParameters)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
-		if (CacheUtility.TryRetrieveFromCache(spParameters, out ImmutableArray<TResultSet>? cachedResult) &&
-		    cachedResult != null)
+		if (CacheUtility.TryRetrieveFromCache(spParameters, out ImmutableArray<TResultSet>? cachedResult) && cachedResult != null)
 			return (ImmutableArray<TResultSet>)cachedResult;
 
 		try

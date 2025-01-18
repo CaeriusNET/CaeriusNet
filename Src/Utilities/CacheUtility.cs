@@ -13,13 +13,10 @@ internal static class CacheUtility
 	/// <returns>
 	///     true if a cached result is successfully retrieved; otherwise, false.
 	/// </returns>
-	internal static bool TryRetrieveFromCache<T>(
-		StoredProcedureParameters spParameters,
-		out T? result)
+	internal static bool TryRetrieveFromCache<T>(StoredProcedureParameters spParameters, out T? result)
 	{
 		result = default;
-		if (spParameters.CacheType is null || string.IsNullOrEmpty(spParameters.CacheKey))
-			return false;
+		if (spParameters.CacheType is null || string.IsNullOrEmpty(spParameters.CacheKey)) return false;
 
 		return spParameters.CacheType switch
 		{
@@ -38,12 +35,9 @@ internal static class CacheUtility
 	/// </param>
 	/// <param name="result">The result to be stored in the cache.</param>
 	/// <exception cref="ArgumentOutOfRangeException">Thrown when an invalid cache type is specified in the parameters.</exception>
-	internal static void StoreInCache<T>(
-		StoredProcedureParameters spParameters,
-		T result)
+	internal static void StoreInCache<T>(StoredProcedureParameters spParameters, T result)
 	{
-		if (spParameters.CacheType is null || string.IsNullOrEmpty(spParameters.CacheKey))
-			return;
+		if (spParameters.CacheType is null || string.IsNullOrEmpty(spParameters.CacheKey)) return;
 
 		switch (spParameters.CacheType)
 		{
