@@ -15,10 +15,8 @@ internal static class InMemoryCacheManager
 	/// <param name="cacheKey">The unique key used to store and retrieve the value from the cache.</param>
 	/// <param name="value">The value to be stored in the cache.</param>
 	/// <param name="expiration">The duration for which the cached value is valid before it expires.</param>
-	internal static void Store<T>(string cacheKey, T value, TimeSpan expiration)
-	{
+	internal static void Store<T>(string cacheKey, T value, TimeSpan expiration) =>
 		MemoryCache.Set(cacheKey, value!, expiration);
-	}
 
 	/// <summary>
 	///     Attempts to retrieve a cached value from the in-memory cache based on the specified cache key.

@@ -108,9 +108,5 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
 	///     A <see cref="StoredProcedureParameters" /> instance containing the stored procedure name, capacity,
 	///     parameters, and optional caching settings.
 	/// </returns>
-	public StoredProcedureParameters Build()
-	{
-		return new StoredProcedureParameters(ProcedureName, Capacity, Parameters, _cacheKey, _cacheExpiration,
-			_cacheType);
-	}
+	public StoredProcedureParameters Build() => new(ProcedureName, Capacity, Parameters, _cacheKey, _cacheExpiration, _cacheType);
 }
