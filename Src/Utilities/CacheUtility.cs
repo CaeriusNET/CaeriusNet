@@ -14,17 +14,17 @@ internal static class CacheUtility
 	///     true if a cached result is successfully retrieved; otherwise, false.
 	/// </returns>
 	internal static bool TryRetrieveFromCache<T>(StoredProcedureParameters spParameters, out T? result)
-	{
-		result = default;
-		if (spParameters.CacheType is null || string.IsNullOrEmpty(spParameters.CacheKey)) return false;
+    {
+        result = default;
+        if (spParameters.CacheType is null || string.IsNullOrEmpty(spParameters.CacheKey)) return false;
 
-		return spParameters.CacheType switch
-		{
-			CacheType.InMemory => InMemoryCacheManager.TryGet(spParameters.CacheKey, out result),
-			CacheType.Frozen => FrozenCacheManager.TryGetFrozen(spParameters.CacheKey, out result),
-			_ => false
-		};
-	}
+        return spParameters.CacheType switch
+        {
+            CacheType.InMemory => InMemoryCacheManager.TryGet(spParameters.CacheKey, out result),
+            CacheType.Frozen => FrozenCacheManager.TryGetFrozen(spParameters.CacheKey, out result),
+            _ => false
+        };
+    }
 
 	/// <summary>
 	///     Stores the specified result in a cache based on the provided stored procedure parameters.
@@ -36,21 +36,21 @@ internal static class CacheUtility
 	/// <param name="result">The result to be stored in the cache.</param>
 	/// <exception cref="ArgumentOutOfRangeException">Thrown when an invalid cache type is specified in the parameters.</exception>
 	internal static void StoreInCache<T>(StoredProcedureParameters spParameters, T result)
-	{
-		if (spParameters.CacheType is null || string.IsNullOrEmpty(spParameters.CacheKey)) return;
+    {
+        if (spParameters.CacheType is null || string.IsNullOrEmpty(spParameters.CacheKey)) return;
 
-		switch (spParameters.CacheType)
-		{
-			case CacheType.InMemory:
-				InMemoryCacheManager.Store(spParameters.CacheKey, result, spParameters.CacheExpiration!.Value);
-				break;
-			case CacheType.Frozen:
-				FrozenCacheManager.StoreFrozen(spParameters.CacheKey, result);
-				break;
-			case null:
-				break;
-			default:
-				throw new ArgumentOutOfRangeException();
-		}
-	}
+        switch (spParameters.CacheType)
+        {
+            case CacheType.InMemory:
+                InMemoryCacheManager.Store(spParameters.CacheKey, result, spParameters.CacheExpiration!.Value);
+                break;
+            case CacheType.Frozen:
+                FrozenCacheManager.StoreFrozen(spParameters.CacheKey, result);
+                break;
+            case null:
+                break;
+            default:
+                throw new ArgumentOutOfRangeException();
+        }
+    }
 }
