@@ -13,7 +13,7 @@ public static class CaeriusServiceCollectionExtension
 	/// <param name="connectionString">The database connection string used to establish the connection.</param>
 	/// <returns>The IServiceCollection instance for method chaining.</returns>
 	public static IServiceCollection AddCaeriusNet(this IServiceCollection services, string connectionString)
-	{
-		return services.AddSingleton<ICaeriusDbContext, CaeriusDbContext>(_ => new CaeriusDbContext(connectionString));
-	}
+    {
+        return services.AddSingleton<ICaeriusDbContext, CaeriusDbContext>(_ => new CaeriusDbContext(connectionString));
+    }
 }
