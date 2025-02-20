@@ -1,5 +1,5 @@
 ﻿// Global using directives
-
+global using static CaeriusNet.Utilities.CacheType;
 global using Microsoft.Extensions.DependencyInjection;
 global using System.Collections.Immutable;
 global using System.Data;
