@@ -24,17 +24,17 @@ internal static class SqlCommandUtility
 	///     <see langword="null" /> if no result is found.
 	/// </returns>
 	internal static async Task<TResultSet?> ScalarQueryAsync<TResultSet>(
-        StoredProcedureParameters spParameters, IDbConnection connection)
-        where TResultSet : class, ISpMapper<TResultSet>
-    {
-        await using var command = await ExecuteSqlCommand(spParameters, connection);
-        await using var reader = await command.ExecuteReaderAsync();
+		StoredProcedureParameters spParameters, IDbConnection connection)
+		where TResultSet : class, ISpMapper<TResultSet>
+	{
+		await using var command = await ExecuteSqlCommand(spParameters, connection);
+		await using var reader = await command.ExecuteReaderAsync();
 
-        if (await reader.ReadAsync())
-            return TResultSet.MapFromDataReader(reader);
+		if (await reader.ReadAsync())
+			return TResultSet.MapFromDataReader(reader);
 
-        return null;
-    }
+		return null;
+	}
 
 	/// <summary>
 	///     Executes a stored procedure query asynchronously and streams the result set as an asynchronous enumerable of the
@@ -55,15 +55,15 @@ internal static class SqlCommandUtility
 	///     corresponding row in the result set.
 	/// </returns>
 	internal static async IAsyncEnumerable<TResultSet> StreamQueryAsync<TResultSet>(
-        StoredProcedureParameters spParameters, IDbConnection connection)
-        where TResultSet : class, ISpMapper<TResultSet>
-    {
-        await using var command = await ExecuteSqlCommand(spParameters, connection);
-        await using var reader = await command.ExecuteReaderAsync();
+		StoredProcedureParameters spParameters, IDbConnection connection)
+		where TResultSet : class, ISpMapper<TResultSet>
+	{
+		await using var command = await ExecuteSqlCommand(spParameters, connection);
+		await using var reader = await command.ExecuteReaderAsync();
 
-        while (await reader.ReadAsync())
-            yield return TResultSet.MapFromDataReader(reader);
-    }
+		while (await reader.ReadAsync())
+			yield return TResultSet.MapFromDataReader(reader);
+	}
 
 	/// <summary>
 	///     Executes a stored procedure query asynchronously and returns the result set as a read-only collection of the
@@ -83,13 +83,13 @@ internal static class SqlCommandUtility
 	///     from the query result.
 	/// </returns>
 	internal static async Task<ReadOnlyCollection<TResultSet>> ResultSetAsReadOnlyCollectionAsync<TResultSet>(
-        StoredProcedureParameters spParameters, IDbConnection connection)
-        where TResultSet : class, ISpMapper<TResultSet>
-    {
-        var results = new List<TResultSet>(spParameters.Capacity);
-        await foreach (var item in StreamQueryAsync<TResultSet>(spParameters, connection)) results.Add(item);
-        return results.AsReadOnly();
-    }
+		StoredProcedureParameters spParameters, IDbConnection connection)
+		where TResultSet : class, ISpMapper<TResultSet>
+	{
+		var results = new List<TResultSet>(spParameters.Capacity);
+		await foreach (var item in StreamQueryAsync<TResultSet>(spParameters, connection)) results.Add(item);
+		return results.AsReadOnly();
+	}
 
 	/// <summary>
 	///     Executes a stored procedure asynchronously and returns the result set as an immutable array.
@@ -109,13 +109,13 @@ internal static class SqlCommandUtility
 	///     query.
 	/// </returns>
 	internal static async Task<ImmutableArray<TResultSet>> ResultSetAsImmutableArrayAsync<TResultSet>(
-        StoredProcedureParameters spParameters, IDbConnection connection)
-        where TResultSet : class, ISpMapper<TResultSet>
-    {
-        var builder = ImmutableArray.CreateBuilder<TResultSet>(spParameters.Capacity);
-        await foreach (var item in StreamQueryAsync<TResultSet>(spParameters, connection)) builder.Add(item);
-        return builder.ToImmutable();
-    }
+		StoredProcedureParameters spParameters, IDbConnection connection)
+		where TResultSet : class, ISpMapper<TResultSet>
+	{
+		var builder = ImmutableArray.CreateBuilder<TResultSet>(spParameters.Capacity);
+		await foreach (var item in StreamQueryAsync<TResultSet>(spParameters, connection)) builder.Add(item);
+		return builder.ToImmutable();
+	}
 
 	/// <summary>
 	///     Creates and configures a <see cref="SqlCommand" /> for executing a stored procedure using the specified parameters
@@ -135,19 +135,19 @@ internal static class SqlCommandUtility
 	///     <see cref="SqlConnection" />.
 	/// </exception>
 	private static Task<SqlCommand> ExecuteSqlCommand(StoredProcedureParameters spParameters, IDbConnection connection)
-    {
-        if (connection is not SqlConnection sqlConnection)
-            throw new InvalidOperationException("Connection must be of type SqlConnection.");
+	{
+		if (connection is not SqlConnection sqlConnection)
+			throw new InvalidOperationException("Connection must be of type SqlConnection.");
 
-        var command = new SqlCommand(spParameters.ProcedureName, sqlConnection)
-        {
-            CommandType = CommandType.StoredProcedure
-        };
+		var command = new SqlCommand(spParameters.ProcedureName, sqlConnection)
+		{
+			CommandType = CommandType.StoredProcedure
+		};
 
-        command.Parameters.AddRange([..spParameters.Parameters]);
+		command.Parameters.AddRange([..spParameters.Parameters]);
 
-        return Task.FromResult(command);
-    }
+		return Task.FromResult(command);
+	}
 
 	/// <summary>
 	///     Executes an asynchronous SQL command using a stored procedure and a provided execution function.
@@ -168,20 +168,20 @@ internal static class SqlCommandUtility
 	///     exception.
 	/// </exception>
 	internal static async Task<T> ExecuteCommandAsync<T>(
-        ICaeriusDbContext dbContext, StoredProcedureParameters spParameters, Func<SqlCommand, Task<T>> execute)
-    {
-        try
-        {
-            using var connection = dbContext.DbConnection();
-            await using var command = await ExecuteSqlCommand(spParameters, connection);
+		ICaeriusDbContext dbContext, StoredProcedureParameters spParameters, Func<SqlCommand, Task<T>> execute)
+	{
+		try
+		{
+			using var connection = dbContext.DbConnection();
+			await using var command = await ExecuteSqlCommand(spParameters, connection);
 
-            return await execute(command);
-        }
-        catch (SqlException ex)
-        {
-            throw new CaeriusSqlException($"Failed to execute stored procedure: {spParameters.ProcedureName}", ex);
-        }
-    }
+			return await execute(command);
+		}
+		catch (SqlException ex)
+		{
+			throw new CaeriusSqlException($"Failed to execute stored procedure: {spParameters.ProcedureName}", ex);
+		}
+	}
 
 	/// <summary>
 	///     Executes a stored procedure query asynchronously and processes multiple result sets using the specified mapper
@@ -200,30 +200,30 @@ internal static class SqlCommandUtility
 	///     using the corresponding mapper function.
 	/// </returns>
 	internal static async Task<List<IReadOnlyCollection<object>>> ExecuteMultipleReadOnlyResultSetsAsync(
-        StoredProcedureParameters spParameters, IDbConnection connection, params Func<SqlDataReader, object>[] mappers)
-    {
-        if (mappers.Length == 0)
-            throw new ArgumentException("At least one mapper function must be provided.", nameof(mappers));
+		StoredProcedureParameters spParameters, IDbConnection connection, params Func<SqlDataReader, object>[] mappers)
+	{
+		if (mappers.Length == 0)
+			throw new ArgumentException("At least one mapper function must be provided.", nameof(mappers));
 
-        await using var command = await ExecuteSqlCommand(spParameters, connection);
-        await using var reader = await command.ExecuteReaderAsync();
+		await using var command = await ExecuteSqlCommand(spParameters, connection);
+		await using var reader = await command.ExecuteReaderAsync();
 
-        var results = new List<IReadOnlyCollection<object>>(mappers.Length);
+		var results = new List<IReadOnlyCollection<object>>(mappers.Length);
 
-        foreach (var mapper in mappers)
-        {
-            var items = new List<object>();
-            while (await reader.ReadAsync())
-                items.Add(mapper(reader));
+		foreach (var mapper in mappers)
+		{
+			var items = new List<object>();
+			while (await reader.ReadAsync())
+				items.Add(mapper(reader));
 
-            results.Add(items.AsReadOnly());
+			results.Add(items.AsReadOnly());
 
-            if (!await reader.NextResultAsync())
-                break;
-        }
+			if (!await reader.NextResultAsync())
+				break;
+		}
 
-        return results;
-    }
+		return results;
+	}
 
 	/// <summary>
 	///     Executes a stored procedure query asynchronously and maps its multiple result sets to immutable arrays using
@@ -244,29 +244,29 @@ internal static class SqlCommandUtility
 	///     provided mapper functions.
 	/// </returns>
 	internal static async Task<List<ImmutableArray<object>>> ExecuteMultipleImmutableResultSetsAsync(
-        StoredProcedureParameters spParameters, IDbConnection connection, params Func<SqlDataReader, object>[] mappers)
-    {
-        if (mappers.Length == 0)
-            throw new ArgumentException("At least one mapper function must be provided.", nameof(mappers));
+		StoredProcedureParameters spParameters, IDbConnection connection, params Func<SqlDataReader, object>[] mappers)
+	{
+		if (mappers.Length == 0)
+			throw new ArgumentException("At least one mapper function must be provided.", nameof(mappers));
 
-        await using var command = await ExecuteSqlCommand(spParameters, connection);
-        await using var reader = await command.ExecuteReaderAsync();
+		await using var command = await ExecuteSqlCommand(spParameters, connection);
+		await using var reader = await command.ExecuteReaderAsync();
 
-        var results = new List<ImmutableArray<object>>(mappers.Length);
-        foreach (var mapper in mappers)
-        {
-            var builder = ImmutableArray.CreateBuilder<object>();
-            while (await reader.ReadAsync())
-                builder.Add(mapper(reader));
+		var results = new List<ImmutableArray<object>>(mappers.Length);
+		foreach (var mapper in mappers)
+		{
+			var builder = ImmutableArray.CreateBuilder<object>();
+			while (await reader.ReadAsync())
+				builder.Add(mapper(reader));
 
-            results.Add(builder.ToImmutable());
+			results.Add(builder.ToImmutable());
 
-            if (!await reader.NextResultAsync())
-                break;
-        }
+			if (!await reader.NextResultAsync())
+				break;
+		}
 
-        return results;
-    }
+		return results;
+	}
 
 	/// <summary>
 	///     Executes a stored procedure query asynchronously and returns multiple result sets,
@@ -287,30 +287,30 @@ internal static class SqlCommandUtility
 	///     to the corresponding mapping function provided in <paramref name="mappers" />.
 	/// </returns>
 	internal static async Task<List<IEnumerable<object>>> ExecuteMultipleIEnumerableResultSetsAsync(
-        StoredProcedureParameters spParameters,
-        IDbConnection connection,
-        params Func<SqlDataReader, object>[] mappers)
-    {
-        if (mappers.Length == 0)
-            throw new ArgumentException("At least one mapper function must be provided.", nameof(mappers));
+		StoredProcedureParameters spParameters,
+		IDbConnection connection,
+		params Func<SqlDataReader, object>[] mappers)
+	{
+		if (mappers.Length == 0)
+			throw new ArgumentException("At least one mapper function must be provided.", nameof(mappers));
 
-        await using var command = await ExecuteSqlCommand(spParameters, connection);
-        await using var reader = await command.ExecuteReaderAsync();
+		await using var command = await ExecuteSqlCommand(spParameters, connection);
+		await using var reader = await command.ExecuteReaderAsync();
 
-        var results = new List<IEnumerable<object>>(mappers.Length);
+		var results = new List<IEnumerable<object>>(mappers.Length);
 
-        foreach (var mapper in mappers)
-        {
-            var resultSet = new List<object>();
-            while (await reader.ReadAsync())
-                resultSet.Add(mapper(reader));
+		foreach (var mapper in mappers)
+		{
+			var resultSet = new List<object>();
+			while (await reader.ReadAsync())
+				resultSet.Add(mapper(reader));
 
-            results.Add(resultSet);
+			results.Add(resultSet);
 
-            if (!await reader.NextResultAsync())
-                break;
-        }
+			if (!await reader.NextResultAsync())
+				break;
+		}
 
-        return results;
-    }
+		return results;
+	}
 }
