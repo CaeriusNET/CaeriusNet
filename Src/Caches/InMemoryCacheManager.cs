@@ -1,4 +1,6 @@
-﻿namespace CaeriusNet.Caches;
+﻿using CaeriusNet.Logging;
+
+namespace CaeriusNet.Caches;
 
 /// <summary>
 ///     Represents a utility class that manages caching operations in memory,
@@ -7,6 +9,7 @@
 internal static class InMemoryCacheManager
 {
 	private static readonly MemoryCache MemoryCache = new(new MemoryCacheOptions());
+	private static readonly ICaeriusLogger? Logger = LoggerProvider.GetLogger();
 
 	/// <summary>
 	///     Stores the specified value in the in-memory cache with the given cache key and expiration time.
@@ -17,7 +20,11 @@ internal static class InMemoryCacheManager
 	/// <param name="expiration">The duration for which the cached value is valid before it expires.</param>
 	internal static void Store<T>(string cacheKey, T value, TimeSpan expiration)
 	{
+		Logger?.LogDebug(LogCategory.InMemoryCache,
+			$"Enregistrement dans le cache mémoire avec la clé '{cacheKey}'...");
 		MemoryCache.Set(cacheKey, value!, expiration);
+		Logger?.LogInformation(LogCategory.InMemoryCache,
+			$"Valeur enregistrée dans le cache mémoire avec la clé '{cacheKey}' et l'expiration de {expiration}");
 	}
 
 	/// <summary>
@@ -34,13 +41,20 @@ internal static class InMemoryCacheManager
 	/// </returns>
 	internal static bool TryGet<T>(string cacheKey, out T? value)
 	{
+		Logger?.LogDebug(LogCategory.InMemoryCache,
+			$"Récupération depuis le cache mémoire avec la clé '{cacheKey}'...");
+
 		if (MemoryCache.TryGetValue(cacheKey, out var cached) && cached is T typedValue)
 		{
 			value = typedValue;
+			Logger?.LogInformation(LogCategory.InMemoryCache,
+				$"Valeur récupérée avec succès depuis le cache mémoire pour la clé '{cacheKey}'");
 			return true;
 		}
 
 		value = default;
+		Logger?.LogDebug(LogCategory.InMemoryCache,
+			$"Aucune valeur trouvée dans le cache mémoire pour la clé '{cacheKey}'");
 		return false;
 	}
 }

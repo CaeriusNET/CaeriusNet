@@ -1,4 +1,6 @@
-﻿namespace CaeriusNet.Caches;
+﻿using CaeriusNet.Logging;
+
+namespace CaeriusNet.Caches;
 
 /// <summary>
 ///     Provides methods for managing an immutable, thread-safe cache using frozen dictionaries.
@@ -7,6 +9,7 @@ internal static class FrozenCacheManager
 {
 	private static volatile FrozenDictionary<string, object> _frozenCache = FrozenDictionary<string, object>.Empty;
 	private static readonly object Lock = new();
+	private static readonly ICaeriusLogger? Logger = LoggerProvider.GetLogger();
 
 	/// <summary>
 	///     Stores a value in the frozen dictionary-based cache if it is not already present.
@@ -16,12 +19,22 @@ internal static class FrozenCacheManager
 	/// <param name="value">The value to be stored in the cache.</param>
 	internal static void StoreFrozen<T>(string cacheKey, T value)
 	{
+		Logger?.LogDebug(LogCategory.FrozenCache,
+			$"Tentative d'enregistrement dans le cache gelé avec la clé '{cacheKey}'...");
+
 		lock (Lock)
 		{
-			if (_frozenCache.ContainsKey(cacheKey)) return;
+			if (_frozenCache.ContainsKey(cacheKey))
+			{
+				Logger?.LogDebug(LogCategory.FrozenCache,
+					$"La clé '{cacheKey}' existe déjà dans le cache gelé. Ignorer l'enregistrement.");
+				return;
+			}
 
 			var mutableCache = new ConcurrentDictionary<string, object>(_frozenCache) { [cacheKey] = value! };
 			_frozenCache = mutableCache.ToFrozenDictionary();
+			Logger?.LogInformation(LogCategory.FrozenCache,
+				$"Valeur enregistrée dans le cache gelé avec la clé '{cacheKey}'");
 		}
 	}
 
@@ -37,13 +50,18 @@ internal static class FrozenCacheManager
 	/// </returns>
 	internal static bool TryGetFrozen<T>(string cacheKey, out T? value)
 	{
+		Logger?.LogDebug(LogCategory.FrozenCache, $"Récupération depuis le cache gelé avec la clé '{cacheKey}'...");
+
 		if (_frozenCache.TryGetValue(cacheKey, out var cached) && cached is T typedValue)
 		{
 			value = typedValue;
+			Logger?.LogInformation(LogCategory.FrozenCache,
+				$"Valeur récupérée avec succès depuis le cache gelé pour la clé '{cacheKey}'");
 			return true;
 		}
 
 		value = default;
+		Logger?.LogDebug(LogCategory.FrozenCache, $"Aucune valeur trouvée dans le cache gelé pour la clé '{cacheKey}'");
 		return false;
 	}
 }

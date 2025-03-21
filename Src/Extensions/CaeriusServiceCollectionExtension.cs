@@ -1,4 +1,6 @@
-﻿namespace CaeriusNet.Extensions;
+﻿using CaeriusNet.Logging;
+
+namespace CaeriusNet.Extensions;
 
 /// <summary>
 ///     Provides extension methods for IServiceCollection to register and configure services
@@ -29,5 +31,13 @@ public static class CaeriusServiceCollectionExtension
 		if (!string.IsNullOrWhiteSpace(redisConnectionString)) RedisCacheManager.Initialize(redisConnectionString);
 
 		return services;
+	}
+
+	// Extensions/CaeriusServiceCollectionExtension.cs - Ajout de la méthode d'extension
+	public static IServiceCollection AddCaeriusLoggingConsole(this IServiceCollection services)
+	{
+		var logger = new ConsoleLogger();
+		LoggerProvider.SetLogger(logger);
+		return services.AddSingleton<ICaeriusLogger>(logger);
 	}
 }
