@@ -1,39 +1,73 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-    <PropertyGroup>
-        <TargetFrameworks>net9.0;net8.0</TargetFrameworks>
-        <RootNamespace>CaeriusNet</RootNamespace>
-        <AssemblyName>CaeriusNet</AssemblyName>
-        <OutputType>Library</OutputType>
-        <LangVersion>latest</LangVersion>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <Nullable>enable</Nullable>
-        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <Version>9.1.1</Version>
-        <Title>CaeriusNet</Title>
-        <Authors>AriusII &amp; CaeriusNet</Authors>
-        <Description>CaeriusNet is a high-performance framework developed in C# .NET 8 + and optimized for SQL Server 2019 +. It emphasizes code quality, maintainability, and scalability by providing advanced tools for executing stored procedures and managing caching mechanisms.</Description>
-        <Copyright>2025</Copyright>
-        <PackageProjectUrl>https://caerius.net</PackageProjectUrl>
-        <PackageTags>dapper, ef, orm, fast, stored, procedure</PackageTags>
-    </PropertyGroup>
+	<!-- Propriétés de base du projet -->
+	<PropertyGroup>
+		<TargetFrameworks>net9.0;net8.0</TargetFrameworks>
+		<RootNamespace>CaeriusNet</RootNamespace>
+		<AssemblyName>CaeriusNet</AssemblyName>
+		<OutputType>Library</OutputType>
+		<LangVersion>latest</LangVersion>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+	</PropertyGroup>
 
-    <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-        <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
-    </PropertyGroup>
+	<!-- Propriétés du package NuGet -->
+	<PropertyGroup>
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+		<Version>9.1.4</Version>
+		<Title>CaeriusNet</Title>
+		<Authors>AriusII &amp; CaeriusNet</Authors>
+		<Description>CaeriusNet is a high-performance framework developed in C# .NET 8 + and optimized for SQL Server 2019 +. It emphasizes code quality, maintainability, and scalability by providing advanced tools for executing stored procedures and managing caching mechanisms.</Description>
+		<Copyright>2025</Copyright>
+		<PackageProjectUrl>https://caerius.net</PackageProjectUrl>
+		<PackageTags>dapper;ef;orm;fast;stored-procedure;sql-server</PackageTags>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<RepositoryType>git</RepositoryType>
+		<PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+	</PropertyGroup>
 
-    <ItemGroup>
-        <PackageReference Include="Microsoft.Data.SqlClient" Version="6.0.1"/>
-        <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.3"/>
-        <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.3"/>
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.3"/>
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.3"/>
-        <PackageReference Include="StackExchange.Redis" Version="2.8.31"/>
-        <PackageReference Include="System.Text.Json" Version="9.0.3"/>
-    </ItemGroup>
 
-    <ItemGroup>
-        <Folder Include="Logging\"/>
-    </ItemGroup>
+	<!-- Configuration spécifique pour Debug -->
+	<PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+		<CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+		<DefineConstants>DEBUG;TRACE</DefineConstants>
+		<DebugType>full</DebugType>
+		<DebugSymbols>true</DebugSymbols>
+	</PropertyGroup>
+
+	<!-- Configuration spécifique pour Release -->
+	<PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+		<CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+		<PlatformTarget>x64</PlatformTarget>
+		<DebugType>portable</DebugType>
+		<DebugSymbols>true</DebugSymbols>
+		<Optimize>true</Optimize>
+	</PropertyGroup>
+
+	<!-- Inclusion du fichier README.md dans le package NuGet -->
+	<ItemGroup>
+		<None Include="README.md" Pack="true" PackagePath="\"/>
+	</ItemGroup>
+
+	<!-- Références aux packages NuGet, regroupées par catégorie -->
+	<ItemGroup>
+		<!-- Microsoft Data Access -->
+		<PackageReference Include="Microsoft.Data.SqlClient" Version="6.0.1"/>
+
+		<!-- Microsoft Extensions -->
+		<PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.4"/>
+		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.4"/>
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.4"/>
+		<PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.4"/>
+
+		<!-- Caching -->
+		<PackageReference Include="StackExchange.Redis" Version="2.8.31"/>
+
+		<!-- Serialization -->
+		<PackageReference Include="System.Text.Json" Version="9.0.4"/>
+
+		<ProjectReference Include="..\SourceGenerators\CaeriusNet.Generator\CaeriusNet.Generator.csproj"/>
+	</ItemGroup>
 
 </Project>

@@ -8,6 +8,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CaeriusNet", "Src\CaeriusNe
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CaeriusNet.Benchmark", "Benchmark\CaeriusNet.Benchmark.csproj", "{0341C72C-B83F-4DB9-BC2E-86CBCCAFC9A2}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SourceGenerators", "SourceGenerators", "{0BC70258-588F-4EBA-98EB-085CB05A472D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CaeriusNet.Generator", "SourceGenerators\CaeriusNet.Generator\CaeriusNet.Generator.csproj", "{62A7322F-18E1-4F3E-A034-19068C0AE0CB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -16,6 +20,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{354375C9-6A8E-40E6-9092-092CA6535402} = {4041333D-92A9-4DFC-A224-7BD818142763}
 		{0341C72C-B83F-4DB9-BC2E-86CBCCAFC9A2} = {CE57F0A6-B283-42CF-B6C3-5E51011D51B3}
+		{62A7322F-18E1-4F3E-A034-19068C0AE0CB} = {0BC70258-588F-4EBA-98EB-085CB05A472D}
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{354375C9-6A8E-40E6-9092-092CA6535402}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
@@ -26,5 +31,9 @@ Global
 		{0341C72C-B83F-4DB9-BC2E-86CBCCAFC9A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0341C72C-B83F-4DB9-BC2E-86CBCCAFC9A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0341C72C-B83F-4DB9-BC2E-86CBCCAFC9A2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{62A7322F-18E1-4F3E-A034-19068C0AE0CB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{62A7322F-18E1-4F3E-A034-19068C0AE0CB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{62A7322F-18E1-4F3E-A034-19068C0AE0CB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{62A7322F-18E1-4F3E-A034-19068C0AE0CB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

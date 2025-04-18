@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>netstandard2.0</TargetFramework>
+		<IsPackable>true</IsPackable>
+		<Nullable>enable</Nullable>
+		<LangVersion>latest</LangVersion>
+
+		<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+		<EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+		<IsRoslynComponent>true</IsRoslynComponent>
+		<RootNamespace>CaeriusNet.Generator</RootNamespace>
+		<PackageId>CaeriusNet.Generator</PackageId>
+
+		<Title>CaeriusNet Source Generator</Title>
+		<Authors>CaeriusNet</Authors>
+		<Description>Source generators for CaeriusNet framework. Automatically generates DTO mappers and TVP converters.</Description>
+		<Copyright>2025</Copyright>
+		<PackageProjectUrl>https://caerius.net</PackageProjectUrl>
+		<PackageTags>source-generators;roslyn;mapping;tvp;dto</PackageTags>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<Version>9.1.4</Version>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0" PrivateAssets="all"/>
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.13.0" PrivateAssets="all"/>
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Package the generator in the analyzer directory of the NuGet package -->
+		<None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
+	</ItemGroup>
+</Project>
