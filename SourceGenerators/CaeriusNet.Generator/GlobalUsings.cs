@@ -7,8 +7,6 @@ global using System.Diagnostics;
 global using System.Diagnostics.CodeAnalysis;
 global using System.Linq;
 global using System.Text;
-global using System.Threading;
-global using CaeriusNet.Generator.Dto.Attributes;
 global using CaeriusNet.Generator.Dto.Models;
 global using CaeriusNet.Generator.Infrastructure;
 global using CaeriusNet.Generator.Infrastructure.Extensions;

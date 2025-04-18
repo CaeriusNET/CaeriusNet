@@ -26,8 +26,7 @@ public sealed partial class DtoSourceGenerator
 				.AppendLine();
 
 			// We're creating a partial record that implements ISpMapper
-			writer.AppendLine($"public sealed partial record {record.RecordTypeName}");
-			writer.AppendIndentedLine($": ISpMapper<{record.RecordTypeName}>");
+			writer.AppendLine($"public sealed partial record {record.RecordTypeName} : ISpMapper<{record.RecordTypeName}>");
 
 			using (writer.CreateScope())
 			{
@@ -87,11 +86,8 @@ public sealed partial class DtoSourceGenerator
 
 			// Différencier entre les types référence (null) et les types valeur (default)
 			if (typeName.StartsWith("System.Nullable<") ||
-			    typeName == "string" ||
-			    typeName == "object" ||
-			    typeName == "byte[]" || typeName == "System.Byte[]" ||
-			    typeName.Contains("Uri") ||
-			    typeName.Contains("Version"))
+			    typeName == "string" || typeName == "object" ||
+			    typeName == "byte[]" || typeName == "System.Byte[]")
 				writer.Append("null : ");
 			else
 				writer.Append("default : ");
@@ -193,12 +189,6 @@ public sealed partial class DtoSourceGenerator
 				break;
 			case "System.TimeOnly" or "TimeOnly":
 				writer.Append($"TimeOnly.FromDateTime(reader.GetDateTime({index}))");
-				break;
-			case "System.Uri" or "Uri":
-				writer.Append($"new Uri(reader.GetString({index}))");
-				break;
-			case "System.Version" or "Version":
-				writer.Append($"Version.Parse(reader.GetString({index}))");
 				break;
 			case "byte[]" or "System.Byte[]":
 				writer.Append($"(byte[])reader.GetValue({index})");

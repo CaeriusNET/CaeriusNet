@@ -1,4 +1,6 @@
-﻿namespace CaeriusNet.Generator.Dto;
+﻿using CaeriusNet.Generator.Types.Structs;
+
+namespace CaeriusNet.Generator.Dto;
 
 /// <summary>
 ///     Source generator for generating ISpMapper implementations for DTO classes/records.
@@ -6,27 +8,16 @@
 [Generator(LanguageNames.CSharp)]
 public sealed partial class DtoSourceGenerator : IIncrementalGenerator
 {
-	// Qualified name used with ForAttributeWithMetadataName
-	private const string AttributeFullName = "CaeriusNet.Mappers.Attributes.GenerateDtoAttribute";
-
 	/// <summary>
 	///     Initializes the source generator.
 	/// </summary>
 	/// <param name="context">The initialization context.</param>
 	public void Initialize(IncrementalGeneratorInitializationContext context)
 	{
-		// Register the attribute that will be available to users in their code
-		context.RegisterPostInitializationOutput(ctx =>
-		{
-			ctx.AddSource(SourceGeneratedDtoAttribute.GlobalName, SourceGeneratedDtoAttribute.Source);
-		});
-
 		// Approche 1: Trouver les attributs par leur nom qualifié complet (avec using)
 		var qualifiedProvider = context.SyntaxProvider
-			.ForAttributeWithMetadataName(
-				AttributeFullName,
-				static (node, _) => node is ClassDeclarationSyntax or RecordDeclarationSyntax,
-				static (context, _) =>
+			.ForAttributeWithMetadataName(Constants.AttributeFullName,
+				static (node, _) => node is ClassDeclarationSyntax or RecordDeclarationSyntax, static (context, _) =>
 				{
 					// Extraire le type déclaré
 					INamedTypeSymbol? typeSymbol = null;
@@ -66,7 +57,7 @@ public sealed partial class DtoSourceGenerator : IIncrementalGenerator
 					// Vérifier que ce n'est pas déjà traité par l'autre provider
 					// en s'assurant que l'attribut n'est PAS le nom qualifié complet
 					var hasFullyQualifiedAttribute = typeSymbol.GetAttributes()
-						.Any(attr => attr.AttributeClass?.ToDisplayString() == AttributeFullName);
+						.Any(attr => attr.AttributeClass?.ToDisplayString() == Constants.AttributeFullName);
 
 					return hasFullyQualifiedAttribute
 						? null
@@ -82,20 +73,20 @@ public sealed partial class DtoSourceGenerator : IIncrementalGenerator
 			.Select((pair, _) => pair.Left.AddRange(pair.Right).ToImmutableArray());
 
 		// Vérifier si le générateur est activé dans la configuration du projet
-		var enabled = context.AnalyzerConfigOptionsProvider.IsEnabled("GenerateDto");
+		var enabled = context.AnalyzerConfigOptionsProvider.IsEnabled(Constants.AttributeShortName);
 
 		// Combiner le fournisseur avec le flag d'activation
 		var provider = combinedProvider.Combine(enabled);
 
 		// Enregistrer la sortie pour la génération de source
-		context.RegisterSourceOutput(provider, (spc, pair) => Generate(spc, pair.Left, pair.Right));
+		context.RegisterSourceOutput(provider, (spc, pair) => Generate(spc, pair.Left!, pair.Right));
 	}
 
 	private static bool HasGenerateDtoAttribute(SyntaxList<AttributeListSyntax> attributeLists)
 	{
 		foreach (var attrName in attributeLists.SelectMany(attrList =>
 			         attrList.Attributes.Select(attr => attr.Name.ToString())))
-			if (attrName is "GenerateDto" or "GenerateDtoAttribute")
+			if (attrName is Constants.AttributeShortName or Constants.AttributeName)
 				return true;
 
 		return false;

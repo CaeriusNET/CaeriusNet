@@ -78,8 +78,6 @@ public sealed partial class DtoSourceGenerator
 				"System.DateOnly" => "date",
 				"System.TimeOnly" => "time",
 				"byte[]" or "System.Byte[]" => "varbinary",
-				"System.Uri" => "nvarchar",
-				"System.Version" => "nvarchar",
 				_ => "sql_variant" // Type SQL le plus flexible par défaut
 			}
 		};
