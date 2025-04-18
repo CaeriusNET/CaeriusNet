@@ -77,72 +77,139 @@ public sealed partial class DtoSourceGenerator
 	{
 		writer.AppendIndented("");
 
-		var readerMethod = GetReaderMethod(property);
 		var typeName = property.TypeName;
-		var specialConversion = GetSpecialTypeConversion(typeName);
 
+		// Gestion des valeurs nullables
 		if (property.IsNullable)
 		{
+			// Ajouter la vérification IsDBNull pour tous les types nullables
 			writer.Append($"reader.IsDBNull({index}) ? ");
 
-			if (typeName.StartsWith("System.Nullable<") || typeName == "string" ||
+			// Différencier entre les types référence (null) et les types valeur (default)
+			if (typeName.StartsWith("System.Nullable<") ||
+			    typeName == "string" ||
+			    typeName == "object" ||
 			    typeName == "byte[]" || typeName == "System.Byte[]" ||
-			    (!typeName.StartsWith("System") && !typeName.Contains("DateOnly") &&
-			     !typeName.Contains("TimeOnly") && !typeName.Contains("Version") &&
-			     !typeName.Contains("Uri")))
+			    typeName.Contains("Uri") ||
+			    typeName.Contains("Version"))
 				writer.Append("null : ");
 			else
 				writer.Append("default : ");
 		}
 
-		// For special conversions that need custom handling
-		if (!string.IsNullOrEmpty(specialConversion))
-			writer.Append(specialConversion.Replace("{index}", index.ToString()));
-		else
-			writer.Append($"reader.{readerMethod}({index})");
+		// Générer la conversion appropriée pour le type
+		GenerateTypeSpecificReaderCall(writer, property, index);
 	}
 
-	private static string GetSpecialTypeConversion(string typeName)
+	private static void GenerateTypeSpecificReaderCall(SourceWriter writer, DtoProperty property, int index)
 	{
-		return typeName switch
-		{
-			"System.DateOnly" => "DateOnly.FromDateTime(reader.GetDateTime({index}))",
-			"System.TimeOnly" => "TimeOnly.FromDateTime(reader.GetDateTime({index}))",
-			"System.Uri" => "new Uri(reader.GetString({index}))",
-			"System.Version" => "Version.Parse(reader.GetString({index}))",
-			"byte[]" or "System.Byte[]" => "(byte[])reader.GetValue({index})",
-			_ => string.Empty
-		};
-	}
+		var typeName = property.TypeName;
 
-	private static string GetReaderMethod(DtoProperty property)
-	{
-		return property.SqlTypeName switch
+		// Extraire le nom du type de base pour les types Nullable<T>
+		var baseTypeName = typeName;
+		if (typeName.StartsWith("System.Nullable<"))
+			// Extraire T de Nullable<T>
+			baseTypeName = typeName.Substring(16, typeName.Length - 17);
+
+		// Traiter les types spéciaux d'abord
+		switch (baseTypeName)
 		{
-			"bit" => "GetBoolean",
-			"tinyint" => "GetByte",
-			"smallint" => "GetInt16",
-			"int" => "GetInt32",
-			"bigint" => "GetInt64",
-			"decimal" => "GetDecimal",
-			"real" => "GetFloat",
-			"float" => "GetDouble",
-			"nvarchar" => "GetString",
-			"nchar" => "GetString",
-			"varchar" => "GetString",
-			"char" => "GetString",
-			"text" => "GetString",
-			"datetime" => "GetDateTime",
-			"datetime2" => "GetDateTime",
-			"date" => "GetDateTime",
-			"smalldatetime" => "GetDateTime",
-			"uniqueidentifier" => "GetGuid",
-			"datetimeoffset" => "GetDateTimeOffset",
-			"time" => "GetTimeSpan",
-			"varbinary" => "GetSqlBinary().Value",
-			"binary" => "GetSqlBinary().Value",
-			"image" => "GetSqlBinary().Value",
-			_ => "GetValue"
-		};
+			case "System.Boolean":
+			case "bool":
+				writer.Append($"reader.GetBoolean({index})");
+				return;
+
+			case "System.Byte":
+			case "byte":
+				writer.Append($"reader.GetByte({index})");
+				return;
+
+			case "System.Int16":
+			case "short":
+				writer.Append($"reader.GetInt16({index})");
+				return;
+
+			case "System.Int32":
+			case "int":
+				writer.Append($"reader.GetInt32({index})");
+				return;
+
+			case "System.Int64":
+			case "long":
+				writer.Append($"reader.GetInt64({index})");
+				return;
+
+			case "System.Single":
+			case "float":
+				writer.Append($"reader.GetFloat({index})");
+				return;
+
+			case "System.Double":
+			case "double":
+				writer.Append($"reader.GetDouble({index})");
+				return;
+
+			case "System.Decimal":
+			case "decimal":
+				writer.Append($"reader.GetDecimal({index})");
+				return;
+
+			case "System.String":
+			case "string":
+				writer.Append($"reader.GetString({index})");
+				return;
+
+			case "System.Char":
+			case "char":
+				writer.Append($"reader.GetString({index})[0]");
+				return;
+
+			case "System.DateTime":
+			case "DateTime":
+				writer.Append($"reader.GetDateTime({index})");
+				return;
+
+			case "System.Guid":
+			case "Guid":
+				writer.Append($"reader.GetGuid({index})");
+				return;
+
+			case "System.DateTimeOffset":
+			case "DateTimeOffset":
+				writer.Append($"reader.GetDateTimeOffset({index})");
+				return;
+
+			case "System.TimeSpan":
+			case "TimeSpan":
+				writer.Append($"reader.GetTimeSpan({index})");
+				return;
+		}
+
+		switch (baseTypeName)
+		{
+			// Types qui nécessitent une conversion spéciale
+			case "System.DateOnly" or "DateOnly":
+				writer.Append($"DateOnly.FromDateTime(reader.GetDateTime({index}))");
+				break;
+			case "System.TimeOnly" or "TimeOnly":
+				writer.Append($"TimeOnly.FromDateTime(reader.GetDateTime({index}))");
+				break;
+			case "System.Uri" or "Uri":
+				writer.Append($"new Uri(reader.GetString({index}))");
+				break;
+			case "System.Version" or "Version":
+				writer.Append($"Version.Parse(reader.GetString({index}))");
+				break;
+			case "byte[]" or "System.Byte[]":
+				writer.Append($"(byte[])reader.GetValue({index})");
+				break;
+			case "object" or "System.Object":
+				writer.Append($"reader.GetValue({index})");
+				break;
+			// Fallback pour tout autre type non géré
+			default:
+				writer.Append($"({baseTypeName})reader.GetValue({index})");
+				break;
+		}
 	}
 }

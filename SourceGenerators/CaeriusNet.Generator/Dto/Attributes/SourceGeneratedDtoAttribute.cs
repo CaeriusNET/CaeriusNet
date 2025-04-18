@@ -22,7 +22,13 @@ public sealed class SourceGeneratedDtoAttribute : Attribute
 		/// </remarks>
 		/// <example>
 		/// <code>
-		/// // Example: Record with primary constructor
+		/// // Exemple d'utilisation 1: Sans using
+		/// [GenerateDto]
+		/// public sealed partial record UserDto(int UserId, string UserName, DateTime? CreatedAt);
+		/// 
+		/// // Exemple d'utilisation 2: Avec using
+		/// using CaeriusNet.Mappers.Attributes;
+		/// 
 		/// [GenerateDto]
 		/// public sealed partial record UserDto(int UserId, string UserName, DateTime? CreatedAt);
 		/// </code>
@@ -33,7 +39,7 @@ public sealed class SourceGeneratedDtoAttribute : Attribute
 		/// <para>2. The constructor parameters will be mapped in order from the SQL buffer position (0, 1, 2, ...).</para>
 		/// <para>3. Use nullable types for parameters that may receive <c>NULL</c> values.</para>
 		/// <para>4. The source generator will automatically implement <c>ISpMapper</c> for the decorated type.</para>
-		[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+		[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, Inherited = false, AllowMultiple = false)]
 		public sealed class GenerateDtoAttribute : Attribute
 		{
 		}
