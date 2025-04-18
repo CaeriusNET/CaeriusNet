@@ -8,7 +8,7 @@ public sealed partial class DtoSourceGenerator : IIncrementalGenerator
 		// Register the attribute that will be available to users in their code
 		context.RegisterPostInitializationOutput(ctx =>
 		{
-			ctx.AddSource(SourceGenerateDtoAttribute.GlobalName, SourceGenerateDtoAttribute.Source);
+			ctx.AddSource(SourceGeneratedDtoAttribute.GlobalName, SourceGeneratedDtoAttribute.Source);
 		});
 
 		// Create a syntax provider to find all classes/records with [GenerateDto] attribute

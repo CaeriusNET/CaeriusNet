@@ -11,6 +11,7 @@
 		<IsRoslynComponent>true</IsRoslynComponent>
 		<RootNamespace>CaeriusNet.Generator</RootNamespace>
 		<PackageId>CaeriusNet.Generator</PackageId>
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 
 		<Title>CaeriusNet Source Generator</Title>
 		<Authors>CaeriusNet</Authors>
@@ -19,7 +20,7 @@
 		<PackageProjectUrl>https://caerius.net</PackageProjectUrl>
 		<PackageTags>source-generators;roslyn;mapping;tvp;dto</PackageTags>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<Version>9.1.4</Version>
+		<Version>9.1.6</Version>
 	</PropertyGroup>
 
 	<ItemGroup>

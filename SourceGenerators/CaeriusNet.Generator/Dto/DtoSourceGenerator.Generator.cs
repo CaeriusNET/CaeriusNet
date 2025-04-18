@@ -38,20 +38,10 @@ public sealed partial class DtoSourceGenerator
 
 				writer.Indent();
 
-				// Check for empty reader
+				// Check for null reader
 				writer.AppendIndentedLine("if (reader == null)")
 					.AppendIndentedLine("    throw new ArgumentNullException(nameof(reader));")
 					.AppendLine();
-
-				// Add column existence validation
-				writer.AppendIndentedLine("// Validate all required columns exist")
-					.AppendIndentedLine("var columns = new HashSet<string>(");
-				writer.Indent();
-				writer.AppendIndentedLine("Enumerable.Range(0, reader.FieldCount)");
-				writer.AppendIndentedLine(".Select(i => reader.GetName(i)), ");
-				writer.AppendIndentedLine("StringComparer.OrdinalIgnoreCase);");
-				writer.Unindent();
-				writer.AppendLine();
 
 				// Create new instance based on constructor parameters
 				if (record.Properties.Count > 0)
@@ -65,7 +55,7 @@ public sealed partial class DtoSourceGenerator
 						var property = record.Properties[i];
 						var isLast = i == record.Properties.Count - 1;
 
-						GeneratePropertyMapping(writer, property);
+						GeneratePropertyMapping(writer, property, i);
 						writer.Append(isLast ? "" : ",").AppendLine();
 					}
 
@@ -83,33 +73,46 @@ public sealed partial class DtoSourceGenerator
 		}
 	}
 
-	private static void GeneratePropertyMapping(SourceWriter writer, DtoProperty property)
+	private static void GeneratePropertyMapping(SourceWriter writer, DtoProperty property, int index)
 	{
 		writer.AppendIndented("");
 
 		var readerMethod = GetReaderMethod(property);
-
-		// Add check if column exists in the result set
-		writer.Append($"columns.Contains(\"{property.Name}\") ? ");
+		var typeName = property.TypeName;
+		var specialConversion = GetSpecialTypeConversion(typeName);
 
 		if (property.IsNullable)
 		{
-			writer.Append($"reader.IsDBNull(reader.GetOrdinal(\"{property.Name}\")) ? ");
+			writer.Append($"reader.IsDBNull({index}) ? ");
 
-			if (property.TypeName.StartsWith("System.Nullable<") || property.TypeName == "string")
+			if (typeName.StartsWith("System.Nullable<") || typeName == "string" ||
+			    typeName == "byte[]" || typeName == "System.Byte[]" ||
+			    (!typeName.StartsWith("System") && !typeName.Contains("DateOnly") &&
+			     !typeName.Contains("TimeOnly") && !typeName.Contains("Version") &&
+			     !typeName.Contains("Uri")))
 				writer.Append("null : ");
 			else
 				writer.Append("default : ");
 		}
 
-		writer.Append($"reader.{readerMethod}(reader.GetOrdinal(\"{property.Name}\"))");
-
-		// Default value for when column doesn't exist
-		writer.Append(" : ");
-		if (property.TypeName == "string" || property.IsNullable)
-			writer.Append("null");
+		// For special conversions that need custom handling
+		if (!string.IsNullOrEmpty(specialConversion))
+			writer.Append(specialConversion.Replace("{index}", index.ToString()));
 		else
-			writer.Append("default");
+			writer.Append($"reader.{readerMethod}({index})");
+	}
+
+	private static string GetSpecialTypeConversion(string typeName)
+	{
+		return typeName switch
+		{
+			"System.DateOnly" => "DateOnly.FromDateTime(reader.GetDateTime({index}))",
+			"System.TimeOnly" => "TimeOnly.FromDateTime(reader.GetDateTime({index}))",
+			"System.Uri" => "new Uri(reader.GetString({index}))",
+			"System.Version" => "Version.Parse(reader.GetString({index}))",
+			"byte[]" or "System.Byte[]" => "(byte[])reader.GetValue({index})",
+			_ => string.Empty
+		};
 	}
 
 	private static string GetReaderMethod(DtoProperty property)

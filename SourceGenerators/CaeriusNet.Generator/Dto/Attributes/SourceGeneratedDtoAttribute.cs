@@ -1,10 +1,10 @@
 ﻿namespace CaeriusNet.Generator.Dto.Attributes;
 
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
-public sealed class SourceGenerateDtoAttribute : Attribute
+public sealed class SourceGeneratedDtoAttribute : Attribute
 {
-	public const string Name = "GeneratedDto";
-	public const string GlobalName = "GeneratedDtoAttribute.g.cs";
+	public const string Name = "GenerateDto";
+	public const string GlobalName = "GenerateDtoAttribute.g.cs";
 
 	public const string Source =
 		"""
@@ -30,7 +30,7 @@ public sealed class SourceGenerateDtoAttribute : Attribute
 		/// <para><b>Usage Instructions:</b></para>
 		/// <para>Follow these steps to enable automatic mapping:</para>
 		/// <para>1. Apply the <c>[GenerateDto]</c> attribute to a <c>partial</c> record or class.</para>
-		/// <para>2. Ensure the constructor parameters match the SQL column names (case-insensitive).</para>
+		/// <para>2. The constructor parameters will be mapped in order from the SQL buffer position (0, 1, 2, ...).</para>
 		/// <para>3. Use nullable types for parameters that may receive <c>NULL</c> values.</para>
 		/// <para>4. The source generator will automatically implement <c>ISpMapper</c> for the decorated type.</para>
 		[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
