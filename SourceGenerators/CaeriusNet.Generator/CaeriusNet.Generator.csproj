@@ -9,6 +9,7 @@
 		<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
 		<EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
 		<IsRoslynComponent>true</IsRoslynComponent>
+		<IsRoslynComponent>true</IsRoslynComponent>
 		<RootNamespace>CaeriusNet.Generator</RootNamespace>
 		<PackageId>CaeriusNet.Generator</PackageId>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
@@ -20,7 +21,7 @@
 		<PackageProjectUrl>https://caerius.net</PackageProjectUrl>
 		<PackageTags>source-generators;roslyn;mapping;tvp;dto</PackageTags>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<Version>9.2.2</Version>
+		<Version>9.2.0</Version>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -29,7 +30,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- Package the generator in the analyzer directory of the NuGet package -->
 		<None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
 	</ItemGroup>
+
 </Project>

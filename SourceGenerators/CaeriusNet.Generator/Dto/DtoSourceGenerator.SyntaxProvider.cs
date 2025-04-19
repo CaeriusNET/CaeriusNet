@@ -1,85 +1,167 @@
-﻿namespace CaeriusNet.Generator.Dto;
+﻿using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
+using System.Threading;
+using CaeriusNet.Generator.Models;
+using CaeriusNet.Generator.Utils;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
-// Méthodes auxiliaires déplacées vers le fichier principal
+namespace CaeriusNet.Generator.Dto;
+
 public sealed partial class DtoSourceGenerator
 {
-	// Les méthodes IsNullableType et IsReferenceType sont conservées ici pour compatibilité
-	private static bool IsNullableType(ITypeSymbol type)
+	/// <summary>
+	///     Analyzes declarations to find types annotated with [GenerateDto] and extract their metadata.
+	/// </summary>
+	private static IEnumerable<DtoMetadata?> GetDtoTypes(
+		Compilation compilation,
+		ImmutableArray<TypeDeclarationSyntax> declarations,
+		CancellationToken cancellationToken)
 	{
-		return type is INamedTypeSymbol
+		if (declarations.IsDefaultOrEmpty) yield break;
+
+		// Get the symbol for the GenerateDto attribute
+		var generateDtoAttributeSymbol =
+			compilation.GetTypeByMetadataName("CaeriusNet.Attributes.GenerateDtoAttribute");
+
+		if (generateDtoAttributeSymbol is null)
+			// GenerateDto attribute is not referenced in the compilation
+			yield break;
+
+		// Find and process all the DTO candidates
+		foreach (var typeDeclaration in declarations)
 		{
-			IsValueType: true, OriginalDefinition.SpecialType: SpecialType.System_Nullable_T
-		};
-	}
+			cancellationToken.ThrowIfCancellationRequested();
 
-	private static bool IsReferenceType(ITypeSymbol type)
-	{
-		return !type.IsValueType;
-	}
+			// Get the semantic model for this syntax node
+			var semanticModel = compilation.GetSemanticModel(typeDeclaration.SyntaxTree);
 
-	private static List<IParameterSymbol> GetConstructorParameters(INamedTypeSymbol typeSymbol)
-	{
-		var result = new List<IParameterSymbol>();
-
-		// Pour les records, chercher le constructeur primaire
-		if (typeSymbol.IsRecord)
-			foreach (var member in typeSymbol.GetMembers())
-			{
-				if (member is not IMethodSymbol { IsImplicitlyDeclared: true } method ||
-				    !method.MethodKind.HasFlag(MethodKind.Constructor))
-					continue;
-
-				// Constructeur primaire pour un record
-				if (method.Parameters.Length > 0)
-					return method.Parameters.ToList();
-			}
-
-		// Pour les classes régulières, ou comme fallback, chercher le constructeur avec le plus de paramètres
-		foreach (var member in typeSymbol.GetMembers())
-		{
-			if (member is not IMethodSymbol method || !method.MethodKind.HasFlag(MethodKind.Constructor))
+			// Get the type symbol for the class/record
+			if (semanticModel.GetDeclaredSymbol(typeDeclaration) is not { } typeSymbol)
 				continue;
 
-			if (method.Parameters.Length > result.Count)
-				result = method.Parameters.ToList();
-		}
+			// Check if the type has the GenerateDto attribute
+			if (!HasGenerateDtoAttribute(typeSymbol, generateDtoAttributeSymbol))
+				continue;
 
-		return result;
+			// Validate that the type is a valid candidate for generation
+			if (!ValidateDtoType(typeDeclaration))
+				continue;
+
+			// Get the namespace
+			var namespaceName = GetNamespace(typeSymbol);
+
+			// Create the DTO metadata
+			var dtoMetadata = new DtoMetadata(
+				typeSymbol,
+				typeDeclaration,
+				namespaceName);
+
+			// Extract parameter information from primary constructor
+			if (!ExtractConstructorParameters(dtoMetadata, semanticModel))
+				continue;
+
+			yield return dtoMetadata;
+		}
 	}
 
-	private static string GetSqlType(ITypeSymbol type)
+	/// <summary>
+	///     Checks if a type has the GenerateDto attribute.
+	/// </summary>
+	private static bool HasGenerateDtoAttribute(INamedTypeSymbol typeSymbol, INamedTypeSymbol attributeSymbol)
 	{
-		// Gérer les types valeur nullables
-		if (IsNullableType(type) && type is INamedTypeSymbol namedType)
-			type = namedType.TypeArguments[0];
+		return typeSymbol.GetAttributes()
+			.Any(a => a.AttributeClass?.Equals(attributeSymbol, SymbolEqualityComparer.Default) == true);
+	}
 
-		return type.SpecialType switch
+	/// <summary>
+	///     Validates that the DTO type meets the requirements for generation.
+	/// </summary>
+	private static bool ValidateDtoType(TypeDeclarationSyntax typeDeclaration)
+	{
+		// Check if the type is partial
+		if (!typeDeclaration.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword)))
+			return false;
+
+		// Check if the type is sealed
+		if (!typeDeclaration.Modifiers.Any(m => m.IsKind(SyntaxKind.SealedKeyword)))
+			return false;
+
+		// If it's a class, ensure it has a primary constructor
+		if (typeDeclaration is ClassDeclarationSyntax classDeclaration) return classDeclaration.ParameterList != null;
+
+		// If it's a record, it always has a primary constructor (if parameters are present)
+		if (typeDeclaration is RecordDeclarationSyntax recordDeclaration)
+			return recordDeclaration.ParameterList != null;
+
+		return false;
+	}
+
+	/// <summary>
+	///     Gets the fully qualified namespace for a type.
+	/// </summary>
+	private static string GetNamespace(INamedTypeSymbol typeSymbol)
+	{
+		// Handle global namespace
+		return string.IsNullOrEmpty(typeSymbol.ContainingNamespace?.ToDisplayString())
+			? "global"
+			: typeSymbol.ContainingNamespace!.ToDisplayString();
+	}
+
+	/// <summary>
+	///     Extracts and validates constructor parameters from a DTO type.
+	/// </summary>
+	private static bool ExtractConstructorParameters(DtoMetadata dtoMetadata, SemanticModel semanticModel)
+	{
+		// Get the primary constructor parameters
+
+		var parameterList = dtoMetadata.DeclarationSyntax switch
 		{
-			SpecialType.System_Boolean => "bit",
-			SpecialType.System_Byte => "tinyint",
-			SpecialType.System_SByte => "smallint",
-			SpecialType.System_Int16 => "smallint",
-			SpecialType.System_UInt16 => "int",
-			SpecialType.System_Int32 => "int",
-			SpecialType.System_UInt32 => "bigint",
-			SpecialType.System_Int64 => "bigint",
-			SpecialType.System_UInt64 => "decimal",
-			SpecialType.System_Decimal => "decimal",
-			SpecialType.System_Single => "real",
-			SpecialType.System_Double => "float",
-			SpecialType.System_String => "nvarchar",
-			SpecialType.System_Char => "nchar",
-			SpecialType.System_DateTime => "datetime2",
-			_ => type.ToString() switch
-			{
-				"System.Guid" => "uniqueidentifier",
-				"System.DateTimeOffset" => "datetimeoffset",
-				"System.TimeSpan" => "time",
-				"System.DateOnly" => "date",
-				"System.TimeOnly" => "time",
-				"byte[]" or "System.Byte[]" => "varbinary",
-				_ => "sql_variant" // Type SQL le plus flexible par défaut
-			}
+			RecordDeclarationSyntax recordDeclaration => recordDeclaration.ParameterList,
+			ClassDeclarationSyntax classDeclaration => classDeclaration.ParameterList,
+			_ => null
 		};
+
+		if (parameterList == null || parameterList.Parameters.Count == 0)
+			return false;
+
+		// Process each parameter
+		for (var i = 0; i < parameterList.Parameters.Count; i++)
+		{
+			var parameterSyntax = parameterList.Parameters[i];
+			var parameterSymbol = semanticModel.GetDeclaredSymbol(parameterSyntax);
+
+			if (parameterSymbol == null)
+				continue;
+
+			// Get the type information
+			var typeName = parameterSymbol.Type.ToDisplayString();
+			var isNullable = TypeDetector.IsTypeNullable(
+				parameterSymbol.Type,
+				parameterSyntax.Type,
+				parameterSymbol.NullableAnnotation);
+
+			// Get SQL type and reader method
+			var sqlType = TypeDetector.GetSqlType(parameterSymbol.Type);
+			var readerMethod = TypeDetector.GetReaderMethodForSqlType(sqlType);
+			var requiresSpecialConversion = TypeDetector.RequiresSpecialConversion(typeName);
+
+			// Create the parameter metadata
+			var parameterMetadata = new ParameterMetadata(
+				parameterSymbol.Name,
+				typeName,
+				parameterSymbol.Type,
+				isNullable,
+				i, // Ordinal position
+				sqlType,
+				readerMethod,
+				requiresSpecialConversion);
+
+			dtoMetadata.Parameters.Add(parameterMetadata);
+		}
+
+		return dtoMetadata.Parameters.Count > 0;
 	}
 }
