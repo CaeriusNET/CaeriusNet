@@ -30,15 +30,15 @@ public sealed partial class DtoSourceGenerator
 		var declarationType = dtoMetadata.DeclarationSyntax.Kind() == SyntaxKind.ClassDeclaration ? "class" : "record";
 
 		source.AppendLine(
-			$"    public sealed partial {declarationType} {dtoMetadata.ClassName} : ISpMapper<{dtoMetadata.ClassName}>");
+			$"    public sealed partial {declarationType} {dtoMetadata.RecordName} : ISpMapper<{dtoMetadata.RecordName}>");
 		source.AppendLine("    {");
 
 		// Generate MapFromDataReader implementation
-		source.AppendLine($"        public static {dtoMetadata.ClassName} MapFromDataReader(SqlDataReader reader)");
+		source.AppendLine($"        public static {dtoMetadata.RecordName} MapFromDataReader(SqlDataReader reader)");
 		source.AppendLine("        {");
 
 		// Create new instance and populate from reader
-		source.AppendLine($"            return new {dtoMetadata.ClassName}(");
+		source.AppendLine($"            return new {dtoMetadata.RecordName}(");
 
 		// Add parameters
 		for (var i = 0; i < dtoMetadata.Parameters.Count; i++)

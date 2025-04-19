@@ -16,21 +16,18 @@ public sealed class DtoMetadata
 	/// <param name="classSymbol">The compiled symbol for the DTO class.</param>
 	/// <param name="declarationSyntax">The syntax node for the class declaration.</param>
 	/// <param name="namespaceName">The namespace of the DTO class.</param>
-	public DtoMetadata(
-		INamedTypeSymbol classSymbol,
-		TypeDeclarationSyntax declarationSyntax,
-		string namespaceName)
+	public DtoMetadata(INamedTypeSymbol classSymbol, TypeDeclarationSyntax declarationSyntax, string namespaceName)
 	{
 		ClassSymbol = classSymbol;
 		DeclarationSyntax = declarationSyntax;
-		ClassName = classSymbol.Name;
+		RecordName = classSymbol.Name;
 		Namespace = namespaceName;
 	}
 
 	/// <summary>
 	///     The name of the DTO class or record.
 	/// </summary>
-	public string ClassName { get; }
+	public string RecordName { get; }
 
 	/// <summary>
 	///     The full namespace of the DTO class.

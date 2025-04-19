@@ -15,10 +15,8 @@ public sealed partial class DtoSourceGenerator
 	/// <summary>
 	///     Analyzes declarations to find types annotated with [GenerateDto] and extract their metadata.
 	/// </summary>
-	private static IEnumerable<DtoMetadata?> GetDtoTypes(
-		Compilation compilation,
-		ImmutableArray<TypeDeclarationSyntax> declarations,
-		CancellationToken cancellationToken)
+	private static IEnumerable<DtoMetadata?> GetDtoTypes(Compilation compilation,
+		ImmutableArray<TypeDeclarationSyntax> declarations, CancellationToken cancellationToken)
 	{
 		if (declarations.IsDefaultOrEmpty) yield break;
 
@@ -54,10 +52,7 @@ public sealed partial class DtoSourceGenerator
 			var namespaceName = GetNamespace(typeSymbol);
 
 			// Create the DTO metadata
-			var dtoMetadata = new DtoMetadata(
-				typeSymbol,
-				typeDeclaration,
-				namespaceName);
+			var dtoMetadata = new DtoMetadata(typeSymbol, typeDeclaration, namespaceName);
 
 			// Extract parameter information from primary constructor
 			if (!ExtractConstructorParameters(dtoMetadata, semanticModel))
@@ -89,14 +84,14 @@ public sealed partial class DtoSourceGenerator
 		if (!typeDeclaration.Modifiers.Any(m => m.IsKind(SyntaxKind.SealedKeyword)))
 			return false;
 
-		// If it's a class, ensure it has a primary constructor
-		if (typeDeclaration is ClassDeclarationSyntax classDeclaration) return classDeclaration.ParameterList != null;
-
-		// If it's a record, it always has a primary constructor (if parameters are present)
-		if (typeDeclaration is RecordDeclarationSyntax recordDeclaration)
-			return recordDeclaration.ParameterList != null;
-
-		return false;
+		return typeDeclaration switch
+		{
+			// If it's a class, ensure it has a primary constructor
+			ClassDeclarationSyntax classDeclaration => classDeclaration.ParameterList != null,
+			// If it's a record, it always has a primary constructor (if parameters are present)
+			RecordDeclarationSyntax recordDeclaration => recordDeclaration.ParameterList != null,
+			_ => false
+		};
 	}
 
 	/// <summary>
@@ -138,9 +133,7 @@ public sealed partial class DtoSourceGenerator
 
 			// Get the type information
 			var typeName = parameterSymbol.Type.ToDisplayString();
-			var isNullable = TypeDetector.IsTypeNullable(
-				parameterSymbol.Type,
-				parameterSyntax.Type,
+			var isNullable = TypeDetector.IsTypeNullable(parameterSymbol.Type, parameterSyntax.Type,
 				parameterSymbol.NullableAnnotation);
 
 			// Get SQL type and reader method

@@ -10,7 +10,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CaeriusNet.Benchmark", "Ben
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "SourceGenerators", "SourceGenerators", "{0BC70258-588F-4EBA-98EB-085CB05A472D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CaeriusNet.Generator", "SourceGenerators\CaeriusNet.Generator\CaeriusNet.Generator.csproj", "{33F93DF1-EDCF-43BE-9F45-14D011A31CAB}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CaeriusNet.Generator", "SourceGenerators\CaeriusNet.Generator.csproj", "{33F93DF1-EDCF-43BE-9F45-14D011A31CAB}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

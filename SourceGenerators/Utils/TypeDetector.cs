@@ -80,9 +80,8 @@ public static class TypeDetector
 	/// <returns>True if the type ends with "?", indicating it is nullable.</returns>
 	private static bool IsExplicitlyNullableInSyntax(TypeSyntax? typeSyntax)
 	{
-		return typeSyntax != null &&
-		       // Check if the type ends with "?" in the source code
-		       typeSyntax.ToString().EndsWith("?");
+		// Check if the type ends with "?" in the source code
+		return typeSyntax != null && typeSyntax.ToString().EndsWith("?");
 	}
 
 	/// <summary>
