@@ -60,6 +60,7 @@ jobs:
           name: generator-artifacts
           path: |
             SourceGenerators/CaeriusNet.Generator/bin/Release/
+            SourceGenerators/CaeriusNet.Generator/obj/
             SourceGenerators/CaeriusNet.Generator/CaeriusNet.Generator.csproj
           retention-days: 1
 
@@ -69,6 +70,7 @@ jobs:
           name: caeriusnet-artifacts
           path: |
             Src/bin/Release/
+            Src/obj/
             Src/CaeriusNet.csproj
           retention-days: 1
 
@@ -96,7 +98,7 @@ jobs:
           path: SourceGenerators/CaeriusNet.Generator/
 
       - name: Pack Generator
-        run: dotnet pack SourceGenerators/CaeriusNet.Generator/CaeriusNet.Generator.csproj --configuration Release --no-build --output ./generator-packages
+        run: dotnet pack SourceGenerators/CaeriusNet.Generator/CaeriusNet.Generator.csproj --configuration Release --output ./generator-packages
 
       - name: Publish Generator to NuGet
         run: dotnet nuget push ./generator-packages/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
@@ -125,7 +127,7 @@ jobs:
           path: Src/
 
       - name: Pack CaeriusNet
-        run: dotnet pack Src/CaeriusNet.csproj --configuration Release --no-build --output ./caeriusnet-packages
+        run: dotnet pack Src/CaeriusNet.csproj --configuration Release --output ./caeriusnet-packages
 
       - name: Publish CaeriusNet to NuGet
         run: dotnet nuget push ./caeriusnet-packages/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
