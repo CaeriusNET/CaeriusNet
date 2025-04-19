@@ -47,7 +47,9 @@
 
 	<!-- Inclusion du fichier README.md dans le package NuGet -->
 	<ItemGroup>
-		<None Include="README.md" Pack="true" PackagePath="\"/>
+		<Content Include="README.md" Pack="true" PackagePath="\">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
 	</ItemGroup>
 
 	<!-- Références aux packages NuGet, regroupées par catégorie -->
@@ -67,8 +69,8 @@
 		<!-- Serialization -->
 		<PackageReference Include="System.Text.Json" Version="9.0.4"/>
 
-		<ProjectReference Include="..\SourceGenerators\CaeriusNet.Generator\CaeriusNet.Generator.csproj" />
-		
+		<ProjectReference Include="..\SourceGenerators\CaeriusNet.Generator\CaeriusNet.Generator.csproj"/>
+
 	</ItemGroup>
 
 </Project>

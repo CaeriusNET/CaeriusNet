@@ -19,10 +19,10 @@ public sealed partial class DtoSourceGenerator : IIncrementalGenerator
 	{
 		// Filter for syntax nodes that might be DTO records or classes
 		var classDeclarations = context.SyntaxProvider.CreateSyntaxProvider(
-				static (s, _) => IsTargetForGeneration(s), 
+				static (s, _) => IsTargetForGeneration(s),
 				static (ctx, _) => GetTypeDeclarationForGeneration(ctx))
 			.Where(static m => m is not null);
-		
+
 		// Combine with compilation
 		IncrementalValueProvider<(Compilation Compilation, ImmutableArray<TypeDeclarationSyntax> Declarations)>
 			compilationAndTypes =
@@ -39,7 +39,8 @@ public sealed partial class DtoSourceGenerator : IIncrementalGenerator
 	private static bool IsTargetForGeneration(SyntaxNode node)
 	{
 		// We're looking for class or record declarations with attributes
-		return node is TypeDeclarationSyntax { AttributeLists.Count: > 0 } and (ClassDeclarationSyntax or RecordDeclarationSyntax);
+		return node is TypeDeclarationSyntax { AttributeLists.Count: > 0 }
+			and (ClassDeclarationSyntax or RecordDeclarationSyntax);
 	}
 
 	/// <summary>
@@ -73,9 +74,7 @@ public sealed partial class DtoSourceGenerator : IIncrementalGenerator
 			var source = GenerateMapperSource(dtoMetadata);
 
 			// Add the generated source to the compilation
-			context.AddSource(
-				$"{dtoMetadata.Namespace}.{dtoMetadata.ClassName}.g.cs",
-				source);
+			context.AddSource($"{dtoMetadata.Namespace}.{dtoMetadata.ClassName}.g.cs", source);
 		}
 	}
 }

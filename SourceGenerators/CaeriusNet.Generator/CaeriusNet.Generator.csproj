@@ -21,7 +21,7 @@
 		<PackageProjectUrl>https://caerius.net</PackageProjectUrl>
 		<PackageTags>source-generators;roslyn;mapping;tvp;dto</PackageTags>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<Version>9.2.0</Version>
+		<Version>9.2.1</Version>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -31,6 +31,13 @@
 
 	<ItemGroup>
 		<None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
+	</ItemGroup>
+
+	<!-- Inclusion du fichier README.md dans le package NuGet -->
+	<ItemGroup>
+		<Content Include="README.md" Pack="true" PackagePath="\">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
 	</ItemGroup>
 
 </Project>
