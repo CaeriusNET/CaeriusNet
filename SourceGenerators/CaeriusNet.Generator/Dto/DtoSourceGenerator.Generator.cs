@@ -1,5 +1,4 @@
-﻿using System.Linq;
-using System.Text;
+﻿using System.Text;
 using CaeriusNet.Generator.Models;
 using Microsoft.CodeAnalysis.CSharp;
 
@@ -22,9 +21,6 @@ public sealed partial class DtoSourceGenerator
 		source.AppendLine("using Microsoft.Data.SqlClient;");
 		source.AppendLine("using CaeriusNet.Mappers;");
 		source.AppendLine();
-
-		// Check if we need to import any special types
-		if (dtoMetadata.Parameters.Any(p => p.RequiresSpecialConversion))
 
 		// Begin namespace
 		source.AppendLine($"namespace {dtoMetadata.Namespace}");
