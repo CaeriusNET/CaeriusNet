@@ -1,64 +1,131 @@
-﻿name: Build and Publish CaeriusNet
+﻿name: Build and Publish CaeriusNet Packages
 
 on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      version_increment:
+        description: 'Version increment type'
+        required: false
+        default: 'none'
+        type: choice
+        options:
+          - none
+          - patch
+          - minor
+          - major
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_NOLOGO: true
 
 jobs:
   build:
+    name: Build Projects
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
             9.0.x
             8.0.x
 
-      - name: Restore dependencies
-        run: dotnet restore Src/CaeriusNet.csproj
+      - name: Restore Dependencies
+        run: |
+          dotnet restore SourceGenerators/CaeriusNet.Generator/CaeriusNet.Generator.csproj
+          dotnet restore Src/CaeriusNet.csproj
 
-      - name: Build
+      - name: Build Generator
+        run: dotnet build SourceGenerators/CaeriusNet.Generator/CaeriusNet.Generator.csproj --configuration Release --no-restore
+
+      - name: Build CaeriusNet
         run: dotnet build Src/CaeriusNet.csproj --configuration Release --no-restore
 
-      - name: Upload Build Artifacts
+      - name: Upload Generator Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: caeriusnet-build
+          name: generator-artifacts
+          path: |
+            SourceGenerators/CaeriusNet.Generator/bin/Release/
+            SourceGenerators/CaeriusNet.Generator/CaeriusNet.Generator.csproj
+          retention-days: 1
+
+      - name: Upload CaeriusNet Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: caeriusnet-artifacts
           path: |
             Src/bin/Release/
             Src/CaeriusNet.csproj
-          retention-days: 5
+          retention-days: 1
 
-  publish:
+  publish-generator:
+    name: Publish Generator Package
     needs: build
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v3
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
             9.0.x
             8.0.x
 
-      - name: Download Build Artifacts
+      - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: caeriusnet-build
+          name: generator-artifacts
+          path: SourceGenerators/CaeriusNet.Generator/
+
+      - name: Pack Generator
+        run: dotnet pack SourceGenerators/CaeriusNet.Generator/CaeriusNet.Generator.csproj --configuration Release --no-build --output ./generator-packages
+
+      - name: Publish Generator to NuGet
+        run: dotnet nuget push ./generator-packages/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+  publish-caeriusnet:
+    name: Publish CaeriusNet Package
+    needs: publish-generator
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            9.0.x
+            8.0.x
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: caeriusnet-artifacts
           path: Src/
 
-      - name: Restore dependencies
-        run: dotnet restore Src/CaeriusNet.csproj
+      - name: Pack CaeriusNet
+        run: dotnet pack Src/CaeriusNet.csproj --configuration Release --no-build --output ./caeriusnet-packages
 
-      - name: Pack NuGet Package
-        run: dotnet pack Src/CaeriusNet.csproj --configuration Release --no-build --output ./output
-
-      - name: Publish to NuGet
-        run: dotnet nuget push ./output/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json
+      - name: Publish CaeriusNet to NuGet
+        run: dotnet nuget push ./caeriusnet-packages/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
