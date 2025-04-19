@@ -23,39 +23,32 @@ public sealed partial class DtoSourceGenerator
 		source.AppendLine();
 
 		// Begin namespace
-		source.AppendLine($"namespace {dtoMetadata.Namespace}");
-		source.AppendLine("{");
-
+		source.AppendLine($"namespace {dtoMetadata.Namespace};");
+		source.AppendLine();
+		
 		// Begin class/record declaration
 		var declarationType = dtoMetadata.DeclarationSyntax.Kind() == SyntaxKind.ClassDeclaration ? "class" : "record";
 
-		source.AppendLine(
-			$"    public sealed partial {declarationType} {dtoMetadata.RecordName} : ISpMapper<{dtoMetadata.RecordName}>");
-		source.AppendLine("    {");
+		source.AppendLine($"public sealed partial {declarationType} {dtoMetadata.RecordName} : ISpMapper<{dtoMetadata.RecordName}>");
+		source.AppendLine("{");
 
 		// Generate MapFromDataReader implementation
-		source.AppendLine($"        public static {dtoMetadata.RecordName} MapFromDataReader(SqlDataReader reader)");
-		source.AppendLine("        {");
+		source.AppendLine($"	public static {dtoMetadata.RecordName} MapFromDataReader(SqlDataReader reader)");
+		source.AppendLine(" 	{");
 
 		// Create new instance and populate from reader
-		source.AppendLine($"            return new {dtoMetadata.RecordName}(");
+		source.AppendLine($"		return new {dtoMetadata.RecordName}(");
 
 		// Add parameters
 		for (var i = 0; i < dtoMetadata.Parameters.Count; i++)
 		{
 			var parameter = dtoMetadata.Parameters[i];
 			var comma = i < dtoMetadata.Parameters.Count - 1 ? "," : "";
-
-			source.AppendLine($"                {GetReaderExpression(parameter)}{comma}");
+			source.AppendLine($"		{GetReaderExpression(parameter)}{comma}");
 		}
 
-		source.AppendLine("            );");
-		source.AppendLine("        }");
-
-		// End class/record
+		source.AppendLine("        );");
 		source.AppendLine("    }");
-
-		// End namespace
 		source.AppendLine("}");
 
 		return source.ToString();
