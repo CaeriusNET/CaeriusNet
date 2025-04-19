@@ -69,7 +69,7 @@
 		<!-- Serialization -->
 		<PackageReference Include="System.Text.Json" Version="9.0.4"/>
 
-		<ProjectReference Include="..\SourceGenerators\CaeriusNet.Generator\CaeriusNet.Generator.csproj"/>
+		<ProjectReference Include="..\SourceGenerators\CaeriusNet.Generator.csproj"/>
 
 	</ItemGroup>
 
