@@ -45,11 +45,11 @@ jobs:
       
       - name: Restore Dependencies
         run: |
-          dotnet restore SourceGenerators/CaeriusNet.Generator/CaeriusNet.Generator.csproj
+          dotnet restore SourceGenerators/CaeriusNet.Generator.csproj
           dotnet restore Src/CaeriusNet.csproj
       
       - name: Build Generator
-        run: dotnet build SourceGenerators/CaeriusNet.Generator/CaeriusNet.Generator.csproj --configuration Release --no-restore
+        run: dotnet build SourceGenerators/CaeriusNet.Generator.csproj --configuration Release --no-restore
       
       - name: Build CaeriusNet
         run: dotnet build Src/CaeriusNet.csproj --configuration Release --no-restore
@@ -59,9 +59,9 @@ jobs:
         with:
           name: generator-artifacts
           path: |
-            SourceGenerators/CaeriusNet.Generator/bin/Release/
-            SourceGenerators/CaeriusNet.Generator/obj/
-            SourceGenerators/CaeriusNet.Generator/CaeriusNet.Generator.csproj
+            SourceGenerators/bin/Release/
+            SourceGenerators/obj/
+            SourceGenerators/CaeriusNet.Generator.csproj
           retention-days: 1
       
       - name: Upload CaeriusNet Artifacts
@@ -95,10 +95,10 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: generator-artifacts
-          path: SourceGenerators/CaeriusNet.Generator/
+          path: SourceGenerators/
       
       - name: Pack Generator
-        run: dotnet pack SourceGenerators/CaeriusNet.Generator/CaeriusNet.Generator.csproj --configuration Release --output ./generator-packages
+        run: dotnet pack SourceGenerators/CaeriusNet.Generator.csproj --configuration Release --output ./generator-packages
       
       - name: Publish Generator to NuGet
         run: dotnet nuget push ./generator-packages/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
