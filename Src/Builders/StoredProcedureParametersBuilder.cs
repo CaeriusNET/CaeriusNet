@@ -62,8 +62,7 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
 	/// <param name="expiration">Optional expiration time for the cache. Defaults to null for no expiration.</param>
 	/// <param name="cacheType">The type of cache strategy to use. Defaults to <see cref="CacheType.InMemory" />.</param>
 	/// <returns>The <see cref="StoredProcedureParametersBuilder" /> instance for chaining.</returns>
-	public StoredProcedureParametersBuilder AddCache(string cacheKey, TimeSpan? expiration = null,
-		CacheType cacheType = InMemory)
+	public StoredProcedureParametersBuilder AddCache(string cacheKey, TimeSpan? expiration = null, CacheType cacheType = InMemory)
 	{
 		_cacheType = cacheType;
 		_cacheKey = cacheKey;
@@ -128,7 +127,6 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
 	/// </returns>
 	public StoredProcedureParameters Build()
 	{
-		return new StoredProcedureParameters(ProcedureName, Capacity, Parameters, _cacheKey, _cacheExpiration,
-			_cacheType);
+		return new StoredProcedureParameters(ProcedureName, Capacity, Parameters, _cacheKey, _cacheExpiration, _cacheType);
 	}
 }

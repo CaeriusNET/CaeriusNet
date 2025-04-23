@@ -16,19 +16,19 @@ internal sealed record CaeriusDbContext(string ConnectionString) : ICaeriusDbCon
 	/// <exception cref="CaeriusSqlException">Thrown when the connection fails to open.</exception>
 	public IDbConnection DbConnection()
 	{
-		_logger?.LogDebug(LogCategory.Database, "Tentative d'ouverture d'une connexion à la base de données...");
+		_logger?.LogDebug(LogCategory.Database, "Attempting to open a database connection...");
 
 		try
 		{
 			SqlConnection connection = new(ConnectionString);
 			connection.Open();
 
-			_logger?.LogInformation(LogCategory.Database, "Connexion à la base de données établie avec succès.");
+			_logger?.LogInformation(LogCategory.Database, "Database connection established successfully.");
 			return connection;
 		}
 		catch (SqlException ex)
 		{
-			_logger?.LogError(LogCategory.Database, "Échec de la connexion à la base de données", ex);
+			_logger?.LogError(LogCategory.Database, "Failed to connect to database", ex);
 			throw new CaeriusSqlException("Failed to open database connection : ", ex);
 		}
 	}

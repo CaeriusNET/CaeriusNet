@@ -6,9 +6,6 @@
 ///     data mapping from SQL Server stored procedure result sets directly into annotated .NET types.
 /// </summary>
 /// <remarks>
-///     <para>
-///         <b>Requirements:</b>
-///     </para>
 ///     <list type="bullet">
 ///         <item>The target type must be declared as <c>sealed</c> and <c>partial</c>.</item>
 ///         <item>
@@ -34,11 +31,9 @@
 /// </example>
 /// <para>
 ///     <b>Instructions:</b><br />
-///     1. Decorate your <c>sealed partial</c> record (or class) with <c>[GenerateDto]</c>.<br />
+///     1. Decorate your <c>sealed partial</c> record with <c>[GenerateDto]</c>.<br />
 ///     2. Add only supported and mapped parameters in the primary constructor, maintaining correct buffer order.<br />
 ///     3. The generated <c>ISpMapper&lt;T&gt;</c> implementation appears at compile time.
 /// </para>
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
-public sealed class GenerateDtoAttribute : Attribute
-{
-}
+public sealed class GenerateDtoAttribute : Attribute {}

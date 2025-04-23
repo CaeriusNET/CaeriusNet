@@ -3,7 +3,7 @@
 namespace CaeriusNet.Caches;
 
 /// <summary>
-///     Fournit des méthodes pour gérer un cache distribué basé sur Redis.
+///	 Provides methods to manage Redis-based distributed cache.
 /// </summary>
 internal static class RedisCacheManager
 {
@@ -13,31 +13,30 @@ internal static class RedisCacheManager
 	private static readonly ICaeriusLogger? Logger = LoggerProvider.GetLogger();
 
 	/// <summary>
-	///     Initialise le gestionnaire de cache Redis avec la chaîne de connexion fournie.
+	///	 Initializes the Redis cache manager with the provided connection string.
 	/// </summary>
-	/// <param name="connectionString">La chaîne de connexion au serveur Redis.</param>
-	/// <returns>True si l'initialisation a réussi, sinon False.</returns>
+	/// <param name="connectionString">The connection string to the Redis server.</param>
+	/// <returns>True if initialization succeeded, otherwise False.</returns>
 	internal static void Initialize(string connectionString)
 	{
 		if (_isInitialized)
 		{
-			Logger?.LogDebug(LogCategory.Redis,
-				"Le gestionnaire Redis est déjà initialisé. Ignorer la réinitialisation.");
+			Logger?.LogDebug(LogCategory.Redis, "Redis manager is already initialized. Ignoring reinitialization.");
 			return;
 		}
 
-		Logger?.LogDebug(LogCategory.Redis, "Tentative de connexion au serveur Redis...");
+		Logger?.LogDebug(LogCategory.Redis, "Attempting to connect to Redis server...");
 
 		try
 		{
 			_connection = ConnectionMultiplexer.Connect(connectionString);
 			_database = _connection.GetDatabase();
 			_isInitialized = true;
-			Logger?.LogInformation(LogCategory.Redis, "Connexion au serveur Redis établie avec succès.");
+			Logger?.LogInformation(LogCategory.Redis, "Redis server connection established successfully.");
 		}
 		catch (Exception ex)
 		{
-			Logger?.LogError(LogCategory.Redis, "Échec de la connexion au serveur Redis", ex);
+			Logger?.LogError(LogCategory.Redis, "Failed to connect to Redis server", ex);
 			_connection?.Dispose();
 			_connection = null;
 			_database = null;
@@ -46,81 +45,76 @@ internal static class RedisCacheManager
 	}
 
 	/// <summary>
-	///     Vérifie si le gestionnaire de cache Redis est initialisé.
+	///	 Checks if the Redis cache manager is initialized.
 	/// </summary>
-	/// <returns>True si le gestionnaire est initialisé, sinon False.</returns>
+	/// <returns>True if the manager is initialized, otherwise False.</returns>
 	internal static bool IsInitialized()
 	{
 		return _isInitialized;
 	}
 
 	/// <summary>
-	///     Stocke une valeur dans le cache Redis.
+	///	 Stores a value in the Redis cache.
 	/// </summary>
-	/// <typeparam name="T">Le type de la valeur à stocker dans le cache.</typeparam>
-	/// <param name="cacheKey">La clé unique pour identifier la valeur dans le cache.</param>
-	/// <param name="value">La valeur à stocker dans le cache.</param>
-	/// <param name="expiration">La durée de validité de la valeur dans le cache avant son expiration.</param>
-	/// <returns>True si le stockage a réussi, sinon False.</returns>
+	/// <typeparam name="T">The type of value to store in the cache.</typeparam>
+	/// <param name="cacheKey">The unique key to identify the value in the cache.</param>
+	/// <param name="value">The value to store in the cache.</param>
+	/// <param name="expiration">The validity duration of the value in the cache before expiration.</param>
+	/// <returns>True if storage was successful, otherwise False.</returns>
 	internal static bool Store<T>(string cacheKey, T value, TimeSpan? expiration)
 	{
 		if (!_isInitialized || _database == null)
 		{
-			Logger?.LogWarning(LogCategory.Redis,
-				$"Tentative d'enregistrement dans Redis avec la clé '{cacheKey}' alors que Redis n'est pas initialisé.");
+			Logger?.LogWarning(LogCategory.Redis, $"Attempt to store in Redis with key '{cacheKey}' while Redis is not initialized.");
 			return false;
 		}
 
 		try
 		{
-			Logger?.LogDebug(LogCategory.Redis, $"Enregistrement dans Redis avec la clé '{cacheKey}'...");
+			Logger?.LogDebug(LogCategory.Redis, $"Storing in Redis with key '{cacheKey}'...");
 			var serialized = JsonSerializer.Serialize(value);
 			var result = _database.StringSet(cacheKey, serialized, expiration);
 
 			if (result)
-				Logger?.LogInformation(LogCategory.Redis,
-					$"Valeur enregistrée dans Redis avec la clé '{cacheKey}' et l'expiration {(expiration.HasValue ? expiration.Value.ToString() : "illimitée")}");
+				Logger?.LogInformation(LogCategory.Redis, $"Value stored in Redis with key '{cacheKey}' and expiration {(expiration.HasValue ? expiration.Value.ToString() : "unlimited")}");
 			else
-				Logger?.LogWarning(LogCategory.Redis, $"Échec de l'enregistrement dans Redis avec la clé '{cacheKey}'");
+				Logger?.LogWarning(LogCategory.Redis, $"Failed to store value in Redis with key '{cacheKey}'");
 
 			return result;
 		}
 		catch (Exception ex)
 		{
-			Logger?.LogError(LogCategory.Redis, $"Erreur lors de l'enregistrement dans Redis avec la clé '{cacheKey}'",
-				ex);
+			Logger?.LogError(LogCategory.Redis, $"Error while storing in Redis with key '{cacheKey}'", ex);
 			return false;
 		}
 	}
 
 	/// <summary>
-	///     Tente de récupérer une valeur mise en cache de Redis.
+	///	 Attempts to retrieve a cached value from Redis.
 	/// </summary>
-	/// <typeparam name="T">Le type de valeur attendu du cache.</typeparam>
-	/// <param name="cacheKey">La clé unique associée à la valeur dans le cache.</param>
-	/// <param name="value">Le paramètre de sortie où la valeur mise en cache sera stockée si elle est trouvée.</param>
+	/// <typeparam name="T">The expected type of the cached value.</typeparam>
+	/// <param name="cacheKey">The unique key associated with the value in the cache.</param>
+	/// <param name="value">The output parameter where the cached value will be stored if found.</param>
 	/// <returns>
-	///     True si la valeur est trouvée dans le cache et que son type correspond au type spécifié <typeparamref name="T" />;
-	///     sinon, False.
+	///	 True if the value is found in the cache and its type matches the specified type <typeparamref name="T"/>; otherwise, False.
 	/// </returns>
 	internal static bool TryGet<T>(string cacheKey, out T? value)
 	{
 		value = default;
 		if (!_isInitialized || _database == null)
 		{
-			Logger?.LogWarning(LogCategory.Redis,
-				$"Tentative de récupération depuis Redis avec la clé '{cacheKey}' alors que Redis n'est pas initialisé.");
+			Logger?.LogWarning(LogCategory.Redis, $"Attempt to retrieve from Redis with key '{cacheKey}' while Redis is not initialized.");
 			return false;
 		}
 
 		try
 		{
-			Logger?.LogDebug(LogCategory.Redis, $"Récupération depuis Redis avec la clé '{cacheKey}'...");
+			Logger?.LogDebug(LogCategory.Redis, $"Retrieving from Redis with key '{cacheKey}'...");
 			var cached = _database.StringGet(cacheKey);
 
 			if (cached.IsNull)
 			{
-				Logger?.LogDebug(LogCategory.Redis, $"Aucune valeur trouvée dans Redis pour la clé '{cacheKey}'");
+				Logger?.LogDebug(LogCategory.Redis, $"No value found in Redis for key '{cacheKey}'");
 				return false;
 			}
 
@@ -128,32 +122,16 @@ internal static class RedisCacheManager
 			var success = value != null;
 
 			if (success)
-				Logger?.LogInformation(LogCategory.Redis,
-					$"Valeur récupérée avec succès depuis Redis pour la clé '{cacheKey}'");
+				Logger?.LogInformation(LogCategory.Redis, $"Value successfully retrieved from Redis for key '{cacheKey}'");
 			else
-				Logger?.LogWarning(LogCategory.Redis, $"La désérialisation a échoué pour la clé '{cacheKey}'");
+				Logger?.LogWarning(LogCategory.Redis, $"Deserialization failed for key '{cacheKey}'");
 
 			return success;
 		}
 		catch (Exception ex)
 		{
-			Logger?.LogError(LogCategory.Redis, $"Erreur lors de la récupération depuis Redis avec la clé '{cacheKey}'",
-				ex);
+			Logger?.LogError(LogCategory.Redis, $"Error while retrieving from Redis with key '{cacheKey}'", ex);
 			return false;
 		}
-	}
-
-	/// <summary>
-	///     Libère les ressources utilisées par le gestionnaire de cache Redis.
-	/// </summary>
-	internal static void Dispose()
-	{
-		if (_connection != null)
-			Logger?.LogInformation(LogCategory.Redis, "Fermeture de la connexion Redis");
-
-		_connection?.Dispose();
-		_connection = null;
-		_database = null;
-		_isInitialized = false;
 	}
 }

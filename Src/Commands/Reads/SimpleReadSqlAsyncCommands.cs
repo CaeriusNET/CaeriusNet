@@ -29,8 +29,7 @@ public static class SimpleReadSqlAsyncCommands
 	/// <exception cref="CaeriusSqlException">
 	///     Thrown when the execution of the stored procedure fails due to a SQL exception.
 	/// </exception>
-	public static async Task<TResultSet?> FirstQueryAsync<TResultSet>(
-		this ICaeriusDbContext context, StoredProcedureParameters spParameters)
+	public static async Task<TResultSet?> FirstQueryAsync<TResultSet>(this ICaeriusDbContext context, StoredProcedureParameters spParameters)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
 		if (CacheUtility.TryRetrieveFromCache(spParameters, out TResultSet? cachedResult) && cachedResult != null)
@@ -74,8 +73,7 @@ public static class SimpleReadSqlAsyncCommands
 	/// <exception cref="CaeriusSqlException">
 	///     Thrown when the execution of the stored procedure fails due to a SQL exception.
 	/// </exception>
-	public static async Task<ReadOnlyCollection<TResultSet>> QueryAsReadOnlyCollectionAsync<TResultSet>(
-		this ICaeriusDbContext context, StoredProcedureParameters spParameters)
+	public static async Task<ReadOnlyCollection<TResultSet>> QueryAsReadOnlyCollectionAsync<TResultSet>(this ICaeriusDbContext context, StoredProcedureParameters spParameters)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
 		if (CacheUtility.TryRetrieveFromCache(spParameters, out ReadOnlyCollection<TResultSet>? cachedResult) &&
@@ -120,12 +118,10 @@ public static class SimpleReadSqlAsyncCommands
 	/// <exception cref="CaeriusSqlException">
 	///     Thrown when the execution of the stored procedure fails due to a SQL exception.
 	/// </exception>
-	public static async Task<IEnumerable<TResultSet>> QueryAsIEnumerableAsync<TResultSet>(
-		this ICaeriusDbContext context, StoredProcedureParameters spParameters)
+	public static async Task<IEnumerable<TResultSet>> QueryAsIEnumerableAsync<TResultSet>(this ICaeriusDbContext context, StoredProcedureParameters spParameters)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
-		if (CacheUtility.TryRetrieveFromCache(spParameters, out IEnumerable<TResultSet>? cachedResult) &&
-		    cachedResult != null)
+		if (CacheUtility.TryRetrieveFromCache(spParameters, out IEnumerable<TResultSet>? cachedResult) && cachedResult != null)
 			return cachedResult;
 
 		try
@@ -168,12 +164,10 @@ public static class SimpleReadSqlAsyncCommands
 	/// <exception cref="CaeriusSqlException">
 	///     Thrown when the execution of the stored procedure fails due to a SQL exception.
 	/// </exception>
-	public static async Task<ImmutableArray<TResultSet>> QueryAsImmutableArrayAsync<TResultSet>(
-		this ICaeriusDbContext context, StoredProcedureParameters spParameters)
+	public static async Task<ImmutableArray<TResultSet>> QueryAsImmutableArrayAsync<TResultSet>(this ICaeriusDbContext context, StoredProcedureParameters spParameters)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
-		if (CacheUtility.TryRetrieveFromCache(spParameters, out ImmutableArray<TResultSet>? cachedResult) &&
-		    cachedResult != null)
+		if (CacheUtility.TryRetrieveFromCache(spParameters, out ImmutableArray<TResultSet>? cachedResult) && cachedResult != null)
 			return (ImmutableArray<TResultSet>)cachedResult;
 
 		try

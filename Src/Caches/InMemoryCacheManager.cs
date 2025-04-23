@@ -20,11 +20,9 @@ internal static class InMemoryCacheManager
 	/// <param name="expiration">The duration for which the cached value is valid before it expires.</param>
 	internal static void Store<T>(string cacheKey, T value, TimeSpan expiration)
 	{
-		Logger?.LogDebug(LogCategory.InMemoryCache,
-			$"Enregistrement dans le cache mémoire avec la clé '{cacheKey}'...");
+		Logger?.LogDebug(LogCategory.InMemoryCache, $"Storing in memory cache with key '{cacheKey}'...");
 		MemoryCache.Set(cacheKey, value!, expiration);
-		Logger?.LogInformation(LogCategory.InMemoryCache,
-			$"Valeur enregistrée dans le cache mémoire avec la clé '{cacheKey}' et l'expiration de {expiration}");
+		Logger?.LogInformation(LogCategory.InMemoryCache, $"Value stored in memory cache with key '{cacheKey}' and expiration of {expiration}");
 	}
 
 	/// <summary>
@@ -41,20 +39,17 @@ internal static class InMemoryCacheManager
 	/// </returns>
 	internal static bool TryGet<T>(string cacheKey, out T? value)
 	{
-		Logger?.LogDebug(LogCategory.InMemoryCache,
-			$"Récupération depuis le cache mémoire avec la clé '{cacheKey}'...");
+		Logger?.LogDebug(LogCategory.InMemoryCache, $"Retrieving from memory cache with key '{cacheKey}'...");
 
 		if (MemoryCache.TryGetValue(cacheKey, out var cached) && cached is T typedValue)
 		{
 			value = typedValue;
-			Logger?.LogInformation(LogCategory.InMemoryCache,
-				$"Valeur récupérée avec succès depuis le cache mémoire pour la clé '{cacheKey}'");
+			Logger?.LogInformation(LogCategory.InMemoryCache, $"Value successfully retrieved from memory cache for key '{cacheKey}'");
 			return true;
 		}
 
 		value = default;
-		Logger?.LogDebug(LogCategory.InMemoryCache,
-			$"Aucune valeur trouvée dans le cache mémoire pour la clé '{cacheKey}'");
+		Logger?.LogDebug(LogCategory.InMemoryCache, $"No value found in memory cache for key '{cacheKey}'");
 		return false;
 	}
 }
