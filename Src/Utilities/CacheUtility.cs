@@ -19,7 +19,7 @@ internal static class CacheUtility
 		return spParameters.CacheType switch
 		{
 			InMemory => InMemoryCacheManager.TryGet(spParameters.CacheKey, out result),
-			Frozen => FrozenCacheManager.TryGetFrozen(spParameters.CacheKey, out result),
+			Frozen => FrozenCacheManager.TryGet(spParameters.CacheKey, out result),
 			Redis => RedisCacheManager.IsInitialized() && RedisCacheManager.TryGet(spParameters.CacheKey, out result),
 			_ => false
 		};
@@ -44,7 +44,7 @@ internal static class CacheUtility
 				InMemoryCacheManager.Store(spParameters.CacheKey, result, spParameters.CacheExpiration!.Value);
 				break;
 			case Frozen:
-				FrozenCacheManager.StoreFrozen(spParameters.CacheKey, result);
+				FrozenCacheManager.Store(spParameters.CacheKey, result);
 				break;
 			case Redis:
 				if (RedisCacheManager.IsInitialized())

@@ -1,13 +1,32 @@
 ﻿namespace CaeriusNet.Utilities;
 
 /// <summary>
-///     Définit les catégories de log pour identifier facilement la source des messages.
+///     Defines categories for logging to help organize and filter log messages across different parts of the application.
 /// </summary>
 public enum LogCategory : byte
 {
-	Database,
-	Redis,
-	InMemoryCache,
-	FrozenCache,
-	General
+    /// <summary>
+    ///     Used for database-related operations and events.
+    /// </summary>
+    Database,
+
+    /// <summary>
+    ///     Used for Redis cache operations and events.
+    /// </summary>
+    Redis,
+
+    /// <summary>
+    ///     Used for in-memory cache operations and events.
+    /// </summary>
+    InMemoryCache,
+
+    /// <summary>
+    ///     Used for frozen cache operations and events.
+    /// </summary>
+    FrozenCache,
+
+    /// <summary>
+    ///     Used for general purpose logging that doesn't fit into other categories.
+    /// </summary>
+    General
 }

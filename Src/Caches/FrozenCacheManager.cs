@@ -17,24 +17,21 @@ internal static class FrozenCacheManager
 	/// <typeparam name="T">The type of the value to be stored in the cache.</typeparam>
 	/// <param name="cacheKey">The unique key to associate with the value in the cache.</param>
 	/// <param name="value">The value to be stored in the cache.</param>
-	internal static void StoreFrozen<T>(string cacheKey, T value)
+	internal static void Store<T>(string cacheKey, T value)
 	{
-		Logger?.LogDebug(LogCategory.FrozenCache,
-			$"Tentative d'enregistrement dans le cache gelé avec la clé '{cacheKey}'...");
+		Logger?.LogDebug(LogCategory.FrozenCache, $"Attempting to store in frozen cache with key '{cacheKey}'...");
 
 		lock (Lock)
 		{
 			if (_frozenCache.ContainsKey(cacheKey))
 			{
-				Logger?.LogDebug(LogCategory.FrozenCache,
-					$"La clé '{cacheKey}' existe déjà dans le cache gelé. Ignorer l'enregistrement.");
-				return;
+				Logger?.LogDebug(LogCategory.FrozenCache, $"Key '{cacheKey}' already exists in frozen cache. Ignoring store operation.");
+				return; 
 			}
 
 			var mutableCache = new ConcurrentDictionary<string, object>(_frozenCache) { [cacheKey] = value! };
 			_frozenCache = mutableCache.ToFrozenDictionary();
-			Logger?.LogInformation(LogCategory.FrozenCache,
-				$"Valeur enregistrée dans le cache gelé avec la clé '{cacheKey}'");
+			Logger?.LogInformation(LogCategory.FrozenCache, $"Value stored in frozen cache with key '{cacheKey}'");
 		}
 	}
 
@@ -48,20 +45,19 @@ internal static class FrozenCacheManager
 	///     true if the value is found in the cache and its type matches the specified type <typeparamref name="T" />;
 	///     otherwise, false.
 	/// </returns>
-	internal static bool TryGetFrozen<T>(string cacheKey, out T? value)
+	internal static bool TryGet<T>(string cacheKey, out T? value)
 	{
-		Logger?.LogDebug(LogCategory.FrozenCache, $"Récupération depuis le cache gelé avec la clé '{cacheKey}'...");
+		Logger?.LogDebug(LogCategory.FrozenCache, $"Attempting to retrieve from frozen cache with key '{cacheKey}'...");
 
 		if (_frozenCache.TryGetValue(cacheKey, out var cached) && cached is T typedValue)
 		{
 			value = typedValue;
-			Logger?.LogInformation(LogCategory.FrozenCache,
-				$"Valeur récupérée avec succès depuis le cache gelé pour la clé '{cacheKey}'");
+			Logger?.LogInformation(LogCategory.FrozenCache, $"Value successfully retrieved from frozen cache for key '{cacheKey}'");
 			return true;
 		}
 
 		value = default;
-		Logger?.LogDebug(LogCategory.FrozenCache, $"Aucune valeur trouvée dans le cache gelé pour la clé '{cacheKey}'");
+		Logger?.LogDebug(LogCategory.FrozenCache, $"No value found in frozen cache for key '{cacheKey}'");
 		return false;
 	}
 }

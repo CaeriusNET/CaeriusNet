@@ -1,0 +1,11 @@
+﻿<Solution>
+	<Folder Name="/Benchmark/">
+		<Project Path="Benchmark\CaeriusNet.Benchmark.csproj" Type="Classic C#"/>
+	</Folder>
+	<Folder Name="/SourceGenerators/">
+		<Project Path="SourceGenerators\CaeriusNet.Generator.csproj" Type="Classic C#"/>
+	</Folder>
+	<Folder Name="/Src/">
+		<Project Path="Src\CaeriusNet.csproj" Type="Classic C#"/>
+	</Folder>
+</Solution>

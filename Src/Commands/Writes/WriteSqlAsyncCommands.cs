@@ -27,15 +27,12 @@ public static class WriteSqlAsyncCommands
 	///     from the database, converted to the specified type <typeparamref name="T" />.
 	///     Returns <c>default</c> if the result is <see cref="DBNull" />.
 	/// </returns>
-	public static async Task<T?> ExecuteScalarAsync<T>(this ICaeriusDbContext dbContext,
-		StoredProcedureParameters spParameters)
+	public static async Task<T?> ExecuteScalarAsync<T>(this ICaeriusDbContext dbContext, StoredProcedureParameters spParameters)
 	{
 		return await SqlCommandUtility.ExecuteCommandAsync(dbContext, spParameters, async command =>
 		{
 			var result = await command.ExecuteScalarAsync();
-			return result is DBNull
-				? default
-				: (T?)result;
+			return result is DBNull ? default : (T?)result;
 		});
 	}
 
@@ -55,11 +52,10 @@ public static class WriteSqlAsyncCommands
 	///     A task representing the asynchronous operation. The task result contains the number
 	///     of rows affected by the executed SQL command.
 	/// </returns>
-	public static async Task<int> ExecuteNonQueryAsync(this ICaeriusDbContext dbContext,
-		StoredProcedureParameters spParameters)
+	public static async Task<int> ExecuteNonQueryAsync(this ICaeriusDbContext dbContext, StoredProcedureParameters spParameters)
 	{
-		return await SqlCommandUtility.ExecuteCommandAsync(dbContext, spParameters, async command =>
-			await command.ExecuteNonQueryAsync());
+		return await SqlCommandUtility.ExecuteCommandAsync(dbContext, spParameters, 
+			async command => await command.ExecuteNonQueryAsync());
 	}
 
 	/// <summary>

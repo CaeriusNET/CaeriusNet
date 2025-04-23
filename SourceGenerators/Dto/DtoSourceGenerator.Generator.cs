@@ -25,11 +25,12 @@ public sealed partial class DtoSourceGenerator
 		// Begin namespace
 		source.AppendLine($"namespace {dtoMetadata.Namespace};");
 		source.AppendLine();
-		
+
 		// Begin class/record declaration
 		var declarationType = dtoMetadata.DeclarationSyntax.Kind() == SyntaxKind.ClassDeclaration ? "class" : "record";
 
-		source.AppendLine($"public sealed partial {declarationType} {dtoMetadata.RecordName} : ISpMapper<{dtoMetadata.RecordName}>");
+		source.AppendLine(
+			$"public sealed partial {declarationType} {dtoMetadata.RecordName} : ISpMapper<{dtoMetadata.RecordName}>");
 		source.AppendLine("{");
 
 		// Generate MapFromDataReader implementation
@@ -44,7 +45,7 @@ public sealed partial class DtoSourceGenerator
 		{
 			var parameter = dtoMetadata.Parameters[i];
 			var comma = i < dtoMetadata.Parameters.Count - 1 ? "," : "";
-			source.AppendLine($"		{GetReaderExpression(parameter)}{comma}");
+			source.AppendLine($"		    {GetReaderExpression(parameter)}{comma}");
 		}
 
 		source.AppendLine("        );");
