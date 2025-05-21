@@ -14,3 +14,23 @@ TVP (Table-Valued Parameter) converters, streamlining the development process fo
 ## Installation
 
 Install the package via NuGet:
+# CaeriusNet Redis Integration Guide
+
+CaeriusNet supports Redis caching with both traditional connection string and Aspire integration approaches.
+
+## Traditional Redis Integration
+
+To use Redis with a connection string:
+
+```csharp
+// In your startup or program file
+services.AddCaeriusNet("your-sql-connection-string")
+        .AddCaeriusRedisCache("your-redis-connection-string");
+
+// Use Redis caching in stored procedure calls
+var result = await dbContext.ExecuteStoredProcedureAsync<YourResultType>(
+    new StoredProcedureParametersBuilder("YourStoredProcedureName")
+        .AddParameter("@param1", value1, SqlDbType.NVarChar)
+        .AddRedisCache("your-cache-key", TimeSpan.FromMinutes(10))
+        .Build()
+);
