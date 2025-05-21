@@ -7,6 +7,5 @@ public enum CacheType : byte
 {
 	Frozen,
 	InMemory,
-	Redis,
-	AspireRedis
+	Redis
 }

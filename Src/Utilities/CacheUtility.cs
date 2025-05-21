@@ -1,7 +1,18 @@
-﻿namespace CaeriusNet.Utilities;
+﻿using CaeriusNet.Caches;
+
+namespace CaeriusNet.Utilities;
 
 internal static class CacheUtility
 {
+	/// <summary>
+	///     Sets the service provider for dependency injection in cache managers
+	/// </summary>
+	/// <param name="serviceProvider">The service provider instance</param>
+	internal static void SetServiceProvider(IServiceProvider serviceProvider)
+	{
+		RedisCacheManager.SetServiceProvider(serviceProvider);
+	}
+	
 	/// <summary>
 	///     Attempts to retrieve a cached result for the given stored procedure parameters.
 	/// </summary>
@@ -21,8 +32,6 @@ internal static class CacheUtility
 			InMemory => InMemoryCacheManager.TryGet(spParameters.CacheKey, out result),
 			Frozen => FrozenCacheManager.TryGet(spParameters.CacheKey, out result),
 			Redis => RedisCacheManager.IsInitialized() && RedisCacheManager.TryGet(spParameters.CacheKey, out result),
-			AspireRedis => AspireRedisCacheManager.IsInitialized() &&
-			               AspireRedisCacheManager.TryGet(spParameters.CacheKey, out result),
 			_ => false
 		};
 	}
@@ -51,10 +60,6 @@ internal static class CacheUtility
 			case Redis:
 				if (RedisCacheManager.IsInitialized())
 					RedisCacheManager.Store(spParameters.CacheKey, result, spParameters.CacheExpiration);
-				break;
-			case AspireRedis:
-				if (AspireRedisCacheManager.IsInitialized())
-					AspireRedisCacheManager.Store(spParameters.CacheKey, result, spParameters.CacheExpiration);
 				break;
 			case null:
 				break;

@@ -118,29 +118,7 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
 		_cacheExpiration = expiration;
 		return this;
 	}
-
-	/// <summary>
-	///     Adds Aspire Redis distributed cache support for the stored procedure call, using the .NET Aspire
-	///     Redis integration.
-	/// </summary>
-	/// <param name="cacheKey">
-	///     The unique key used to store and access the cached result in the Aspire Redis distributed cache.
-	/// </param>
-	/// <param name="expiration">
-	///     The expiration time of the cached data. This value is optional, and a default expiration may be used
-	///     if not specified.
-	/// </param>
-	/// <returns>
-	///     The <see cref="StoredProcedureParametersBuilder" /> instance for chaining.
-	/// </returns>
-	public StoredProcedureParametersBuilder AddAspireRedisCache(string cacheKey, TimeSpan? expiration = null)
-	{
-		_cacheType = AspireRedis;
-		_cacheKey = cacheKey;
-		_cacheExpiration = expiration;
-		return this;
-	}
-
+	
 	/// <summary>
 	///     Builds and returns a <see cref="StoredProcedureParameters" /> object containing all configured parameters.
 	/// </summary>

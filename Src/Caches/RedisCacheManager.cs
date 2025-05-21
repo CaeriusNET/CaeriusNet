@@ -1,4 +1,7 @@
-﻿using CaeriusNet.Logging;
+﻿using System.Text.Json;
+using CaeriusNet.Logging;
+using Microsoft.Extensions.DependencyInjection;
+using StackExchange.Redis;
 
 namespace CaeriusNet.Caches;
 
@@ -10,7 +13,28 @@ internal static class RedisCacheManager
 	private static ConnectionMultiplexer? _connection;
 	private static IDatabase? _database;
 	private static bool _isInitialized;
+	private static bool _useAspireIntegration;
+	private static IServiceProvider? _serviceProvider;
 	private static readonly ICaeriusLogger? Logger = LoggerProvider.GetLogger();
+
+	/// <summary>
+	///     Configures the Redis cache manager to use Aspire integration
+	/// </summary>
+	internal static void UseAspireIntegration()
+	{
+		_useAspireIntegration = true;
+		_isInitialized = true;
+		Logger?.LogInformation(LogCategory.Redis, "Redis cache manager configured to use Aspire integration.");
+	}
+
+	/// <summary>
+	///     Sets the service provider for dependency injection
+	/// </summary>
+	/// <param name="serviceProvider">The service provider instance</param>
+	internal static void SetServiceProvider(IServiceProvider serviceProvider)
+	{
+		_serviceProvider = serviceProvider;
+	}
 
 	/// <summary>
 	///     Initializes the Redis cache manager with the provided connection string.
@@ -45,6 +69,25 @@ internal static class RedisCacheManager
 	}
 
 	/// <summary>
+	///     Gets the Redis database from either direct connection or Aspire integration
+	/// </summary>
+	/// <returns>The Redis database instance or null if not available</returns>
+	private static IDatabase? GetDatabase()
+	{
+		if (!_useAspireIntegration || _serviceProvider == null) return _database;
+		try
+		{
+			var redisCacheConnection = _serviceProvider.GetRequiredService<IRedisCacheConnection>();
+			return redisCacheConnection.GetDatabase();
+		}
+		catch (Exception ex)
+		{
+			Logger?.LogError(LogCategory.Redis, "Failed to get Redis database from service provider", ex);
+			return null;
+		}
+	}
+
+	/// <summary>
 	///     Checks if the Redis cache manager is initialized.
 	/// </summary>
 	/// <returns>True if the manager is initialized, otherwise False.</returns>
@@ -63,7 +106,8 @@ internal static class RedisCacheManager
 	/// <returns>True if storage was successful, otherwise False.</returns>
 	internal static void Store<T>(string cacheKey, T value, TimeSpan? expiration)
 	{
-		if (!_isInitialized || _database == null)
+		var database = GetDatabase();
+		if (!_isInitialized || database == null)
 		{
 			Logger?.LogWarning(LogCategory.Redis,
 				$"Attempt to store in Redis with key '{cacheKey}' while Redis is not initialized.");
@@ -74,7 +118,7 @@ internal static class RedisCacheManager
 		{
 			Logger?.LogDebug(LogCategory.Redis, $"Storing in Redis with key '{cacheKey}'...");
 			var serialized = JsonSerializer.Serialize(value);
-			var result = _database.StringSet(cacheKey, serialized, expiration);
+			var result = database.StringSet(cacheKey, serialized, expiration);
 
 			if (result)
 				Logger?.LogInformation(LogCategory.Redis,
@@ -101,7 +145,8 @@ internal static class RedisCacheManager
 	internal static bool TryGet<T>(string cacheKey, out T? value)
 	{
 		value = default;
-		if (!_isInitialized || _database == null)
+		var database = GetDatabase();
+		if (!_isInitialized || database == null)
 		{
 			Logger?.LogWarning(LogCategory.Redis,
 				$"Attempt to retrieve from Redis with key '{cacheKey}' while Redis is not initialized.");
@@ -111,7 +156,7 @@ internal static class RedisCacheManager
 		try
 		{
 			Logger?.LogDebug(LogCategory.Redis, $"Retrieving from Redis with key '{cacheKey}'...");
-			var cached = _database.StringGet(cacheKey);
+			var cached = database.StringGet(cacheKey);
 
 			if (cached.IsNull)
 			{
