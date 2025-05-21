@@ -22,7 +22,8 @@ internal static class InMemoryCacheManager
 	{
 		Logger?.LogDebug(LogCategory.InMemoryCache, $"Storing in memory cache with key '{cacheKey}'...");
 		MemoryCache.Set(cacheKey, value!, expiration);
-		Logger?.LogInformation(LogCategory.InMemoryCache, $"Value stored in memory cache with key '{cacheKey}' and expiration of {expiration}");
+		Logger?.LogInformation(LogCategory.InMemoryCache,
+			$"Value stored in memory cache with key '{cacheKey}' and expiration of {expiration}");
 	}
 
 	/// <summary>
@@ -44,7 +45,8 @@ internal static class InMemoryCacheManager
 		if (MemoryCache.TryGetValue(cacheKey, out var cached) && cached is T typedValue)
 		{
 			value = typedValue;
-			Logger?.LogInformation(LogCategory.InMemoryCache, $"Value successfully retrieved from memory cache for key '{cacheKey}'");
+			Logger?.LogInformation(LogCategory.InMemoryCache,
+				$"Value successfully retrieved from memory cache for key '{cacheKey}'");
 			return true;
 		}
 

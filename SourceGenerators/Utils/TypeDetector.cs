@@ -91,7 +91,8 @@ public static class TypeDetector
 	/// <param name="typeSyntax">The type syntax (optional).</param>
 	/// <param name="nullableAnnotation">The type's nullable annotation (optional).</param>
 	/// <returns>True if the type can accept null, otherwise False.</returns>
-	public static bool IsTypeNullable(ITypeSymbol type, TypeSyntax? typeSyntax = null, NullableAnnotation? nullableAnnotation = null)
+	public static bool IsTypeNullable(ITypeSymbol type, TypeSyntax? typeSyntax = null,
+		NullableAnnotation? nullableAnnotation = null)
 	{
 		// 1. Check for explicit nullable annotation
 		if (nullableAnnotation is NullableAnnotation.Annotated)

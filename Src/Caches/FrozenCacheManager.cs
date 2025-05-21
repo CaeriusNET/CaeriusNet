@@ -25,8 +25,9 @@ internal static class FrozenCacheManager
 		{
 			if (_frozenCache.ContainsKey(cacheKey))
 			{
-				Logger?.LogDebug(LogCategory.FrozenCache, $"Key '{cacheKey}' already exists in frozen cache. Ignoring store operation.");
-				return; 
+				Logger?.LogDebug(LogCategory.FrozenCache,
+					$"Key '{cacheKey}' already exists in frozen cache. Ignoring store operation.");
+				return;
 			}
 
 			var mutableCache = new ConcurrentDictionary<string, object>(_frozenCache) { [cacheKey] = value! };
@@ -52,7 +53,8 @@ internal static class FrozenCacheManager
 		if (_frozenCache.TryGetValue(cacheKey, out var cached) && cached is T typedValue)
 		{
 			value = typedValue;
-			Logger?.LogInformation(LogCategory.FrozenCache, $"Value successfully retrieved from frozen cache for key '{cacheKey}'");
+			Logger?.LogInformation(LogCategory.FrozenCache,
+				$"Value successfully retrieved from frozen cache for key '{cacheKey}'");
 			return true;
 		}
 

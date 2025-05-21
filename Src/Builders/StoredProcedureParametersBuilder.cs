@@ -62,7 +62,8 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
 	/// <param name="expiration">Optional expiration time for the cache. Defaults to null for no expiration.</param>
 	/// <param name="cacheType">The type of cache strategy to use. Defaults to <see cref="CacheType.InMemory" />.</param>
 	/// <returns>The <see cref="StoredProcedureParametersBuilder" /> instance for chaining.</returns>
-	public StoredProcedureParametersBuilder AddCache(string cacheKey, TimeSpan? expiration = null, CacheType cacheType = InMemory)
+	public StoredProcedureParametersBuilder AddCache(string cacheKey, TimeSpan? expiration = null,
+		CacheType cacheType = InMemory)
 	{
 		_cacheType = cacheType;
 		_cacheKey = cacheKey;
@@ -119,6 +120,28 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
 	}
 
 	/// <summary>
+	///     Adds Aspire Redis distributed cache support for the stored procedure call, using the .NET Aspire
+	///     Redis integration.
+	/// </summary>
+	/// <param name="cacheKey">
+	///     The unique key used to store and access the cached result in the Aspire Redis distributed cache.
+	/// </param>
+	/// <param name="expiration">
+	///     The expiration time of the cached data. This value is optional, and a default expiration may be used
+	///     if not specified.
+	/// </param>
+	/// <returns>
+	///     The <see cref="StoredProcedureParametersBuilder" /> instance for chaining.
+	/// </returns>
+	public StoredProcedureParametersBuilder AddAspireRedisCache(string cacheKey, TimeSpan? expiration = null)
+	{
+		_cacheType = AspireRedis;
+		_cacheKey = cacheKey;
+		_cacheExpiration = expiration;
+		return this;
+	}
+
+	/// <summary>
 	///     Builds and returns a <see cref="StoredProcedureParameters" /> object containing all configured parameters.
 	/// </summary>
 	/// <returns>
@@ -127,6 +150,7 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
 	/// </returns>
 	public StoredProcedureParameters Build()
 	{
-		return new StoredProcedureParameters(ProcedureName, Capacity, Parameters, _cacheKey, _cacheExpiration, _cacheType);
+		return new StoredProcedureParameters(ProcedureName, Capacity, Parameters, _cacheKey, _cacheExpiration,
+			_cacheType);
 	}
 }

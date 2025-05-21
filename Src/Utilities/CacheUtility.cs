@@ -21,6 +21,8 @@ internal static class CacheUtility
 			InMemory => InMemoryCacheManager.TryGet(spParameters.CacheKey, out result),
 			Frozen => FrozenCacheManager.TryGet(spParameters.CacheKey, out result),
 			Redis => RedisCacheManager.IsInitialized() && RedisCacheManager.TryGet(spParameters.CacheKey, out result),
+			AspireRedis => AspireRedisCacheManager.IsInitialized() &&
+			               AspireRedisCacheManager.TryGet(spParameters.CacheKey, out result),
 			_ => false
 		};
 	}
@@ -49,6 +51,10 @@ internal static class CacheUtility
 			case Redis:
 				if (RedisCacheManager.IsInitialized())
 					RedisCacheManager.Store(spParameters.CacheKey, result, spParameters.CacheExpiration);
+				break;
+			case AspireRedis:
+				if (AspireRedisCacheManager.IsInitialized())
+					AspireRedisCacheManager.Store(spParameters.CacheKey, result, spParameters.CacheExpiration);
 				break;
 			case null:
 				break;
