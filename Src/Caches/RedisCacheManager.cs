@@ -3,7 +3,7 @@
 namespace CaeriusNet.Caches;
 
 /// <summary>
-///	 Provides methods to manage Redis-based distributed cache.
+///     Provides methods to manage Redis-based distributed cache.
 /// </summary>
 internal static class RedisCacheManager
 {
@@ -13,7 +13,7 @@ internal static class RedisCacheManager
 	private static readonly ICaeriusLogger? Logger = LoggerProvider.GetLogger();
 
 	/// <summary>
-	///	 Initializes the Redis cache manager with the provided connection string.
+	///     Initializes the Redis cache manager with the provided connection string.
 	/// </summary>
 	/// <param name="connectionString">The connection string to the Redis server.</param>
 	/// <returns>True if initialization succeeded, otherwise False.</returns>
@@ -45,7 +45,7 @@ internal static class RedisCacheManager
 	}
 
 	/// <summary>
-	///	 Checks if the Redis cache manager is initialized.
+	///     Checks if the Redis cache manager is initialized.
 	/// </summary>
 	/// <returns>True if the manager is initialized, otherwise False.</returns>
 	internal static bool IsInitialized()
@@ -54,19 +54,20 @@ internal static class RedisCacheManager
 	}
 
 	/// <summary>
-	///	 Stores a value in the Redis cache.
+	///     Stores a value in the Redis cache.
 	/// </summary>
 	/// <typeparam name="T">The type of value to store in the cache.</typeparam>
 	/// <param name="cacheKey">The unique key to identify the value in the cache.</param>
 	/// <param name="value">The value to store in the cache.</param>
 	/// <param name="expiration">The validity duration of the value in the cache before expiration.</param>
 	/// <returns>True if storage was successful, otherwise False.</returns>
-	internal static bool Store<T>(string cacheKey, T value, TimeSpan? expiration)
+	internal static void Store<T>(string cacheKey, T value, TimeSpan? expiration)
 	{
 		if (!_isInitialized || _database == null)
 		{
-			Logger?.LogWarning(LogCategory.Redis, $"Attempt to store in Redis with key '{cacheKey}' while Redis is not initialized.");
-			return false;
+			Logger?.LogWarning(LogCategory.Redis,
+				$"Attempt to store in Redis with key '{cacheKey}' while Redis is not initialized.");
+			return;
 		}
 
 		try
@@ -76,34 +77,34 @@ internal static class RedisCacheManager
 			var result = _database.StringSet(cacheKey, serialized, expiration);
 
 			if (result)
-				Logger?.LogInformation(LogCategory.Redis, $"Value stored in Redis with key '{cacheKey}' and expiration {(expiration.HasValue ? expiration.Value.ToString() : "unlimited")}");
+				Logger?.LogInformation(LogCategory.Redis,
+					$"Value stored in Redis with key '{cacheKey}' and expiration {(expiration.HasValue ? expiration.Value.ToString() : "unlimited")}");
 			else
 				Logger?.LogWarning(LogCategory.Redis, $"Failed to store value in Redis with key '{cacheKey}'");
-
-			return result;
 		}
 		catch (Exception ex)
 		{
 			Logger?.LogError(LogCategory.Redis, $"Error while storing in Redis with key '{cacheKey}'", ex);
-			return false;
 		}
 	}
 
 	/// <summary>
-	///	 Attempts to retrieve a cached value from Redis.
+	///     Attempts to retrieve a cached value from Redis.
 	/// </summary>
 	/// <typeparam name="T">The expected type of the cached value.</typeparam>
 	/// <param name="cacheKey">The unique key associated with the value in the cache.</param>
 	/// <param name="value">The output parameter where the cached value will be stored if found.</param>
 	/// <returns>
-	///	 True if the value is found in the cache and its type matches the specified type <typeparamref name="T"/>; otherwise, False.
+	///     True if the value is found in the cache and its type matches the specified type <typeparamref name="T" />;
+	///     otherwise, False.
 	/// </returns>
 	internal static bool TryGet<T>(string cacheKey, out T? value)
 	{
 		value = default;
 		if (!_isInitialized || _database == null)
 		{
-			Logger?.LogWarning(LogCategory.Redis, $"Attempt to retrieve from Redis with key '{cacheKey}' while Redis is not initialized.");
+			Logger?.LogWarning(LogCategory.Redis,
+				$"Attempt to retrieve from Redis with key '{cacheKey}' while Redis is not initialized.");
 			return false;
 		}
 
@@ -122,7 +123,8 @@ internal static class RedisCacheManager
 			var success = value != null;
 
 			if (success)
-				Logger?.LogInformation(LogCategory.Redis, $"Value successfully retrieved from Redis for key '{cacheKey}'");
+				Logger?.LogInformation(LogCategory.Redis,
+					$"Value successfully retrieved from Redis for key '{cacheKey}'");
 			else
 				Logger?.LogWarning(LogCategory.Redis, $"Deserialization failed for key '{cacheKey}'");
 
