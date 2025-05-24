@@ -5,7 +5,7 @@
 /// </summary>
 public enum CacheType : byte
 {
-	Frozen,
-	InMemory,
-	Redis
+    Frozen,
+    InMemory,
+    Redis
 }
