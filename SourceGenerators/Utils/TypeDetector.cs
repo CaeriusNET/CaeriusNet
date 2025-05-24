@@ -62,7 +62,7 @@ public static class TypeDetector
         if (IsNullableType(type) && type is INamedTypeSymbol namedType)
             type = namedType.TypeArguments[0];
 
-        // Check if it's an enum and get its underlying type
+        // Skip enums and process non-enum types
         if (!IsEnumType(type))
             return type.SpecialType switch
             {
