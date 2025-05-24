@@ -9,7 +9,7 @@ public interface IRedisCacheConnection
 	///     Gets the Redis database interface for cache operations
 	/// </summary>
 	IDatabase GetDatabase();
-    
+
 	/// <summary>
 	///     Checks if the connection is initialized and available
 	/// </summary>
