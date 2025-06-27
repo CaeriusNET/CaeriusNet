@@ -57,7 +57,7 @@ public static class WriteSqlAsyncCommands
 		StoredProcedureParameters spParameters, CancellationToken cancellationToken = default)
 	{
 		return await SqlCommandUtility.ExecuteCommandAsync(dbContext, spParameters,
-			async command => await command.ExecuteNonQueryAsync(cancellationToken), cancellationToken);
+			command => command.ExecuteNonQueryAsync(cancellationToken), cancellationToken);
 	}
 
 	/// <summary>
