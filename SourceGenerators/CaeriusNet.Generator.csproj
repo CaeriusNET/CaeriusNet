@@ -21,7 +21,7 @@
         <PackageProjectUrl>https://caerius.net</PackageProjectUrl>
         <PackageTags>source-generators;roslyn;mapping;tvp;dto</PackageTags>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
-        <Version>9.3.5</Version>
+        <Version>9.3.6</Version>
     </PropertyGroup>
 
     <ItemGroup>
@@ -34,10 +34,5 @@
     </ItemGroup>
 
     <!-- Inclusion du fichier README.md dans le package NuGet -->
-    <ItemGroup>
-        <Content Include="README.md" Pack="true" PackagePath="\">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </Content>
-    </ItemGroup>
 
 </Project>

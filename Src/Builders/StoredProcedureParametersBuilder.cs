@@ -6,9 +6,9 @@
 /// </summary>
 public sealed record StoredProcedureParametersBuilder(string ProcedureName, int Capacity = 1)
 {
-    private TimeSpan? _cacheExpiration;
-    private string? _cacheKey;
-    private CacheType? _cacheType;
+	private TimeSpan? _cacheExpiration;
+	private string? _cacheKey;
+	private CacheType? _cacheType;
 
     /// <summary>
     ///     Gets the collection of SQL parameters to be used in the stored procedure call.
@@ -23,11 +23,11 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
     /// <param name="dbType">The TSQL data type of the parameter. Use <see cref="SqlDbType" /> enumeration.</param>
     /// <returns>The <see cref="StoredProcedureParametersBuilder" /> instance for chaining.</returns>
     public StoredProcedureParametersBuilder AddParameter(string parameter, object value, SqlDbType dbType)
-    {
-        var currentItemParameter = new SqlParameter(parameter, dbType) { Value = value };
-        Parameters.Add(currentItemParameter);
-        return this;
-    }
+	{
+		var currentItemParameter = new SqlParameter(parameter, dbType) { Value = value };
+		Parameters.Add(currentItemParameter);
+		return this;
+	}
 
     /// <summary>
     ///     Adds a Table-Valued Parameter (TVP) to the stored procedure call.
@@ -39,21 +39,21 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
     /// <returns>The StoredProcedureParametersBuilder instance for chaining.</returns>
     /// <exception cref="ArgumentException">Thrown when the items collection is empty.</exception>
     public StoredProcedureParametersBuilder AddTvpParameter<T>(string parameter, string tvpName, IEnumerable<T> items)
-        where T : class, ITvpMapper<T>
-    {
-        var tvpMappers = items.ToList();
-        if (tvpMappers.Count == 0)
-            throw new ArgumentException("No items found in the collection to map to a Table-Valued Parameter.");
-        var dataTable = tvpMappers[0].MapAsDataTable(tvpMappers);
-        var currentTvpParameter = new SqlParameter(parameter, SqlDbType.Structured)
-        {
-            TypeName = tvpName,
-            Value = dataTable
-        };
+		where T : class, ITvpMapper<T>
+	{
+		var tvpMappers = items.ToList();
+		if (tvpMappers.Count == 0)
+			throw new ArgumentException("No items found in the collection to map to a Table-Valued Parameter.");
+		var dataTable = tvpMappers[0].MapAsDataTable(tvpMappers);
+		var currentTvpParameter = new SqlParameter(parameter, SqlDbType.Structured)
+		{
+			TypeName = tvpName,
+			Value = dataTable
+		};
 
-        Parameters.Add(currentTvpParameter);
-        return this;
-    }
+		Parameters.Add(currentTvpParameter);
+		return this;
+	}
 
     /// <summary>
     ///     Adds caching support to the stored procedure call.
@@ -63,13 +63,13 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
     /// <param name="cacheType">The type of cache strategy to use. Defaults to <see cref="CacheType.InMemory" />.</param>
     /// <returns>The <see cref="StoredProcedureParametersBuilder" /> instance for chaining.</returns>
     public StoredProcedureParametersBuilder AddCache(string cacheKey, TimeSpan? expiration = null,
-        CacheType cacheType = InMemory)
-    {
-        _cacheType = cacheType;
-        _cacheKey = cacheKey;
-        _cacheExpiration = expiration;
-        return this;
-    }
+		CacheType cacheType = InMemory)
+	{
+		_cacheType = cacheType;
+		_cacheKey = cacheKey;
+		_cacheExpiration = expiration;
+		return this;
+	}
 
     /// <summary>
     ///     Configures the stored procedure parameters to use in-memory caching with a specified key and expiration time.
@@ -78,12 +78,12 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
     /// <param name="expiration">The duration after which the cache entry will expire.</param>
     /// <returns>The <see cref="StoredProcedureParametersBuilder" /> instance for chaining.</returns>
     public StoredProcedureParametersBuilder AddInMemoryCache(string cacheKey, TimeSpan expiration)
-    {
-        _cacheKey = cacheKey;
-        _cacheType = InMemory;
-        _cacheExpiration = expiration;
-        return this;
-    }
+	{
+		_cacheKey = cacheKey;
+		_cacheType = InMemory;
+		_cacheExpiration = expiration;
+		return this;
+	}
 
     /// <summary>
     ///     Adds a frozen cache to the stored procedure call.
@@ -91,12 +91,12 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
     /// <param name="cacheKey">The unique key used to identify the frozen cache.</param>
     /// <returns>The <see cref="StoredProcedureParametersBuilder" /> instance for chaining.</returns>
     public StoredProcedureParametersBuilder AddFrozenCache(string cacheKey)
-    {
-        _cacheKey = cacheKey;
-        _cacheType = Frozen;
-        _cacheExpiration = null;
-        return this;
-    }
+	{
+		_cacheKey = cacheKey;
+		_cacheType = Frozen;
+		_cacheExpiration = null;
+		return this;
+	}
 
     /// <summary>
     ///     Adds Redis cache support for the stored procedure call, allowing caching of the results.
@@ -112,12 +112,12 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
     ///     The <see cref="StoredProcedureParametersBuilder" /> instance for chaining.
     /// </returns>
     public StoredProcedureParametersBuilder AddRedisCache(string cacheKey, TimeSpan? expiration = null)
-    {
-        _cacheType = Redis;
-        _cacheKey = cacheKey;
-        _cacheExpiration = expiration;
-        return this;
-    }
+	{
+		_cacheType = Redis;
+		_cacheKey = cacheKey;
+		_cacheExpiration = expiration;
+		return this;
+	}
 
     /// <summary>
     ///     Builds and returns a <see cref="StoredProcedureParameters" /> object containing all configured parameters.
@@ -127,8 +127,8 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
     ///     parameters, and optional caching settings.
     /// </returns>
     public StoredProcedureParameters Build()
-    {
-        return new StoredProcedureParameters(ProcedureName, Capacity, Parameters, _cacheKey, _cacheExpiration,
-            _cacheType);
-    }
+	{
+		return new StoredProcedureParameters(ProcedureName, Capacity, Parameters, _cacheKey, _cacheExpiration,
+			_cacheType);
+	}
 }

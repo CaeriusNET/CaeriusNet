@@ -1,4 +1,4 @@
-﻿namespace CaeriusNet.Attributes;
+﻿namespace CaeriusNet.Attributes.Dto;
 
 /// <summary>
 ///     Identifies a DTO class or record for which a strongly-typed <see cref="ISpMapper{T}" /> implementation

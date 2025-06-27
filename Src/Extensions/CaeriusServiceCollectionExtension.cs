@@ -16,9 +16,9 @@ public static class CaeriusServiceCollectionExtension
 	/// <param name="connectionString">The database connection string used to establish the connection.</param>
 	/// <returns>The IServiceCollection instance for method chaining.</returns>
 	public static IServiceCollection AddCaeriusNet(this IServiceCollection services, string connectionString)
-    {
-        return services.AddSingleton<ICaeriusDbContext, CaeriusDbContext>(_ => new CaeriusDbContext(connectionString));
-    }
+	{
+		return services.AddSingleton<ICaeriusDbContext, CaeriusDbContext>(_ => new CaeriusDbContext(connectionString));
+	}
 
 	/// <summary>
 	///     Registers the Caerius Redis cache in the service collection (service provider).
@@ -27,13 +27,13 @@ public static class CaeriusServiceCollectionExtension
 	/// <param name="redisConnectionString">The Redis connection string used to establish the connection to the Redis server.</param>
 	/// <returns>The IServiceCollection instance for method chaining.</returns>
 	public static IServiceCollection AddCaeriusRedisCache(this IServiceCollection services,
-        string redisConnectionString)
-    {
-        if (!string.IsNullOrWhiteSpace(redisConnectionString))
-            RedisCacheManager.Initialize(redisConnectionString);
+		string redisConnectionString)
+	{
+		if (!string.IsNullOrWhiteSpace(redisConnectionString))
+			RedisCacheManager.Initialize(redisConnectionString);
 
-        return services;
-    }
+		return services;
+	}
 
 	/// <summary>
 	///     Registers and configures the Caerius console logging service in the service collection.
@@ -41,11 +41,11 @@ public static class CaeriusServiceCollectionExtension
 	/// <param name="services">The IServiceCollection to which the console logger will be registered.</param>
 	/// <returns>The IServiceCollection instance for method chaining.</returns>
 	public static IServiceCollection AddCaeriusLoggingConsole(this IServiceCollection services)
-    {
-        var logger = new ConsoleLogger();
-        LoggerProvider.SetLogger(logger);
-        return services.AddSingleton<ICaeriusLogger>(logger);
-    }
+	{
+		var logger = new ConsoleLogger();
+		LoggerProvider.SetLogger(logger);
+		return services.AddSingleton<ICaeriusLogger>(logger);
+	}
 
 	/// <summary>
 	///     Registers the Caerius ORM with Aspire SQL Server integration.
@@ -54,13 +54,13 @@ public static class CaeriusServiceCollectionExtension
 	/// <param name="connectionString">The connection string in configuration.</param>
 	/// <returns>The host application builder instance for method chaining.</returns>
 	public static void AddCaeriusNetWithAspire(this IHostApplicationBuilder builder, string connectionString)
-    {
-        // Add SQL Server client using Aspire
-        builder.AddSqlServerClient(connectionString);
+	{
+		// Add SQL Server client using Aspire
+		builder.AddSqlServerClient(connectionString);
 
-        // Register Caerius DB context using the connection string from configuration
-        builder.Services.AddSingleton<ICaeriusDbContext, CaeriusDbContext>(_ => new CaeriusDbContext(connectionString));
-    }
+		// Register Caerius DB context using the connection string from configuration
+		builder.Services.AddSingleton<ICaeriusDbContext, CaeriusDbContext>(_ => new CaeriusDbContext(connectionString));
+	}
 
 	/// <summary>
 	///     Registers the Caerius ORM with Aspire Redis integration.
@@ -69,15 +69,15 @@ public static class CaeriusServiceCollectionExtension
 	/// <param name="connectionName">The connection name used in Aspire Redis configuration.</param>
 	/// <returns>The host application builder instance for method chaining.</returns>
 	public static void AddCaeriusNetWithAspireRedis(this IHostApplicationBuilder builder,
-        string connectionName = "cache")
-    {
-        // Add Redis client using Aspire
-        builder.AddRedisClient(connectionName);
+		string connectionName = "cache")
+	{
+		// Add Redis client using Aspire
+		builder.AddRedisClient(connectionName);
 
-        // Register the Redis connection multiplexer with RedisCacheManager
-        builder.Services.AddSingleton<IRedisCacheConnection>(provider =>
-            new RedisCacheConnection(provider.GetRequiredService<IConnectionMultiplexer>()));
+		// Register the Redis connection multiplexer with RedisCacheManager
+		builder.Services.AddSingleton<IRedisCacheConnection>(provider =>
+			new RedisCacheConnection(provider.GetRequiredService<IConnectionMultiplexer>()));
 
-        RedisCacheManager.UseAspireIntegration();
-    }
+		RedisCacheManager.UseAspireIntegration();
+	}
 }

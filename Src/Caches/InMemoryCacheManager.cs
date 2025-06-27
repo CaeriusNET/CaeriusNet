@@ -8,8 +8,8 @@ namespace CaeriusNet.Caches;
 /// </summary>
 internal static class InMemoryCacheManager
 {
-    private static readonly MemoryCache MemoryCache = new(new MemoryCacheOptions());
-    private static readonly ICaeriusLogger? Logger = LoggerProvider.GetLogger();
+	private static readonly MemoryCache MemoryCache = new(new MemoryCacheOptions());
+	private static readonly ICaeriusLogger? Logger = LoggerProvider.GetLogger();
 
     /// <summary>
     ///     Stores the specified value in the in-memory cache with the given cache key and expiration time.
@@ -19,12 +19,12 @@ internal static class InMemoryCacheManager
     /// <param name="value">The value to be stored in the cache.</param>
     /// <param name="expiration">The duration for which the cached value is valid before it expires.</param>
     internal static void Store<T>(string cacheKey, T value, TimeSpan expiration)
-    {
-        Logger?.LogDebug(LogCategory.InMemoryCache, $"Storing in memory cache with key '{cacheKey}'...");
-        MemoryCache.Set(cacheKey, value!, expiration);
-        Logger?.LogInformation(LogCategory.InMemoryCache,
-            $"Value stored in memory cache with key '{cacheKey}' and expiration of {expiration}");
-    }
+	{
+		Logger?.LogDebug(LogCategory.InMemoryCache, $"Storing in memory cache with key '{cacheKey}'...");
+		MemoryCache.Set(cacheKey, value!, expiration);
+		Logger?.LogInformation(LogCategory.InMemoryCache,
+			$"Value stored in memory cache with key '{cacheKey}' and expiration of {expiration}");
+	}
 
     /// <summary>
     ///     Attempts to retrieve a cached value from the in-memory cache based on the specified cache key.
@@ -39,19 +39,19 @@ internal static class InMemoryCacheManager
     ///     True if the cache contains an item with the specified key and the value is of the expected type; otherwise, false.
     /// </returns>
     internal static bool TryGet<T>(string cacheKey, out T? value)
-    {
-        Logger?.LogDebug(LogCategory.InMemoryCache, $"Retrieving from memory cache with key '{cacheKey}'...");
+	{
+		Logger?.LogDebug(LogCategory.InMemoryCache, $"Retrieving from memory cache with key '{cacheKey}'...");
 
-        if (MemoryCache.TryGetValue(cacheKey, out var cached) && cached is T typedValue)
-        {
-            value = typedValue;
-            Logger?.LogInformation(LogCategory.InMemoryCache,
-                $"Value successfully retrieved from memory cache for key '{cacheKey}'");
-            return true;
-        }
+		if (MemoryCache.TryGetValue(cacheKey, out var cached) && cached is T typedValue)
+		{
+			value = typedValue;
+			Logger?.LogInformation(LogCategory.InMemoryCache,
+				$"Value successfully retrieved from memory cache for key '{cacheKey}'");
+			return true;
+		}
 
-        value = default;
-        Logger?.LogDebug(LogCategory.InMemoryCache, $"No value found in memory cache for key '{cacheKey}'");
-        return false;
-    }
+		value = default;
+		Logger?.LogDebug(LogCategory.InMemoryCache, $"No value found in memory cache for key '{cacheKey}'");
+		return false;
+	}
 }
