@@ -8,7 +8,7 @@ namespace CaeriusNet.Generator.Models;
 ///     Contains metadata about a DTO class that was discovered with the [GenerateDto] attribute.
 ///     This information is used to generate the ISpMapper implementation.
 /// </summary>
-public sealed class DtoMetadata
+public sealed class Metadata
 {
 	/// <summary>
 	///     Creates a new instance of DTOMetadata.
@@ -16,13 +16,19 @@ public sealed class DtoMetadata
 	/// <param name="classSymbol">The compiled symbol for the DTO class.</param>
 	/// <param name="declarationSyntax">The syntax node for the class declaration.</param>
 	/// <param name="namespaceName">The namespace of the DTO class.</param>
-	public DtoMetadata(INamedTypeSymbol classSymbol, TypeDeclarationSyntax declarationSyntax, string namespaceName)
-    {
-        ClassSymbol = classSymbol;
-        DeclarationSyntax = declarationSyntax;
-        RecordName = classSymbol.Name;
-        Namespace = namespaceName;
-    }
+	public Metadata(INamedTypeSymbol classSymbol, TypeDeclarationSyntax declarationSyntax, string namespaceName)
+	{
+		ClassSymbol = classSymbol;
+		DeclarationSyntax = declarationSyntax;
+		RecordName = classSymbol.Name;
+		Namespace = namespaceName;
+	}
+
+	/// <summary>
+	///     Gets or sets the custom TVP name specified by the GenerateTvp attribute.
+	///     This will be null if no custom name was provided.
+	/// </summary>
+	public string? CustomTvpName { get; set; }
 
 	/// <summary>
 	///     The name of the DTO class or record.

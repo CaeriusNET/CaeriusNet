@@ -5,10 +5,10 @@
 /// </summary>
 public enum LogLevel : byte
 {
-    Trace,
-    Debug,
-    Information,
-    Warning,
-    Error,
-    Critical
+	Trace,
+	Debug,
+	Information,
+	Warning,
+	Error,
+	Critical
 }

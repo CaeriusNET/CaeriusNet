@@ -10,4 +10,4 @@
 /// </remarks>
 /// <exception cref="SqlException">Represents the original SQL exception encountered during the operation.</exception>
 internal sealed class CaeriusSqlException(string message, SqlException innerException)
-    : Exception(message, innerException);
+	: Exception(message, innerException);

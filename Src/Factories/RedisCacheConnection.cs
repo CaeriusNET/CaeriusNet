@@ -5,30 +5,30 @@ namespace CaeriusNet.Factories;
 /// </summary>
 public sealed class RedisCacheConnection : IRedisCacheConnection
 {
-    private readonly IConnectionMultiplexer _connectionMultiplexer;
+	private readonly IConnectionMultiplexer _connectionMultiplexer;
 
     /// <summary>
     ///     Initializes a new instance of the RedisCacheConnection class
     /// </summary>
     /// <param name="connectionMultiplexer">The Redis connection multiplexer from Aspire</param>
     public RedisCacheConnection(IConnectionMultiplexer connectionMultiplexer)
-    {
-        _connectionMultiplexer = connectionMultiplexer;
-    }
+	{
+		_connectionMultiplexer = connectionMultiplexer;
+	}
 
     /// <summary>
     ///     Gets the Redis database interface for cache operations
     /// </summary>
     public IDatabase GetDatabase()
-    {
-        return _connectionMultiplexer.GetDatabase();
-    }
+	{
+		return _connectionMultiplexer.GetDatabase();
+	}
 
     /// <summary>
     ///     Checks if the connection is initialized and available
     /// </summary>
     public bool IsConnected()
-    {
-        return _connectionMultiplexer.IsConnected;
-    }
+	{
+		return _connectionMultiplexer.IsConnected;
+	}
 }

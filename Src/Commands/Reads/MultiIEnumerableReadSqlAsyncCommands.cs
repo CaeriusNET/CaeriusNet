@@ -30,22 +30,22 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 	///     and the second contains objects of type <typeparamref name="TResultSet2" />.
 	/// </returns>
 	public static async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>)>
-        QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2>(
-            this ICaeriusDbContext context,
-            StoredProcedureParameters spParameters,
-            Func<SqlDataReader, TResultSet1> resultSet1,
-            Func<SqlDataReader, TResultSet2> resultSet2)
-        where TResultSet1 : class, ISpMapper<TResultSet1>
-        where TResultSet2 : class, ISpMapper<TResultSet2>
-    {
-        var results = await SqlCommandUtility.ExecuteMultipleIEnumerableResultSetsAsync(
-            spParameters, context.DbConnection(),
-            resultSet1, resultSet2);
+		QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2>(
+			this ICaeriusDbContext context,
+			StoredProcedureParameters spParameters,
+			Func<SqlDataReader, TResultSet1> resultSet1,
+			Func<SqlDataReader, TResultSet2> resultSet2)
+		where TResultSet1 : class, ISpMapper<TResultSet1>
+		where TResultSet2 : class, ISpMapper<TResultSet2>
+	{
+		var results = await SqlCommandUtility.ExecuteMultipleIEnumerableResultSetsAsync(
+			spParameters, context.DbConnection(),
+			resultSet1, resultSet2);
 
-        return (
-            results[0].Cast<TResultSet1>(),
-            results[1].Cast<TResultSet2>());
-    }
+		return (
+			results[0].Cast<TResultSet1>(),
+			results[1].Cast<TResultSet2>());
+	}
 
 
 	/// <summary>
@@ -77,25 +77,25 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 	///     and the third contains objects of type <typeparamref name="TResultSet3" />.
 	/// </returns>
 	public static async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>)>
-        QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3>(
-            this ICaeriusDbContext context,
-            StoredProcedureParameters spParameters,
-            Func<SqlDataReader, TResultSet1> resultSet1,
-            Func<SqlDataReader, TResultSet2> resultSet2,
-            Func<SqlDataReader, TResultSet3> resultSet3)
-        where TResultSet1 : class, ISpMapper<TResultSet1>
-        where TResultSet2 : class, ISpMapper<TResultSet2>
-        where TResultSet3 : class, ISpMapper<TResultSet3>
-    {
-        var results = await SqlCommandUtility.ExecuteMultipleIEnumerableResultSetsAsync(
-            spParameters, context.DbConnection(),
-            resultSet1, resultSet2, resultSet3);
+		QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3>(
+			this ICaeriusDbContext context,
+			StoredProcedureParameters spParameters,
+			Func<SqlDataReader, TResultSet1> resultSet1,
+			Func<SqlDataReader, TResultSet2> resultSet2,
+			Func<SqlDataReader, TResultSet3> resultSet3)
+		where TResultSet1 : class, ISpMapper<TResultSet1>
+		where TResultSet2 : class, ISpMapper<TResultSet2>
+		where TResultSet3 : class, ISpMapper<TResultSet3>
+	{
+		var results = await SqlCommandUtility.ExecuteMultipleIEnumerableResultSetsAsync(
+			spParameters, context.DbConnection(),
+			resultSet1, resultSet2, resultSet3);
 
-        return (
-            results[0].Cast<TResultSet1>(),
-            results[1].Cast<TResultSet2>(),
-            results[2].Cast<TResultSet3>());
-    }
+		return (
+			results[0].Cast<TResultSet1>(),
+			results[1].Cast<TResultSet2>(),
+			results[2].Cast<TResultSet3>());
+	}
 
 	/// <summary>
 	///     Executes a stored procedure and returns multiple result sets as enumerable collections.
@@ -133,29 +133,29 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 	///     and the fourth contains objects of type <typeparamref name="TResultSet4" />.
 	/// </returns>
 	public static async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>,
-            IEnumerable<TResultSet4>)>
-        QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4>(
-            this ICaeriusDbContext context,
-            StoredProcedureParameters spParameters,
-            Func<SqlDataReader, TResultSet1> resultSet1,
-            Func<SqlDataReader, TResultSet2> resultSet2,
-            Func<SqlDataReader, TResultSet3> resultSet3,
-            Func<SqlDataReader, TResultSet4> resultSet4)
-        where TResultSet1 : class, ISpMapper<TResultSet1>
-        where TResultSet2 : class, ISpMapper<TResultSet2>
-        where TResultSet3 : class, ISpMapper<TResultSet3>
-        where TResultSet4 : class, ISpMapper<TResultSet4>
-    {
-        var results = await SqlCommandUtility.ExecuteMultipleIEnumerableResultSetsAsync(
-            spParameters, context.DbConnection(),
-            resultSet1, resultSet2, resultSet3, resultSet4);
+			IEnumerable<TResultSet4>)>
+		QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4>(
+			this ICaeriusDbContext context,
+			StoredProcedureParameters spParameters,
+			Func<SqlDataReader, TResultSet1> resultSet1,
+			Func<SqlDataReader, TResultSet2> resultSet2,
+			Func<SqlDataReader, TResultSet3> resultSet3,
+			Func<SqlDataReader, TResultSet4> resultSet4)
+		where TResultSet1 : class, ISpMapper<TResultSet1>
+		where TResultSet2 : class, ISpMapper<TResultSet2>
+		where TResultSet3 : class, ISpMapper<TResultSet3>
+		where TResultSet4 : class, ISpMapper<TResultSet4>
+	{
+		var results = await SqlCommandUtility.ExecuteMultipleIEnumerableResultSetsAsync(
+			spParameters, context.DbConnection(),
+			resultSet1, resultSet2, resultSet3, resultSet4);
 
-        return (
-            results[0].Cast<TResultSet1>(),
-            results[1].Cast<TResultSet2>(),
-            results[2].Cast<TResultSet3>(),
-            results[3].Cast<TResultSet4>());
-    }
+		return (
+			results[0].Cast<TResultSet1>(),
+			results[1].Cast<TResultSet2>(),
+			results[2].Cast<TResultSet3>(),
+			results[3].Cast<TResultSet4>());
+	}
 
 	/// <summary>
 	///     Executes a stored procedure and retrieves five result sets as enumerable collections.
@@ -197,30 +197,30 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 	///     and <typeparamref name="TResultSet5" />, respectively.
 	/// </returns>
 	public static async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>,
-            IEnumerable<TResultSet4>, IEnumerable<TResultSet5>)>
-        QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4, TResultSet5>(
-            this ICaeriusDbContext context,
-            StoredProcedureParameters spParameters,
-            Func<SqlDataReader, TResultSet1> resultSet1,
-            Func<SqlDataReader, TResultSet2> resultSet2,
-            Func<SqlDataReader, TResultSet3> resultSet3,
-            Func<SqlDataReader, TResultSet4> resultSet4,
-            Func<SqlDataReader, TResultSet5> resultSet5)
-        where TResultSet1 : class, ISpMapper<TResultSet1>
-        where TResultSet2 : class, ISpMapper<TResultSet2>
-        where TResultSet3 : class, ISpMapper<TResultSet3>
-        where TResultSet4 : class, ISpMapper<TResultSet4>
-        where TResultSet5 : class, ISpMapper<TResultSet5>
-    {
-        var results = await SqlCommandUtility.ExecuteMultipleIEnumerableResultSetsAsync(
-            spParameters, context.DbConnection(),
-            resultSet1, resultSet2, resultSet3, resultSet4, resultSet5);
+			IEnumerable<TResultSet4>, IEnumerable<TResultSet5>)>
+		QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4, TResultSet5>(
+			this ICaeriusDbContext context,
+			StoredProcedureParameters spParameters,
+			Func<SqlDataReader, TResultSet1> resultSet1,
+			Func<SqlDataReader, TResultSet2> resultSet2,
+			Func<SqlDataReader, TResultSet3> resultSet3,
+			Func<SqlDataReader, TResultSet4> resultSet4,
+			Func<SqlDataReader, TResultSet5> resultSet5)
+		where TResultSet1 : class, ISpMapper<TResultSet1>
+		where TResultSet2 : class, ISpMapper<TResultSet2>
+		where TResultSet3 : class, ISpMapper<TResultSet3>
+		where TResultSet4 : class, ISpMapper<TResultSet4>
+		where TResultSet5 : class, ISpMapper<TResultSet5>
+	{
+		var results = await SqlCommandUtility.ExecuteMultipleIEnumerableResultSetsAsync(
+			spParameters, context.DbConnection(),
+			resultSet1, resultSet2, resultSet3, resultSet4, resultSet5);
 
-        return (
-            results[0].Cast<TResultSet1>(),
-            results[1].Cast<TResultSet2>(),
-            results[2].Cast<TResultSet3>(),
-            results[3].Cast<TResultSet4>(),
-            results[4].Cast<TResultSet5>());
-    }
+		return (
+			results[0].Cast<TResultSet1>(),
+			results[1].Cast<TResultSet2>(),
+			results[2].Cast<TResultSet3>(),
+			results[3].Cast<TResultSet4>(),
+			results[4].Cast<TResultSet5>());
+	}
 }

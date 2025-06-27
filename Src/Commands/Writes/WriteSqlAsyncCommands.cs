@@ -28,14 +28,14 @@ public static class WriteSqlAsyncCommands
 	///     Returns <c>default</c> if the result is <see cref="DBNull" />.
 	/// </returns>
 	public static async Task<T?> ExecuteScalarAsync<T>(this ICaeriusDbContext dbContext,
-        StoredProcedureParameters spParameters)
-    {
-        return await SqlCommandUtility.ExecuteCommandAsync(dbContext, spParameters, async command =>
-        {
-            var result = await command.ExecuteScalarAsync();
-            return result is DBNull ? default : (T?)result;
-        });
-    }
+		StoredProcedureParameters spParameters, CancellationToken cancellationToken = default)
+	{
+		return await SqlCommandUtility.ExecuteCommandAsync(dbContext, spParameters, async command =>
+		{
+			var result = await command.ExecuteScalarAsync(cancellationToken);
+			return result is DBNull ? default : (T?)result;
+		}, cancellationToken);
+	}
 
 	/// <summary>
 	///     Executes a non-query SQL command asynchronously using the provided <see cref="ICaeriusDbContext" />
@@ -54,11 +54,11 @@ public static class WriteSqlAsyncCommands
 	///     of rows affected by the executed SQL command.
 	/// </returns>
 	public static async Task<int> ExecuteNonQueryAsync(this ICaeriusDbContext dbContext,
-        StoredProcedureParameters spParameters)
-    {
-        return await SqlCommandUtility.ExecuteCommandAsync(dbContext, spParameters,
-            async command => await command.ExecuteNonQueryAsync());
-    }
+		StoredProcedureParameters spParameters, CancellationToken cancellationToken = default)
+	{
+		return await SqlCommandUtility.ExecuteCommandAsync(dbContext, spParameters,
+			command => command.ExecuteNonQueryAsync(cancellationToken), cancellationToken);
+	}
 
 	/// <summary>
 	///     Executes a non-query SQL command asynchronously using the provided <see cref="ICaeriusDbContext" />
@@ -75,12 +75,13 @@ public static class WriteSqlAsyncCommands
 	/// <returns>
 	///     A task representing the asynchronous operation. As this method is Fire and Forget, it does not return any result.
 	/// </returns>
-	public static async Task ExecuteAsync(this ICaeriusDbContext dbContext, StoredProcedureParameters spParameters)
-    {
-        await SqlCommandUtility.ExecuteCommandAsync<object?>(dbContext, spParameters, async command =>
-        {
-            await command.ExecuteNonQueryAsync();
-            return null;
-        });
-    }
+	public static async Task ExecuteAsync(this ICaeriusDbContext dbContext, StoredProcedureParameters spParameters,
+		CancellationToken cancellationToken = default)
+	{
+		await SqlCommandUtility.ExecuteCommandAsync<object?>(dbContext, spParameters, async command =>
+		{
+			await command.ExecuteNonQueryAsync(cancellationToken);
+			return null;
+		}, cancellationToken);
+	}
 }
