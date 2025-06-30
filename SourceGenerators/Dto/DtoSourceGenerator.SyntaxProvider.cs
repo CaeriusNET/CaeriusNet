@@ -22,8 +22,7 @@ public sealed partial class DtoSourceGenerator
 		if (declarations.IsDefaultOrEmpty) yield break;
 
 		// Get the symbol for the GenerateDto attribute
-		var generateDtoAttributeSymbol =
-			compilation.GetTypeByMetadataName("CaeriusNet.Attributes.GenerateDtoAttribute");
+		var generateDtoAttributeSymbol = compilation.GetTypeByMetadataName("CaeriusNet.Attributes.Dto.GenerateDtoAttribute");
 
 		if (generateDtoAttributeSymbol is null)
 			// GenerateDto attribute is not referenced in the compilation
