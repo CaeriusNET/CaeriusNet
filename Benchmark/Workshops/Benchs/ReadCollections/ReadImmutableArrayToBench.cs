@@ -21,7 +21,7 @@ public class ReadImmutableArrayToBench
 	[Benchmark]
 	public void Read_ImmutableArray_Of_1_Item()
 	{
-		var sum = _immutableArrayOf1Item.Sum(item => item.Id);
+		int sum = _immutableArrayOf1Item.Sum(item => item.Id);
 		_consumer.Consume(sum);
 		_ = sum;
 	}
@@ -29,7 +29,7 @@ public class ReadImmutableArrayToBench
 	[Benchmark]
 	public void Read_ImmutableArray_Of_10_Items()
 	{
-		var sum = _immutableArrayOf10Items.Sum(item => item.Id);
+		int sum = _immutableArrayOf10Items.Sum(item => item.Id);
 		_consumer.Consume(sum);
 		_ = sum;
 	}
@@ -37,7 +37,7 @@ public class ReadImmutableArrayToBench
 	[Benchmark]
 	public void Read_ImmutableArray_Of_100_Items()
 	{
-		var sum = _immutableArrayOf100Items.Sum(item => item.Id);
+		int sum = _immutableArrayOf100Items.Sum(item => item.Id);
 		_consumer.Consume(sum);
 		_ = sum;
 	}
@@ -45,7 +45,7 @@ public class ReadImmutableArrayToBench
 	[Benchmark]
 	public void Read_ImmutableArray_Of_1K_Items()
 	{
-		var sum = _immutableArrayOf1KItems.Sum(item => item.Id);
+		int sum = _immutableArrayOf1KItems.Sum(item => item.Id);
 		_consumer.Consume(sum);
 		_ = sum;
 	}
@@ -53,7 +53,7 @@ public class ReadImmutableArrayToBench
 	[Benchmark]
 	public void Read_ImmutableArray_Of_10K_Items()
 	{
-		var sum = _immutableArrayOf10KItems.Sum(item => item.Id);
+		int sum = _immutableArrayOf10KItems.Sum(item => item.Id);
 		_consumer.Consume(sum);
 		_ = sum;
 	}
@@ -61,7 +61,7 @@ public class ReadImmutableArrayToBench
 	[Benchmark]
 	public void Read_ImmutableArray_Of_100K_Items()
 	{
-		var sum = _immutableArrayOf100KItems.Sum(item => item.Id);
+		int sum = _immutableArrayOf100KItems.Sum(item => item.Id);
 		_consumer.Consume(sum);
 		_ = sum;
 	}

@@ -15,10 +15,9 @@ internal sealed record ConsoleLogger : ICaeriusLogger
 	{
 		if (!IsEnabled) return;
 
-		lock (Lock)
-		{
+		lock (Lock){
 			Console.ForegroundColor = GetColorForLevel(level);
-			var timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
+			string timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
 			Console.Write($"[{timestamp}] [{level}] ");
 
 			Console.ForegroundColor = GetColorForCategory(category);
@@ -62,10 +61,10 @@ internal sealed record ConsoleLogger : ICaeriusLogger
 			LogError(category, $"Inner exception: {exception.InnerException.Message}");
 	}
 
-    /// <summary>
-    ///     Obtient la couleur à utiliser pour le niveau de log spécifié.
-    /// </summary>
-    private static ConsoleColor GetColorForLevel(LogLevel level)
+	/// <summary>
+	///     Obtient la couleur à utiliser pour le niveau de log spécifié.
+	/// </summary>
+	private static ConsoleColor GetColorForLevel(LogLevel level)
 	{
 		return level switch
 		{
@@ -79,10 +78,10 @@ internal sealed record ConsoleLogger : ICaeriusLogger
 		};
 	}
 
-    /// <summary>
-    ///     Obtient la couleur à utiliser pour la catégorie de log spécifiée.
-    /// </summary>
-    private static ConsoleColor GetColorForCategory(LogCategory category)
+	/// <summary>
+	///     Obtient la couleur à utiliser pour la catégorie de log spécifiée.
+	/// </summary>
+	private static ConsoleColor GetColorForCategory(LogCategory category)
 	{
 		return category switch
 		{

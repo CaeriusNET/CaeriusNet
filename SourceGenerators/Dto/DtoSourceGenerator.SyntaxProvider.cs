@@ -1,22 +1,22 @@
-﻿using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
-using System.Threading;
-using CaeriusNet.Generator.Models;
+﻿using CaeriusNet.Generator.Models;
 using CaeriusNet.Generator.Utils;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Metadata = CaeriusNet.Generator.Models.Metadata;
+using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.Linq;
+using System.Threading;
+using Metadata=CaeriusNet.Generator.Models.Metadata;
 
 namespace CaeriusNet.Generator.Dto;
 
 public sealed partial class DtoSourceGenerator
 {
-    /// <summary>
-    ///     Analyzes declarations to find types annotated with [GenerateDto] and extract their metadata.
-    /// </summary>
-    private static IEnumerable<Metadata?> GetDtoTypes(Compilation compilation,
+	/// <summary>
+	///     Analyzes declarations to find types annotated with [GenerateDto] and extract their metadata.
+	/// </summary>
+	private static IEnumerable<Metadata?> GetDtoTypes(Compilation compilation,
 		ImmutableArray<TypeDeclarationSyntax> declarations, CancellationToken cancellationToken)
 	{
 		if (declarations.IsDefaultOrEmpty) yield break;
@@ -29,15 +29,14 @@ public sealed partial class DtoSourceGenerator
 			yield break;
 
 		// Find and process all the DTO candidates
-		foreach (var typeDeclaration in declarations)
-		{
+		foreach (var typeDeclaration in declarations){
 			cancellationToken.ThrowIfCancellationRequested();
 
 			// Get the semantic model for this syntax node
 			var semanticModel = compilation.GetSemanticModel(typeDeclaration.SyntaxTree);
 
 			// Get the type symbol for the class/record
-			if (semanticModel.GetDeclaredSymbol(typeDeclaration) is not { } typeSymbol)
+			if (semanticModel.GetDeclaredSymbol(typeDeclaration) is not {} typeSymbol)
 				continue;
 
 			// Check if the type has the GenerateDto attribute
@@ -49,7 +48,7 @@ public sealed partial class DtoSourceGenerator
 				continue;
 
 			// Get the namespace
-			var namespaceName = GetNamespace(typeSymbol);
+			string namespaceName = GetNamespace(typeSymbol);
 
 			// Create the DTO metadata
 			var dtoMetadata = new Metadata(typeSymbol, typeDeclaration, namespaceName);
@@ -62,19 +61,19 @@ public sealed partial class DtoSourceGenerator
 		}
 	}
 
-    /// <summary>
-    ///     Checks if a type has the GenerateDto attribute.
-    /// </summary>
-    private static bool HasGenerateDtoAttribute(INamedTypeSymbol typeSymbol, INamedTypeSymbol attributeSymbol)
+	/// <summary>
+	///     Checks if a type has the GenerateDto attribute.
+	/// </summary>
+	private static bool HasGenerateDtoAttribute(INamedTypeSymbol typeSymbol, INamedTypeSymbol attributeSymbol)
 	{
 		return typeSymbol.GetAttributes()
 			.Any(a => a.AttributeClass?.Equals(attributeSymbol, SymbolEqualityComparer.Default) == true);
 	}
 
-    /// <summary>
-    ///     Validates that the DTO type meets the requirements for generation.
-    /// </summary>
-    private static bool ValidateDtoType(TypeDeclarationSyntax typeDeclaration)
+	/// <summary>
+	///     Validates that the DTO type meets the requirements for generation.
+	/// </summary>
+	private static bool ValidateDtoType(TypeDeclarationSyntax typeDeclaration)
 	{
 		// Check if the type is partial
 		if (!typeDeclaration.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword)))
@@ -94,10 +93,10 @@ public sealed partial class DtoSourceGenerator
 		};
 	}
 
-    /// <summary>
-    ///     Gets the fully qualified namespace for a type.
-    /// </summary>
-    private static string GetNamespace(INamedTypeSymbol typeSymbol)
+	/// <summary>
+	///     Gets the fully qualified namespace for a type.
+	/// </summary>
+	private static string GetNamespace(INamedTypeSymbol typeSymbol)
 	{
 		// Handle global namespace
 		return string.IsNullOrEmpty(typeSymbol.ContainingNamespace?.ToDisplayString())
@@ -105,10 +104,10 @@ public sealed partial class DtoSourceGenerator
 			: typeSymbol.ContainingNamespace!.ToDisplayString();
 	}
 
-    /// <summary>
-    ///     Extracts and validates constructor parameters from a DTO type.
-    /// </summary>
-    private static bool ExtractConstructorParameters(Metadata metadata, SemanticModel semanticModel)
+	/// <summary>
+	///     Extracts and validates constructor parameters from a DTO type.
+	/// </summary>
+	private static bool ExtractConstructorParameters(Metadata metadata, SemanticModel semanticModel)
 	{
 		// Get the primary constructor parameters
 
@@ -123,8 +122,7 @@ public sealed partial class DtoSourceGenerator
 			return false;
 
 		// Process each parameter
-		for (var i = 0; i < parameterList.Parameters.Count; i++)
-		{
+		for (int i = 0; i < parameterList.Parameters.Count; i++){
 			var parameterSyntax = parameterList.Parameters[i];
 			var parameterSymbol = semanticModel.GetDeclaredSymbol(parameterSyntax);
 
@@ -132,28 +130,28 @@ public sealed partial class DtoSourceGenerator
 				continue;
 
 			// Get the type information
-			var typeName = parameterSymbol.Type.ToDisplayString();
-			var isNullable = TypeDetector.IsTypeNullable(parameterSymbol.Type, parameterSyntax.Type,
-				parameterSymbol.NullableAnnotation);
+			string typeName = parameterSymbol.Type.ToDisplayString();
+			bool isNullable = TypeDetector.IsTypeNullable(parameterSymbol.Type, parameterSyntax.Type,
+			parameterSymbol.NullableAnnotation);
 
 			// Check if the type is an enum
-			var isEnum = TypeDetector.IsEnumType(parameterSymbol.Type);
+			bool isEnum = TypeDetector.IsEnumType(parameterSymbol.Type);
 
 			// Get SQL type and reader method
-			var sqlType = TypeDetector.GetSqlType(parameterSymbol.Type);
-			var readerMethod = TypeDetector.GetReaderMethodForSqlType(sqlType);
-			var requiresSpecialConversion = TypeDetector.RequiresSpecialConversion(typeName) || isEnum;
+			string sqlType = TypeDetector.GetSqlType(parameterSymbol.Type);
+			string readerMethod = TypeDetector.GetReaderMethodForSqlType(sqlType);
+			bool requiresSpecialConversion = TypeDetector.RequiresSpecialConversion(typeName) || isEnum;
 
 			// Create the parameter metadata
 			var parameterMetadata = new ParameterMetadata(
-				parameterSymbol.Name,
-				typeName,
-				parameterSymbol.Type,
-				isNullable,
-				i, // Ordinal position
-				sqlType,
-				readerMethod,
-				requiresSpecialConversion);
+			parameterSymbol.Name,
+			typeName,
+			parameterSymbol.Type,
+			isNullable,
+			i,// Ordinal position
+			sqlType,
+			readerMethod,
+			requiresSpecialConversion);
 
 			metadata.Parameters.Add(parameterMetadata);
 		}

@@ -39,8 +39,8 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 		where TResultSet2 : class, ISpMapper<TResultSet2>
 	{
 		var results = await SqlCommandUtility.ExecuteMultipleIEnumerableResultSetsAsync(
-			spParameters, context.DbConnection(),
-			resultSet1, resultSet2);
+		spParameters, context.DbConnection(),
+		resultSet1, resultSet2);
 
 		return (
 			results[0].Cast<TResultSet1>(),
@@ -88,8 +88,8 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 		where TResultSet3 : class, ISpMapper<TResultSet3>
 	{
 		var results = await SqlCommandUtility.ExecuteMultipleIEnumerableResultSetsAsync(
-			spParameters, context.DbConnection(),
-			resultSet1, resultSet2, resultSet3);
+		spParameters, context.DbConnection(),
+		resultSet1, resultSet2, resultSet3);
 
 		return (
 			results[0].Cast<TResultSet1>(),
@@ -147,8 +147,8 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 		where TResultSet4 : class, ISpMapper<TResultSet4>
 	{
 		var results = await SqlCommandUtility.ExecuteMultipleIEnumerableResultSetsAsync(
-			spParameters, context.DbConnection(),
-			resultSet1, resultSet2, resultSet3, resultSet4);
+		spParameters, context.DbConnection(),
+		resultSet1, resultSet2, resultSet3, resultSet4);
 
 		return (
 			results[0].Cast<TResultSet1>(),
@@ -213,8 +213,8 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 		where TResultSet5 : class, ISpMapper<TResultSet5>
 	{
 		var results = await SqlCommandUtility.ExecuteMultipleIEnumerableResultSetsAsync(
-			spParameters, context.DbConnection(),
-			resultSet1, resultSet2, resultSet3, resultSet4, resultSet5);
+		spParameters, context.DbConnection(),
+		resultSet1, resultSet2, resultSet3, resultSet4, resultSet5);
 
 		return (
 			results[0].Cast<TResultSet1>(),

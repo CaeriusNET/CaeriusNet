@@ -31,7 +31,7 @@ public class ReadReadOnlyCollectionToBench
 	[Benchmark]
 	public void Read_ReadOnlyCollection_Of_1_Item()
 	{
-		var sum = _readOnlyCollectionOf1Item.Sum(item => item.Id);
+		int sum = _readOnlyCollectionOf1Item.Sum(item => item.Id);
 		_consumer.Consume(sum);
 		_ = sum;
 	}
@@ -39,7 +39,7 @@ public class ReadReadOnlyCollectionToBench
 	[Benchmark]
 	public void Read_ReadOnlyCollection_Of_10_Items()
 	{
-		var sum = _readOnlyCollectionOf10Items.Sum(item => item.Id);
+		int sum = _readOnlyCollectionOf10Items.Sum(item => item.Id);
 		_consumer.Consume(sum);
 		_ = sum;
 	}
@@ -47,7 +47,7 @@ public class ReadReadOnlyCollectionToBench
 	[Benchmark]
 	public void Read_ReadOnlyCollection_Of_100_Items()
 	{
-		var sum = _readOnlyCollectionOf100Items.Sum(item => item.Id);
+		int sum = _readOnlyCollectionOf100Items.Sum(item => item.Id);
 		_consumer.Consume(sum);
 		_ = sum;
 	}
@@ -55,7 +55,7 @@ public class ReadReadOnlyCollectionToBench
 	[Benchmark]
 	public void Read_ReadOnlyCollection_Of_1K_Items()
 	{
-		var sum = _readOnlyCollectionOf1KItems.Sum(item => item.Id);
+		int sum = _readOnlyCollectionOf1KItems.Sum(item => item.Id);
 		_consumer.Consume(sum);
 		_ = sum;
 	}
@@ -63,7 +63,7 @@ public class ReadReadOnlyCollectionToBench
 	[Benchmark]
 	public void Read_ReadOnlyCollection_Of_10K_Items()
 	{
-		var sum = _readOnlyCollectionOf10KItems.Sum(item => item.Id);
+		int sum = _readOnlyCollectionOf10KItems.Sum(item => item.Id);
 		_consumer.Consume(sum);
 		_ = sum;
 	}
@@ -71,7 +71,7 @@ public class ReadReadOnlyCollectionToBench
 	[Benchmark]
 	public void Read_ReadOnlyCollection_Of_100K_Items()
 	{
-		var sum = _readOnlyCollectionOf100KItems.Sum(item => item.Id);
+		int sum = _readOnlyCollectionOf100KItems.Sum(item => item.Id);
 		_consumer.Consume(sum);
 		_ = sum;
 	}

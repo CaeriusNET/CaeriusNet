@@ -1,12 +1,12 @@
 ﻿namespace CaeriusNet.Utilities;
 
-internal static class CacheUtility
+static internal class CacheUtility
 {
 	/// <summary>
 	///     Sets the service provider for dependency injection in cache managers
 	/// </summary>
 	/// <param name="serviceProvider">The service provider instance</param>
-	internal static void SetServiceProvider(IServiceProvider serviceProvider)
+	static internal void SetServiceProvider(IServiceProvider serviceProvider)
 	{
 		RedisCacheManager.SetServiceProvider(serviceProvider);
 	}
@@ -20,7 +20,7 @@ internal static class CacheUtility
 	/// <returns>
 	///     true if a cached result is successfully retrieved; otherwise, false.
 	/// </returns>
-	internal static bool TryRetrieveFromCache<T>(StoredProcedureParameters spParameters, out T? result)
+	static internal bool TryRetrieveFromCache<T>(StoredProcedureParameters spParameters, out T? result)
 	{
 		result = default;
 		if (spParameters.CacheType is null || string.IsNullOrEmpty(spParameters.CacheKey)) return false;
@@ -43,12 +43,11 @@ internal static class CacheUtility
 	/// </param>
 	/// <param name="result">The result to be stored in the cache.</param>
 	/// <exception cref="ArgumentOutOfRangeException">Thrown when an invalid cache type is specified in the parameters.</exception>
-	internal static void StoreInCache<T>(StoredProcedureParameters spParameters, T result)
+	static internal void StoreInCache<T>(StoredProcedureParameters spParameters, T result)
 	{
 		if (spParameters.CacheType is null || string.IsNullOrEmpty(spParameters.CacheKey)) return;
 
-		switch (spParameters.CacheType)
-		{
+		switch (spParameters.CacheType){
 			case InMemory:
 				InMemoryCacheManager.Store(spParameters.CacheKey, result, spParameters.CacheExpiration!.Value);
 				break;

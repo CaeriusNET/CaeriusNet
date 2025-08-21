@@ -89,14 +89,15 @@ public static class TypeDetector
 					"System.DateOnly" => "date",
 					"System.TimeOnly" => "time",
 					"byte[]" or "System.Byte[]" => "varbinary",
-					_ => "sql_variant" // Most flexible SQL type by default
+					_ => "sql_variant"// Most flexible SQL type by default
 				}
 			};
+
 		var underlyingType = GetEnumUnderlyingType(type);
 		if (underlyingType != null)
 			type = underlyingType;
 		else
-			return "int"; // Default to int if we can't determine the underlying type
+			return "int";// Default to int if we can't determine the underlying type
 
 		// Determine the SQL type based on the C# type
 		return type.SpecialType switch
@@ -124,7 +125,7 @@ public static class TypeDetector
 				"System.DateOnly" => "date",
 				"System.TimeOnly" => "time",
 				"byte[]" or "System.Byte[]" => "varbinary",
-				_ => "sql_variant" // Most flexible SQL type by default
+				_ => "sql_variant"// Most flexible SQL type by default
 			}
 		};
 	}
@@ -196,10 +197,10 @@ public static class TypeDetector
 			"uniqueidentifier" => "GetGuid",
 			"datetimeoffset" => "GetDateTimeOffset",
 			"time" => "GetTimeSpan",
-			"varbinary" => "GetValue", // Special conversion required
-			"binary" => "GetValue", // Special conversion required
-			"image" => "GetValue", // Special conversion required
-			_ => "GetValue" // Default method
+			"varbinary" => "GetValue",// Special conversion required
+			"binary" => "GetValue",// Special conversion required
+			"image" => "GetValue",// Special conversion required
+			_ => "GetValue"// Default method
 		};
 	}
 
@@ -212,7 +213,7 @@ public static class TypeDetector
 	public static bool RequiresSpecialConversion(string typeName)
 	{
 		// Extract the base type if it's a Nullable<T>
-		var baseTypeName = ExtractBaseTypeFromNullable(typeName);
+		string baseTypeName = ExtractBaseTypeFromNullable(typeName);
 
 		// Types requiring special conversions
 		return baseTypeName is

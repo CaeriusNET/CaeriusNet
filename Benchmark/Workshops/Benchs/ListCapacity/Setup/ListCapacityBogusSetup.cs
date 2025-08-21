@@ -8,9 +8,9 @@ public static class ListCapacityBogusSetup
 
 	public static readonly ReadOnlyCollection<SimpleDto> Faking50KItemsDto = new Faker<SimpleDto>()
 		.StrictMode(true)
-		.RuleFor(dto => dto.Id, (faker, _) => faker.Random.Number(0, 100_000))
-		.RuleFor(dto => dto.Guid, f => f.Random.Guid())
-		.RuleFor(dto => dto.Name, f => f.Internet.UserName())
+		.RuleFor(property: dto => dto.Id, setter: (faker, _) => faker.Random.Number(0, 100_000))
+		.RuleFor(property: dto => dto.Guid, setter: f => f.Random.Guid())
+		.RuleFor(property: dto => dto.Name, setter: f => f.Internet.UserName())
 		.Generate(100_000)
 		.AsReadOnly();
 }
