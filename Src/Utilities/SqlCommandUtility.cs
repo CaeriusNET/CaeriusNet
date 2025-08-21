@@ -4,7 +4,7 @@
 ///     Contains a collection of static utility methods designed to streamline the execution of SQL commands,
 ///     mapping of stored procedure parameters, and processing of result sets in an asynchronous database context.
 /// </summary>
-internal static class SqlCommandUtility
+static internal class SqlCommandUtility
 {
 	/// <summary>
 	///     Executes a stored procedure query asynchronously and returns a single scalar result mapped to the specified result
@@ -23,7 +23,7 @@ internal static class SqlCommandUtility
 	///     Returns an instance of <typeparamref name="TResultSet" /> if the query returns a result, or
 	///     <see langword="null" /> if no result is found.
 	/// </returns>
-	internal static async Task<TResultSet?> ScalarQueryAsync<TResultSet>(StoredProcedureParameters spParameters,
+	static internal async Task<TResultSet?> ScalarQueryAsync<TResultSet>(StoredProcedureParameters spParameters,
 		IDbConnection connection, CancellationToken cancellationToken = default)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
@@ -54,7 +54,7 @@ internal static class SqlCommandUtility
 	///     An asynchronous enumerable of <typeparamref name="TResultSet" /> instances, where each instance maps a
 	///     corresponding row in the result set.
 	/// </returns>
-	internal static async IAsyncEnumerable<TResultSet> StreamQueryAsync<TResultSet>(
+	static internal async IAsyncEnumerable<TResultSet> StreamQueryAsync<TResultSet>(
 		StoredProcedureParameters spParameters, IDbConnection connection, CancellationToken cancellationToken = default)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
@@ -82,7 +82,7 @@ internal static class SqlCommandUtility
 	///     A <see cref="ReadOnlyCollection{T}" /> containing instances of <typeparamref name="TResultSet" /> populated
 	///     from the query result.
 	/// </returns>
-	internal static async Task<ReadOnlyCollection<TResultSet>> ResultSetAsReadOnlyCollectionAsync<TResultSet>(
+	static internal async Task<ReadOnlyCollection<TResultSet>> ResultSetAsReadOnlyCollectionAsync<TResultSet>(
 		StoredProcedureParameters spParameters, IDbConnection connection, CancellationToken cancellationToken = default)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
@@ -109,7 +109,7 @@ internal static class SqlCommandUtility
 	///     Returns an immutable array of <typeparamref name="TResultSet" /> instances representing the result set of the
 	///     query.
 	/// </returns>
-	internal static async Task<ImmutableArray<TResultSet>> ResultSetAsImmutableArrayAsync<TResultSet>(
+	static internal async Task<ImmutableArray<TResultSet>> ResultSetAsImmutableArrayAsync<TResultSet>(
 		StoredProcedureParameters spParameters, IDbConnection connection, CancellationToken cancellationToken = default)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
@@ -169,21 +169,17 @@ internal static class SqlCommandUtility
 	///     Thrown when the execution of the stored procedure fails due to an underlying SQL
 	///     exception.
 	/// </exception>
-	internal static async Task<T> ExecuteCommandAsync<T>(ICaeriusDbContext dbContext,
+	static internal async Task<T> ExecuteCommandAsync<T>(ICaeriusDbContext dbContext,
 		StoredProcedureParameters spParameters, Func<SqlCommand, Task<T>> execute,
 		CancellationToken cancellationToken = default)
 	{
-		try
-		{
+		try{
 			using var connection = dbContext.DbConnection();
 			await using var command = await ExecuteSqlCommand(spParameters, connection);
 
 			return await execute(command);
 		}
-		catch (SqlException ex)
-		{
-			throw new CaeriusSqlException($"Failed to execute stored procedure: {spParameters.ProcedureName}", ex);
-		}
+		catch (SqlException ex){ throw new CaeriusSqlException($"Failed to execute stored procedure: {spParameters.ProcedureName}", ex); }
 	}
 
 	/// <summary>
@@ -202,7 +198,7 @@ internal static class SqlCommandUtility
 	///     A list where each element is a read-only collection of objects representing a single result set, processed
 	///     using the corresponding mapper function.
 	/// </returns>
-	internal static async Task<List<IReadOnlyCollection<object>>> ExecuteMultipleReadOnlyResultSetsAsync(
+	static internal async Task<List<IReadOnlyCollection<object>>> ExecuteMultipleReadOnlyResultSetsAsync(
 		StoredProcedureParameters spParameters, IDbConnection connection, params Func<SqlDataReader, object>[] mappers)
 	{
 		if (mappers.Length == 0)
@@ -213,8 +209,7 @@ internal static class SqlCommandUtility
 
 		var results = new List<IReadOnlyCollection<object>>(mappers.Length);
 
-		foreach (var mapper in mappers)
-		{
+		foreach (var mapper in mappers){
 			var items = new List<object>();
 			while (await reader.ReadAsync())
 				items.Add(mapper(reader));
@@ -246,7 +241,7 @@ internal static class SqlCommandUtility
 	///     A list of immutable arrays, where each array contains objects of the corresponding result sets mapped by the
 	///     provided mapper functions.
 	/// </returns>
-	internal static async Task<List<ImmutableArray<object>>> ExecuteMultipleImmutableResultSetsAsync(
+	static internal async Task<List<ImmutableArray<object>>> ExecuteMultipleImmutableResultSetsAsync(
 		StoredProcedureParameters spParameters, IDbConnection connection, params Func<SqlDataReader, object>[] mappers)
 	{
 		if (mappers.Length == 0)
@@ -256,8 +251,7 @@ internal static class SqlCommandUtility
 		await using var reader = await command.ExecuteReaderAsync();
 
 		var results = new List<ImmutableArray<object>>(mappers.Length);
-		foreach (var mapper in mappers)
-		{
+		foreach (var mapper in mappers){
 			var builder = ImmutableArray.CreateBuilder<object>();
 			while (await reader.ReadAsync())
 				builder.Add(mapper(reader));
@@ -289,7 +283,7 @@ internal static class SqlCommandUtility
 	///     A list of <see cref="IEnumerable{T}" /> objects, where each enumerable represents a result set mapped according
 	///     to the corresponding mapping function provided in <paramref name="mappers" />.
 	/// </returns>
-	internal static async Task<List<IEnumerable<object>>> ExecuteMultipleIEnumerableResultSetsAsync(
+	static internal async Task<List<IEnumerable<object>>> ExecuteMultipleIEnumerableResultSetsAsync(
 		StoredProcedureParameters spParameters, IDbConnection connection,
 		params Func<SqlDataReader, object>[] mappers)
 	{
@@ -301,8 +295,7 @@ internal static class SqlCommandUtility
 
 		var results = new List<IEnumerable<object>>(mappers.Length);
 
-		foreach (var mapper in mappers)
-		{
+		foreach (var mapper in mappers){
 			var resultSet = new List<object>();
 			while (await reader.ReadAsync())
 				resultSet.Add(mapper(reader));

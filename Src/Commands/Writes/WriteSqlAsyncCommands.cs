@@ -30,9 +30,8 @@ public static class WriteSqlAsyncCommands
 	public static async Task<T?> ExecuteScalarAsync<T>(this ICaeriusDbContext dbContext,
 		StoredProcedureParameters spParameters, CancellationToken cancellationToken = default)
 	{
-		return await SqlCommandUtility.ExecuteCommandAsync(dbContext, spParameters, async command =>
-		{
-			var result = await command.ExecuteScalarAsync(cancellationToken);
+		return await SqlCommandUtility.ExecuteCommandAsync(dbContext, spParameters, execute: async command => {
+			object? result = await command.ExecuteScalarAsync(cancellationToken);
 			return result is DBNull ? default : (T?)result;
 		}, cancellationToken);
 	}
@@ -57,7 +56,7 @@ public static class WriteSqlAsyncCommands
 		StoredProcedureParameters spParameters, CancellationToken cancellationToken = default)
 	{
 		return await SqlCommandUtility.ExecuteCommandAsync(dbContext, spParameters,
-			command => command.ExecuteNonQueryAsync(cancellationToken), cancellationToken);
+		execute: command => command.ExecuteNonQueryAsync(cancellationToken), cancellationToken);
 	}
 
 	/// <summary>
@@ -78,8 +77,7 @@ public static class WriteSqlAsyncCommands
 	public static async Task ExecuteAsync(this ICaeriusDbContext dbContext, StoredProcedureParameters spParameters,
 		CancellationToken cancellationToken = default)
 	{
-		await SqlCommandUtility.ExecuteCommandAsync<object?>(dbContext, spParameters, async command =>
-		{
+		await SqlCommandUtility.ExecuteCommandAsync<object?>(dbContext, spParameters, execute: async command => {
 			await command.ExecuteNonQueryAsync(cancellationToken);
 			return null;
 		}, cancellationToken);

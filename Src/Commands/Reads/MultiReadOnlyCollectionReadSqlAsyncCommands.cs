@@ -40,8 +40,8 @@ public static class MultiReadOnlyCollectionReadSqlAsyncCommands
 		where TResultSet2 : class, ISpMapper<TResultSet2>
 	{
 		var results = await SqlCommandUtility.ExecuteMultipleReadOnlyResultSetsAsync(
-			spParameters, dbContext.DbConnection(),
-			resultSet1, resultSet2);
+		spParameters, dbContext.DbConnection(),
+		resultSet1, resultSet2);
 
 		return (
 			new ReadOnlyCollection<TResultSet1>(results[0].Cast<TResultSet1>().ToList()),
@@ -98,8 +98,8 @@ public static class MultiReadOnlyCollectionReadSqlAsyncCommands
 		where TResultSet3 : class, ISpMapper<TResultSet3>
 	{
 		var results = await SqlCommandUtility.ExecuteMultipleReadOnlyResultSetsAsync(
-			spParameters, dbContext.DbConnection(),
-			resultSet1, resultSet2, resultSet3);
+		spParameters, dbContext.DbConnection(),
+		resultSet1, resultSet2, resultSet3);
 
 		return (
 			new ReadOnlyCollection<TResultSet1>(results[0].Cast<TResultSet1>().ToList()),
@@ -168,8 +168,8 @@ public static class MultiReadOnlyCollectionReadSqlAsyncCommands
 		where TResultSet4 : class, ISpMapper<TResultSet4>
 	{
 		var results = await SqlCommandUtility.ExecuteMultipleReadOnlyResultSetsAsync(
-			spParameters, dbContext.DbConnection(),
-			resultSet1, resultSet2, resultSet3, resultSet4);
+		spParameters, dbContext.DbConnection(),
+		resultSet1, resultSet2, resultSet3, resultSet4);
 
 		return (
 			new ReadOnlyCollection<TResultSet1>(results[0].Cast<TResultSet1>().ToList()),
@@ -251,8 +251,8 @@ public static class MultiReadOnlyCollectionReadSqlAsyncCommands
 		where TResultSet5 : class, ISpMapper<TResultSet5>
 	{
 		var results = await SqlCommandUtility.ExecuteMultipleReadOnlyResultSetsAsync(
-			spParameters, dbContext.DbConnection(),
-			resultSet1, resultSet2, resultSet3, resultSet4, resultSet5);
+		spParameters, dbContext.DbConnection(),
+		resultSet1, resultSet2, resultSet3, resultSet4, resultSet5);
 
 		return (
 			new ReadOnlyCollection<TResultSet1>(results[0].Cast<TResultSet1>().ToList()),

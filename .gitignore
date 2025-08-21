@@ -400,3 +400,5 @@ FodyWeavers.xsd
 .idea
 .idea/*
 /.idea/*
+
+/Documentations/docs/.vitepress/cache

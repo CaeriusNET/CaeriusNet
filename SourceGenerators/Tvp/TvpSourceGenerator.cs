@@ -14,14 +14,13 @@ public sealed partial class TvpSourceGenerator : IIncrementalGenerator
 		// Create the pipeline for detecting and generating TVP mappers
 		var tvpCandidates = context.SyntaxProvider
 			.ForAttributeWithMetadataName(
-				"CaeriusNet.Attributes.Tvp.GenerateTvpAttribute",
-				static (syntaxNode, cancellationToken) => IsTvpCandidate(syntaxNode),
-				static (context, cancellationToken) => ExtractTvpMetadata(context, cancellationToken))
+			"CaeriusNet.Attributes.Tvp.GenerateTvpAttribute",
+			predicate: static (syntaxNode, cancellationToken) => IsTvpCandidate(syntaxNode),
+			transform: static (context, cancellationToken) => ExtractTvpMetadata(context, cancellationToken))
 			.Where(static metadata => metadata is not null);
 
 		// Register the code generation
-		context.RegisterSourceOutput(tvpCandidates, static (context, tvpMetadata) =>
-		{
+		context.RegisterSourceOutput(tvpCandidates, action: static (context, tvpMetadata) => {
 			if (tvpMetadata is not null) GenerateTvpMapper(context, tvpMetadata);
 		});
 	}

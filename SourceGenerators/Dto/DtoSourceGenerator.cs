@@ -1,6 +1,6 @@
-﻿using System.Collections.Immutable;
-using Microsoft.CodeAnalysis;
+﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using System.Collections.Immutable;
 
 namespace CaeriusNet.Generator.Dto;
 
@@ -19,8 +19,8 @@ public sealed partial class DtoSourceGenerator : IIncrementalGenerator
 	{
 		// Filter for syntax nodes that might be DTO records or classes
 		var classDeclarations = context.SyntaxProvider.CreateSyntaxProvider(
-				static (s, _) => IsTargetForGeneration(s),
-				static (ctx, _) => GetTypeDeclarationForGeneration(ctx))
+			predicate: static (s, _) => IsTargetForGeneration(s),
+			transform: static (ctx, _) => GetTypeDeclarationForGeneration(ctx))
 			.Where(static m => m is not null);
 
 		// Combine with compilation
@@ -30,7 +30,7 @@ public sealed partial class DtoSourceGenerator : IIncrementalGenerator
 
 		// Register the source generator
 		context.RegisterSourceOutput(compilationAndTypes,
-			static (spc, source) => Execute(source.Compilation, source.Declarations, spc));
+		action: static (spc, source) => Execute(source.Compilation, source.Declarations, spc));
 	}
 
 	/// <summary>
@@ -66,12 +66,11 @@ public sealed partial class DtoSourceGenerator : IIncrementalGenerator
 			return;
 
 		// Find all DTO candidates and generate for them
-		foreach (var dtoMetadata in GetDtoTypes(compilation, declarations, context.CancellationToken))
-		{
+		foreach (var dtoMetadata in GetDtoTypes(compilation, declarations, context.CancellationToken)){
 			if (dtoMetadata is null) continue;
 
 			// Generate the source code
-			var source = GenerateMapperSource(dtoMetadata);
+			string source = GenerateMapperSource(dtoMetadata);
 
 			// Add the generated source to the compilation
 			context.AddSource($"{dtoMetadata.Namespace}.{dtoMetadata.RecordName}.g.cs", source);

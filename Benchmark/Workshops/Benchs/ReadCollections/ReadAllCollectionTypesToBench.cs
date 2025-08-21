@@ -35,28 +35,28 @@ public class ReadAllCollectionTypesToBench
 	[Benchmark]
 	public void Read_ReadOnlyCollection()
 	{
-		var sum = _readOnlyCollectionOf25KItems.Sum(item => item.Id);
+		int sum = _readOnlyCollectionOf25KItems.Sum(item => item.Id);
 		_ = sum;
 	}
 
 	[Benchmark]
 	public void Read_List()
 	{
-		var sum = _listOf25KItems.Sum(item => item.Id);
+		int sum = _listOf25KItems.Sum(item => item.Id);
 		_ = sum;
 	}
 
 	[Benchmark]
 	public void Read_ImmutableArray()
 	{
-		var sum = _immutableArrayOf25KItems.Sum(item => item.Id);
+		int sum = _immutableArrayOf25KItems.Sum(item => item.Id);
 		_ = sum;
 	}
 
 	[Benchmark]
 	public void Read_Enumerable()
 	{
-		var sum = _enumerableOf25KItems.Sum(item => item.Id);
+		int sum = _enumerableOf25KItems.Sum(item => item.Id);
 		_ = sum;
 	}
 }

@@ -36,8 +36,7 @@ public static class SimpleReadSqlAsyncCommands
 		if (CacheUtility.TryRetrieveFromCache(spParameters, out TResultSet? cachedResult) && cachedResult != null)
 			return cachedResult;
 
-		try
-		{
+		try{
 			using var connection = context.DbConnection();
 			var result =
 				await SqlCommandUtility.ScalarQueryAsync<TResultSet>(spParameters, connection, cancellationToken);
@@ -47,10 +46,7 @@ public static class SimpleReadSqlAsyncCommands
 
 			return result;
 		}
-		catch (SqlException ex)
-		{
-			throw new CaeriusSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex);
-		}
+		catch (SqlException ex){ throw new CaeriusSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex); }
 	}
 
 	/// <summary>
@@ -84,21 +80,17 @@ public static class SimpleReadSqlAsyncCommands
 		    cachedResult != null)
 			return cachedResult;
 
-		try
-		{
+		try{
 			using var connection = context.DbConnection();
 			var result =
 				await SqlCommandUtility.ResultSetAsReadOnlyCollectionAsync<TResultSet>(spParameters, connection,
-					cancellationToken);
+				cancellationToken);
 
 			CacheUtility.StoreInCache(spParameters, result);
 
 			return result;
 		}
-		catch (SqlException ex)
-		{
-			throw new CaeriusSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex);
-		}
+		catch (SqlException ex){ throw new CaeriusSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex); }
 	}
 
 	/// <summary>
@@ -132,22 +124,18 @@ public static class SimpleReadSqlAsyncCommands
 		    cachedResult != null)
 			return cachedResult;
 
-		try
-		{
+		try{
 			var results = new List<TResultSet>(spParameters.Capacity);
 			using var connection = context.DbConnection();
 			await foreach (var item in SqlCommandUtility.StreamQueryAsync<TResultSet>(spParameters, connection,
-				               cancellationToken))
+			               cancellationToken))
 				results.Add(item);
 
 			CacheUtility.StoreInCache(spParameters, results);
 
 			return results.AsEnumerable();
 		}
-		catch (SqlException ex)
-		{
-			throw new CaeriusSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex);
-		}
+		catch (SqlException ex){ throw new CaeriusSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex); }
 	}
 
 	/// <summary>
@@ -182,20 +170,16 @@ public static class SimpleReadSqlAsyncCommands
 		    cachedResult != null)
 			return (ImmutableArray<TResultSet>)cachedResult;
 
-		try
-		{
+		try{
 			using var connection = context.DbConnection();
 			var result =
 				await SqlCommandUtility.ResultSetAsImmutableArrayAsync<TResultSet>(spParameters, connection,
-					cancellationToken);
+				cancellationToken);
 
 			CacheUtility.StoreInCache(spParameters, result);
 
 			return result;
 		}
-		catch (SqlException ex)
-		{
-			throw new CaeriusSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex);
-		}
+		catch (SqlException ex){ throw new CaeriusSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex); }
 	}
 }

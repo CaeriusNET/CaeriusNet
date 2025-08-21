@@ -21,7 +21,7 @@ public class ReadEnumerableToBench
 	[Benchmark]
 	public void Read_Enumerable_Of_1_Item()
 	{
-		var sum = _enumerableOf1Item.Sum(item => item.Id);
+		int sum = _enumerableOf1Item.Sum(item => item.Id);
 		_consumer.Consume(sum);
 		_ = sum;
 	}
@@ -29,7 +29,7 @@ public class ReadEnumerableToBench
 	[Benchmark]
 	public void Read_Enumerable_Of_10_Items()
 	{
-		var sum = _enumerableOf10Items.Sum(item => item.Id);
+		int sum = _enumerableOf10Items.Sum(item => item.Id);
 		_consumer.Consume(sum);
 		_ = sum;
 	}
@@ -37,7 +37,7 @@ public class ReadEnumerableToBench
 	[Benchmark]
 	public void Read_Enumerable_Of_100_Items()
 	{
-		var sum = _enumerableOf100Items.Sum(item => item.Id);
+		int sum = _enumerableOf100Items.Sum(item => item.Id);
 		_consumer.Consume(sum);
 		_ = sum;
 	}
@@ -45,7 +45,7 @@ public class ReadEnumerableToBench
 	[Benchmark]
 	public void Read_Enumerable_Of_1K_Items()
 	{
-		var sum = _enumerableOf1KItems.Sum(item => item.Id);
+		int sum = _enumerableOf1KItems.Sum(item => item.Id);
 		_consumer.Consume(sum);
 		_ = sum;
 	}
@@ -53,7 +53,7 @@ public class ReadEnumerableToBench
 	[Benchmark]
 	public void Read_Enumerable_Of_10K_Items()
 	{
-		var sum = _enumerableOf10KItems.Sum(item => item.Id);
+		int sum = _enumerableOf10KItems.Sum(item => item.Id);
 		_consumer.Consume(sum);
 		_ = sum;
 	}
@@ -61,7 +61,7 @@ public class ReadEnumerableToBench
 	[Benchmark]
 	public void Read_Enumerable_Of_100K_Items()
 	{
-		var sum = _enumerableOf100KItems.Sum(item => item.Id);
+		int sum = _enumerableOf100KItems.Sum(item => item.Id);
 		_consumer.Consume(sum);
 		_ = sum;
 	}

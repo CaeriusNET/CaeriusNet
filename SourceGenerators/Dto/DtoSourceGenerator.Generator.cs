@@ -1,17 +1,17 @@
-﻿using System.Text;
-using CaeriusNet.Generator.Models;
+﻿using CaeriusNet.Generator.Models;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Metadata = CaeriusNet.Generator.Models.Metadata;
+using System.Text;
+using Metadata=CaeriusNet.Generator.Models.Metadata;
 
 namespace CaeriusNet.Generator.Dto;
 
 public sealed partial class DtoSourceGenerator
 {
-    /// <summary>
-    ///     Generates the source code for an ISpMapper implementation.
-    /// </summary>
-    private static string GenerateMapperSource(Metadata metadata)
+	/// <summary>
+	///     Generates the source code for an ISpMapper implementation.
+	/// </summary>
+	private static string GenerateMapperSource(Metadata metadata)
 	{
 		var source = new StringBuilder();
 
@@ -29,10 +29,10 @@ public sealed partial class DtoSourceGenerator
 		source.AppendLine();
 
 		// Begin class/record declaration
-		var declarationType = metadata.DeclarationSyntax.Kind() == SyntaxKind.ClassDeclaration ? "class" : "record";
+		string declarationType = metadata.DeclarationSyntax.Kind() == SyntaxKind.ClassDeclaration ? "class" : "record";
 
 		source.AppendLine(
-			$"public sealed partial {declarationType} {metadata.RecordName} : ISpMapper<{metadata.RecordName}>");
+		$"public sealed partial {declarationType} {metadata.RecordName} : ISpMapper<{metadata.RecordName}>");
 		source.AppendLine("{");
 
 		// Generate MapFromDataReader implementation
@@ -43,10 +43,9 @@ public sealed partial class DtoSourceGenerator
 		source.AppendLine($"		return new {metadata.RecordName}(");
 
 		// Add parameters
-		for (var i = 0; i < metadata.Parameters.Count; i++)
-		{
+		for (int i = 0; i < metadata.Parameters.Count; i++){
 			var parameter = metadata.Parameters[i];
-			var comma = i < metadata.Parameters.Count - 1 ? "," : "";
+			string comma = i < metadata.Parameters.Count - 1 ? "," : "";
 			source.AppendLine($"		    {GetReaderExpression(parameter)}{comma}");
 		}
 
@@ -57,16 +56,16 @@ public sealed partial class DtoSourceGenerator
 		return source.ToString();
 	}
 
-    /// <summary>
-    ///     Gets the appropriate reader expression for a parameter based on its type and nullability.
-    /// </summary>
-    private static string GetReaderExpression(ParameterMetadata parameter)
+	/// <summary>
+	///     Gets the appropriate reader expression for a parameter based on its type and nullability.
+	/// </summary>
+	private static string GetReaderExpression(ParameterMetadata parameter)
 	{
-		var ordinal = parameter.OrdinalPosition;
+		int ordinal = parameter.OrdinalPosition;
 
 		// Check if the type is an enum
-		var isEnum = parameter.TypeSymbol.TypeKind == TypeKind.Enum;
-		var enumCastExpression = isEnum ? $"({parameter.TypeName})" : "";
+		bool isEnum = parameter.TypeSymbol.TypeKind == TypeKind.Enum;
+		string enumCastExpression = isEnum ? $"({parameter.TypeName})" : "";
 
 		// Handle nullable types
 		if (!parameter.IsNullable)
@@ -90,7 +89,7 @@ public sealed partial class DtoSourceGenerator
 					: $"reader.{parameter.ReaderMethod}({ordinal})"
 			};
 
-		var nullCheckExpression = $"reader.IsDBNull({ordinal}) ? null : ";
+		string nullCheckExpression = $"reader.IsDBNull({ordinal}) ? null : ";
 
 		// Special cases based on the type
 		return parameter.TypeName switch

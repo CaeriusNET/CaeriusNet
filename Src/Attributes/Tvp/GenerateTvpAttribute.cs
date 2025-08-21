@@ -35,27 +35,27 @@
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
 public sealed class GenerateTvpAttribute : Attribute
 {
-    /// <summary>
-    ///     Initializes a new instance of the <see cref="GenerateTvpAttribute" /> class
-    ///     with the default naming convention.
-    /// </summary>
-    public GenerateTvpAttribute()
+	/// <summary>
+	///     Initializes a new instance of the <see cref="GenerateTvpAttribute" /> class
+	///     with the default naming convention.
+	/// </summary>
+	public GenerateTvpAttribute()
 	{
 	}
 
-    /// <summary>
-    ///     Initializes a new instance of the <see cref="GenerateTvpAttribute" /> class
-    ///     with a custom SQL Server table type name.
-    /// </summary>
-    /// <param name="name">The SQL Server table type name (without schema) to use for this TVP.</param>
-    public GenerateTvpAttribute(string name)
+	/// <summary>
+	///     Initializes a new instance of the <see cref="GenerateTvpAttribute" /> class
+	///     with a custom SQL Server table type name.
+	/// </summary>
+	/// <param name="name">The SQL Server table type name (without schema) to use for this TVP.</param>
+	public GenerateTvpAttribute(string name)
 	{
 		Name = name;
 	}
 
-    /// <summary>
-    ///     Gets the custom SQL Server table type name (without schema) for this TVP.
-    ///     If not specified, a default name will be generated based on the class name.
-    /// </summary>
-    public string? Name { get; }
+	/// <summary>
+	///     Gets the custom SQL Server table type name (without schema) for this TVP.
+	///     If not specified, a default name will be generated based on the class name.
+	/// </summary>
+	public string? Name { get; }
 }

@@ -48,19 +48,19 @@
 
     <ItemGroup>
         <!-- Microsoft Data Access -->
-        <PackageReference Include="Aspire.Microsoft.Data.SqlClient" Version="9.3.1"/>
-        <PackageReference Include="Aspire.StackExchange.Redis" Version="9.3.1"/>
-        <PackageReference Include="Microsoft.Data.SqlClient" Version="6.0.2"/>
+        <PackageReference Include="Aspire.Microsoft.Data.SqlClient" Version="9.4.1"/>
+        <PackageReference Include="Aspire.StackExchange.Redis" Version="9.4.1"/>
+        <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.1"/>
 
         <!-- Microsoft Extensions -->
-        <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.7" />
-        <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.7" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.7" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.7" />
+        <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.8"/>
+        <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.8"/>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.8"/>
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.8"/>
 
         <!-- Caching & Serialization -->
-        <PackageReference Include="StackExchange.Redis" Version="2.8.47" />
-        <PackageReference Include="System.Text.Json" Version="9.0.7" />
+        <PackageReference Include="StackExchange.Redis" Version="2.9.11"/>
+        <PackageReference Include="System.Text.Json" Version="9.0.8"/>
 
         <!-- Source Generator -->
         <ProjectReference Include="..\SourceGenerators\CaeriusNet.Generator.csproj"/>
