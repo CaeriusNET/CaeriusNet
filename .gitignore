@@ -396,9 +396,8 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
-
 .idea
 .idea/*
 /.idea/*
-
+.junie
 /Documentations/docs/.vitepress/cache

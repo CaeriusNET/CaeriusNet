@@ -1,0 +1,55 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>net9.0;net8.0</TargetFrameworks>
+        <RootNamespace>CaeriusNet</RootNamespace>
+        <AssemblyName>CaeriusNet</AssemblyName>
+        <OutputType>Library</OutputType>
+        <LangVersion>latest</LangVersion>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+        <Version>9.3.8</Version>
+        <Title>CaeriusNet</Title>
+        <Authors>AriusII &amp; CaeriusNet</Authors>
+        <Description>CaeriusNet is a high-performance wrapper developed in C# .NET 8 + and optimized for SQL Server 2019 +. It emphasizes code quality, maintainability, and scalability by providing advanced tools for executing stored procedures and managing caching mechanisms.</Description>
+        <Copyright>2025</Copyright>
+        <PackageProjectUrl>https://caerius.net</PackageProjectUrl>
+        <PackageTags>dapper;ef;orm;fast;stored-procedure;sql-server</PackageTags>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <RepositoryType>git</RepositoryType>
+        <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+        <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+        <DefineConstants>DEBUG;TRACE</DefineConstants>
+        <DebugType>full</DebugType>
+        <DebugSymbols>true</DebugSymbols>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+        <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+        <PlatformTarget>x64</PlatformTarget>
+        <DebugType>portable</DebugType>
+        <DebugSymbols>true</DebugSymbols>
+        <Optimize>true</Optimize>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <!-- Caching & Serialization -->
+        <PackageReference Include="StackExchange.Redis" Version="2.9.11"/>
+        <ProjectReference Include="..\..\Core\CaeriusNet.Core\CaeriusNet.Core.csproj"/>
+        <ProjectReference Include="..\..\Extensions\CaeriusNet.Extensions.Aspire\CaeriusNet.Extensions.Aspire.csproj"/>
+        <ProjectReference Include="..\..\Extensions\CaeriusNet.Extensions.Caching\CaeriusNet.Extensions.Caching.csproj"/>
+
+
+        <!-- Source Generator -->
+        <ProjectReference Include="..\CaeriusNet.SourceGenerator\CaeriusNet.SourceGenerator.csproj"/>
+    </ItemGroup>
+
+</Project>
