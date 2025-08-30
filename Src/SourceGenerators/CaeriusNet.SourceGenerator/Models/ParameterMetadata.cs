@@ -9,24 +9,24 @@ public sealed class ParameterMetadata
 	///     Creates a new instance of ParameterMetadata.
 	/// </summary>
 	public ParameterMetadata(
-		string name,
-		string typeName,
-		ITypeSymbol typeSymbol,
-		bool isNullable,
-		int ordinalPosition,
-		string sqlType,
-		string readerMethod,
-		bool requiresSpecialConversion)
-	{
-		Name = name;
-		TypeName = typeName;
-		TypeSymbol = typeSymbol;
-		IsNullable = isNullable;
-		OrdinalPosition = ordinalPosition;
-		SqlType = sqlType;
-		ReaderMethod = readerMethod;
-		RequiresSpecialConversion = requiresSpecialConversion;
-	}
+        string name,
+        string typeName,
+        ITypeSymbol typeSymbol,
+        bool isNullable,
+        int ordinalPosition,
+        string sqlType,
+        string readerMethod,
+        bool requiresSpecialConversion)
+    {
+        Name = name;
+        TypeName = typeName;
+        TypeSymbol = typeSymbol;
+        IsNullable = isNullable;
+        OrdinalPosition = ordinalPosition;
+        SqlType = sqlType;
+        ReaderMethod = readerMethod;
+        RequiresSpecialConversion = requiresSpecialConversion;
+    }
 
 	/// <summary>
 	///     The name of the parameter.

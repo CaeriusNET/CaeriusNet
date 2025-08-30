@@ -40,8 +40,8 @@ public sealed class GenerateTvpAttribute : Attribute
 	///     with the default naming convention.
 	/// </summary>
 	public GenerateTvpAttribute()
-	{
-	}
+    {
+    }
 
 	/// <summary>
 	///     Initializes a new instance of the <see cref="GenerateTvpAttribute" /> class
@@ -49,9 +49,9 @@ public sealed class GenerateTvpAttribute : Attribute
 	/// </summary>
 	/// <param name="name">The SQL Server table type name (without schema) to use for this TVP.</param>
 	public GenerateTvpAttribute(string name)
-	{
-		Name = name;
-	}
+    {
+        Name = name;
+    }
 
 	/// <summary>
 	///     Gets the custom SQL Server table type name (without schema) for this TVP.

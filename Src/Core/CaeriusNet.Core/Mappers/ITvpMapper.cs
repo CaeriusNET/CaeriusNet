@@ -1,6 +1,4 @@
-﻿using System.Data;
-
-namespace CaeriusNet.Core.Mappers;
+﻿namespace CaeriusNet.Core.Mappers;
 
 /// <summary>
 ///     Represents a mapper that defines a method for converting a collection of objects of type <typeparamref name="T" />
@@ -15,6 +13,6 @@ public interface ITvpMapper<in T> where T : class
     ///     as a TVP (Table-Valued Parameter) in SQL Server stored procedures.
     /// </summary>
     /// <param name="items">The collection of <typeparamref name="T" /> objects to map.</param>
-    /// <returns>A DataTable representing the mapped collection of objects, suitable for use as a TVP.</returns>
+    /// <returns>A DataTable representing the mapped collection of objects.</returns>
     public DataTable MapAsDataTable(IEnumerable<T> items);
 }

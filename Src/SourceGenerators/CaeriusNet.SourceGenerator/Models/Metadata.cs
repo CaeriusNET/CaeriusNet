@@ -13,12 +13,12 @@ public sealed class Metadata
 	/// <param name="declarationSyntax">The syntax node for the class declaration.</param>
 	/// <param name="namespaceName">The namespace of the DTO class.</param>
 	public Metadata(INamedTypeSymbol classSymbol, TypeDeclarationSyntax declarationSyntax, string namespaceName)
-	{
-		ClassSymbol = classSymbol;
-		DeclarationSyntax = declarationSyntax;
-		RecordName = classSymbol.Name;
-		Namespace = namespaceName;
-	}
+    {
+        ClassSymbol = classSymbol;
+        DeclarationSyntax = declarationSyntax;
+        RecordName = classSymbol.Name;
+        Namespace = namespaceName;
+    }
 
 	/// <summary>
 	///     Gets or sets the custom TVP name specified by the GenerateTvp attribute.

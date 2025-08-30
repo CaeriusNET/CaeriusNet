@@ -1,5 +1,3 @@
-using Microsoft.Data.SqlClient;
-
 namespace CaeriusNet.Core.Mappers;
 
 /// <summary>

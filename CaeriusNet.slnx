@@ -7,13 +7,12 @@
         <Project Path="Src\CaeriusNet\CaeriusNet.csproj" Type="Classic C#"/>
     </Folder>
     <Folder Name="/Src/Core/">
+        <Project Path="Src\Core\CaeriusNet.Caching\CaeriusNet.Caching.csproj" Type="Classic C#"/>
         <Project Path="Src\Core\CaeriusNet.Core\CaeriusNet.Core.csproj" Type="Classic C#"/>
-    </Folder>
-    <Folder Name="/Src/Extensions/">
-        <Project Path="Src\Extensions\CaeriusNet.Extensions.Aspire\CaeriusNet.Extensions.Aspire.csproj" Type="Classic C#"/>
-        <Project Path="Src\Extensions\CaeriusNet.Extensions.Caching\CaeriusNet.Extensions.Caching.csproj" Type="Classic C#"/>
+        <Project Path="Src\Core\CaeriusNet.Redis\CaeriusNet.Redis.csproj" Type="Classic C#"/>
     </Folder>
     <Folder Name="/Src/SourceGenerators/">
-        <Project Path="Src\SourceGenerators\CaeriusNet.SourceGenerator\CaeriusNet.SourceGenerator.csproj" Type="Classic C#"/>
+        <Project Path="Src\SourceGenerators\CaeriusNet.SourceGenerator\CaeriusNet.SourceGenerator.csproj"
+                 Type="Classic C#"/>
     </Folder>
 </Solution>

@@ -7,19 +7,20 @@
 [Generator]
 public sealed partial class TvpSourceGenerator : IIncrementalGenerator
 {
-	public void Initialize(IncrementalGeneratorInitializationContext context)
-	{
-		// Create the pipeline for detecting and generating TVP mappers
-		var tvpCandidates = context.SyntaxProvider
-			.ForAttributeWithMetadataName(
-			"CaeriusNet.Attributes.Tvp.GenerateTvpAttribute",
-			predicate: static (syntaxNode, cancellationToken) => IsTvpCandidate(syntaxNode),
-			transform: static (context, cancellationToken) => ExtractTvpMetadata(context, cancellationToken))
-			.Where(static metadata => metadata is not null);
+    public void Initialize(IncrementalGeneratorInitializationContext context)
+    {
+        // Create the pipeline for detecting and generating TVP mappers
+        var tvpCandidates = context.SyntaxProvider
+            .ForAttributeWithMetadataName(
+                "CaeriusNet.Attributes.Tvp.GenerateTvpAttribute",
+                static (syntaxNode, cancellationToken) => IsTvpCandidate(syntaxNode),
+                static (context, cancellationToken) => ExtractTvpMetadata(context, cancellationToken))
+            .Where(static metadata => metadata is not null);
 
-		// Register the code generation
-		context.RegisterSourceOutput(tvpCandidates, action: static (context, tvpMetadata) => {
-			if (tvpMetadata is not null) GenerateTvpMapper(context, tvpMetadata);
-		});
-	}
+        // Register the code generation
+        context.RegisterSourceOutput(tvpCandidates, static (context, tvpMetadata) =>
+        {
+            if (tvpMetadata is not null) GenerateTvpMapper(context, tvpMetadata);
+        });
+    }
 }

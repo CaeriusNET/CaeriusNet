@@ -1,6 +1,4 @@
-﻿using Microsoft.Data.SqlClient;
-
-namespace CaeriusNet.Core.Exceptions;
+﻿namespace CaeriusNet.Core.Exceptions;
 
 /// <summary>
 ///     Represents exceptions that occur during SQL operations within the CaeriusNet application.
@@ -11,5 +9,5 @@ namespace CaeriusNet.Core.Exceptions;
 ///     <see cref="SqlException" /> is passed as the inner exception to provide detailed diagnostic information.
 /// </remarks>
 /// <exception cref="SqlException">Represents the original SQL exception encountered during the operation.</exception>
-internal sealed class CaeriusSqlException(string message, SqlException innerException)
-	: Exception(message, innerException);
+public sealed class CaeriusSqlException(string message, SqlException innerException)
+    : Exception(message, innerException);
