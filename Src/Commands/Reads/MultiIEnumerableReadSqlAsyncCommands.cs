@@ -9,218 +9,177 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 	/// <summary>
 	///     Executes a stored procedure and returns multiple result sets as enumerable collections.
 	/// </summary>
-	/// <typeparam name="TResultSet1">The type of the objects in the first result set.</typeparam>
-	/// <typeparam name="TResultSet2">The type of the objects in the second result set.</typeparam>
-	/// <param name="context">The database context to use for executing the stored procedure.</param>
-	/// <param name="spParameters">
-	///     The parameters required for the stored procedure, including the procedure name and SQL
-	///     parameters.
-	/// </param>
-	/// <param name="resultSet1">
-	///     The mapping function to convert rows in the first result set to objects of type
-	///     <typeparamref name="TResultSet1" />.
-	/// </param>
-	/// <param name="resultSet2">
-	///     The mapping function to convert rows in the second result set to objects of type
-	///     <typeparamref name="TResultSet2" />.
-	/// </param>
-	/// <returns>
-	///     A tuple containing two enumerable collections: the first collection contains objects of type
-	///     <typeparamref name="TResultSet1" />,
-	///     and the second contains objects of type <typeparamref name="TResultSet2" />.
-	/// </returns>
 	public static async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>)>
 		QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2>(
 			this ICaeriusDbContext context,
 			StoredProcedureParameters spParameters,
-			Func<SqlDataReader, TResultSet1> resultSet1,
-			Func<SqlDataReader, TResultSet2> resultSet2)
+			CancellationToken cancellationToken = default)
 		where TResultSet1 : class, ISpMapper<TResultSet1>
 		where TResultSet2 : class, ISpMapper<TResultSet2>
 	{
-		var results = await SqlCommandUtility.ExecuteMultipleIEnumerableResultSetsAsync(
-		spParameters, context.DbConnection(),
-		resultSet1, resultSet2);
+		return await SqlCommandUtility.ExecuteCommandAsync(context, spParameters, execute: async command => {
+			await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
 
-		return (
-			results[0].Cast<TResultSet1>(),
-			results[1].Cast<TResultSet2>());
+			var l1 = new List<TResultSet1>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				l1.Add(TResultSet1.MapFromDataReader(reader));
+
+			List<TResultSet2> l2 = [];
+			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+				return (l1, l2);
+
+			l2 = new List<TResultSet2>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				l2.Add(TResultSet2.MapFromDataReader(reader));
+
+			// Return lists directly as IEnumerable<T> (no extra iterator allocation).
+			return (l1, l2);
+		}, cancellationToken).ConfigureAwait(false);
 	}
-
 
 	/// <summary>
 	///     Executes a stored procedure and returns three result sets as enumerable collections.
 	/// </summary>
-	/// <typeparam name="TResultSet1">The type of the objects in the first result set.</typeparam>
-	/// <typeparam name="TResultSet2">The type of the objects in the second result set.</typeparam>
-	/// <typeparam name="TResultSet3">The type of the objects in the third result set.</typeparam>
-	/// <param name="context">The database context to use for executing the stored procedure.</param>
-	/// <param name="spParameters">
-	///     The parameters required for the stored procedure, including the procedure name and SQL
-	///     parameters.
-	/// </param>
-	/// <param name="resultSet1">
-	///     The mapping function to convert rows in the first result set to objects of type
-	///     <typeparamref name="TResultSet1" />.
-	/// </param>
-	/// <param name="resultSet2">
-	///     The mapping function to convert rows in the second result set to objects of type
-	///     <typeparamref name="TResultSet2" />.
-	/// </param>
-	/// <param name="resultSet3">
-	///     The mapping function to convert rows in the third result set to objects of type
-	///     <typeparamref name="TResultSet3" />.
-	/// </param>
-	/// <returns>
-	///     A tuple containing three enumerable collections: the first collection contains objects of type
-	///     <typeparamref name="TResultSet1" />, the second contains objects of type <typeparamref name="TResultSet2" />,
-	///     and the third contains objects of type <typeparamref name="TResultSet3" />.
-	/// </returns>
 	public static async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>)>
 		QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3>(
 			this ICaeriusDbContext context,
 			StoredProcedureParameters spParameters,
-			Func<SqlDataReader, TResultSet1> resultSet1,
-			Func<SqlDataReader, TResultSet2> resultSet2,
-			Func<SqlDataReader, TResultSet3> resultSet3)
+			CancellationToken cancellationToken = default)
 		where TResultSet1 : class, ISpMapper<TResultSet1>
 		where TResultSet2 : class, ISpMapper<TResultSet2>
 		where TResultSet3 : class, ISpMapper<TResultSet3>
 	{
-		var results = await SqlCommandUtility.ExecuteMultipleIEnumerableResultSetsAsync(
-		spParameters, context.DbConnection(),
-		resultSet1, resultSet2, resultSet3);
+		return await SqlCommandUtility.ExecuteCommandAsync(context, spParameters, execute: async command => {
+			await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
 
-		return (
-			results[0].Cast<TResultSet1>(),
-			results[1].Cast<TResultSet2>(),
-			results[2].Cast<TResultSet3>());
+			var l1 = new List<TResultSet1>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				l1.Add(TResultSet1.MapFromDataReader(reader));
+
+			List<TResultSet2> l2 = [];
+			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+				return (l1, l2, new List<TResultSet3>(0));
+
+			l2 = new List<TResultSet2>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				l2.Add(TResultSet2.MapFromDataReader(reader));
+
+			List<TResultSet3> l3 = [];
+			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+				return (l1, l2, l3);
+
+			l3 = new List<TResultSet3>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				l3.Add(TResultSet3.MapFromDataReader(reader));
+
+			return (l1, l2, l3);
+		}, cancellationToken).ConfigureAwait(false);
 	}
 
 	/// <summary>
-	///     Executes a stored procedure and returns multiple result sets as enumerable collections.
+	///     Executes a stored procedure and returns multiple result sets as enumerable collections (4 sets).
 	/// </summary>
-	/// <typeparam name="TResultSet1">The type of the objects in the first result set.</typeparam>
-	/// <typeparam name="TResultSet2">The type of the objects in the second result set.</typeparam>
-	/// <typeparam name="TResultSet3">The type of the objects in the third result set.</typeparam>
-	/// <typeparam name="TResultSet4">The type of the objects in the fourth result set.</typeparam>
-	/// <param name="context">The database context to use for executing the stored procedure.</param>
-	/// <param name="spParameters">
-	///     The parameters required for the stored procedure, including the procedure name and SQL
-	///     parameters.
-	/// </param>
-	/// <param name="resultSet1">
-	///     The mapping function to convert rows in the first result set to objects of type
-	///     <typeparamref name="TResultSet1" />.
-	/// </param>
-	/// <param name="resultSet2">
-	///     The mapping function to convert rows in the second result set to objects of type
-	///     <typeparamref name="TResultSet2" />.
-	/// </param>
-	/// <param name="resultSet3">
-	///     The mapping function to convert rows in the third result set to objects of type
-	///     <typeparamref name="TResultSet3" />.
-	/// </param>
-	/// <param name="resultSet4">
-	///     The mapping function to convert rows in the fourth result set to objects of type
-	///     <typeparamref name="TResultSet4" />.
-	/// </param>
-	/// <returns>
-	///     A tuple containing four enumerable collections:
-	///     the first collection contains objects of type <typeparamref name="TResultSet1" />,
-	///     the second contains objects of type <typeparamref name="TResultSet2" />,
-	///     the third contains objects of type <typeparamref name="TResultSet3" />,
-	///     and the fourth contains objects of type <typeparamref name="TResultSet4" />.
-	/// </returns>
 	public static async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>,
 			IEnumerable<TResultSet4>)>
 		QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4>(
 			this ICaeriusDbContext context,
 			StoredProcedureParameters spParameters,
-			Func<SqlDataReader, TResultSet1> resultSet1,
-			Func<SqlDataReader, TResultSet2> resultSet2,
-			Func<SqlDataReader, TResultSet3> resultSet3,
-			Func<SqlDataReader, TResultSet4> resultSet4)
+			CancellationToken cancellationToken = default)
 		where TResultSet1 : class, ISpMapper<TResultSet1>
 		where TResultSet2 : class, ISpMapper<TResultSet2>
 		where TResultSet3 : class, ISpMapper<TResultSet3>
 		where TResultSet4 : class, ISpMapper<TResultSet4>
 	{
-		var results = await SqlCommandUtility.ExecuteMultipleIEnumerableResultSetsAsync(
-		spParameters, context.DbConnection(),
-		resultSet1, resultSet2, resultSet3, resultSet4);
+		return await SqlCommandUtility.ExecuteCommandAsync(context, spParameters, execute: async command => {
+			await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
 
-		return (
-			results[0].Cast<TResultSet1>(),
-			results[1].Cast<TResultSet2>(),
-			results[2].Cast<TResultSet3>(),
-			results[3].Cast<TResultSet4>());
+			var l1 = new List<TResultSet1>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				l1.Add(TResultSet1.MapFromDataReader(reader));
+
+			List<TResultSet2> l2 = [];
+			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+				return (l1, l2, new List<TResultSet3>(0), new List<TResultSet4>(0));
+
+			l2 = new List<TResultSet2>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				l2.Add(TResultSet2.MapFromDataReader(reader));
+
+			List<TResultSet3> l3 = [];
+			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+				return (l1, l2, l3, []);
+
+			l3 = new List<TResultSet3>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				l3.Add(TResultSet3.MapFromDataReader(reader));
+
+			List<TResultSet4> l4 = [];
+			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+				return (l1, l2, l3, l4);
+
+			l4 = new List<TResultSet4>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				l4.Add(TResultSet4.MapFromDataReader(reader));
+
+			return (l1, l2, l3, l4);
+		}, cancellationToken).ConfigureAwait(false);
 	}
 
 	/// <summary>
 	///     Executes a stored procedure and retrieves five result sets as enumerable collections.
 	/// </summary>
-	/// <typeparam name="TResultSet1">The type of the objects in the first result set.</typeparam>
-	/// <typeparam name="TResultSet2">The type of the objects in the second result set.</typeparam>
-	/// <typeparam name="TResultSet3">The type of the objects in the third result set.</typeparam>
-	/// <typeparam name="TResultSet4">The type of the objects in the fourth result set.</typeparam>
-	/// <typeparam name="TResultSet5">The type of the objects in the fifth result set.</typeparam>
-	/// <param name="context">The database context to use for executing the stored procedure.</param>
-	/// <param name="spParameters">
-	///     The parameters required for the stored procedure, including the procedure name and SQL
-	///     parameters.
-	/// </param>
-	/// <param name="resultSet1">
-	///     The mapping function to convert rows in the first result set to objects of type
-	///     <typeparamref name="TResultSet1" />.
-	/// </param>
-	/// <param name="resultSet2">
-	///     The mapping function to convert rows in the second result set to objects of type
-	///     <typeparamref name="TResultSet2" />.
-	/// </param>
-	/// <param name="resultSet3">
-	///     The mapping function to convert rows in the third result set to objects of type
-	///     <typeparamref name="TResultSet3" />.
-	/// </param>
-	/// <param name="resultSet4">
-	///     The mapping function to convert rows in the fourth result set to objects of type
-	///     <typeparamref name="TResultSet4" />.
-	/// </param>
-	/// <param name="resultSet5">
-	///     The mapping function to convert rows in the fifth result set to objects of type
-	///     <typeparamref name="TResultSet5" />.
-	/// </param>
-	/// <returns>
-	///     A tuple containing five enumerable collections: the collections contain objects of type
-	///     <typeparamref name="TResultSet1" />, <typeparamref name="TResultSet2" />,
-	///     <typeparamref name="TResultSet3" />, <typeparamref name="TResultSet4" />,
-	///     and <typeparamref name="TResultSet5" />, respectively.
-	/// </returns>
 	public static async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>,
 			IEnumerable<TResultSet4>, IEnumerable<TResultSet5>)>
 		QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4, TResultSet5>(
 			this ICaeriusDbContext context,
 			StoredProcedureParameters spParameters,
-			Func<SqlDataReader, TResultSet1> resultSet1,
-			Func<SqlDataReader, TResultSet2> resultSet2,
-			Func<SqlDataReader, TResultSet3> resultSet3,
-			Func<SqlDataReader, TResultSet4> resultSet4,
-			Func<SqlDataReader, TResultSet5> resultSet5)
+			CancellationToken cancellationToken = default)
 		where TResultSet1 : class, ISpMapper<TResultSet1>
 		where TResultSet2 : class, ISpMapper<TResultSet2>
 		where TResultSet3 : class, ISpMapper<TResultSet3>
 		where TResultSet4 : class, ISpMapper<TResultSet4>
 		where TResultSet5 : class, ISpMapper<TResultSet5>
 	{
-		var results = await SqlCommandUtility.ExecuteMultipleIEnumerableResultSetsAsync(
-		spParameters, context.DbConnection(),
-		resultSet1, resultSet2, resultSet3, resultSet4, resultSet5);
+		return await SqlCommandUtility.ExecuteCommandAsync(context, spParameters, execute: async command => {
+			await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
 
-		return (
-			results[0].Cast<TResultSet1>(),
-			results[1].Cast<TResultSet2>(),
-			results[2].Cast<TResultSet3>(),
-			results[3].Cast<TResultSet4>(),
-			results[4].Cast<TResultSet5>());
+			var l1 = new List<TResultSet1>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				l1.Add(TResultSet1.MapFromDataReader(reader));
+
+			List<TResultSet2> l2 = [];
+			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+				return (l1, l2, new List<TResultSet3>(0), new List<TResultSet4>(0), new List<TResultSet5>(0));
+
+			l2 = new List<TResultSet2>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				l2.Add(TResultSet2.MapFromDataReader(reader));
+
+			List<TResultSet3> l3 = [];
+			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+				return (l1, l2, l3, [], []);
+
+			l3 = new List<TResultSet3>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				l3.Add(TResultSet3.MapFromDataReader(reader));
+
+			List<TResultSet4> l4 = [];
+			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+				return (l1, l2, l3, l4, []);
+
+			l4 = new List<TResultSet4>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				l4.Add(TResultSet4.MapFromDataReader(reader));
+
+			List<TResultSet5> l5 = [];
+			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+				return (l1, l2, l3, l4, l5);
+
+			l5 = new List<TResultSet5>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				l5.Add(TResultSet5.MapFromDataReader(reader));
+
+			return (l1, l2, l3, l4, l5);
+		}, cancellationToken).ConfigureAwait(false);
 	}
 }

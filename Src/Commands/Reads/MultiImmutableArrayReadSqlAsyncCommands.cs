@@ -12,137 +12,187 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
 	/// <typeparam name="TResultSet2">The type of the second result set.</typeparam>
 	/// <param name="context">The database context for executing the query.</param>
 	/// <param name="spParameters">The parameters required to execute the stored procedure.</param>
-	/// <param name="resultSet1">A function that maps the first result set from the SqlDataReader.</param>
-	/// <param name="resultSet2">A function that maps the second result set from the SqlDataReader.</param>
+	/// <param name="cancellationToken">Cancellation token.</param>
 	/// <returns>A tuple containing two immutable arrays, one for each result set.</returns>
 	public static async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>)>
 		QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2>(
 			this ICaeriusDbContext context,
 			StoredProcedureParameters spParameters,
-			Func<SqlDataReader, TResultSet1> resultSet1,
-			Func<SqlDataReader, TResultSet2> resultSet2)
+			CancellationToken cancellationToken = default)
 		where TResultSet1 : class, ISpMapper<TResultSet1>
 		where TResultSet2 : class, ISpMapper<TResultSet2>
 	{
-		var results = await SqlCommandUtility.ExecuteMultipleImmutableResultSetsAsync(
-		spParameters, context.DbConnection(),
-		resultSet1, resultSet2);
+		return await SqlCommandUtility.ExecuteCommandAsync(context, spParameters, execute: async command => {
+			await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
 
-		return (
-			[..results[0].Cast<TResultSet1>()],
-			[..results[1].Cast<TResultSet2>()]);
+			var b1 = ImmutableArray.CreateBuilder<TResultSet1>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				b1.Add(TResultSet1.MapFromDataReader(reader));
+			var a1 = b1.ToImmutable();
+
+			var a2 = ImmutableArray<TResultSet2>.Empty;
+			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+				return (a1, a2);
+
+			var b2 = ImmutableArray.CreateBuilder<TResultSet2>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				b2.Add(TResultSet2.MapFromDataReader(reader));
+			a2 = b2.ToImmutable();
+
+			return (a1, a2);
+		}, cancellationToken).ConfigureAwait(false);
 	}
 
 	/// Executes a stored procedure and maps the results into multiple immutable arrays
 	/// containing three specified result types.
-	/// <typeparam name="TResultSet1">The type of the first result set.</typeparam>
-	/// <typeparam name="TResultSet2">The type of the second result set.</typeparam>
-	/// <typeparam name="TResultSet3">The type of the third result set.</typeparam>
-	/// <param name="context">The database context for executing the query.</param>
-	/// <param name="spParameters">The parameters required to execute the stored procedure.</param>
-	/// <param name="resultSet1">A function that maps the first result set from the SqlDataReader.</param>
-	/// <param name="resultSet2">A function that maps the second result set from the SqlDataReader.</param>
-	/// <param name="resultSet3">A function that maps the third result set from the SqlDataReader.</param>
-	/// <returns>A tuple containing three immutable arrays, one for each result set.</returns>
 	public static async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>, ImmutableArray<TResultSet3>)>
 		QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2, TResultSet3>(
 			this ICaeriusDbContext context,
 			StoredProcedureParameters spParameters,
-			Func<SqlDataReader, TResultSet1> resultSet1,
-			Func<SqlDataReader, TResultSet2> resultSet2,
-			Func<SqlDataReader, TResultSet3> resultSet3)
+			CancellationToken cancellationToken = default)
 		where TResultSet1 : class, ISpMapper<TResultSet1>
 		where TResultSet2 : class, ISpMapper<TResultSet2>
 		where TResultSet3 : class, ISpMapper<TResultSet3>
 	{
-		var results = await SqlCommandUtility.ExecuteMultipleImmutableResultSetsAsync(
-		spParameters, context.DbConnection(),
-		resultSet1, resultSet2, resultSet3);
+		return await SqlCommandUtility.ExecuteCommandAsync(context, spParameters, execute: async command => {
+			await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
 
-		return (
-			[..results[0].Cast<TResultSet1>()],
-			[..results[1].Cast<TResultSet2>()],
-			[..results[2].Cast<TResultSet3>()]);
+			var b1 = ImmutableArray.CreateBuilder<TResultSet1>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				b1.Add(TResultSet1.MapFromDataReader(reader));
+			var a1 = b1.ToImmutable();
+
+			var a2 = ImmutableArray<TResultSet2>.Empty;
+			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+				return (a1, a2, ImmutableArray<TResultSet3>.Empty);
+
+			var b2 = ImmutableArray.CreateBuilder<TResultSet2>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				b2.Add(TResultSet2.MapFromDataReader(reader));
+			a2 = b2.ToImmutable();
+
+			var a3 = ImmutableArray<TResultSet3>.Empty;
+			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+				return (a1, a2, a3);
+
+			var b3 = ImmutableArray.CreateBuilder<TResultSet3>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				b3.Add(TResultSet3.MapFromDataReader(reader));
+			a3 = b3.ToImmutable();
+
+			return (a1, a2, a3);
+		}, cancellationToken).ConfigureAwait(false);
 	}
 
-	/// Executes a stored procedure and maps the results into multiple immutable arrays
-	/// of specified result types.
-	/// <typeparam name="TResultSet1">The type of the first result set.</typeparam>
-	/// <typeparam name="TResultSet2">The type of the second result set.</typeparam>
-	/// <typeparam name="TResultSet3">The type of the third result set.</typeparam>
-	/// <typeparam name="TResultSet4">The type of the fourth result set.</typeparam>
-	/// <param name="context">The database context for executing the query.</param>
-	/// <param name="spParameters">The parameters required to execute the stored procedure.</param>
-	/// <param name="resultSet1">A function that maps the first result set from the SqlDataReader.</param>
-	/// <param name="resultSet2">A function that maps the second result set from the SqlDataReader.</param>
-	/// <param name="resultSet3">A function that maps the third result set from the SqlDataReader.</param>
-	/// <param name="resultSet4">A function that maps the fourth result set from the SqlDataReader.</param>
-	/// <returns>A tuple containing four immutable arrays, one for each result set.</returns>
+	/// Executes a stored procedure and maps the results into multiple immutable arrays (4 sets).
 	public static async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>, ImmutableArray<TResultSet3>,
 			ImmutableArray<TResultSet4>)>
 		QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4>(
 			this ICaeriusDbContext context,
 			StoredProcedureParameters spParameters,
-			Func<SqlDataReader, TResultSet1> resultSet1,
-			Func<SqlDataReader, TResultSet2> resultSet2,
-			Func<SqlDataReader, TResultSet3> resultSet3,
-			Func<SqlDataReader, TResultSet4> resultSet4)
+			CancellationToken cancellationToken = default)
 		where TResultSet1 : class, ISpMapper<TResultSet1>
 		where TResultSet2 : class, ISpMapper<TResultSet2>
 		where TResultSet3 : class, ISpMapper<TResultSet3>
 		where TResultSet4 : class, ISpMapper<TResultSet4>
 	{
-		var results = await SqlCommandUtility.ExecuteMultipleImmutableResultSetsAsync(
-		spParameters, context.DbConnection(),
-		resultSet1, resultSet2, resultSet3, resultSet4);
+		return await SqlCommandUtility.ExecuteCommandAsync(context, spParameters, execute: async command => {
+			await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
 
-		return (
-			[..results[0].Cast<TResultSet1>()],
-			[..results[1].Cast<TResultSet2>()],
-			[..results[2].Cast<TResultSet3>()],
-			[..results[3].Cast<TResultSet4>()]);
+			var b1 = ImmutableArray.CreateBuilder<TResultSet1>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				b1.Add(TResultSet1.MapFromDataReader(reader));
+			var a1 = b1.ToImmutable();
+
+			var a2 = ImmutableArray<TResultSet2>.Empty;
+			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+				return (a1, a2, ImmutableArray<TResultSet3>.Empty, ImmutableArray<TResultSet4>.Empty);
+
+			var b2 = ImmutableArray.CreateBuilder<TResultSet2>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				b2.Add(TResultSet2.MapFromDataReader(reader));
+			a2 = b2.ToImmutable();
+
+			var a3 = ImmutableArray<TResultSet3>.Empty;
+			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+				return (a1, a2, a3, ImmutableArray<TResultSet4>.Empty);
+
+			var b3 = ImmutableArray.CreateBuilder<TResultSet3>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				b3.Add(TResultSet3.MapFromDataReader(reader));
+			a3 = b3.ToImmutable();
+
+			var a4 = ImmutableArray<TResultSet4>.Empty;
+			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+				return (a1, a2, a3, a4);
+
+			var b4 = ImmutableArray.CreateBuilder<TResultSet4>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				b4.Add(TResultSet4.MapFromDataReader(reader));
+			a4 = b4.ToImmutable();
+
+			return (a1, a2, a3, a4);
+		}, cancellationToken).ConfigureAwait(false);
 	}
 
-	/// Executes a stored procedure and maps the results into multiple immutable arrays
-	/// of specified result types.
-	/// <typeparam name="TResultSet1">The type of the first result set.</typeparam>
-	/// <typeparam name="TResultSet2">The type of the second result set.</typeparam>
-	/// <typeparam name="TResultSet3">The type of the third result set.</typeparam>
-	/// <typeparam name="TResultSet4">The type of the fourth result set.</typeparam>
-	/// <typeparam name="TResultSet5">The type of the fifth result set.</typeparam>
-	/// <param name="context">The database context for executing the query.</param>
-	/// <param name="spParameters">The parameters required to execute the stored procedure.</param>
-	/// <param name="resultSet1">A function that maps the first result set from the SqlDataReader.</param>
-	/// <param name="resultSet2">A function that maps the second result set from the SqlDataReader.</param>
-	/// <param name="resultSet3">A function that maps the third result set from the SqlDataReader.</param>
-	/// <param name="resultSet4">A function that maps the fourth result set from the SqlDataReader.</param>
-	/// <param name="resultSet5">A function that maps the fifth result set from the SqlDataReader.</param>
-	/// <returns>A tuple containing five immutable arrays, one for each result set.</returns>
+	/// Executes a stored procedure and maps the results into multiple immutable arrays (5 sets).
 	public static async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>, ImmutableArray<TResultSet3>,
 			ImmutableArray<TResultSet4>, ImmutableArray<TResultSet5>)>
 		QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4, TResultSet5>(
 			this ICaeriusDbContext context,
 			StoredProcedureParameters spParameters,
-			Func<SqlDataReader, TResultSet1> resultSet1,
-			Func<SqlDataReader, TResultSet2> resultSet2,
-			Func<SqlDataReader, TResultSet3> resultSet3,
-			Func<SqlDataReader, TResultSet4> resultSet4,
-			Func<SqlDataReader, TResultSet5> resultSet5)
+			CancellationToken cancellationToken = default)
 		where TResultSet1 : class, ISpMapper<TResultSet1>
 		where TResultSet2 : class, ISpMapper<TResultSet2>
 		where TResultSet3 : class, ISpMapper<TResultSet3>
 		where TResultSet4 : class, ISpMapper<TResultSet4>
 		where TResultSet5 : class, ISpMapper<TResultSet5>
 	{
-		var results = await SqlCommandUtility.ExecuteMultipleImmutableResultSetsAsync(
-		spParameters, context.DbConnection(),
-		resultSet1, resultSet2, resultSet3, resultSet4, resultSet5);
+		return await SqlCommandUtility.ExecuteCommandAsync(context, spParameters, execute: async command => {
+			await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
 
-		return (
-			[..results[0].Cast<TResultSet1>()],
-			[..results[1].Cast<TResultSet2>()],
-			[..results[2].Cast<TResultSet3>()],
-			[..results[3].Cast<TResultSet4>()],
-			[..results[4].Cast<TResultSet5>()]);
+			var b1 = ImmutableArray.CreateBuilder<TResultSet1>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				b1.Add(TResultSet1.MapFromDataReader(reader));
+			var a1 = b1.ToImmutable();
+
+			var a2 = ImmutableArray<TResultSet2>.Empty;
+			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+				return (a1, a2, ImmutableArray<TResultSet3>.Empty, ImmutableArray<TResultSet4>.Empty, ImmutableArray<TResultSet5>.Empty);
+
+			var b2 = ImmutableArray.CreateBuilder<TResultSet2>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				b2.Add(TResultSet2.MapFromDataReader(reader));
+			a2 = b2.ToImmutable();
+
+			var a3 = ImmutableArray<TResultSet3>.Empty;
+			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+				return (a1, a2, a3, ImmutableArray<TResultSet4>.Empty, ImmutableArray<TResultSet5>.Empty);
+
+			var b3 = ImmutableArray.CreateBuilder<TResultSet3>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				b3.Add(TResultSet3.MapFromDataReader(reader));
+			a3 = b3.ToImmutable();
+
+			var a4 = ImmutableArray<TResultSet4>.Empty;
+			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+				return (a1, a2, a3, a4, ImmutableArray<TResultSet5>.Empty);
+
+			var b4 = ImmutableArray.CreateBuilder<TResultSet4>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				b4.Add(TResultSet4.MapFromDataReader(reader));
+			a4 = b4.ToImmutable();
+
+			var a5 = ImmutableArray<TResultSet5>.Empty;
+			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+				return (a1, a2, a3, a4, a5);
+
+			var b5 = ImmutableArray.CreateBuilder<TResultSet5>(spParameters.Capacity);
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+				b5.Add(TResultSet5.MapFromDataReader(reader));
+			a5 = b5.ToImmutable();
+
+			return (a1, a2, a3, a4, a5);
+		}, cancellationToken).ConfigureAwait(false);
 	}
 }

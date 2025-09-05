@@ -1,4 +1,6 @@
-﻿namespace CaeriusNet.Utilities;
+﻿using System.Runtime.CompilerServices;
+
+namespace CaeriusNet.Utilities;
 
 /// <summary>
 ///     Contains a collection of static utility methods designed to streamline the execution of SQL commands,
@@ -27,10 +29,12 @@ static internal class SqlCommandUtility
 		IDbConnection connection, CancellationToken cancellationToken = default)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
-		await using var command = await ExecuteSqlCommand(spParameters, connection);
-		await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+		await using var command = await ExecuteSqlCommandAsync(spParameters, connection, cancellationToken).ConfigureAwait(false);
+		await using var reader = await command
+			.ExecuteReaderAsync(CommandBehavior.SingleResult | CommandBehavior.SingleRow | CommandBehavior.SequentialAccess, cancellationToken)
+			.ConfigureAwait(false);
 
-		if (await reader.ReadAsync(cancellationToken))
+		if (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
 			return TResultSet.MapFromDataReader(reader);
 
 		return null;
@@ -55,13 +59,15 @@ static internal class SqlCommandUtility
 	///     corresponding row in the result set.
 	/// </returns>
 	static internal async IAsyncEnumerable<TResultSet> StreamQueryAsync<TResultSet>(
-		StoredProcedureParameters spParameters, IDbConnection connection, CancellationToken cancellationToken = default)
+		StoredProcedureParameters spParameters, IDbConnection connection, [EnumeratorCancellation] CancellationToken cancellationToken = default)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
-		await using var command = await ExecuteSqlCommand(spParameters, connection);
-		await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+		await using var command = await ExecuteSqlCommandAsync(spParameters, connection, cancellationToken).ConfigureAwait(false);
+		await using var reader = await command
+			.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken)
+			.ConfigureAwait(false);
 
-		while (await reader.ReadAsync(cancellationToken))
+		while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
 			yield return TResultSet.MapFromDataReader(reader);
 	}
 
@@ -87,8 +93,14 @@ static internal class SqlCommandUtility
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
 		var results = new List<TResultSet>(spParameters.Capacity);
-		await foreach (var item in StreamQueryAsync<TResultSet>(spParameters, connection, cancellationToken))
-			results.Add(item);
+		await using var command = await ExecuteSqlCommandAsync(spParameters, connection, cancellationToken).ConfigureAwait(false);
+		await using var reader = await command
+			.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken)
+			.ConfigureAwait(false);
+
+		while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+			results.Add(TResultSet.MapFromDataReader(reader));
+
 		return results.AsReadOnly();
 	}
 
@@ -114,8 +126,14 @@ static internal class SqlCommandUtility
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
 		var builder = ImmutableArray.CreateBuilder<TResultSet>(spParameters.Capacity);
-		await foreach (var item in StreamQueryAsync<TResultSet>(spParameters, connection, cancellationToken))
-			builder.Add(item);
+		await using var command = await ExecuteSqlCommandAsync(spParameters, connection, cancellationToken).ConfigureAwait(false);
+		await using var reader = await command
+			.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken)
+			.ConfigureAwait(false);
+
+		while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+			builder.Add(TResultSet.MapFromDataReader(reader));
+
 		return builder.ToImmutable();
 	}
 
@@ -136,19 +154,27 @@ static internal class SqlCommandUtility
 	///     Thrown when the provided connection is not of type
 	///     <see cref="SqlConnection" />.
 	/// </exception>
-	private static Task<SqlCommand> ExecuteSqlCommand(StoredProcedureParameters spParameters, IDbConnection connection)
+	private static async Task<SqlCommand> ExecuteSqlCommandAsync(StoredProcedureParameters spParameters, IDbConnection connection, CancellationToken cancellationToken = default)
 	{
 		if (connection is not SqlConnection sqlConnection)
 			throw new InvalidOperationException("Connection must be of type SqlConnection.");
+
+		if (sqlConnection.State != ConnectionState.Open)
+			await sqlConnection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
 		var command = new SqlCommand(spParameters.ProcedureName, sqlConnection)
 		{
 			CommandType = CommandType.StoredProcedure
 		};
 
-		command.Parameters.AddRange([..spParameters.Parameters]);
+		// Avoid intermediate spread copies; prefer AddRange if already an array.
+		if (spParameters.Parameters is not {} p)
+			return command;
 
-		return Task.FromResult(command);
+		foreach (var prm in p)
+			command.Parameters.Add(prm);
+
+		return command;
 	}
 
 	/// <summary>
@@ -170,14 +196,13 @@ static internal class SqlCommandUtility
 	///     exception.
 	/// </exception>
 	static internal async Task<T> ExecuteCommandAsync<T>(ICaeriusDbContext dbContext,
-		StoredProcedureParameters spParameters, Func<SqlCommand, Task<T>> execute,
-		CancellationToken cancellationToken = default)
+		StoredProcedureParameters spParameters, Func<SqlCommand, Task<T>> execute, CancellationToken cancellationToken = default)
 	{
 		try{
 			using var connection = dbContext.DbConnection();
-			await using var command = await ExecuteSqlCommand(spParameters, connection);
+			await using var command = await ExecuteSqlCommandAsync(spParameters, connection, cancellationToken).ConfigureAwait(false);
 
-			return await execute(command);
+			return await execute(command).ConfigureAwait(false);
 		}
 		catch (SqlException ex){ throw new CaeriusSqlException($"Failed to execute stored procedure: {spParameters.ProcedureName}", ex); }
 	}
@@ -204,19 +229,19 @@ static internal class SqlCommandUtility
 		if (mappers.Length == 0)
 			throw new ArgumentException("At least one mapper function must be provided.", nameof(mappers));
 
-		await using var command = await ExecuteSqlCommand(spParameters, connection);
-		await using var reader = await command.ExecuteReaderAsync();
+		await using var command = await ExecuteSqlCommandAsync(spParameters, connection).ConfigureAwait(false);
+		await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess).ConfigureAwait(false);
 
 		var results = new List<IReadOnlyCollection<object>>(mappers.Length);
 
 		foreach (var mapper in mappers){
-			var items = new List<object>();
-			while (await reader.ReadAsync())
+			var items = new List<object>(spParameters.Capacity);
+			while (await reader.ReadAsync().ConfigureAwait(false))
 				items.Add(mapper(reader));
 
 			results.Add(items.AsReadOnly());
 
-			if (!await reader.NextResultAsync())
+			if (!await reader.NextResultAsync().ConfigureAwait(false))
 				break;
 		}
 
@@ -247,18 +272,18 @@ static internal class SqlCommandUtility
 		if (mappers.Length == 0)
 			throw new ArgumentException("At least one mapper function must be provided.", nameof(mappers));
 
-		await using var command = await ExecuteSqlCommand(spParameters, connection);
-		await using var reader = await command.ExecuteReaderAsync();
+		await using var command = await ExecuteSqlCommandAsync(spParameters, connection).ConfigureAwait(false);
+		await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess).ConfigureAwait(false);
 
 		var results = new List<ImmutableArray<object>>(mappers.Length);
 		foreach (var mapper in mappers){
-			var builder = ImmutableArray.CreateBuilder<object>();
-			while (await reader.ReadAsync())
+			var builder = ImmutableArray.CreateBuilder<object>(spParameters.Capacity);
+			while (await reader.ReadAsync().ConfigureAwait(false))
 				builder.Add(mapper(reader));
 
 			results.Add(builder.ToImmutable());
 
-			if (!await reader.NextResultAsync())
+			if (!await reader.NextResultAsync().ConfigureAwait(false))
 				break;
 		}
 
@@ -290,19 +315,19 @@ static internal class SqlCommandUtility
 		if (mappers.Length == 0)
 			throw new ArgumentException("At least one mapper function must be provided.", nameof(mappers));
 
-		await using var command = await ExecuteSqlCommand(spParameters, connection);
-		await using var reader = await command.ExecuteReaderAsync();
+		await using var command = await ExecuteSqlCommandAsync(spParameters, connection).ConfigureAwait(false);
+		await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess).ConfigureAwait(false);
 
 		var results = new List<IEnumerable<object>>(mappers.Length);
 
 		foreach (var mapper in mappers){
-			var resultSet = new List<object>();
-			while (await reader.ReadAsync())
+			var resultSet = new List<object>(spParameters.Capacity);
+			while (await reader.ReadAsync().ConfigureAwait(false))
 				resultSet.Add(mapper(reader));
 
 			results.Add(resultSet);
 
-			if (!await reader.NextResultAsync())
+			if (!await reader.NextResultAsync().ConfigureAwait(false))
 				break;
 		}
 

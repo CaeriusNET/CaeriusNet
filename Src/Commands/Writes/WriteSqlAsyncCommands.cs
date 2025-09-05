@@ -31,9 +31,9 @@ public static class WriteSqlAsyncCommands
 		StoredProcedureParameters spParameters, CancellationToken cancellationToken = default)
 	{
 		return await SqlCommandUtility.ExecuteCommandAsync(dbContext, spParameters, execute: async command => {
-			object? result = await command.ExecuteScalarAsync(cancellationToken);
+			object? result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
 			return result is DBNull ? default : (T?)result;
-		}, cancellationToken);
+		}, cancellationToken).ConfigureAwait(false);
 	}
 
 	/// <summary>
@@ -56,7 +56,8 @@ public static class WriteSqlAsyncCommands
 		StoredProcedureParameters spParameters, CancellationToken cancellationToken = default)
 	{
 		return await SqlCommandUtility.ExecuteCommandAsync(dbContext, spParameters,
-		execute: command => command.ExecuteNonQueryAsync(cancellationToken), cancellationToken);
+		execute: command => command.ExecuteNonQueryAsync(cancellationToken),
+		cancellationToken).ConfigureAwait(false);
 	}
 
 	/// <summary>
@@ -78,8 +79,8 @@ public static class WriteSqlAsyncCommands
 		CancellationToken cancellationToken = default)
 	{
 		await SqlCommandUtility.ExecuteCommandAsync<object?>(dbContext, spParameters, execute: async command => {
-			await command.ExecuteNonQueryAsync(cancellationToken);
+			await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 			return null;
-		}, cancellationToken);
+		}, cancellationToken).ConfigureAwait(false);
 	}
 }

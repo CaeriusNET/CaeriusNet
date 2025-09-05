@@ -12,7 +12,7 @@
 
     <PropertyGroup>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <Version>9.4.0</Version>
+        <Version>9.4.1</Version>
         <Title>CaeriusNet</Title>
         <Authors>AriusII &amp; CaeriusNet</Authors>
         <Description>CaeriusNet is a high-performance framework developed in C# .NET 8 + and optimized for SQL Server 2019 +. It emphasizes code quality, maintainability, and scalability by providing advanced tools for executing stored procedures and managing caching mechanisms.</Description>

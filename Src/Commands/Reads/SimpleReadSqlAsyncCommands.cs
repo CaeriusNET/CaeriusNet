@@ -39,7 +39,7 @@ public static class SimpleReadSqlAsyncCommands
 		try{
 			using var connection = context.DbConnection();
 			var result =
-				await SqlCommandUtility.ScalarQueryAsync<TResultSet>(spParameters, connection, cancellationToken);
+				await SqlCommandUtility.ScalarQueryAsync<TResultSet>(spParameters, connection, cancellationToken).ConfigureAwait(false);
 
 			if (result != null)
 				CacheUtility.StoreInCache(spParameters, result);
@@ -84,7 +84,7 @@ public static class SimpleReadSqlAsyncCommands
 			using var connection = context.DbConnection();
 			var result =
 				await SqlCommandUtility.ResultSetAsReadOnlyCollectionAsync<TResultSet>(spParameters, connection,
-				cancellationToken);
+				cancellationToken).ConfigureAwait(false);
 
 			CacheUtility.StoreInCache(spParameters, result);
 
@@ -128,12 +128,13 @@ public static class SimpleReadSqlAsyncCommands
 			var results = new List<TResultSet>(spParameters.Capacity);
 			using var connection = context.DbConnection();
 			await foreach (var item in SqlCommandUtility.StreamQueryAsync<TResultSet>(spParameters, connection,
-			               cancellationToken))
+			               cancellationToken).ConfigureAwait(false))
 				results.Add(item);
 
 			CacheUtility.StoreInCache(spParameters, results);
 
-			return results.AsEnumerable();
+			// Avoid AsEnumerable() iterator allocation: return the list directly.
+			return results;
 		}
 		catch (SqlException ex){ throw new CaeriusSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex); }
 	}
@@ -174,7 +175,7 @@ public static class SimpleReadSqlAsyncCommands
 			using var connection = context.DbConnection();
 			var result =
 				await SqlCommandUtility.ResultSetAsImmutableArrayAsync<TResultSet>(spParameters, connection,
-				cancellationToken);
+				cancellationToken).ConfigureAwait(false);
 
 			CacheUtility.StoreInCache(spParameters, result);
 
