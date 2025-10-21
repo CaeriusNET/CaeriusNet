@@ -3,7 +3,7 @@ namespace CaeriusNet.Commands.Reads;
 /// <summary>
 ///     Contains a set of asynchronous methods for executing TSQL queries to retrieve data,
 ///     supporting operations such as fetching single results, collections, or immutable arrays
-///     of mapped stored procedure outcomes. Extends <see cref="ICaeriusDbContext" />.
+///     of mapped stored procedure outcomes. Extends <see cref="ICaeriusNetDbContext" />.
 /// </summary>
 public static class SimpleReadSqlAsyncCommands
 {
@@ -16,21 +16,23 @@ public static class SimpleReadSqlAsyncCommands
 	///     The type of the result set expected from the query. Must implement <see cref="ISpMapper{T}" />.
 	/// </typeparam>
 	/// <param name="context">
-	///     An instance of <see cref="ICaeriusDbContext" /> representing the database context for establishing a connection.
+	///     An instance of <see cref="ICaeriusNetDbContext" /> representing the database context for establishing a connection.
 	/// </param>
 	/// <param name="spParameters">
 	///     The parameters required to execute the stored procedure, including the procedure name,
 	///     input parameters, and caching details.
 	/// </param>
+	/// <param name="cancellationToken"></param>
 	/// <returns>
 	///     Returns a task that represents the asynchronous operation. The task result is the mapped result of type
 	///     <typeparamref name="TResultSet" /> if data is retrieved successfully; otherwise, returns null.
 	/// </returns>
-	/// <exception cref="CaeriusSqlException">
+	/// <exception cref="CaeriusNetSqlException">
 	///     Thrown when the execution of the stored procedure fails due to a SQL exception.
 	/// </exception>
-	public static async Task<TResultSet?> FirstQueryAsync<TResultSet>(this ICaeriusDbContext context,
-		StoredProcedureParameters spParameters, CancellationToken cancellationToken = default)
+	public static async Task<TResultSet?> FirstQueryAsync<TResultSet>(this ICaeriusNetDbContext context,
+		StoredProcedureParameters spParameters,
+		CancellationToken cancellationToken = default)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
 		if (CacheUtility.TryRetrieveFromCache(spParameters, out TResultSet? cachedResult) && cachedResult != null)
@@ -46,7 +48,7 @@ public static class SimpleReadSqlAsyncCommands
 
 			return result;
 		}
-		catch (SqlException ex){ throw new CaeriusSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex); }
+		catch (SqlException ex){ throw new CaeriusNetSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex); }
 	}
 
 	/// <summary>
@@ -58,21 +60,23 @@ public static class SimpleReadSqlAsyncCommands
 	///     The type of the elements in the returned read-only collection. Must implement <see cref="ISpMapper{T}" />.
 	/// </typeparam>
 	/// <param name="context">
-	///     An instance of <see cref="ICaeriusDbContext" /> representing the database context for establishing a connection.
+	///     An instance of <see cref="ICaeriusNetDbContext" /> representing the database context for establishing a connection.
 	/// </param>
 	/// <param name="spParameters">
 	///     The parameters required to execute the stored procedure, including procedure name, input parameters,
 	///     caching details, and expiration policy.
 	/// </param>
+	/// <param name="cancellationToken"></param>
 	/// <returns>
 	///     Returns a task representing the asynchronous operation. The task result is a <see cref="ReadOnlyCollection{T}" />
 	///     containing the mapped results of type <typeparamref name="TResultSet" /> if the operation succeeds.
 	/// </returns>
-	/// <exception cref="CaeriusSqlException">
+	/// <exception cref="CaeriusNetSqlException">
 	///     Thrown when the execution of the stored procedure fails due to a SQL exception.
 	/// </exception>
 	public static async Task<ReadOnlyCollection<TResultSet>> QueryAsReadOnlyCollectionAsync<TResultSet>(
-		this ICaeriusDbContext context, StoredProcedureParameters spParameters,
+		this ICaeriusNetDbContext context,
+		StoredProcedureParameters spParameters,
 		CancellationToken cancellationToken = default)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
@@ -90,7 +94,7 @@ public static class SimpleReadSqlAsyncCommands
 
 			return result;
 		}
-		catch (SqlException ex){ throw new CaeriusSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex); }
+		catch (SqlException ex){ throw new CaeriusNetSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex); }
 	}
 
 	/// <summary>
@@ -102,21 +106,23 @@ public static class SimpleReadSqlAsyncCommands
 	///     The type of the result set expected from the query. Must implement <see cref="ISpMapper{T}" />.
 	/// </typeparam>
 	/// <param name="context">
-	///     An instance of <see cref="ICaeriusDbContext" /> representing the database context for establishing a connection.
+	///     An instance of <see cref="ICaeriusNetDbContext" /> representing the database context for establishing a connection.
 	/// </param>
 	/// <param name="spParameters">
 	///     The parameters required to execute the stored procedure, including the procedure name, input
 	///     parameters, and caching details.
 	/// </param>
+	/// <param name="cancellationToken"></param>
 	/// <returns>
 	///     Returns a task that represents the asynchronous operation. The task result is an <see cref="IEnumerable{T}" />
 	///     collection of mapped results of type <typeparamref name="TResultSet" /> if data is retrieved successfully.
 	/// </returns>
-	/// <exception cref="CaeriusSqlException">
+	/// <exception cref="CaeriusNetSqlException">
 	///     Thrown when the execution of the stored procedure fails due to a SQL exception.
 	/// </exception>
 	public static async Task<IEnumerable<TResultSet>> QueryAsIEnumerableAsync<TResultSet>(
-		this ICaeriusDbContext context, StoredProcedureParameters spParameters,
+		this ICaeriusNetDbContext context,
+		StoredProcedureParameters spParameters,
 		CancellationToken cancellationToken = default)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
@@ -136,7 +142,7 @@ public static class SimpleReadSqlAsyncCommands
 			// Avoid AsEnumerable() iterator allocation: return the list directly.
 			return results;
 		}
-		catch (SqlException ex){ throw new CaeriusSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex); }
+		catch (SqlException ex){ throw new CaeriusNetSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex); }
 	}
 
 	/// <summary>
@@ -148,22 +154,24 @@ public static class SimpleReadSqlAsyncCommands
 	///     The type of each item in the resulting immutable array. Must implement <see cref="ISpMapper{T}" />.
 	/// </typeparam>
 	/// <param name="context">
-	///     An instance of <see cref="ICaeriusDbContext" /> representing the database context used for establishing a
+	///     An instance of <see cref="ICaeriusNetDbContext" /> representing the database context used for establishing a
 	///     connection.
 	/// </param>
 	/// <param name="spParameters">
 	///     The parameters required for the execution of the stored procedure, including procedure name, input parameters,
 	///     cache details, and capacity for expected results.
 	/// </param>
+	/// <param name="cancellationToken"></param>
 	/// <returns>
 	///     Returns a task representing the asynchronous operation. The task result is an <see cref="ImmutableArray{T}" /> of
 	///     type <typeparamref name="TResultSet" /> containing the mapped results if data is retrieved successfully.
 	/// </returns>
-	/// <exception cref="CaeriusSqlException">
+	/// <exception cref="CaeriusNetSqlException">
 	///     Thrown when the execution of the stored procedure fails due to a SQL exception.
 	/// </exception>
 	public static async Task<ImmutableArray<TResultSet>> QueryAsImmutableArrayAsync<TResultSet>(
-		this ICaeriusDbContext context, StoredProcedureParameters spParameters,
+		this ICaeriusNetDbContext context,
+		StoredProcedureParameters spParameters,
 		CancellationToken cancellationToken = default)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
@@ -181,6 +189,6 @@ public static class SimpleReadSqlAsyncCommands
 
 			return result;
 		}
-		catch (SqlException ex){ throw new CaeriusSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex); }
+		catch (SqlException ex){ throw new CaeriusNetSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex); }
 	}
 }

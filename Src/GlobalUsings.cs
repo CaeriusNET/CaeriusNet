@@ -1,5 +1,6 @@
 ﻿// Global using directives
 
+global using CaeriusNet.Attributes.Dto;
 global using Microsoft.Extensions.DependencyInjection;
 global using System.Collections.Immutable;
 global using System.Data;
@@ -14,5 +15,8 @@ global using System.Collections.Concurrent;
 global using System.Collections.Frozen;
 global using System.Text.Json;
 global using CaeriusNet.Caches;
+global using CaeriusNet.Logging;
+global using Microsoft.Extensions.Hosting;
 global using StackExchange.Redis;
+global using System.Runtime.CompilerServices;
 global using static CaeriusNet.Utilities.CacheType;

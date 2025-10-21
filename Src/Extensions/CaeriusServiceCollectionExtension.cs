@@ -1,7 +1,4 @@
-﻿using CaeriusNet.Logging;
-using Microsoft.Extensions.Hosting;
-
-namespace CaeriusNet.Extensions;
+﻿namespace CaeriusNet.Extensions;
 
 /// <summary>
 ///     Provides extension methods for IServiceCollection to register and configure services
@@ -17,7 +14,7 @@ public static class CaeriusServiceCollectionExtension
 	/// <returns>The IServiceCollection instance for method chaining.</returns>
 	public static IServiceCollection AddCaeriusNet(this IServiceCollection services, string connectionString)
 	{
-		return services.AddSingleton<ICaeriusDbContext, CaeriusDbContext>(_ => new CaeriusDbContext(connectionString));
+		return services.AddSingleton<ICaeriusNetDbContext, CaeriusNetDbContext>(_ => new CaeriusNetDbContext(connectionString));
 	}
 
 	/// <summary>
@@ -26,7 +23,7 @@ public static class CaeriusServiceCollectionExtension
 	/// <param name="services">The IServiceCollection to which the Caerius Redis cache dependencies will be registered.</param>
 	/// <param name="redisConnectionString">The Redis connection string used to establish the connection to the Redis server.</param>
 	/// <returns>The IServiceCollection instance for method chaining.</returns>
-	public static IServiceCollection AddCaeriusRedisCache(this IServiceCollection services,
+	public static IServiceCollection AddCaeriusNetRedisCache(this IServiceCollection services,
 		string redisConnectionString)
 	{
 		if (!string.IsNullOrWhiteSpace(redisConnectionString))
@@ -40,11 +37,11 @@ public static class CaeriusServiceCollectionExtension
 	/// </summary>
 	/// <param name="services">The IServiceCollection to which the console logger will be registered.</param>
 	/// <returns>The IServiceCollection instance for method chaining.</returns>
-	public static IServiceCollection AddCaeriusLoggingConsole(this IServiceCollection services)
+	public static IServiceCollection AddCaeriusNetLoggingConsole(this IServiceCollection services)
 	{
-		var logger = new ConsoleLogger();
+		var logger = new ConsoleNetLogger();
 		LoggerProvider.SetLogger(logger);
-		return services.AddSingleton<ICaeriusLogger>(logger);
+		return services.AddSingleton<ICaeriusNetLogger>(logger);
 	}
 
 	/// <summary>
@@ -59,7 +56,7 @@ public static class CaeriusServiceCollectionExtension
 		builder.AddSqlServerClient(connectionString);
 
 		// Register Caerius DB context using the connection string from configuration
-		builder.Services.AddSingleton<ICaeriusDbContext, CaeriusDbContext>(_ => new CaeriusDbContext(connectionString));
+		builder.Services.AddSingleton<ICaeriusNetDbContext, CaeriusNetDbContext>(_ => new CaeriusNetDbContext(connectionString));
 	}
 
 	/// <summary>

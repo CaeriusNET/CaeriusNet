@@ -23,10 +23,5 @@ public enum LogCategory : byte
     /// <summary>
     ///     Used for frozen cache operations and events.
     /// </summary>
-    FrozenCache,
-
-    /// <summary>
-    ///     Used for general purpose logging that doesn't fit into other categories.
-    /// </summary>
-    General
+    FrozenCache
 }

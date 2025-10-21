@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFrameworks>net9.0;net8.0</TargetFrameworks>
+        <TargetFramework>net10.0</TargetFramework>
         <RootNamespace>CaeriusNet</RootNamespace>
         <AssemblyName>CaeriusNet</AssemblyName>
         <OutputType>Library</OutputType>
@@ -12,7 +12,7 @@
 
     <PropertyGroup>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <Version>9.4.1</Version>
+        <Version>10.0.0-alpha</Version>
         <Title>CaeriusNet</Title>
         <Authors>AriusII &amp; CaeriusNet</Authors>
         <Description>CaeriusNet is a high-performance framework developed in C# .NET 8 + and optimized for SQL Server 2019 +. It emphasizes code quality, maintainability, and scalability by providing advanced tools for executing stored procedures and managing caching mechanisms.</Description>
@@ -48,19 +48,19 @@
 
     <ItemGroup>
         <!-- Microsoft Data Access -->
-        <PackageReference Include="Aspire.Microsoft.Data.SqlClient" Version="9.4.2"/>
-        <PackageReference Include="Aspire.StackExchange.Redis" Version="9.4.2"/>
-        <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.1"/>
+        <PackageReference Include="Aspire.Microsoft.Data.SqlClient" Version="9.5.1"/>
+        <PackageReference Include="Aspire.StackExchange.Redis" Version="9.5.1"/>
+        <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0-preview2.25289.6"/>
 
         <!-- Microsoft Extensions -->
-        <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.8"/>
-        <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="9.0.8"/>
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.8"/>
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.8"/>
+        <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.0-rc.2.25502.107"/>
+        <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.0-rc.2.25502.107"/>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0-rc.2.25502.107"/>
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0-rc.2.25502.107"/>
 
         <!-- Caching & Serialization -->
-        <PackageReference Include="StackExchange.Redis" Version="2.9.11"/>
-        <PackageReference Include="System.Text.Json" Version="9.0.8"/>
+        <PackageReference Include="StackExchange.Redis" Version="2.9.32"/>
+        <PackageReference Include="System.Text.Json" Version="10.0.0-rc.2.25502.107"/>
 
         <!-- Source Generator -->
         <ProjectReference Include="..\SourceGenerators\CaeriusNet.Generator.csproj"/>

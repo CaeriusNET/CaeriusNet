@@ -1,11 +1,39 @@
 ﻿namespace CaeriusNet.Logging;
 
 /// <summary>
-///     Implémentation de <see cref="ICaeriusLogger" /> qui journalise les messages dans la console.
+///     A lightweight, thread-safe logger that writes colorized, timestamped messages to the console.
 /// </summary>
-internal sealed record ConsoleLogger : ICaeriusLogger
+/// <remarks>
+///     <para>
+///         This logger targets development and diagnostics scenarios where human-readable, immediate feedback is
+///         important.
+///         It prefixes each line with a timestamp and standardized tags for level and category, then writes the message
+///         body.
+///         The output is color-coded by both log level and category to improve scan-ability; colors are reset after each
+///         write
+///         so subsequent console output remains unaffected.
+///     </para>
+///     <para>
+///         Format:
+///         [yyyy-MM-dd HH:mm:ss.fff] [Level] [Category] Message
+///     </para>
+///     <para>
+///         Behavior highlights:
+///         - Thread safety: writes are synchronized to prevent interleaved lines across concurrent threads.
+///         - Levels: Trace, Debug, Information, Warning, Error, and Critical map to distinct console colors.
+///         - Categories: subsystem categories map to specific colors; unknown values fall back to a neutral color.
+///         - Exceptions: an overload logs the main message, the exception message, and the inner exception (when present).
+///     </para>
+///     <para>
+///         Guidance:
+///         - Use appropriate levels to convey severity and intent; avoid logging secrets or PII.
+///         - For high-volume production scenarios, consider complementing or replacing console logging with a centralized,
+///         structured logging provider.
+///     </para>
+/// </remarks>
+internal sealed record ConsoleNetLogger : ICaeriusNetLogger
 {
-	private static readonly object Lock = new();
+	private static readonly Lock Lock = new();
 
 	/// <inheritdoc />
 	public bool IsEnabled { get; } = true;
@@ -62,8 +90,12 @@ internal sealed record ConsoleLogger : ICaeriusLogger
 	}
 
 	/// <summary>
-	///     Obtient la couleur à utiliser pour le niveau de log spécifié.
+	///     Gets the console color to use for the specified log level.
 	/// </summary>
+	/// <remarks>
+	///     Each log level maps to a distinct color to reflect severity and improve readability in the terminal.
+	///     If the level is not recognized, a neutral fallback color is used.
+	/// </remarks>
 	private static ConsoleColor GetColorForLevel(LogLevel level)
 	{
 		return level switch
@@ -79,8 +111,12 @@ internal sealed record ConsoleLogger : ICaeriusLogger
 	}
 
 	/// <summary>
-	///     Obtient la couleur à utiliser pour la catégorie de log spécifiée.
+	///     Gets the console color to use for the specified log category.
 	/// </summary>
+	/// <remarks>
+	///     Known categories map to specific colors to visually group related messages; unknown categories fall back to a
+	///     neutral color.
+	/// </remarks>
 	private static ConsoleColor GetColorForCategory(LogCategory category)
 	{
 		return category switch
@@ -89,7 +125,6 @@ internal sealed record ConsoleLogger : ICaeriusLogger
 			LogCategory.Redis => ConsoleColor.Magenta,
 			LogCategory.InMemoryCache => ConsoleColor.Blue,
 			LogCategory.FrozenCache => ConsoleColor.DarkBlue,
-			LogCategory.General => ConsoleColor.White,
 			_ => ConsoleColor.White
 		};
 	}

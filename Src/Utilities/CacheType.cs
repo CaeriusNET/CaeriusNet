@@ -5,7 +5,18 @@
 /// </summary>
 public enum CacheType : byte
 {
-	Frozen,
-	InMemory,
-	Redis
+    /// <summary>
+    ///     Read-only, precomputed cache optimized for fast lookups.
+    /// </summary>
+    Frozen,
+
+    /// <summary>
+    ///     In-process volatile cache stored in memory.
+    /// </summary>
+    InMemory,
+
+    /// <summary>
+    ///     Distributed cache backed by Redis.
+    /// </summary>
+    Redis
 }

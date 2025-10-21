@@ -1,6 +1,4 @@
-﻿using CaeriusNet.Logging;
-
-namespace CaeriusNet.Caches;
+﻿namespace CaeriusNet.Caches;
 
 /// <summary>
 ///     Represents a utility class that manages caching operations in memory,
@@ -9,7 +7,7 @@ namespace CaeriusNet.Caches;
 static internal class InMemoryCacheManager
 {
 	private static readonly MemoryCache MemoryCache = new(new MemoryCacheOptions());
-	private static readonly ICaeriusLogger? Logger = LoggerProvider.GetLogger();
+	private static readonly ICaeriusNetLogger? Logger = LoggerProvider.GetLogger();
 
 	/// <summary>
 	///     Stores the specified value in the in-memory cache with the given cache key and expiration time.

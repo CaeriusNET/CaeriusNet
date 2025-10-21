@@ -16,7 +16,7 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
 	/// <returns>A tuple containing two immutable arrays, one for each result set.</returns>
 	public static async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>)>
 		QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2>(
-			this ICaeriusDbContext context,
+			this ICaeriusNetDbContext context,
 			StoredProcedureParameters spParameters,
 			CancellationToken cancellationToken = default)
 		where TResultSet1 : class, ISpMapper<TResultSet1>
@@ -47,7 +47,7 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
 	/// containing three specified result types.
 	public static async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>, ImmutableArray<TResultSet3>)>
 		QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2, TResultSet3>(
-			this ICaeriusDbContext context,
+			this ICaeriusNetDbContext context,
 			StoredProcedureParameters spParameters,
 			CancellationToken cancellationToken = default)
 		where TResultSet1 : class, ISpMapper<TResultSet1>
@@ -88,7 +88,7 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
 	public static async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>, ImmutableArray<TResultSet3>,
 			ImmutableArray<TResultSet4>)>
 		QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4>(
-			this ICaeriusDbContext context,
+			this ICaeriusNetDbContext context,
 			StoredProcedureParameters spParameters,
 			CancellationToken cancellationToken = default)
 		where TResultSet1 : class, ISpMapper<TResultSet1>
@@ -139,7 +139,7 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
 	public static async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>, ImmutableArray<TResultSet3>,
 			ImmutableArray<TResultSet4>, ImmutableArray<TResultSet5>)>
 		QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4, TResultSet5>(
-			this ICaeriusDbContext context,
+			this ICaeriusNetDbContext context,
 			StoredProcedureParameters spParameters,
 			CancellationToken cancellationToken = default)
 		where TResultSet1 : class, ISpMapper<TResultSet1>

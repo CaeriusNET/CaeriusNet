@@ -3,7 +3,7 @@
 /// <summary>
 ///     Interface définissant les méthodes pour journaliser les événements dans l'application.
 /// </summary>
-public interface ICaeriusLogger
+public interface ICaeriusNetLogger
 {
 	/// <summary>
 	///     Active ou désactive le logging.

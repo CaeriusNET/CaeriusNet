@@ -75,10 +75,11 @@ public sealed partial class TvpSourceGenerator
 	/// </summary>
 	private static void AppendNamespaceStart(StringBuilder sb, string namespaceName)
 	{
-		if (!string.IsNullOrEmpty(namespaceName)){
-			sb.AppendLine($"namespace {namespaceName};");
-			sb.AppendLine();
-		}
+		if (string.IsNullOrEmpty(namespaceName))
+			return;
+
+		sb.AppendLine($"namespace {namespaceName};");
+		sb.AppendLine();
 	}
 
 	/// <summary>

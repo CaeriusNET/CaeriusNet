@@ -36,6 +36,4 @@
 ///     3. The generated <c>ISpMapper&lt;T&gt;</c> implementation appears at compile time.
 /// </para>
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
-public sealed class GenerateDtoAttribute : Attribute
-{
-}
+public sealed class GenerateDtoAttribute : Attribute;

@@ -1,6 +1,4 @@
-﻿using CaeriusNet.Logging;
-
-namespace CaeriusNet.Caches;
+﻿namespace CaeriusNet.Caches;
 
 /// <summary>
 ///     Provides methods for managing an immutable, thread-safe cache using frozen dictionaries.
@@ -8,8 +6,8 @@ namespace CaeriusNet.Caches;
 static internal class FrozenCacheManager
 {
 	private static volatile FrozenDictionary<string, object> _frozenCache = FrozenDictionary<string, object>.Empty;
-	private static readonly object Lock = new();
-	private static readonly ICaeriusLogger? Logger = LoggerProvider.GetLogger();
+	private static readonly Lock Lock = new();
+	private static readonly ICaeriusNetLogger? Logger = LoggerProvider.GetLogger();
 
 	/// <summary>
 	///     Stores a value in the frozen dictionary-based cache if it is not already present.

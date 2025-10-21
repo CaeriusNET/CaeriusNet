@@ -11,7 +11,7 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 	/// </summary>
 	public static async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>)>
 		QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2>(
-			this ICaeriusDbContext context,
+			this ICaeriusNetDbContext context,
 			StoredProcedureParameters spParameters,
 			CancellationToken cancellationToken = default)
 		where TResultSet1 : class, ISpMapper<TResultSet1>
@@ -42,7 +42,7 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 	/// </summary>
 	public static async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>)>
 		QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3>(
-			this ICaeriusDbContext context,
+			this ICaeriusNetDbContext context,
 			StoredProcedureParameters spParameters,
 			CancellationToken cancellationToken = default)
 		where TResultSet1 : class, ISpMapper<TResultSet1>
@@ -82,7 +82,7 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 	public static async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>,
 			IEnumerable<TResultSet4>)>
 		QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4>(
-			this ICaeriusDbContext context,
+			this ICaeriusNetDbContext context,
 			StoredProcedureParameters spParameters,
 			CancellationToken cancellationToken = default)
 		where TResultSet1 : class, ISpMapper<TResultSet1>
@@ -131,7 +131,7 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 	public static async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>,
 			IEnumerable<TResultSet4>, IEnumerable<TResultSet5>)>
 		QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4, TResultSet5>(
-			this ICaeriusDbContext context,
+			this ICaeriusNetDbContext context,
 			StoredProcedureParameters spParameters,
 			CancellationToken cancellationToken = default)
 		where TResultSet1 : class, ISpMapper<TResultSet1>

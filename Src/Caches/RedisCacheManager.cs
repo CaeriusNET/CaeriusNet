@@ -1,6 +1,4 @@
-﻿using CaeriusNet.Logging;
-
-namespace CaeriusNet.Caches;
+﻿namespace CaeriusNet.Caches;
 
 /// <summary>
 ///     Provides methods to manage Redis-based distributed cache.
@@ -12,7 +10,7 @@ static internal class RedisCacheManager
 	private static bool _isInitialized;
 	private static bool _useAspireIntegration;
 	private static IServiceProvider? _serviceProvider;
-	private static readonly ICaeriusLogger? Logger = LoggerProvider.GetLogger();
+	private static readonly ICaeriusNetLogger? Logger = LoggerProvider.GetLogger();
 
 	/// <summary>
 	///     Configures the Redis cache manager to use Aspire integration

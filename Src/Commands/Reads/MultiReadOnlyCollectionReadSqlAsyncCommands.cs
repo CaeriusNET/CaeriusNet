@@ -8,12 +8,12 @@ public static class MultiReadOnlyCollectionReadSqlAsyncCommands
 	/// </summary>
 	public static async Task<(ReadOnlyCollection<TResultSet1>, ReadOnlyCollection<TResultSet2>)>
 		QueryMultipleReadOnlyCollectionAsync<TResultSet1, TResultSet2>(
-			this ICaeriusDbContext dbContext, StoredProcedureParameters spParameters,
+			this ICaeriusNetDbContext netDbContext, StoredProcedureParameters spParameters,
 			CancellationToken cancellationToken = default)
 		where TResultSet1 : class, ISpMapper<TResultSet1>
 		where TResultSet2 : class, ISpMapper<TResultSet2>
 	{
-		return await SqlCommandUtility.ExecuteCommandAsync(dbContext, spParameters, execute: async command => {
+		return await SqlCommandUtility.ExecuteCommandAsync(netDbContext, spParameters, execute: async command => {
 			await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
 
 			var l1 = new List<TResultSet1>(spParameters.Capacity);
@@ -40,13 +40,13 @@ public static class MultiReadOnlyCollectionReadSqlAsyncCommands
 	public static async Task<(ReadOnlyCollection<TResultSet1>, ReadOnlyCollection<TResultSet2>,
 			ReadOnlyCollection<TResultSet3>)>
 		QueryMultipleReadOnlyCollectionAsync<TResultSet1, TResultSet2, TResultSet3>(
-			this ICaeriusDbContext dbContext, StoredProcedureParameters spParameters,
+			this ICaeriusNetDbContext netDbContext, StoredProcedureParameters spParameters,
 			CancellationToken cancellationToken = default)
 		where TResultSet1 : class, ISpMapper<TResultSet1>
 		where TResultSet2 : class, ISpMapper<TResultSet2>
 		where TResultSet3 : class, ISpMapper<TResultSet3>
 	{
-		return await SqlCommandUtility.ExecuteCommandAsync(dbContext, spParameters, execute: async command => {
+		return await SqlCommandUtility.ExecuteCommandAsync(netDbContext, spParameters, execute: async command => {
 			await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
 
 			var l1 = new List<TResultSet1>(spParameters.Capacity);
@@ -82,14 +82,14 @@ public static class MultiReadOnlyCollectionReadSqlAsyncCommands
 	public static async Task<(ReadOnlyCollection<TResultSet1>, ReadOnlyCollection<TResultSet2>,
 			ReadOnlyCollection<TResultSet3>, ReadOnlyCollection<TResultSet4>)>
 		QueryMultipleReadOnlyCollectionAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4>(
-			this ICaeriusDbContext dbContext, StoredProcedureParameters spParameters,
+			this ICaeriusNetDbContext netDbContext, StoredProcedureParameters spParameters,
 			CancellationToken cancellationToken = default)
 		where TResultSet1 : class, ISpMapper<TResultSet1>
 		where TResultSet2 : class, ISpMapper<TResultSet2>
 		where TResultSet3 : class, ISpMapper<TResultSet3>
 		where TResultSet4 : class, ISpMapper<TResultSet4>
 	{
-		return await SqlCommandUtility.ExecuteCommandAsync(dbContext, spParameters, execute: async command => {
+		return await SqlCommandUtility.ExecuteCommandAsync(netDbContext, spParameters, execute: async command => {
 			await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
 
 			var l1 = new List<TResultSet1>(spParameters.Capacity);
@@ -134,7 +134,7 @@ public static class MultiReadOnlyCollectionReadSqlAsyncCommands
 	public static async Task<(ReadOnlyCollection<TResultSet1>, ReadOnlyCollection<TResultSet2>,
 			ReadOnlyCollection<TResultSet3>, ReadOnlyCollection<TResultSet4>, ReadOnlyCollection<TResultSet5>)>
 		QueryMultipleReadOnlyCollectionAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4, TResultSet5>(
-			this ICaeriusDbContext dbContext, StoredProcedureParameters spParameters,
+			this ICaeriusNetDbContext netDbContext, StoredProcedureParameters spParameters,
 			CancellationToken cancellationToken = default)
 		where TResultSet1 : class, ISpMapper<TResultSet1>
 		where TResultSet2 : class, ISpMapper<TResultSet2>
@@ -142,7 +142,7 @@ public static class MultiReadOnlyCollectionReadSqlAsyncCommands
 		where TResultSet4 : class, ISpMapper<TResultSet4>
 		where TResultSet5 : class, ISpMapper<TResultSet5>
 	{
-		return await SqlCommandUtility.ExecuteCommandAsync(dbContext, spParameters, execute: async command => {
+		return await SqlCommandUtility.ExecuteCommandAsync(netDbContext, spParameters, execute: async command => {
 			await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
 
 			var l1 = new List<TResultSet1>(spParameters.Capacity);

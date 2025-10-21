@@ -1,6 +1,4 @@
-﻿using System.Runtime.CompilerServices;
-
-namespace CaeriusNet.Utilities;
+﻿namespace CaeriusNet.Utilities;
 
 /// <summary>
 ///     Contains a collection of static utility methods designed to streamline the execution of SQL commands,
@@ -21,12 +19,15 @@ static internal class SqlCommandUtility
 	///     configuration.
 	/// </param>
 	/// <param name="connection">An open database connection that will be used to execute the stored procedure.</param>
+	/// <param name="cancellationToken"></param>
 	/// <returns>
 	///     Returns an instance of <typeparamref name="TResultSet" /> if the query returns a result, or
 	///     <see langword="null" /> if no result is found.
 	/// </returns>
-	static internal async Task<TResultSet?> ScalarQueryAsync<TResultSet>(StoredProcedureParameters spParameters,
-		IDbConnection connection, CancellationToken cancellationToken = default)
+	static internal async Task<TResultSet?> ScalarQueryAsync<TResultSet>(
+		StoredProcedureParameters spParameters,
+		IDbConnection connection,
+		CancellationToken cancellationToken = default)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
 		await using var command = await ExecuteSqlCommandAsync(spParameters, connection, cancellationToken).ConfigureAwait(false);
@@ -54,12 +55,15 @@ static internal class SqlCommandUtility
 	/// <param name="connection">
 	///     An open database connection that will be used to execute the stored procedure.
 	/// </param>
+	/// <param name="cancellationToken"></param>
 	/// <returns>
 	///     An asynchronous enumerable of <typeparamref name="TResultSet" /> instances, where each instance maps a
 	///     corresponding row in the result set.
 	/// </returns>
 	static internal async IAsyncEnumerable<TResultSet> StreamQueryAsync<TResultSet>(
-		StoredProcedureParameters spParameters, IDbConnection connection, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+		StoredProcedureParameters spParameters,
+		IDbConnection connection,
+		[EnumeratorCancellation] CancellationToken cancellationToken = default)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
 		await using var command = await ExecuteSqlCommandAsync(spParameters, connection, cancellationToken).ConfigureAwait(false);
@@ -84,12 +88,15 @@ static internal class SqlCommandUtility
 	///     configuration.
 	/// </param>
 	/// <param name="connection">An open database connection that will be used to execute the stored procedure.</param>
+	/// <param name="cancellationToken"></param>
 	/// <returns>
 	///     A <see cref="ReadOnlyCollection{T}" /> containing instances of <typeparamref name="TResultSet" /> populated
 	///     from the query result.
 	/// </returns>
 	static internal async Task<ReadOnlyCollection<TResultSet>> ResultSetAsReadOnlyCollectionAsync<TResultSet>(
-		StoredProcedureParameters spParameters, IDbConnection connection, CancellationToken cancellationToken = default)
+		StoredProcedureParameters spParameters,
+		IDbConnection connection,
+		CancellationToken cancellationToken = default)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
 		var results = new List<TResultSet>(spParameters.Capacity);
@@ -117,12 +124,15 @@ static internal class SqlCommandUtility
 	/// <param name="connection">
 	///     An open database connection that will be used to execute the stored procedure.
 	/// </param>
+	/// <param name="cancellationToken"></param>
 	/// <returns>
 	///     Returns an immutable array of <typeparamref name="TResultSet" /> instances representing the result set of the
 	///     query.
 	/// </returns>
 	static internal async Task<ImmutableArray<TResultSet>> ResultSetAsImmutableArrayAsync<TResultSet>(
-		StoredProcedureParameters spParameters, IDbConnection connection, CancellationToken cancellationToken = default)
+		StoredProcedureParameters spParameters,
+		IDbConnection connection,
+		CancellationToken cancellationToken = default)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
 		var builder = ImmutableArray.CreateBuilder<TResultSet>(spParameters.Capacity);
@@ -149,12 +159,16 @@ static internal class SqlCommandUtility
 	///     The open database connection that will be used to execute the command. The connection must be
 	///     of type <see cref="SqlConnection" />.
 	/// </param>
+	/// <param name="cancellationToken"></param>
 	/// <returns>Returns a configured <see cref="SqlCommand" /> instance ready for execution.</returns>
 	/// <exception cref="InvalidOperationException">
 	///     Thrown when the provided connection is not of type
 	///     <see cref="SqlConnection" />.
 	/// </exception>
-	private static async Task<SqlCommand> ExecuteSqlCommandAsync(StoredProcedureParameters spParameters, IDbConnection connection, CancellationToken cancellationToken = default)
+	private static async Task<SqlCommand> ExecuteSqlCommandAsync(
+		StoredProcedureParameters spParameters,
+		IDbConnection connection,
+		CancellationToken cancellationToken = default)
 	{
 		if (connection is not SqlConnection sqlConnection)
 			throw new InvalidOperationException("Connection must be of type SqlConnection.");
@@ -181,7 +195,7 @@ static internal class SqlCommandUtility
 	///     Executes an asynchronous SQL command using a stored procedure and a provided execution function.
 	/// </summary>
 	/// <typeparam name="T">The type of the result produced by the execution function.</typeparam>
-	/// <param name="dbContext">The database context providing access to the underlying database connection.</param>
+	/// <param name="netDbContext">The database context providing access to the underlying database connection.</param>
 	/// <param name="spParameters">
 	///     An object containing the stored procedure name, parameters, and optional cache
 	///     configuration.
@@ -190,21 +204,22 @@ static internal class SqlCommandUtility
 	///     A function used to process the <see cref="SqlCommand" /> and produce a result of type
 	///     <typeparamref name="T" />.
 	/// </param>
+	/// <param name="cancellationToken"></param>
 	/// <returns>Returns a task that produces a result of type <typeparamref name="T" />.</returns>
-	/// <exception cref="CaeriusSqlException">
+	/// <exception cref="CaeriusNetSqlException">
 	///     Thrown when the execution of the stored procedure fails due to an underlying SQL
 	///     exception.
 	/// </exception>
-	static internal async Task<T> ExecuteCommandAsync<T>(ICaeriusDbContext dbContext,
+	static internal async Task<T> ExecuteCommandAsync<T>(ICaeriusNetDbContext netDbContext,
 		StoredProcedureParameters spParameters, Func<SqlCommand, Task<T>> execute, CancellationToken cancellationToken = default)
 	{
 		try{
-			using var connection = dbContext.DbConnection();
+			using var connection = netDbContext.DbConnection();
 			await using var command = await ExecuteSqlCommandAsync(spParameters, connection, cancellationToken).ConfigureAwait(false);
 
 			return await execute(command).ConfigureAwait(false);
 		}
-		catch (SqlException ex){ throw new CaeriusSqlException($"Failed to execute stored procedure: {spParameters.ProcedureName}", ex); }
+		catch (SqlException ex){ throw new CaeriusNetSqlException($"Failed to execute stored procedure: {spParameters.ProcedureName}", ex); }
 	}
 
 	/// <summary>
@@ -224,7 +239,9 @@ static internal class SqlCommandUtility
 	///     using the corresponding mapper function.
 	/// </returns>
 	static internal async Task<List<IReadOnlyCollection<object>>> ExecuteMultipleReadOnlyResultSetsAsync(
-		StoredProcedureParameters spParameters, IDbConnection connection, params Func<SqlDataReader, object>[] mappers)
+		StoredProcedureParameters spParameters,
+		IDbConnection connection,
+		params Func<SqlDataReader, object>[] mappers)
 	{
 		if (mappers.Length == 0)
 			throw new ArgumentException("At least one mapper function must be provided.", nameof(mappers));
@@ -267,7 +284,9 @@ static internal class SqlCommandUtility
 	///     provided mapper functions.
 	/// </returns>
 	static internal async Task<List<ImmutableArray<object>>> ExecuteMultipleImmutableResultSetsAsync(
-		StoredProcedureParameters spParameters, IDbConnection connection, params Func<SqlDataReader, object>[] mappers)
+		StoredProcedureParameters spParameters,
+		IDbConnection connection,
+		params Func<SqlDataReader, object>[] mappers)
 	{
 		if (mappers.Length == 0)
 			throw new ArgumentException("At least one mapper function must be provided.", nameof(mappers));
@@ -309,7 +328,8 @@ static internal class SqlCommandUtility
 	///     to the corresponding mapping function provided in <paramref name="mappers" />.
 	/// </returns>
 	static internal async Task<List<IEnumerable<object>>> ExecuteMultipleIEnumerableResultSetsAsync(
-		StoredProcedureParameters spParameters, IDbConnection connection,
+		StoredProcedureParameters spParameters,
+		IDbConnection connection,
 		params Func<SqlDataReader, object>[] mappers)
 	{
 		if (mappers.Length == 0)

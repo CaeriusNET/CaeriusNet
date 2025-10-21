@@ -129,7 +129,12 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
 	/// </returns>
 	public StoredProcedureParameters Build()
 	{
-		return new StoredProcedureParameters(ProcedureName, Capacity, Parameters, _cacheKey, _cacheExpiration,
+		return new StoredProcedureParameters(
+		ProcedureName,
+		Capacity,
+		Parameters,
+		_cacheKey,
+		_cacheExpiration,
 		_cacheType);
 	}
 }
