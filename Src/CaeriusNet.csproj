@@ -60,8 +60,7 @@
 
         <!-- Caching & Serialization -->
         <PackageReference Include="StackExchange.Redis" Version="2.9.32"/>
-        <PackageReference Include="System.Text.Json" Version="10.0.0-rc.2.25502.107"/>
-
+        
         <!-- Source Generator -->
         <ProjectReference Include="..\SourceGenerators\CaeriusNet.Generator.csproj"/>
     </ItemGroup>

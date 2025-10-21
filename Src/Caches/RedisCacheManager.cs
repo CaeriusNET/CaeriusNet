@@ -147,7 +147,8 @@ static internal class RedisCacheManager
 				return false;
 			}
 
-			value = JsonSerializer.Deserialize<T>(cached!);
+			string json = cached.ToString();
+			value = JsonSerializer.Deserialize<T>(json);
 			bool success = value != null;
 
 			if (success)
