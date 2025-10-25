@@ -1,6 +1,6 @@
 # Getting Started
 To successfully integrate Caerius.NET into your project, ensure the following prerequisites are met:
-- C# .NET 8.0 or higher
+- C# .NET 10.0 or higher
 - SQL Server 2019 or higher
 
 Once you have verified the prerequisites, you can proceed with installing Caerius.NET.
@@ -51,8 +51,7 @@ using Microsoft.Extensions.Configuration;
 var services = new ServiceCollection();
 
 var configuration = new ConfigurationBuilder()
-    .SetBasePath(Directory.GetCurrentDirectory())
-    .AddJsonFile("appsettings.json", true, true)
+    .AddJsonFile("appsettings.json", false, false)
     .Build();
 
 services.AddSingleton<IConfiguration>(configuration);
@@ -121,6 +120,30 @@ public sealed record TestRepository(ICaeriusDbContext DbContext)
 Refer to the provided DTO classes in your implementation:
 
 ::: code-group
+```csharp [Source Generator (Most Recommended)]
+using CaeriusNet.Attributes.Dto;
+
+namespace TestProject.Models.Dtos;
+
+[GeneratedDto]
+public partial sealed record UserDto(int Id, string Name, byte Age);
+```
+```csharp [Record (Recommended)]
+namespace TestProject.Models.Dtos;
+
+public sealed record UserDto(int Id, string Name, byte Age)
+    : ISpMapper<UserDto>
+{
+    public static UserDto MapFromReader(SqlDataReader reader)
+    {
+        return new UserDto(
+            Id = reader.GetInt32(0),
+            Name = reader.GetString(1),
+            Age = reader.GetByte(2)
+        );
+    }
+}
+```
 ```csharp [Class]
 namespace TestProject.Models.Dtos;
 
@@ -139,22 +162,6 @@ public sealed class UserDto
             Name = reader.GetString(1),
             Age = reader.GetByte(2)
         };
-    }
-}
-```
-```csharp [Record (Recommended)]
-namespace TestProject.Models.Dtos;
-
-public sealed record UserDto(int Id, string Name, byte Age)
-    : ISpMapper<UserDto>
-{
-    public static UserDto MapFromReader(SqlDataReader reader)
-    {
-        return new UserDto(
-            Id = reader.GetInt32(0),
-            Name = reader.GetString(1),
-            Age = reader.GetByte(2)
-        );
     }
 }
 ```

@@ -1,5 +1,6 @@
 ﻿using CaeriusNet.Generator.Models;
 using Microsoft.CodeAnalysis;
+using System;
 using System.Linq;
 using System.Text;
 using Metadata=CaeriusNet.Generator.Models.Metadata;
@@ -119,20 +120,14 @@ public sealed partial class TvpSourceGenerator
 	}
 
 	/// <summary>
-	///     Gets the TVP name, applying default schema if needed.
+	///     Gets the fully qualified TVP name in the format [Schema].[TvpName].
 	/// </summary>
 	private static string GetTvpName(Metadata metadata)
 	{
-		string? tvpName = metadata.CustomTvpName;
+		string schema = metadata.TvpSchema ?? "dbo";
+		string tvpName = metadata.TvpName ?? throw new InvalidOperationException("TvpName is required");
 
-		if (string.IsNullOrWhiteSpace(tvpName))
-			// Generate default name from class name
-			tvpName = $"tvp_{metadata.RecordName.ToLowerInvariant()}";
-
-		// Add default schema if not specified
-		if (!tvpName.Contains('.')) tvpName = $"dbo.{tvpName}";
-
-		return tvpName;
+		return $"{schema}.{tvpName}";
 	}
 
 	/// <summary>

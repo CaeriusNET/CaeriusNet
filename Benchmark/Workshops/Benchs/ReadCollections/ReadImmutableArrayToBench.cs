@@ -7,7 +7,7 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.ReadCollections;
 public class ReadImmutableArrayToBench
 {
 	private static readonly ImmutableArray<SimpleDto> ImmutableArray =
-		ReadCollectionBogusSetup.FakingImmutableArrayOf100KItemsDto;
+		ReadCollectionBogusSetup.FakingImmutableArrayOf10KItemsDto;
 
 	private readonly Consumer _consumer = new();
 

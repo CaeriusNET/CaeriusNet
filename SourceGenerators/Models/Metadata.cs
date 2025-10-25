@@ -25,10 +25,16 @@ public sealed class Metadata
 	}
 
 	/// <summary>
-	///     Gets or sets the custom TVP name specified by the GenerateTvp attribute.
-	///     This will be null if no custom name was provided.
+	///     Gets or sets the SQL Server schema name for the TVP.
+	///     Defaults to "dbo" if not specified by the user.
 	/// </summary>
-	public string? CustomTvpName { get; set; }
+	public string? TvpSchema { get; set; }
+
+	/// <summary>
+	///     Gets or sets the TVP name (without schema) specified by the GenerateTvp attribute.
+	///     This is required and must be provided by the user.
+	/// </summary>
+	public string? TvpName { get; set; }
 
 	/// <summary>
 	///     The name of the DTO class or record.

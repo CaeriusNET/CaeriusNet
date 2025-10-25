@@ -6,14 +6,13 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.ReadCollections;
 [MemoryDiagnoser]
 public class ReadListToBench
 {
-	private static readonly List<SimpleDto> List = ReadCollectionBogusSetup.FakingListOf100KItemsDto;
+	private static readonly List<SimpleDto> List = ReadCollectionBogusSetup.FakingListOf10KItemsDto;
 
 	private readonly Consumer _consumer = new();
-
 	private readonly List<SimpleDto> _listOf100Items = List.Take(100).ToList();
-	private readonly List<SimpleDto> _listOf100KItems = List;
 	private readonly List<SimpleDto> _listOf10Items = List.Take(10).ToList();
-	private readonly List<SimpleDto> _listOf10KItems = List.Take(10000).ToList();
+	private readonly List<SimpleDto> _listOf10KItems = List;
+
 	private readonly List<SimpleDto> _listOf1Item = List.Take(1).ToList();
 	private readonly List<SimpleDto> _listOf1KItems = List.Take(1000).ToList();
 
@@ -53,14 +52,6 @@ public class ReadListToBench
 	public void Read_List_Of_10K_Items()
 	{
 		int sum = _listOf10KItems.Sum(item => item.Id);
-		_consumer.Consume(sum);
-		_ = sum;
-	}
-
-	[Benchmark]
-	public void Read_List_Of_100K_Items()
-	{
-		int sum = _listOf100KItems.Sum(item => item.Id);
 		_consumer.Consume(sum);
 		_ = sum;
 	}

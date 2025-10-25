@@ -32,8 +32,7 @@ export default defineConfig({
                 items: [
 
                     { text: 'Usage', link: '/documentation/usage' },
-                    { text: 'Advanced Usage', link: '/documentation/advanced-usage' },
-                    { text: 'API', link: '/documentation/api' }
+                    { text: 'Advanced Usage', link: '/documentation/advanced-usage' }
                 ]
             }
         ],

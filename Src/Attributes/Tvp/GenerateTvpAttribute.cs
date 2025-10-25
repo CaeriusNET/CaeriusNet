@@ -17,45 +17,38 @@
 ///             Supported types: all primitive types, value types, <c>string</c>, <c>byte[]</c>, and other SQL Server
 ///             compatible types.
 ///         </item>
+///         <item>Both <c>TvpName</c> (required) and <c>Schema</c> (defaults to "dbo") must be specified.</item>
 ///     </list>
 /// </remarks>
 /// <example>
 ///     <code>
-/// [GenerateTvp("custom_tvp_name")]
+/// [GenerateTvp(TvpName = "tvp_Product")]
 /// public sealed partial record Product(int Id, string Name, decimal Price, string? Description, DateTime? DiscontinuedAt);
+///
+/// [GenerateTvp(TvpName = "tvp_Order", Schema = "Sales")]
+/// public sealed partial record Order(int OrderId, DateTime OrderDate, decimal Total);
 /// </code>
 /// </example>
 /// <para>
 ///     <b>Instructions:</b><br />
 ///     1. Decorate your <c>sealed partial</c> class or record with <c>[GenerateTvp]</c>.<br />
-///     2. Optionally specify a custom TVP name: <c>[GenerateTvp("my_custom_tvp")]</c>.<br />
-///     3. Add parameters to the primary constructor representing the desired columns in your TVP.<br />
-///     4. The generated <c>ITvpMapper&lt;T&gt;</c> implementation appears at compile time.
+///     2. Specify the required TVP name: <c>TvpName = "tvp_MyType"</c>.<br />
+///     3. Optionally specify the schema: <c>Schema = "MySchema"</c> (defaults to "dbo").<br />
+///     4. Add parameters to the primary constructor representing the desired columns in your TVP.<br />
+///     5. The generated <c>ITvpMapper&lt;T&gt;</c> implementation appears at compile time with the fully qualified name <c>[Schema].[TvpName]</c>.
 /// </para>
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
 public sealed class GenerateTvpAttribute : Attribute
 {
 	/// <summary>
-	///     Initializes a new instance of the <see cref="GenerateTvpAttribute" /> class
-	///     with the default naming convention.
+	///     Gets or sets the SQL Server schema name to use for this TVP.
+	///     Defaults to "dbo" if not specified.
 	/// </summary>
-	public GenerateTvpAttribute()
-	{
-	}
+	public required string Schema { get; init; } = "dbo";
 
 	/// <summary>
-	///     Initializes a new instance of the <see cref="GenerateTvpAttribute" /> class
-	///     with a custom SQL Server table type name.
+	///     Gets or sets the SQL Server table type name (without schema) to use for this TVP.
+	///     This property is required and must be specified by the user.
 	/// </summary>
-	/// <param name="name">The SQL Server table type name (without schema) to use for this TVP.</param>
-	public GenerateTvpAttribute(string name)
-	{
-		Name = name;
-	}
-
-	/// <summary>
-	///     Gets the custom SQL Server table type name (without schema) for this TVP.
-	///     If not specified, a default name will be generated based on the class name.
-	/// </summary>
-	public string? Name { get; }
+	public required string TvpName { get; init; }
 }

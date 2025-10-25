@@ -5,7 +5,7 @@ This page demonstrates how to leverage Caerius.NET in your projects with various
 Given the unique nature of each project, this guide assumes readers are well-versed in best practices and possess solid knowledge of C# and TSQL.
 
 ### For C#:
-- Proficiency in C# 12 and .NET 8 is required.
+- Proficiency in C# 14 and .NET 10 is required.
 - Familiarity with `Best Practices`, `Clean Code`, `SOLID Principles`, `Repository Pattern`, and `Dependency Injection` is recommended.
 - Understanding of `sealed class` and `record` types is also recommended.
 
@@ -30,23 +30,6 @@ public interface IUserRepository
     Task UpdateUserAgeByGuidAsync(Guid guid, byte age);
 }
 ```
-```csharp [Class]
-namespace TestProject.Repositories;
-
-public sealed class UserRepository(ICaeriusDbContext DbContext)
-    : IUserRepository
-{
-    public async Task<IEnumerable<UserDto>> GetUserOlderThanAsync(byte age)
-    {
-        throw new NotImplementedException();
-    }
-
-    public async Task UpdateUserAgeByGuidAsync(Guid guid, byte age)
-    {
-        throw new NotImplementedException();
-    }
-}
-```
 ```csharp [Record (Recommended)]
 namespace TestProject.Repositories;
 
@@ -59,6 +42,23 @@ public sealed record UserRepository(ICaeriusDbContext DbContext)
     }
 
     public async Task UpdateCustomUserAgeByGuidAsync(Guid guid, byte age)
+    {
+        throw new NotImplementedException();
+    }
+}
+```
+```csharp [Class]
+namespace TestProject.Repositories;
+
+public sealed class UserRepository(ICaeriusDbContext DbContext)
+    : IUserRepository
+{
+    public async Task<IEnumerable<UserDto>> GetUserOlderThanAsync(byte age)
+    {
+        throw new NotImplementedException();
+    }
+
+    public async Task UpdateUserAgeByGuidAsync(Guid guid, byte age)
     {
         throw new NotImplementedException();
     }
@@ -173,7 +173,7 @@ This method will be used to map the result of the Stored Procedure to the DTO.
 The [`SqlDataReader`](https://learn.microsoft.com/en-us/dotnet/api/microsoft.data.sqlclient.sqldatareader?view=sqlclient-dotnet-standard-5.2) object is used to read the result of the Stored Procedure,
 using the stream of data returned by the SQL Server from the [`TDS (Tabular Data Stream) protocol`](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-tds/b46a581a-39de-4745-b076-ec4dbb7d13ec).  
 
-Because it's working like a buffer, you need to specify the index of the column you want to read, and the type of the column you want to read.  
+Because it's working as a buffer, you need to specify the index of the column you want to read, and the type of the column you want to read.  
 
 This help to map correctly the result of the Stored Procedure to the DTO.
 

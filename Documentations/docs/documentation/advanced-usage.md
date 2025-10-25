@@ -44,6 +44,14 @@ And finally, in your C# code, you need to do two things:
 
 Here is an example:
 ::: code-group
+```csharp [Source Generated TVP (Most Recommended)]
+using CaeriusNet.Attributes.Tvp;
+
+namespace TestProject.Models.Tvps;
+
+[GenerateTvp(Name="dbo.tvp_int")]
+public partial sealed record UsersIdsTvp(int Id);
+```
 ```csharp [TVP]
 namespace TestProject.Models.Tvps;
 

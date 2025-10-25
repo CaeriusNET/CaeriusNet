@@ -12,10 +12,10 @@
 
     <PropertyGroup>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <Version>10.0.0-alpha</Version>
+        <Version>10.0.0.1-alpha</Version>
         <Title>CaeriusNet</Title>
         <Authors>AriusII &amp; CaeriusNet</Authors>
-        <Description>CaeriusNet is a high-performance framework developed in C# .NET 8 + and optimized for SQL Server 2019 +. It emphasizes code quality, maintainability, and scalability by providing advanced tools for executing stored procedures and managing caching mechanisms.</Description>
+        <Description>CaeriusNet is a high-performance framework developed in C# .NET10 + and optimized for SQL Server 2019 +. It emphasizes code quality, maintainability, and scalability by providing advanced tools for executing stored procedures and managing caching mechanisms.</Description>
         <Copyright>2025</Copyright>
         <PackageProjectUrl>https://caerius.net</PackageProjectUrl>
         <PackageTags>dapper;ef;orm;fast;stored-procedure;sql-server</PackageTags>
@@ -48,8 +48,8 @@
 
     <ItemGroup>
         <!-- Microsoft Data Access -->
-        <PackageReference Include="Aspire.Microsoft.Data.SqlClient" Version="9.5.1"/>
-        <PackageReference Include="Aspire.StackExchange.Redis" Version="9.5.1"/>
+        <PackageReference Include="Aspire.Microsoft.Data.SqlClient" Version="9.5.2"/>
+        <PackageReference Include="Aspire.StackExchange.Redis" Version="9.5.2"/>
         <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0-preview2.25289.6"/>
 
         <!-- Microsoft Extensions -->
@@ -60,7 +60,7 @@
 
         <!-- Caching & Serialization -->
         <PackageReference Include="StackExchange.Redis" Version="2.9.32"/>
-        
+
         <!-- Source Generator -->
         <ProjectReference Include="..\SourceGenerators\CaeriusNet.Generator.csproj"/>
     </ItemGroup>

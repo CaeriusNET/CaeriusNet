@@ -7,7 +7,7 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.ReadCollections;
 public class ReadEnumerableToBench
 {
 	private static readonly IEnumerable<SimpleDto>
-		Enumerable = ReadCollectionBogusSetup.FakingIEnumerableOf100KItemsDto;
+		Enumerable = ReadCollectionBogusSetup.FakingIEnumerableOf10KItemsDto;
 
 	private readonly Consumer _consumer = new();
 

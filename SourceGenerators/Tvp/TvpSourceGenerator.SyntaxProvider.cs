@@ -22,14 +22,9 @@ public sealed partial class TvpSourceGenerator
 			return false;
 
 		// Must be partial to allow code generation
-		if (!typeDeclaration.Modifiers.Any(m => m.ValueText == "partial"))
-			return false;
-
-		// Must be sealed for performance and design reasons
-		if (!typeDeclaration.Modifiers.Any(m => m.ValueText == "sealed"))
-			return false;
-
-		return true;
+		return typeDeclaration.Modifiers.Any(m => m.ValueText == "partial") &&
+		       // Must be sealed for performance and design reasons
+		       typeDeclaration.Modifiers.Any(m => m.ValueText == "sealed");
 	}
 
 	/// <summary>
@@ -67,7 +62,7 @@ public sealed partial class TvpSourceGenerator
 	}
 
 	/// <summary>
-	///     Extracts the TVP name from the GenerateTvp attribute.
+	///     Extracts the TVP name and schema from the GenerateTvp attribute.
 	/// </summary>
 	/// <param name="context">The generator context.</param>
 	/// <param name="metadata">The metadata to populate.</param>
@@ -80,19 +75,17 @@ public sealed partial class TvpSourceGenerator
 		if (generateTvpAttribute is null)
 			return;
 
-		// Check for positional argument (constructor parameter)
-		if (generateTvpAttribute.ConstructorArguments.Length > 0){
-			var nameArg = generateTvpAttribute.ConstructorArguments[0];
-			if (nameArg.Value is string tvpName && !string.IsNullOrWhiteSpace(tvpName)){
-				metadata.CustomTvpName = tvpName;
-				return;
-			}
-		}
+		// Extract TvpName from named arguments (required property)
+		var tvpNameArg = generateTvpAttribute.NamedArguments.FirstOrDefault(na => na.Key == "TvpName");
+		if (tvpNameArg.Value.Value is string tvpName && !string.IsNullOrWhiteSpace(tvpName))
+			metadata.TvpName = tvpName;
 
-		// Check for named argument (Name property)
-		var namedArg = generateTvpAttribute.NamedArguments.FirstOrDefault(na => na.Key == "Name");
-		if (namedArg.Value.Value is string namedTvpName && !string.IsNullOrWhiteSpace(namedTvpName))
-			metadata.CustomTvpName = namedTvpName;
+		// Extract Schema from named arguments (optional, defaults to "dbo")
+		var schemaArg = generateTvpAttribute.NamedArguments.FirstOrDefault(na => na.Key == "Schema");
+		if (schemaArg.Value.Value is string schema && !string.IsNullOrWhiteSpace(schema))
+			metadata.TvpSchema = schema;
+		else
+			metadata.TvpSchema = "dbo";// Default value
 	}
 
 	/// <summary>
