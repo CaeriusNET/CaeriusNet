@@ -90,6 +90,14 @@ public sealed partial class TvpSourceGenerator
 	{
 		sb.AppendLine($"public sealed partial record {metadata.RecordName} : ITvpMapper<{metadata.RecordName}>");
 		sb.AppendLine("{");
+
+		// Add static property for TVP type name
+		string tvpName = GetTvpName(metadata);
+		sb.AppendLine("    /// <summary>");
+		sb.AppendLine("    ///     Gets the SQL Server type name for this TVP.");
+		sb.AppendLine("    /// </summary>");
+		sb.AppendLine($"    public static string TvpTypeName => \"{tvpName}\";");
+		sb.AppendLine();
 	}
 
 	/// <summary>

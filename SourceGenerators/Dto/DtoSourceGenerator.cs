@@ -73,7 +73,7 @@ public sealed partial class DtoSourceGenerator : IIncrementalGenerator
 			string source = GenerateMapperSource(dtoMetadata);
 
 			// Add the generated source to the compilation
-			context.AddSource($"{dtoMetadata.Namespace}.{dtoMetadata.RecordName}.g.cs", source);
+			context.AddSource($"{dtoMetadata.RecordName}.g.cs", source);
 		}
 	}
 }

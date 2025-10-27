@@ -24,7 +24,7 @@
 ///     <code>
 /// [GenerateTvp(TvpName = "tvp_Product")]
 /// public sealed partial record Product(int Id, string Name, decimal Price, string? Description, DateTime? DiscontinuedAt);
-///
+/// 
 /// [GenerateTvp(TvpName = "tvp_Order", Schema = "Sales")]
 /// public sealed partial record Order(int OrderId, DateTime OrderDate, decimal Total);
 /// </code>
@@ -35,7 +35,8 @@
 ///     2. Specify the required TVP name: <c>TvpName = "tvp_MyType"</c>.<br />
 ///     3. Optionally specify the schema: <c>Schema = "MySchema"</c> (defaults to "dbo").<br />
 ///     4. Add parameters to the primary constructor representing the desired columns in your TVP.<br />
-///     5. The generated <c>ITvpMapper&lt;T&gt;</c> implementation appears at compile time with the fully qualified name <c>[Schema].[TvpName]</c>.
+///     5. The generated <c>ITvpMapper&lt;T&gt;</c> implementation appears at compile time with the fully qualified name
+///     <c>[Schema].[TvpName]</c>.
 /// </para>
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
 public sealed class GenerateTvpAttribute : Attribute

@@ -8,6 +8,11 @@
 public interface ITvpMapper<in T> where T : class
 {
     /// <summary>
+    ///     Gets the SQL Server type name for this TVP (e.g., "dbo.tvp_MyType").
+    /// </summary>
+    static abstract string TvpTypeName { get; }
+
+    /// <summary>
     ///     Maps a collection of <typeparamref name="T" /> objects to a DataTable.
     ///     This method is used to convert a collection of objects into a format that can be used
     ///     as a TVP (Table-Valued Parameter) in SQL Server stored procedures.

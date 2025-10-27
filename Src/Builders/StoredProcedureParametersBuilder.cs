@@ -34,11 +34,10 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
 	/// </summary>
 	/// <typeparam name="T">The type of the object that maps to the TVP.</typeparam>
 	/// <param name="parameter">The name of the TVP parameter.</param>
-	/// <param name="tvpName">The name of the TVP type in SQL Server.</param>
 	/// <param name="items">The collection of items to map to the TVP using the ITvpMapper interface.</param>
 	/// <returns>The StoredProcedureParametersBuilder instance for chaining.</returns>
 	/// <exception cref="ArgumentException">Thrown when the items collection is empty.</exception>
-	public StoredProcedureParametersBuilder AddTvpParameter<T>(string parameter, string tvpName, IEnumerable<T> items)
+	public StoredProcedureParametersBuilder AddTvpParameter<T>(string parameter, IEnumerable<T> items)
 		where T : class, ITvpMapper<T>
 	{
 		var tvpMappers = items.ToList();
@@ -48,7 +47,7 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
 		var dataTable = tvpMappers[0].MapAsDataTable(tvpMappers);
 		var currentTvpParameter = new SqlParameter(parameter, SqlDbType.Structured)
 		{
-			TypeName = tvpName,
+			TypeName = T.TvpTypeName,
 			Value = dataTable
 		};
 
