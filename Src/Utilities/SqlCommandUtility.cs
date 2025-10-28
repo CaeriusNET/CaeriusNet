@@ -324,7 +324,7 @@ static internal class SqlCommandUtility
 			await sqlConnection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
 		var command = sqlConnection.CreateCommand();
-		command.CommandText = spParameters.ProcedureName;
+		command.CommandText = $"{spParameters.SchemaName}.{spParameters.ProcedureName}";
 		command.CommandType = CommandType.StoredProcedure;
 		command.CommandTimeout = 30;
 

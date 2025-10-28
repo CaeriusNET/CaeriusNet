@@ -5,6 +5,7 @@
 ///     capacity, list of parameters, and optional caching details.
 /// </summary>
 public sealed record StoredProcedureParameters(
+	string SchemaName,
 	string ProcedureName,
 	int Capacity,
 	ReadOnlyMemory<SqlParameter> Parameters,

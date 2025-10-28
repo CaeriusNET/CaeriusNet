@@ -14,7 +14,7 @@
 ///     Used for pre-allocating collections to avoid resizing.
 ///     Default is 1 for single-row results.
 /// </param>
-public sealed record StoredProcedureParametersBuilder(string ProcedureName, int ResultSetCapacity = 1)
+public sealed record StoredProcedureParametersBuilder(string SchemaName, string ProcedureName, int ResultSetCapacity = 1)
 {
 	private TimeSpan? _cacheExpiration;
 	private string? _cacheKey;
@@ -67,25 +67,6 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
 		};
 
 		Parameters.Add(currentTvpParameter);
-		return this;
-	}
-
-	/// <summary>
-	///     Adds caching support to the stored procedure call.
-	/// </summary>
-	/// <param name="cacheKey">The unique key for the cache entry.</param>
-	/// <param name="expiration">Optional time span after which the cache entry expires.</param>
-	/// <param name="cacheType">The type of caching to use.</param>
-	/// <returns>The current builder instance to enable method chaining.</returns>
-	/// <exception cref="ArgumentNullException">
-	///     <paramref name="cacheKey" /> is null.
-	/// </exception>
-	public StoredProcedureParametersBuilder AddCache(string cacheKey, TimeSpan? expiration = null,
-		CacheType cacheType = InMemory)
-	{
-		_cacheType = cacheType;
-		_cacheKey = cacheKey;
-		_cacheExpiration = expiration;
 		return this;
 	}
 
@@ -151,6 +132,7 @@ public sealed record StoredProcedureParametersBuilder(string ProcedureName, int 
 			: ReadOnlyMemory<SqlParameter>.Empty;
 
 		return new StoredProcedureParameters(
+		SchemaName,
 		ProcedureName,
 		ResultSetCapacity,
 		parametersMemory,

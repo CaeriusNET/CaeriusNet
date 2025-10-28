@@ -97,7 +97,6 @@ public static class SimpleReadSqlAsyncCommands
 			var result = await SqlCommandUtility.ResultSetAsReadOnlyCollectionAsync<TResultSet>(
 			spParameters, connection, cancellationToken).ConfigureAwait(false);
 
-			// ✅ Utilise singleton pour collections vides
 			if (result.Count == 0)
 				result = EmptyCollections.ReadOnlyCollection<TResultSet>();
 
@@ -156,7 +155,6 @@ public static class SimpleReadSqlAsyncCommands
 
 			CacheUtility.StoreInCache(spParameters, results);
 
-			// Return the list directly (no AsEnumerable() needed - List<T> implements IEnumerable<T>)
 			return results;
 		}
 		catch (SqlException ex){
@@ -196,7 +194,6 @@ public static class SimpleReadSqlAsyncCommands
 		CancellationToken cancellationToken = default)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
-		// Note: ImmutableArray<T> is a struct, so we check HasValue to avoid default value confusion
 		if (CacheUtility.TryRetrieveFromCache(spParameters, out ImmutableArray<TResultSet>? cachedResult) &&
 		    cachedResult.HasValue)
 			return cachedResult.Value;

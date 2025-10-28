@@ -12,7 +12,7 @@
 
     <PropertyGroup>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <Version>10.0.0.3-alpha</Version>
+        <Version>10.0.0.4-alpha</Version>
         <Title>CaeriusNet</Title>
         <Authors>AriusII &amp; CaeriusNet</Authors>
         <Description>CaeriusNet is a high-performance framework developed in C# .NET10 + and optimized for SQL Server 2019 +. It emphasizes code quality, maintainability, and scalability by providing advanced tools for executing stored procedures and managing caching mechanisms.</Description>
@@ -57,7 +57,6 @@
         <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.0-rc.2.25502.107"/>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0-rc.2.25502.107"/>
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0-rc.2.25502.107"/>
-        <PackageReference Include="Microsoft.IO.RecyclableMemoryStream" Version="3.0.1"/>
 
         <!-- Caching & Serialization -->
         <PackageReference Include="StackExchange.Redis" Version="2.9.32"/>
