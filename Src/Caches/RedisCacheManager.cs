@@ -3,165 +3,126 @@
 /// <summary>
 ///     Provides methods to manage Redis-based distributed cache.
 /// </summary>
-static internal class RedisCacheManager
+internal sealed class RedisCacheManager : IRedisCacheManager
 {
-	private static ConnectionMultiplexer? _connection;
-	private static IDatabase? _database;
-	private static bool _isInitialized;
-	private static bool _useAspireIntegration;
-	private static IServiceProvider? _serviceProvider;
-	private static readonly ICaeriusNetLogger? Logger = LoggerProvider.GetLogger();
+	/// <summary>
+	///     JSON serialization options used for cache operations.
+	/// </summary>
+	private static readonly JsonSerializerOptions JsonOptions = new()
+	{
+		DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+		PropertyNameCaseInsensitive = true,
+		PreferredObjectCreationHandling = JsonObjectCreationHandling.Populate
+	};
+
+	private readonly bool _isLoggingEnabled;
+	private readonly ILogger<RedisCacheManager>? _logger;
+	private readonly IRedisCacheConnection? _redisCacheConnection;
 
 	/// <summary>
-	///     Configures the Redis cache manager to use Aspire integration
+	///     Initializes a new instance of the <see cref="RedisCacheManager" /> class using dependency injection.
 	/// </summary>
-	static internal void UseAspireIntegration()
+	/// <param name="redisCacheConnection">The Redis cache connection instance.</param>
+	/// <param name="logger">Optional logger for Redis operations.</param>
+	public RedisCacheManager(
+		IRedisCacheConnection redisCacheConnection,
+		ILogger<RedisCacheManager>? logger = null)
 	{
-		_useAspireIntegration = true;
-		_isInitialized = true;
-		Logger?.LogInformation(LogCategory.Redis, "Redis cache manager configured to use Aspire integration.");
+		_redisCacheConnection = redisCacheConnection;
+		_logger = logger;
+		_isLoggingEnabled = logger != null;
+		IsInitialized = _redisCacheConnection?.IsConnected() ?? false;
+
+		if (IsInitialized && _isLoggingEnabled)
+			_logger!.LogRedisConnected();
 	}
 
 	/// <summary>
-	///     Sets the service provider for dependency injection
+	///     Initializes a new instance of the <see cref="RedisCacheManager" /> class using a connection string.
 	/// </summary>
-	/// <param name="serviceProvider">The service provider instance</param>
-	static internal void SetServiceProvider(IServiceProvider serviceProvider)
+	/// <param name="connectionString">The Redis connection string.</param>
+	/// <param name="logger">Optional logger for Redis operations.</param>
+	public RedisCacheManager(
+		string connectionString,
+		ILogger<RedisCacheManager>? logger = null)
 	{
-		_serviceProvider = serviceProvider;
-	}
+		_logger = logger;
+		_isLoggingEnabled = logger != null;
 
-	/// <summary>
-	///     Initializes the Redis cache manager with the provided connection string.
-	/// </summary>
-	/// <param name="connectionString">The connection string to the Redis server.</param>
-	/// <returns>True if initialization succeeded, otherwise False.</returns>
-	static internal void Initialize(string connectionString)
-	{
-		if (_isInitialized){
-			Logger?.LogDebug(LogCategory.Redis, "Redis manager is already initialized. Ignoring reinitialization.");
-			return;
-		}
-
-		Logger?.LogDebug(LogCategory.Redis, "Attempting to connect to Redis server...");
+		if (_isLoggingEnabled)
+			_logger!.LogRedisConnecting();
 
 		try{
-			_connection = ConnectionMultiplexer.Connect(connectionString);
-			_database = _connection.GetDatabase();
-			_isInitialized = true;
-			Logger?.LogInformation(LogCategory.Redis, "Redis server connection established successfully.");
+			var multiplexer = ConnectionMultiplexer.Connect(connectionString);
+			_redisCacheConnection = new RedisCacheConnection(multiplexer);
+			IsInitialized = true;
+
+			if (_isLoggingEnabled)
+				_logger!.LogRedisConnected();
 		}
 		catch (Exception ex){
-			Logger?.LogError(LogCategory.Redis, "Failed to connect to Redis server", ex);
-			_connection?.Dispose();
-			_connection = null;
-			_database = null;
-			_isInitialized = false;
+			if (_isLoggingEnabled)
+				_logger!.LogRedisConnectionFailed(ex);
+			IsInitialized = false;
 		}
 	}
 
 	/// <summary>
-	///     Gets the Redis database from either direct connection or Aspire integration
+	///     Gets a value indicating whether the Redis cache manager is initialized.
 	/// </summary>
-	/// <returns>The Redis database instance or null if not available</returns>
-	private static IDatabase? GetDatabase()
-	{
-		if (!_useAspireIntegration || _serviceProvider == null) return _database;
-
-		try{
-			var redisCacheConnection = _serviceProvider.GetRequiredService<IRedisCacheConnection>();
-			return redisCacheConnection.GetDatabase();
-		}
-		catch (Exception ex){
-			Logger?.LogError(LogCategory.Redis, "Failed to get Redis database from service provider", ex);
-			return null;
-		}
-	}
-
-	/// <summary>
-	///     Checks if the Redis cache manager is initialized.
-	/// </summary>
-	/// <returns>True if the manager is initialized, otherwise False.</returns>
-	static internal bool IsInitialized()
-	{
-		return _isInitialized;
-	}
+	public bool IsInitialized { get; }
 
 	/// <summary>
 	///     Stores a value in the Redis cache.
 	/// </summary>
-	/// <typeparam name="T">The type of value to store in the cache.</typeparam>
-	/// <param name="cacheKey">The unique key to identify the value in the cache.</param>
-	/// <param name="value">The value to store in the cache.</param>
-	/// <param name="expiration">The validity duration of the value in the cache before expiration.</param>
-	/// <returns>True if storage was successful, otherwise False.</returns>
-	static internal void Store<T>(string cacheKey, T value, TimeSpan? expiration)
+	/// <typeparam name="T">The type of value to store.</typeparam>
+	/// <param name="cacheKey">The key under which to store the value.</param>
+	/// <param name="value">The value to store.</param>
+	/// <param name="expiration">Optional time span after which the value expires.</param>
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	public void Store<T>(string cacheKey, T value, TimeSpan? expiration)
 	{
-		var database = GetDatabase();
-		if (!_isInitialized || database == null){
-			Logger?.LogWarning(LogCategory.Redis,
-			$"Attempt to store in Redis with key '{cacheKey}' while Redis is not initialized.");
-			return;
-		}
+		if (!IsInitialized || _redisCacheConnection == null) return;
 
 		try{
-			Logger?.LogDebug(LogCategory.Redis, $"Storing in Redis with key '{cacheKey}'...");
-			string serialized = JsonSerializer.Serialize(value);
-			bool result = database.StringSet(cacheKey, serialized, expiration);
+			var database = _redisCacheConnection.GetDatabase();
 
-			if (result)
-				Logger?.LogInformation(LogCategory.Redis,
-				$"Value stored in Redis with key '{cacheKey}' and expiration {(expiration.HasValue ? expiration.Value.ToString() : "unlimited")}");
-			else
-				Logger?.LogWarning(LogCategory.Redis, $"Failed to store value in Redis with key '{cacheKey}'");
+			var bufferWriter = new ArrayBufferWriter<byte>(1024);
+			using (var writer = new Utf8JsonWriter(bufferWriter))
+				JsonSerializer.Serialize(writer, value, JsonOptions);
+
+			var serialized = bufferWriter.WrittenSpan;
+			database.StringSet(cacheKey, serialized.ToArray(), expiration);
 		}
-		catch (Exception ex){ Logger?.LogError(LogCategory.Redis, $"Error while storing in Redis with key '{cacheKey}'", ex); }
+		catch (Exception ex){
+			if (_isLoggingEnabled) _logger!.LogRedisStoreError(cacheKey, ex);
+		}
 	}
 
 	/// <summary>
 	///     Attempts to retrieve a cached value from Redis.
 	/// </summary>
-	/// <typeparam name="T">The expected type of the cached value.</typeparam>
-	/// <param name="cacheKey">The unique key associated with the value in the cache.</param>
-	/// <param name="value">The output parameter where the cached value will be stored if found.</param>
-	/// <returns>
-	///     True if the value is found in the cache and its type matches the specified type <typeparamref name="T" />;
-	///     otherwise, False.
-	/// </returns>
-	static internal bool TryGet<T>(string cacheKey, out T? value)
+	/// <typeparam name="T">The type of value to retrieve.</typeparam>
+	/// <param name="cacheKey">The key of the value to retrieve.</param>
+	/// <param name="value">When this method returns, contains the retrieved value if found; otherwise, the default value.</param>
+	/// <returns>true if the value was found; otherwise, false.</returns>
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	public bool TryGet<T>(string cacheKey, out T? value)
 	{
 		value = default;
-		var database = GetDatabase();
-		if (!_isInitialized || database == null){
-			Logger?.LogWarning(LogCategory.Redis,
-			$"Attempt to retrieve from Redis with key '{cacheKey}' while Redis is not initialized.");
-			return false;
-		}
+
+		if (!IsInitialized || _redisCacheConnection == null) return false;
 
 		try{
-			Logger?.LogDebug(LogCategory.Redis, $"Retrieving from Redis with key '{cacheKey}'...");
+			var database = _redisCacheConnection.GetDatabase();
 			var cached = database.StringGet(cacheKey);
 
-			if (cached.IsNull){
-				Logger?.LogDebug(LogCategory.Redis, $"No value found in Redis for key '{cacheKey}'");
-				return false;
-			}
+			if (cached.IsNull) return false;
 
-			string json = cached.ToString();
-			value = JsonSerializer.Deserialize<T>(json);
-			bool success = value != null;
-
-			if (success)
-				Logger?.LogInformation(LogCategory.Redis,
-				$"Value successfully retrieved from Redis for key '{cacheKey}'");
-			else
-				Logger?.LogWarning(LogCategory.Redis, $"Deserialization failed for key '{cacheKey}'");
-
-			return success;
+			ReadOnlySpan<byte> bytes = (byte[])cached!;
+			value = JsonSerializer.Deserialize<T>(bytes, JsonOptions);
+			return value != null;
 		}
-		catch (Exception ex){
-			Logger?.LogError(LogCategory.Redis, $"Error while retrieving from Redis with key '{cacheKey}'", ex);
-			return false;
-		}
+		catch{ return false; }
 	}
 }

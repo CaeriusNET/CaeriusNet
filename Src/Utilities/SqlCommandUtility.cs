@@ -4,6 +4,29 @@
 ///     Contains a collection of static utility methods designed to streamline the execution of SQL commands,
 ///     mapping of stored procedure parameters, and processing of result sets in an asynchronous database context.
 /// </summary>
+/// <remarks>
+///     This utility class provides methods for:
+///     <list type="bullet">
+///         <item>
+///             <description>Executing scalar queries and mapping results to strongly-typed objects</description>
+///         </item>
+///         <item>
+///             <description>Streaming result sets asynchronously for memory-efficient processing</description>
+///         </item>
+///         <item>
+///             <description>Creating immutable and read-only collections from result sets</description>
+///         </item>
+///         <item>
+///             <description>Processing multiple result sets with custom mapping functions</description>
+///         </item>
+///         <item>
+///             <description>Handling SQL command execution with proper resource management</description>
+///         </item>
+///     </list>
+/// </remarks>
+/// <seealso cref="MultiResultSetHelper" />
+/// <seealso cref="CacheUtility" />
+/// <seealso cref="EmptyCollections" />
 static internal class SqlCommandUtility
 {
 	/// <summary>
@@ -15,16 +38,35 @@ static internal class SqlCommandUtility
 	///     <see cref="ISpMapper{TResultSet}" />.
 	/// </typeparam>
 	/// <param name="spParameters">
-	///     An object containing the stored procedure name, parameters, and optional cache
-	///     configuration.
+	///     An object containing:
+	///     <list type="bullet">
+	///         <item>
+	///             <description>ProcedureName - The name of the stored procedure to execute</description>
+	///         </item>
+	///         <item>
+	///             <description>Parameters - The parameters to pass to the stored procedure</description>
+	///         </item>
+	///         <item>
+	///             <description>CacheKey - Optional. Key for caching the results</description>
+	///         </item>
+	///         <item>
+	///             <description>CacheExpiration - Optional. How long to cache the results</description>
+	///         </item>
+	///         <item>
+	///             <description>CacheType - Optional. What type of caching to use</description>
+	///         </item>
+	///     </list>
 	/// </param>
 	/// <param name="connection">An open database connection that will be used to execute the stored procedure.</param>
-	/// <param name="cancellationToken"></param>
+	/// <param name="cancellationToken">Optional. A token to cancel the asynchronous operation.</param>
 	/// <returns>
 	///     Returns an instance of <typeparamref name="TResultSet" /> if the query returns a result, or
 	///     <see langword="null" /> if no result is found.
 	/// </returns>
-	static internal async Task<TResultSet?> ScalarQueryAsync<TResultSet>(
+	/// <exception cref="InvalidOperationException">Thrown when the provided connection is not a SqlConnection.</exception>
+	/// <exception cref="CaeriusNetSqlException">Thrown when the execution of the stored procedure fails.</exception>
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	static internal async ValueTask<TResultSet?> ScalarQueryAsync<TResultSet>(
 		StoredProcedureParameters spParameters,
 		IDbConnection connection,
 		CancellationToken cancellationToken = default)
@@ -50,16 +92,35 @@ static internal class SqlCommandUtility
 	///     <see cref="ISpMapper{TResultSet}" />.
 	/// </typeparam>
 	/// <param name="spParameters">
-	///     An object containing the stored procedure name, parameters, and optional cache configuration.
+	///     An object containing:
+	///     <list type="bullet">
+	///         <item>
+	///             <description>ProcedureName - The name of the stored procedure to execute</description>
+	///         </item>
+	///         <item>
+	///             <description>Parameters - The parameters to pass to the stored procedure</description>
+	///         </item>
+	///         <item>
+	///             <description>CacheKey - Optional. Key for caching the results</description>
+	///         </item>
+	///         <item>
+	///             <description>CacheExpiration - Optional. How long to cache the results</description>
+	///         </item>
+	///         <item>
+	///             <description>CacheType - Optional. What type of caching to use</description>
+	///         </item>
+	///     </list>
 	/// </param>
 	/// <param name="connection">
 	///     An open database connection that will be used to execute the stored procedure.
 	/// </param>
-	/// <param name="cancellationToken"></param>
+	/// <param name="cancellationToken">Optional. A token to cancel the asynchronous operation.</param>
 	/// <returns>
 	///     An asynchronous enumerable of <typeparamref name="TResultSet" /> instances, where each instance maps a
 	///     corresponding row in the result set.
 	/// </returns>
+	/// <exception cref="InvalidOperationException">Thrown when the provided connection is not a SqlConnection.</exception>
+	/// <exception cref="CaeriusNetSqlException">Thrown when the execution of the stored procedure fails.</exception>
 	static internal async IAsyncEnumerable<TResultSet> StreamQueryAsync<TResultSet>(
 		StoredProcedureParameters spParameters,
 		IDbConnection connection,
@@ -80,35 +141,78 @@ static internal class SqlCommandUtility
 	///     specified type.
 	/// </summary>
 	/// <typeparam name="TResultSet">
-	///     The type of objects in the result set. The type must implement
-	///     <see cref="ISpMapper{TResultSet}" />.
+	///     The type of objects in the result set. The type must implement <see cref="ISpMapper{TResultSet}" />.
 	/// </typeparam>
 	/// <param name="spParameters">
-	///     An object containing the stored procedure name, parameters, and optional cache
-	///     configuration.
+	///     An object containing:
+	///     <list type="bullet">
+	///         <item>
+	///             <description>ProcedureName - The name of the stored procedure to execute</description>
+	///         </item>
+	///         <item>
+	///             <description>Parameters - The parameters to pass to the stored procedure</description>
+	///         </item>
+	///         <item>
+	///             <description>CacheKey - Optional. Key for caching the results</description>
+	///         </item>
+	///         <item>
+	///             <description>CacheExpiration - Optional. How long to cache the results</description>
+	///         </item>
+	///         <item>
+	///             <description>CacheType - Optional. What type of caching to use</description>
+	///         </item>
+	///         <item>
+	///             <description>Capacity - The initial capacity to allocate for the result set</description>
+	///         </item>
+	///     </list>
 	/// </param>
 	/// <param name="connection">An open database connection that will be used to execute the stored procedure.</param>
-	/// <param name="cancellationToken"></param>
+	/// <param name="cancellationToken">Optional. A token to cancel the asynchronous operation.</param>
 	/// <returns>
 	///     A <see cref="ReadOnlyCollection{T}" /> containing instances of <typeparamref name="TResultSet" /> populated
 	///     from the query result.
 	/// </returns>
-	static internal async Task<ReadOnlyCollection<TResultSet>> ResultSetAsReadOnlyCollectionAsync<TResultSet>(
+	/// <exception cref="InvalidOperationException">Thrown when the provided connection is not a SqlConnection.</exception>
+	/// <exception cref="CaeriusNetSqlException">Thrown when the execution of the stored procedure fails.</exception>
+	/// <remarks>
+	///     This method efficiently processes the result set using array pooling to minimize allocations.
+	///     The result is returned as a read-only collection to prevent modifications to the underlying data.
+	///     If the initial capacity estimate is too small, the buffer will be resized automatically.
+	/// </remarks>
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	static internal async ValueTask<ReadOnlyCollection<TResultSet>> ResultSetAsReadOnlyCollectionAsync<TResultSet>(
 		StoredProcedureParameters spParameters,
 		IDbConnection connection,
 		CancellationToken cancellationToken = default)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
-		var results = new List<TResultSet>(spParameters.Capacity);
-		await using var command = await ExecuteSqlCommandAsync(spParameters, connection, cancellationToken).ConfigureAwait(false);
-		await using var reader = await command
-			.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken)
-			.ConfigureAwait(false);
+		var buffer = ArrayPoolHelper.Rent<TResultSet>(spParameters.Capacity);
+		int count = 0;
 
-		while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-			results.Add(TResultSet.MapFromDataReader(reader));
+		try{
+			await using var command = await ExecuteSqlCommandAsync(spParameters, connection, cancellationToken).ConfigureAwait(false);
+			await using var reader = await command
+				.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken)
+				.ConfigureAwait(false);
 
-		return results.AsReadOnly();
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false)){
+				if (count >= buffer.Length){
+					var newBuffer = ArrayPoolHelper.Rent<TResultSet>(buffer.Length * 2);
+					Array.Copy(buffer, newBuffer, count);
+					ArrayPoolHelper.Return(buffer);
+					buffer = newBuffer;
+				}
+
+				buffer[count++] = TResultSet.MapFromDataReader(reader);
+			}
+
+			var results = new List<TResultSet>(count);
+			for (int i = 0; i < count; i++)
+				results.Add(buffer[i]);
+
+			return results.AsReadOnly();
+		}
+		finally{ ArrayPoolHelper.Return(buffer, true); }
 	}
 
 	/// <summary>
@@ -119,17 +223,45 @@ static internal class SqlCommandUtility
 	///     <see cref="ISpMapper{TResultSet}" />.
 	/// </typeparam>
 	/// <param name="spParameters">
-	///     An object containing the stored procedure name, parameters, and optional cache configuration.
+	///     An object containing:
+	///     <list type="bullet">
+	///         <item>
+	///             <description>ProcedureName - The name of the stored procedure to execute</description>
+	///         </item>
+	///         <item>
+	///             <description>Parameters - The parameters to pass to the stored procedure</description>
+	///         </item>
+	///         <item>
+	///             <description>CacheKey - Optional. Key for caching the results</description>
+	///         </item>
+	///         <item>
+	///             <description>CacheExpiration - Optional. How long to cache the results</description>
+	///         </item>
+	///         <item>
+	///             <description>CacheType - Optional. What type of caching to use</description>
+	///         </item>
+	///         <item>
+	///             <description>Capacity - Initial capacity for the result set builder</description>
+	///         </item>
+	///     </list>
 	/// </param>
 	/// <param name="connection">
 	///     An open database connection that will be used to execute the stored procedure.
 	/// </param>
-	/// <param name="cancellationToken"></param>
+	/// <param name="cancellationToken">Optional. A token to cancel the asynchronous operation.</param>
 	/// <returns>
 	///     Returns an immutable array of <typeparamref name="TResultSet" /> instances representing the result set of the
 	///     query.
 	/// </returns>
-	static internal async Task<ImmutableArray<TResultSet>> ResultSetAsImmutableArrayAsync<TResultSet>(
+	/// <exception cref="InvalidOperationException">Thrown when the provided connection is not a SqlConnection.</exception>
+	/// <exception cref="CaeriusNetSqlException">Thrown when the execution of the stored procedure fails.</exception>
+	/// <remarks>
+	///     This method uses an ImmutableArray.Builder for efficient construction of the result set.
+	///     If the final count matches the initial capacity, it uses MoveToImmutable for better performance.
+	///     Otherwise it calls ToImmutable which may require an extra array allocation.
+	/// </remarks>
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	static internal async ValueTask<ImmutableArray<TResultSet>> ResultSetAsImmutableArrayAsync<TResultSet>(
 		StoredProcedureParameters spParameters,
 		IDbConnection connection,
 		CancellationToken cancellationToken = default)
@@ -144,7 +276,9 @@ static internal class SqlCommandUtility
 		while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
 			builder.Add(TResultSet.MapFromDataReader(reader));
 
-		return builder.ToImmutable();
+		return builder.Count == builder.Capacity
+			? builder.MoveToImmutable()
+			: builder.ToImmutable();
 	}
 
 	/// <summary>
@@ -152,20 +286,33 @@ static internal class SqlCommandUtility
 	///     and database connection.
 	/// </summary>
 	/// <param name="spParameters">
-	///     The stored procedure parameters, including the procedure name and the list of SQL
-	///     parameters.
+	///     The stored procedure parameters, including the procedure name and the list of SQL parameters. The ProcedureName
+	///     property
+	///     specifies the name of the stored procedure to execute. The Parameters property contains the SQL parameters to pass
+	///     to
+	///     the stored procedure.
 	/// </param>
 	/// <param name="connection">
 	///     The open database connection that will be used to execute the command. The connection must be
-	///     of type <see cref="SqlConnection" />.
+	///     of type <see cref="SqlConnection" />. If the connection is not open, it will be opened automatically.
 	/// </param>
-	/// <param name="cancellationToken"></param>
-	/// <returns>Returns a configured <see cref="SqlCommand" /> instance ready for execution.</returns>
+	/// <param name="cancellationToken">
+	///     A cancellation token that can be used to cancel the asynchronous operation of opening the connection if needed.
+	/// </param>
+	/// <returns>
+	///     Returns a configured <see cref="SqlCommand" /> instance ready for execution. The command will be configured with:
+	///     - CommandText set to the stored procedure name
+	///     - CommandType set to StoredProcedure
+	///     - CommandTimeout set to 30 seconds
+	///     - Any parameters from spParameters added to the command's Parameters collection
+	/// </returns>
 	/// <exception cref="InvalidOperationException">
-	///     Thrown when the provided connection is not of type
-	///     <see cref="SqlConnection" />.
+	///     Thrown when the provided connection is not of type <see cref="SqlConnection" />. The connection must be a
+	///     SqlConnection
+	///     instance to execute SQL Server stored procedures.
 	/// </exception>
-	private static async Task<SqlCommand> ExecuteSqlCommandAsync(
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	private static async ValueTask<SqlCommand> ExecuteSqlCommandAsync(
 		StoredProcedureParameters spParameters,
 		IDbConnection connection,
 		CancellationToken cancellationToken = default)
@@ -176,17 +323,14 @@ static internal class SqlCommandUtility
 		if (sqlConnection.State != ConnectionState.Open)
 			await sqlConnection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-		var command = new SqlCommand(spParameters.ProcedureName, sqlConnection)
-		{
-			CommandType = CommandType.StoredProcedure
-		};
+		var command = sqlConnection.CreateCommand();
+		command.CommandText = spParameters.ProcedureName;
+		command.CommandType = CommandType.StoredProcedure;
+		command.CommandTimeout = 30;
 
-		// Avoid intermediate spread copies; prefer AddRange if already an array.
-		if (spParameters.Parameters is not {} p)
-			return command;
-
-		foreach (var prm in p)
-			command.Parameters.Add(prm);
+		var paramsSpan = spParameters.Parameters.Span;
+		for (int i = 0; i < paramsSpan.Length; i++)
+			command.Parameters.Add(paramsSpan[i]);
 
 		return command;
 	}
@@ -197,21 +341,49 @@ static internal class SqlCommandUtility
 	/// <typeparam name="T">The type of the result produced by the execution function.</typeparam>
 	/// <param name="netDbContext">The database context providing access to the underlying database connection.</param>
 	/// <param name="spParameters">
-	///     An object containing the stored procedure name, parameters, and optional cache
-	///     configuration.
+	///     An object containing the stored procedure name, parameters, and optional cache configuration.
+	///     The following properties are included:
+	///     <list type="bullet">
+	///         <item>
+	///             <description><c>ProcedureName</c>: The name of the stored procedure to execute</description>
+	///         </item>
+	///         <item>
+	///             <description><c>Parameters</c>: The SQL parameters to pass to the stored procedure</description>
+	///         </item>
+	///         <item>
+	///             <description><c>CacheKey</c>: Optional. Key for caching the results</description>
+	///         </item>
+	///         <item>
+	///             <description><c>CacheExpiration</c>: Optional. How long to cache the results</description>
+	///         </item>
+	///         <item>
+	///             <description><c>CacheType</c>: Optional. What type of caching to use</description>
+	///         </item>
+	///     </list>
 	/// </param>
 	/// <param name="execute">
 	///     A function used to process the <see cref="SqlCommand" /> and produce a result of type
-	///     <typeparamref name="T" />.
+	///     <typeparamref name="T" />. The function takes a <see cref="SqlCommand" /> as input and returns
+	///     a <see cref="ValueTask{T}" />.
 	/// </param>
-	/// <param name="cancellationToken"></param>
-	/// <returns>Returns a task that produces a result of type <typeparamref name="T" />.</returns>
+	/// <param name="cancellationToken">
+	///     Optional. A token that can be used to request cancellation of the asynchronous
+	///     operation.
+	/// </param>
+	/// <returns>
+	///     Returns a <see cref="ValueTask{T}" /> representing the asynchronous operation that produces a result of type
+	///     <typeparamref name="T" />.
+	/// </returns>
 	/// <exception cref="CaeriusNetSqlException">
 	///     Thrown when the execution of the stored procedure fails due to an underlying SQL
-	///     exception.
+	///     exception. The exception includes the procedure name in the message and wraps the original SqlException.
 	/// </exception>
-	static internal async Task<T> ExecuteCommandAsync<T>(ICaeriusNetDbContext netDbContext,
-		StoredProcedureParameters spParameters, Func<SqlCommand, Task<T>> execute, CancellationToken cancellationToken = default)
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	static internal async ValueTask<T> ExecuteCommandAsync<T>(
+		ICaeriusNetDbContext netDbContext,
+		StoredProcedureParameters spParameters,
+		Func<SqlCommand, ValueTask<T>> execute,
+		CancellationToken cancellationToken = default)
 	{
 		try{
 			using var connection = netDbContext.DbConnection();
@@ -227,17 +399,37 @@ static internal class SqlCommandUtility
 	///     functions for each result set.
 	/// </summary>
 	/// <param name="spParameters">
-	///     An object containing the stored procedure name, parameters, and optional cache configurations.
+	///     An object containing:
+	///     <list type="bullet">
+	///         <item>
+	///             <description>ProcedureName - The name of the stored procedure to execute</description>
+	///         </item>
+	///         <item>
+	///             <description>Parameters - The parameters to pass to the stored procedure</description>
+	///         </item>
+	///         <item>
+	///             <description>Capacity - Initial capacity for the result collections</description>
+	///         </item>
+	///     </list>
 	/// </param>
-	/// <param name="connection">An open database connection used to execute the stored procedure.</param>
+	/// <param name="connection">
+	///     An open database connection that will be used to execute the stored procedure.
+	/// </param>
 	/// <param name="mappers">
 	///     Functions that map the data from the result sets to strongly-typed objects. Each function corresponds
-	///     to a specific result set.
+	///     to a specific result set in the order they are returned from the stored procedure.
 	/// </param>
 	/// <returns>
 	///     A list where each element is a read-only collection of objects representing a single result set, processed
-	///     using the corresponding mapper function.
+	///     using the corresponding mapper function. The collections are immutable to prevent modifications.
 	/// </returns>
+	/// <exception cref="ArgumentException">Thrown when no mapper functions are provided.</exception>
+	/// <exception cref="InvalidOperationException">Thrown when the connection is not a SqlConnection.</exception>
+	/// <remarks>
+	///     This method efficiently processes multiple result sets from a single stored procedure execution.
+	///     Each result set is mapped to objects using the corresponding mapper function and returned as a
+	///     read-only collection. The method handles sequential access to optimize performance.
+	/// </remarks>
 	static internal async Task<List<IReadOnlyCollection<object>>> ExecuteMultipleReadOnlyResultSetsAsync(
 		StoredProcedureParameters spParameters,
 		IDbConnection connection,
@@ -250,13 +442,19 @@ static internal class SqlCommandUtility
 		await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess).ConfigureAwait(false);
 
 		var results = new List<IReadOnlyCollection<object>>(mappers.Length);
+		int mappersCount = mappers.Length;
 
-		foreach (var mapper in mappers){
+		for (int i = 0; i < mappersCount; i++){
 			var items = new List<object>(spParameters.Capacity);
+			var currentMapper = mappers[i];
+
 			while (await reader.ReadAsync().ConfigureAwait(false))
-				items.Add(mapper(reader));
+				items.Add(currentMapper(reader));
 
 			results.Add(items.AsReadOnly());
+
+			if (i >= mappersCount - 1)
+				continue;
 
 			if (!await reader.NextResultAsync().ConfigureAwait(false))
 				break;
@@ -271,18 +469,38 @@ static internal class SqlCommandUtility
 	/// </summary>
 	/// <param name="spParameters">
 	///     An object representing the stored procedure name, its parameters, and optional cache configuration.
+	///     Contains:
+	///     <list type="bullet">
+	///         <item>
+	///             <description>ProcedureName - The name of the stored procedure to execute</description>
+	///         </item>
+	///         <item>
+	///             <description>Parameters - The parameters to pass to the stored procedure</description>
+	///         </item>
+	///         <item>
+	///             <description>Capacity - Initial capacity for the result set builder</description>
+	///         </item>
+	///     </list>
 	/// </param>
 	/// <param name="connection">
-	///     An open database connection used to execute the stored procedure query.
+	///     An open database connection used to execute the stored procedure query. Must be a <see cref="SqlConnection" />.
 	/// </param>
 	/// <param name="mappers">
 	///     An array of functions that define how each result set from the query is mapped to an object. Each function must
-	///     correspond to a result set returned by the query.
+	///     correspond to a result set returned by the query in the order they are returned.
 	/// </param>
 	/// <returns>
 	///     A list of immutable arrays, where each array contains objects of the corresponding result sets mapped by the
-	///     provided mapper functions.
+	///     provided mapper functions. The arrays are immutable to prevent modifications.
 	/// </returns>
+	/// <exception cref="ArgumentException">Thrown when no mapper functions are provided.</exception>
+	/// <exception cref="InvalidOperationException">Thrown when the connection is not a <see cref="SqlConnection" />.</exception>
+	/// <remarks>
+	///     This method efficiently processes multiple result sets from a single stored procedure execution.
+	///     Each result set is mapped using the corresponding mapper function and stored in an immutable array.
+	///     The number of result sets processed matches the number of mapper functions provided.
+	///     If there are fewer result sets than mappers, processing stops after the last available result set.
+	/// </remarks>
 	static internal async Task<List<ImmutableArray<object>>> ExecuteMultipleImmutableResultSetsAsync(
 		StoredProcedureParameters spParameters,
 		IDbConnection connection,
@@ -295,12 +513,19 @@ static internal class SqlCommandUtility
 		await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess).ConfigureAwait(false);
 
 		var results = new List<ImmutableArray<object>>(mappers.Length);
-		foreach (var mapper in mappers){
+		int mappersCount = mappers.Length;
+
+		for (int i = 0; i < mappersCount; i++){
 			var builder = ImmutableArray.CreateBuilder<object>(spParameters.Capacity);
+			var currentMapper = mappers[i];
+
 			while (await reader.ReadAsync().ConfigureAwait(false))
-				builder.Add(mapper(reader));
+				builder.Add(currentMapper(reader));
 
 			results.Add(builder.ToImmutable());
+
+			if (i >= mappersCount - 1)
+				continue;
 
 			if (!await reader.NextResultAsync().ConfigureAwait(false))
 				break;
@@ -314,19 +539,45 @@ static internal class SqlCommandUtility
 	///     each mapped to an <see cref="IEnumerable{T}" /> of objects using the provided mapping functions.
 	/// </summary>
 	/// <param name="spParameters">
-	///     An object containing the stored procedure name, parameters, and optional cache configuration.
+	///     An object containing:
+	///     <list type="bullet">
+	///         <item>
+	///             <description>ProcedureName - The name of the stored procedure to execute</description>
+	///         </item>
+	///         <item>
+	///             <description>Parameters - The parameters to pass to the stored procedure</description>
+	///         </item>
+	///         <item>
+	///             <description>Capacity - Initial capacity for each result set collection</description>
+	///         </item>
+	///     </list>
 	/// </param>
 	/// <param name="connection">
 	///     An open database connection that will be used to execute the stored procedure.
+	///     Must be an instance of <see cref="SqlConnection" />.
 	/// </param>
 	/// <param name="mappers">
-	///     An array of mapping functions, each taking a <see cref="SqlDataReader" /> as input and returning a single object.
-	///     The functions are used to process and map each result set retrieved by the query.
+	///     An array of mapping functions that process each result set. Each function takes a
+	///     <see cref="SqlDataReader" /> as input and maps a single row to an object.
+	///     The number of mappers determines how many result sets are processed.
 	/// </param>
 	/// <returns>
-	///     A list of <see cref="IEnumerable{T}" /> objects, where each enumerable represents a result set mapped according
-	///     to the corresponding mapping function provided in <paramref name="mappers" />.
+	///     A list where each element is an <see cref="IEnumerable{T}" /> containing the mapped objects
+	///     for a single result set. The order of the result sets matches the order of the mapper functions.
 	/// </returns>
+	/// <exception cref="ArgumentException">
+	///     Thrown when no mapper functions are provided in the <paramref name="mappers" /> array.
+	/// </exception>
+	/// <exception cref="InvalidOperationException">
+	///     Thrown when the provided <paramref name="connection" /> is not a <see cref="SqlConnection" />.
+	/// </exception>
+	/// <remarks>
+	///     This method processes multiple result sets from a single stored procedure execution.
+	///     Each result set is processed sequentially using the corresponding mapper function.
+	///     If there are fewer result sets available than mapper functions, processing stops
+	///     after the last available result set.
+	///     The method uses <see cref="CommandBehavior.SequentialAccess" /> for optimal performance.
+	/// </remarks>
 	static internal async Task<List<IEnumerable<object>>> ExecuteMultipleIEnumerableResultSetsAsync(
 		StoredProcedureParameters spParameters,
 		IDbConnection connection,
@@ -339,13 +590,19 @@ static internal class SqlCommandUtility
 		await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess).ConfigureAwait(false);
 
 		var results = new List<IEnumerable<object>>(mappers.Length);
+		int mappersCount = mappers.Length;
 
-		foreach (var mapper in mappers){
+		for (int i = 0; i < mappersCount; i++){
 			var resultSet = new List<object>(spParameters.Capacity);
+			var currentMapper = mappers[i];
+
 			while (await reader.ReadAsync().ConfigureAwait(false))
-				resultSet.Add(mapper(reader));
+				resultSet.Add(currentMapper(reader));
 
 			results.Add(resultSet);
+
+			if (i >= mappersCount - 1)
+				continue;
 
 			if (!await reader.NextResultAsync().ConfigureAwait(false))
 				break;

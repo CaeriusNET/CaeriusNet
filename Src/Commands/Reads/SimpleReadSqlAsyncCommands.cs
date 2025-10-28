@@ -22,7 +22,7 @@ public static class SimpleReadSqlAsyncCommands
 	///     The parameters required to execute the stored procedure, including the procedure name,
 	///     input parameters, and caching details.
 	/// </param>
-	/// <param name="cancellationToken"></param>
+	/// <param name="cancellationToken">Token to cancel the operation.</param>
 	/// <returns>
 	///     Returns a task that represents the asynchronous operation. The task result is the mapped result of type
 	///     <typeparamref name="TResultSet" /> if data is retrieved successfully; otherwise, returns null.
@@ -30,25 +30,31 @@ public static class SimpleReadSqlAsyncCommands
 	/// <exception cref="CaeriusNetSqlException">
 	///     Thrown when the execution of the stored procedure fails due to a SQL exception.
 	/// </exception>
-	public static async Task<TResultSet?> FirstQueryAsync<TResultSet>(this ICaeriusNetDbContext context,
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	public static async ValueTask<TResultSet?> FirstQueryAsync<TResultSet>(
+		this ICaeriusNetDbContext context,
 		StoredProcedureParameters spParameters,
 		CancellationToken cancellationToken = default)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
-		if (CacheUtility.TryRetrieveFromCache(spParameters, out TResultSet? cachedResult) && cachedResult != null)
-			return cachedResult;
+		if (spParameters.CacheType.HasValue && !string.IsNullOrEmpty(spParameters.CacheKey))
+			if (CacheUtility.TryRetrieveFromCache<TResultSet>(spParameters, out var cachedResult))
+				return cachedResult;
 
 		try{
 			using var connection = context.DbConnection();
-			var result =
-				await SqlCommandUtility.ScalarQueryAsync<TResultSet>(spParameters, connection, cancellationToken).ConfigureAwait(false);
+			var result = await SqlCommandUtility.ScalarQueryAsync<TResultSet>(
+			spParameters, connection, cancellationToken).ConfigureAwait(false);
 
-			if (result != null)
+			if (result is not null)
 				CacheUtility.StoreInCache(spParameters, result);
 
 			return result;
 		}
-		catch (SqlException ex){ throw new CaeriusNetSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex); }
+		catch (SqlException ex){
+			throw new CaeriusNetSqlException(
+			$"Failed to execute stored procedure: {spParameters.ProcedureName}", ex);
+		}
 	}
 
 	/// <summary>
@@ -66,15 +72,17 @@ public static class SimpleReadSqlAsyncCommands
 	///     The parameters required to execute the stored procedure, including procedure name, input parameters,
 	///     caching details, and expiration policy.
 	/// </param>
-	/// <param name="cancellationToken"></param>
+	/// <param name="cancellationToken">Token to cancel the operation.</param>
 	/// <returns>
-	///     Returns a task representing the asynchronous operation. The task result is a <see cref="ReadOnlyCollection{T}" />
+	///     Returns a task representing the asynchronous operation. The task result is a
+	///     <see cref="System.Collections.ObjectModel.ReadOnlyCollection{T}" />
 	///     containing the mapped results of type <typeparamref name="TResultSet" /> if the operation succeeds.
 	/// </returns>
 	/// <exception cref="CaeriusNetSqlException">
 	///     Thrown when the execution of the stored procedure fails due to a SQL exception.
 	/// </exception>
-	public static async Task<ReadOnlyCollection<TResultSet>> QueryAsReadOnlyCollectionAsync<TResultSet>(
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	public static async ValueTask<ReadOnlyCollection<TResultSet>> QueryAsReadOnlyCollectionAsync<TResultSet>(
 		this ICaeriusNetDbContext context,
 		StoredProcedureParameters spParameters,
 		CancellationToken cancellationToken = default)
@@ -86,20 +94,26 @@ public static class SimpleReadSqlAsyncCommands
 
 		try{
 			using var connection = context.DbConnection();
-			var result =
-				await SqlCommandUtility.ResultSetAsReadOnlyCollectionAsync<TResultSet>(spParameters, connection,
-				cancellationToken).ConfigureAwait(false);
+			var result = await SqlCommandUtility.ResultSetAsReadOnlyCollectionAsync<TResultSet>(
+			spParameters, connection, cancellationToken).ConfigureAwait(false);
+
+			// ✅ Utilise singleton pour collections vides
+			if (result.Count == 0)
+				result = EmptyCollections.ReadOnlyCollection<TResultSet>();
 
 			CacheUtility.StoreInCache(spParameters, result);
-
 			return result;
 		}
-		catch (SqlException ex){ throw new CaeriusNetSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex); }
+		catch (SqlException ex){
+			throw new CaeriusNetSqlException(
+			$"Failed to execute stored procedure: {spParameters.ProcedureName}", ex);
+		}
 	}
 
 	/// <summary>
 	///     Executes a stored procedure asynchronously to retrieve a collection of mapped results. The results
-	///     are returned as an <see cref="IEnumerable{T}" /> and can optionally be retrieved from cache if caching
+	///     are returned as an <see cref="System.Collections.Generic.IEnumerable{T}" /> and can optionally be retrieved from
+	///     cache if caching
 	///     is enabled and the item is available.
 	/// </summary>
 	/// <typeparam name="TResultSet">
@@ -112,15 +126,17 @@ public static class SimpleReadSqlAsyncCommands
 	///     The parameters required to execute the stored procedure, including the procedure name, input
 	///     parameters, and caching details.
 	/// </param>
-	/// <param name="cancellationToken"></param>
+	/// <param name="cancellationToken">Token to cancel the operation.</param>
 	/// <returns>
-	///     Returns a task that represents the asynchronous operation. The task result is an <see cref="IEnumerable{T}" />
+	///     Returns a task that represents the asynchronous operation. The task result is an
+	///     <see cref="System.Collections.Generic.IEnumerable{T}" />
 	///     collection of mapped results of type <typeparamref name="TResultSet" /> if data is retrieved successfully.
 	/// </returns>
 	/// <exception cref="CaeriusNetSqlException">
 	///     Thrown when the execution of the stored procedure fails due to a SQL exception.
 	/// </exception>
-	public static async Task<IEnumerable<TResultSet>> QueryAsIEnumerableAsync<TResultSet>(
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	public static async ValueTask<IEnumerable<TResultSet>> QueryAsIEnumerableAsync<TResultSet>(
 		this ICaeriusNetDbContext context,
 		StoredProcedureParameters spParameters,
 		CancellationToken cancellationToken = default)
@@ -133,22 +149,25 @@ public static class SimpleReadSqlAsyncCommands
 		try{
 			var results = new List<TResultSet>(spParameters.Capacity);
 			using var connection = context.DbConnection();
-			await foreach (var item in SqlCommandUtility.StreamQueryAsync<TResultSet>(spParameters, connection,
-			               cancellationToken).ConfigureAwait(false))
+
+			await foreach (var item in SqlCommandUtility.StreamQueryAsync<TResultSet>(
+			               spParameters, connection, cancellationToken).ConfigureAwait(false))
 				results.Add(item);
 
 			CacheUtility.StoreInCache(spParameters, results);
 
-			// Avoid AsEnumerable() iterator allocation: return the list directly.
+			// Return the list directly (no AsEnumerable() needed - List<T> implements IEnumerable<T>)
 			return results;
 		}
-		catch (SqlException ex){ throw new CaeriusNetSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex); }
+		catch (SqlException ex){
+			throw new CaeriusNetSqlException(
+			$"Failed to execute stored procedure: {spParameters.ProcedureName}", ex);
+		}
 	}
 
 	/// <summary>
 	///     Executes a stored procedure to retrieve a data set asynchronously and maps the result into an immutable array of a
-	///     specified type.
-	///     The result can optionally be retrieved from cache if caching is enabled and the item is available.
+	///     specified type. The result can optionally be retrieved from cache if caching is enabled and the item is available.
 	/// </summary>
 	/// <typeparam name="TResultSet">
 	///     The type of each item in the resulting immutable array. Must implement <see cref="ISpMapper{T}" />.
@@ -161,34 +180,38 @@ public static class SimpleReadSqlAsyncCommands
 	///     The parameters required for the execution of the stored procedure, including procedure name, input parameters,
 	///     cache details, and capacity for expected results.
 	/// </param>
-	/// <param name="cancellationToken"></param>
+	/// <param name="cancellationToken">Token to cancel the operation.</param>
 	/// <returns>
-	///     Returns a task representing the asynchronous operation. The task result is an <see cref="ImmutableArray{T}" /> of
+	///     Returns a task representing the asynchronous operation. The task result is an
+	///     <see cref="System.Collections.Immutable.ImmutableArray{T}" /> of
 	///     type <typeparamref name="TResultSet" /> containing the mapped results if data is retrieved successfully.
 	/// </returns>
 	/// <exception cref="CaeriusNetSqlException">
 	///     Thrown when the execution of the stored procedure fails due to a SQL exception.
 	/// </exception>
-	public static async Task<ImmutableArray<TResultSet>> QueryAsImmutableArrayAsync<TResultSet>(
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	public static async ValueTask<ImmutableArray<TResultSet>> QueryAsImmutableArrayAsync<TResultSet>(
 		this ICaeriusNetDbContext context,
 		StoredProcedureParameters spParameters,
 		CancellationToken cancellationToken = default)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
+		// Note: ImmutableArray<T> is a struct, so we check HasValue to avoid default value confusion
 		if (CacheUtility.TryRetrieveFromCache(spParameters, out ImmutableArray<TResultSet>? cachedResult) &&
-		    cachedResult != null)
-			return (ImmutableArray<TResultSet>)cachedResult;
+		    cachedResult.HasValue)
+			return cachedResult.Value;
 
 		try{
 			using var connection = context.DbConnection();
-			var result =
-				await SqlCommandUtility.ResultSetAsImmutableArrayAsync<TResultSet>(spParameters, connection,
-				cancellationToken).ConfigureAwait(false);
+			var result = await SqlCommandUtility.ResultSetAsImmutableArrayAsync<TResultSet>(
+			spParameters, connection, cancellationToken).ConfigureAwait(false);
 
 			CacheUtility.StoreInCache(spParameters, result);
-
 			return result;
 		}
-		catch (SqlException ex){ throw new CaeriusNetSqlException($"Failed to execute stored procedure : {spParameters.ProcedureName}", ex); }
+		catch (SqlException ex){
+			throw new CaeriusNetSqlException(
+			$"Failed to execute stored procedure: {spParameters.ProcedureName}", ex);
+		}
 	}
 }

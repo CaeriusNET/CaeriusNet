@@ -7,7 +7,7 @@
 public sealed record StoredProcedureParameters(
 	string ProcedureName,
 	int Capacity,
-	List<SqlParameter> Parameters,
+	ReadOnlyMemory<SqlParameter> Parameters,
 	string? CacheKey,
 	TimeSpan? CacheExpiration,
 	CacheType? CacheType);

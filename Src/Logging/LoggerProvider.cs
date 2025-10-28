@@ -21,35 +21,31 @@
 /// </remarks>
 static internal class LoggerProvider
 {
-	private static ICaeriusNetLogger? _logger;
+	/// <summary>
+	///     The private logger instance used for logging throughout the application.
+	/// </summary>
+	private static ILogger? _logger;
 
 	/// <summary>
 	///     Gets the current logger instance.
 	/// </summary>
-	/// <returns>The configured logger instance, or null if no instance has been configured.</returns>
+	/// <returns>
+	///     The configured <see cref="ILogger" /> instance, or null if no instance has been configured.
+	/// </returns>
 	/// <remarks>
-	///     This method does not throw when no logger has been configured.
-	///     Typical patterns include:
-	///     - Providing a default no-op logger when null is returned.
-	///     - Failing fast during startup if a logger is required for the application.
-	///     No locking is performed.
+	///     <para>
+	///         This method does not throw when no logger has been configured.
+	///         Typical patterns include:
+	///         - Providing a default no-op logger when null is returned.
+	///         - Failing fast during startup if a logger is required for the application.
+	///     </para>
+	///     <para>
+	///         No locking is performed during the read operation. The method uses <see cref="Volatile.Read" />
+	///         to ensure thread-safe access to the logger instance.
+	///     </para>
 	/// </remarks>
-	static internal ICaeriusNetLogger? GetLogger()
+	static internal ILogger? GetLogger()
 	{
-		return _logger;
-	}
-
-	/// <summary>
-	///     Sets the logger instance to be used application-wide.
-	/// </summary>
-	/// <param name="netLogger">The logger instance to register.</param>
-	/// <remarks>
-	///     Call this during application startup before any logging occurs. Subsequent calls replace the existing instance.
-	///     This method does not perform synchronization; avoid concurrent calls.
-	///     Passing null is not supported by the method signature.
-	/// </remarks>
-	static internal void SetLogger(ICaeriusNetLogger netLogger)
-	{
-		_logger = netLogger;
+		return Volatile.Read(ref _logger);
 	}
 }

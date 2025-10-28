@@ -7,28 +7,23 @@ namespace CaeriusNet.Commands.Writes;
 public static class WriteSqlAsyncCommands
 {
 	/// <summary>
-	///     Executes a scalar SQL command asynchronously using the provided <see cref="ICaeriusNetDbContext" />
-	///     and stored procedure parameters, returning the result as an instance of the specified type.
+	///     Executes a scalar SQL command asynchronously and returns the result as the specified type.
 	/// </summary>
-	/// <typeparam name="T">
-	///     The type of the result expected from the scalar SQL command.
-	///     If the result from the database is <see cref="DBNull" />, the method returns <c>default</c>.
-	/// </typeparam>
-	/// <param name="dbContext">
-	///     The database context used to establish a connection for executing the SQL command.
-	///     Must implement <see cref="ICaeriusNetDbContext" />.
-	/// </param>
-	/// <param name="spParameters">
-	///     The parameters required for the stored procedure, including the procedure name,
-	///     associated parameters, and optional caching details.
-	/// </param>
-	/// <param name="cancellationToken"></param>
+	/// <typeparam name="T">The expected type of the scalar result.</typeparam>
+	/// <param name="dbContext">The database context used to execute the command.</param>
+	/// <param name="spParameters">The stored procedure name and parameters.</param>
+	/// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
 	/// <returns>
-	///     A task representing the asynchronous operation. The task result contains the scalar value retrieved
-	///     from the database, converted to the specified type <typeparamref name="T" />.
-	///     Returns <c>default</c> if the result is <see cref="DBNull" />.
+	///     A <see cref="ValueTask{T}" /> representing the asynchronous operation. The task result contains
+	///     the scalar value converted to type <typeparamref name="T" />, or default(T) if the result is DBNull.
 	/// </returns>
-	public static async Task<T?> ExecuteScalarAsync<T>(this ICaeriusNetDbContext dbContext,
+	/// <remarks>
+	///     This method executes a SQL command that returns a single value. The value is converted to the specified
+	///     type T. If the database returns DBNull, the method returns the default value for type T.
+	/// </remarks>
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	public static async ValueTask<T?> ExecuteScalarAsync<T>(
+		this ICaeriusNetDbContext dbContext,
 		StoredProcedureParameters spParameters,
 		CancellationToken cancellationToken = default)
 	{
@@ -39,48 +34,45 @@ public static class WriteSqlAsyncCommands
 	}
 
 	/// <summary>
-	///     Executes a non-query SQL command asynchronously using the provided <see cref="ICaeriusNetDbContext" />
-	///     and stored procedure parameters, returning the number of rows affected.
+	///     Executes a non-query SQL command asynchronously and returns the number of rows affected.
 	/// </summary>
-	/// <param name="dbContext">
-	///     The database context used to establish a connection for executing the SQL command.
-	///     Must implement <see cref="ICaeriusNetDbContext" />.
-	/// </param>
-	/// <param name="spParameters">
-	///     The parameters required for the stored procedure, including the procedure name,
-	///     associated parameters, and optional caching details.
-	/// </param>
-	/// <param name="cancellationToken"></param>
+	/// <param name="dbContext">The database context used to execute the command.</param>
+	/// <param name="spParameters">The stored procedure name and parameters.</param>
+	/// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
 	/// <returns>
-	///     A task representing the asynchronous operation. The task result contains the number
-	///     of rows affected by the executed SQL command.
+	///     A <see cref="ValueTask{T}" /> representing the asynchronous operation. The task result contains
+	///     the number of rows affected by the command.
 	/// </returns>
-	public static async Task<int> ExecuteNonQueryAsync(this ICaeriusNetDbContext dbContext,
+	/// <remarks>
+	///     This method is typically used for INSERT, UPDATE, DELETE, or other SQL commands that modify data
+	///     but don't return results. The return value indicates how many rows were affected.
+	/// </remarks>
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	public static async ValueTask<int> ExecuteNonQueryAsync(
+		this ICaeriusNetDbContext dbContext,
 		StoredProcedureParameters spParameters,
 		CancellationToken cancellationToken = default)
 	{
 		return await SqlCommandUtility.ExecuteCommandAsync(dbContext, spParameters,
-		execute: command => command.ExecuteNonQueryAsync(cancellationToken),
+		execute: command => new ValueTask<int>(command.ExecuteNonQueryAsync(cancellationToken)),
 		cancellationToken).ConfigureAwait(false);
 	}
 
 	/// <summary>
-	///     Executes a non-query SQL command asynchronously using the provided <see cref="ICaeriusNetDbContext" />
-	///     and stored procedure parameters, as Fire and Forget, this method does not return any result.
+	///     Executes a non-query SQL command asynchronously without returning any results (Fire and Forget).
 	/// </summary>
-	/// <param name="dbContext">
-	///     The database context used to establish a connection for executing the SQL command.
-	///     Must implement <see cref="ICaeriusNetDbContext" />.
-	/// </param>
-	/// <param name="spParameters">
-	///     The parameters required for the stored procedure, including the procedure name,
-	///     associated parameters, and optional caching details.
-	/// </param>
-	/// <param name="cancellationToken"></param>
-	/// <returns>
-	///     A task representing the asynchronous operation. As this method is Fire and Forget, it does not return any result.
-	/// </returns>
-	public static async Task ExecuteAsync(this ICaeriusNetDbContext dbContext,
+	/// <param name="dbContext">The database context used to execute the command.</param>
+	/// <param name="spParameters">The stored procedure name and parameters.</param>
+	/// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
+	/// <returns>A <see cref="ValueTask" /> representing the asynchronous operation.</returns>
+	/// <remarks>
+	///     This method executes a SQL command without waiting for or processing any results.
+	///     It's useful for operations where you don't need to know the outcome or affected rows count.
+	///     The operation is "fire and forget" - the method returns as soon as the command is sent.
+	/// </remarks>
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	public static async ValueTask ExecuteAsync(
+		this ICaeriusNetDbContext dbContext,
 		StoredProcedureParameters spParameters,
 		CancellationToken cancellationToken = default)
 	{

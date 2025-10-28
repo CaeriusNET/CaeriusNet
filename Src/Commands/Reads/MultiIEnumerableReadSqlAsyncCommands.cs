@@ -18,21 +18,18 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 		where TResultSet2 : class, ISpMapper<TResultSet2>
 	{
 		return await SqlCommandUtility.ExecuteCommandAsync(context, spParameters, execute: async command => {
-			await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
+			await using var reader = await command.ExecuteReaderAsync(
+			CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
 
-			var l1 = new List<TResultSet1>(spParameters.Capacity);
-			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-				l1.Add(TResultSet1.MapFromDataReader(reader));
+			var l1 = await MultiResultSetHelper.ReadResultSetAsync<TResultSet1>(
+			reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
 
-			List<TResultSet2> l2 = [];
-			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
-				return (l1, l2);
+			if (!await MultiResultSetHelper.TryMoveNextAsync(reader, cancellationToken).ConfigureAwait(false))
+				return (l1, []);
 
-			l2 = new List<TResultSet2>(spParameters.Capacity);
-			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-				l2.Add(TResultSet2.MapFromDataReader(reader));
+			var l2 = await MultiResultSetHelper.ReadResultSetAsync<TResultSet2>(
+			reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
 
-			// Return lists directly as IEnumerable<T> (no extra iterator allocation).
 			return (l1, l2);
 		}, cancellationToken).ConfigureAwait(false);
 	}
@@ -50,27 +47,23 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 		where TResultSet3 : class, ISpMapper<TResultSet3>
 	{
 		return await SqlCommandUtility.ExecuteCommandAsync(context, spParameters, execute: async command => {
-			await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
+			await using var reader = await command.ExecuteReaderAsync(
+			CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
 
-			var l1 = new List<TResultSet1>(spParameters.Capacity);
-			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-				l1.Add(TResultSet1.MapFromDataReader(reader));
+			var l1 = await MultiResultSetHelper.ReadResultSetAsync<TResultSet1>(
+			reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
 
-			List<TResultSet2> l2 = [];
-			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
-				return (l1, l2, new List<TResultSet3>(0));
+			if (!await MultiResultSetHelper.TryMoveNextAsync(reader, cancellationToken).ConfigureAwait(false))
+				return (l1, [], []);
 
-			l2 = new List<TResultSet2>(spParameters.Capacity);
-			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-				l2.Add(TResultSet2.MapFromDataReader(reader));
+			var l2 = await MultiResultSetHelper.ReadResultSetAsync<TResultSet2>(
+			reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
 
-			List<TResultSet3> l3 = [];
-			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
-				return (l1, l2, l3);
+			if (!await MultiResultSetHelper.TryMoveNextAsync(reader, cancellationToken).ConfigureAwait(false))
+				return (l1, l2, []);
 
-			l3 = new List<TResultSet3>(spParameters.Capacity);
-			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-				l3.Add(TResultSet3.MapFromDataReader(reader));
+			var l3 = await MultiResultSetHelper.ReadResultSetAsync<TResultSet3>(
+			reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
 
 			return (l1, l2, l3);
 		}, cancellationToken).ConfigureAwait(false);
@@ -91,35 +84,29 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 		where TResultSet4 : class, ISpMapper<TResultSet4>
 	{
 		return await SqlCommandUtility.ExecuteCommandAsync(context, spParameters, execute: async command => {
-			await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
+			await using var reader = await command.ExecuteReaderAsync(
+			CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
 
-			var l1 = new List<TResultSet1>(spParameters.Capacity);
-			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-				l1.Add(TResultSet1.MapFromDataReader(reader));
+			var l1 = await MultiResultSetHelper.ReadResultSetAsync<TResultSet1>(
+			reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
 
-			List<TResultSet2> l2 = [];
-			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
-				return (l1, l2, new List<TResultSet3>(0), new List<TResultSet4>(0));
+			if (!await MultiResultSetHelper.TryMoveNextAsync(reader, cancellationToken).ConfigureAwait(false))
+				return (l1, [], [], []);
 
-			l2 = new List<TResultSet2>(spParameters.Capacity);
-			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-				l2.Add(TResultSet2.MapFromDataReader(reader));
+			var l2 = await MultiResultSetHelper.ReadResultSetAsync<TResultSet2>(
+			reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
 
-			List<TResultSet3> l3 = [];
-			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+			if (!await MultiResultSetHelper.TryMoveNextAsync(reader, cancellationToken).ConfigureAwait(false))
+				return (l1, l2, [], []);
+
+			var l3 = await MultiResultSetHelper.ReadResultSetAsync<TResultSet3>(
+			reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
+
+			if (!await MultiResultSetHelper.TryMoveNextAsync(reader, cancellationToken).ConfigureAwait(false))
 				return (l1, l2, l3, []);
 
-			l3 = new List<TResultSet3>(spParameters.Capacity);
-			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-				l3.Add(TResultSet3.MapFromDataReader(reader));
-
-			List<TResultSet4> l4 = [];
-			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
-				return (l1, l2, l3, l4);
-
-			l4 = new List<TResultSet4>(spParameters.Capacity);
-			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-				l4.Add(TResultSet4.MapFromDataReader(reader));
+			var l4 = await MultiResultSetHelper.ReadResultSetAsync<TResultSet4>(
+			reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
 
 			return (l1, l2, l3, l4);
 		}, cancellationToken).ConfigureAwait(false);
@@ -141,43 +128,35 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 		where TResultSet5 : class, ISpMapper<TResultSet5>
 	{
 		return await SqlCommandUtility.ExecuteCommandAsync(context, spParameters, execute: async command => {
-			await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
+			await using var reader = await command.ExecuteReaderAsync(
+			CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
 
-			var l1 = new List<TResultSet1>(spParameters.Capacity);
-			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-				l1.Add(TResultSet1.MapFromDataReader(reader));
+			var l1 = await MultiResultSetHelper.ReadResultSetAsync<TResultSet1>(
+			reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
 
-			List<TResultSet2> l2 = [];
-			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
-				return (l1, l2, new List<TResultSet3>(0), new List<TResultSet4>(0), new List<TResultSet5>(0));
+			if (!await MultiResultSetHelper.TryMoveNextAsync(reader, cancellationToken).ConfigureAwait(false))
+				return (l1, [], [], [], []);
 
-			l2 = new List<TResultSet2>(spParameters.Capacity);
-			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-				l2.Add(TResultSet2.MapFromDataReader(reader));
+			var l2 = await MultiResultSetHelper.ReadResultSetAsync<TResultSet2>(
+			reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
 
-			List<TResultSet3> l3 = [];
-			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+			if (!await MultiResultSetHelper.TryMoveNextAsync(reader, cancellationToken).ConfigureAwait(false))
+				return (l1, l2, [], [], []);
+
+			var l3 = await MultiResultSetHelper.ReadResultSetAsync<TResultSet3>(
+			reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
+
+			if (!await MultiResultSetHelper.TryMoveNextAsync(reader, cancellationToken).ConfigureAwait(false))
 				return (l1, l2, l3, [], []);
 
-			l3 = new List<TResultSet3>(spParameters.Capacity);
-			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-				l3.Add(TResultSet3.MapFromDataReader(reader));
+			var l4 = await MultiResultSetHelper.ReadResultSetAsync<TResultSet4>(
+			reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
 
-			List<TResultSet4> l4 = [];
-			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+			if (!await MultiResultSetHelper.TryMoveNextAsync(reader, cancellationToken).ConfigureAwait(false))
 				return (l1, l2, l3, l4, []);
 
-			l4 = new List<TResultSet4>(spParameters.Capacity);
-			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-				l4.Add(TResultSet4.MapFromDataReader(reader));
-
-			List<TResultSet5> l5 = [];
-			if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
-				return (l1, l2, l3, l4, l5);
-
-			l5 = new List<TResultSet5>(spParameters.Capacity);
-			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-				l5.Add(TResultSet5.MapFromDataReader(reader));
+			var l5 = await MultiResultSetHelper.ReadResultSetAsync<TResultSet5>(
+			reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
 
 			return (l1, l2, l3, l4, l5);
 		}, cancellationToken).ConfigureAwait(false);
