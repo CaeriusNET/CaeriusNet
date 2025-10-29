@@ -279,7 +279,7 @@ public sealed partial class TvpSourceGenerator
 
 		// Remove nullable annotation if present (e.g., "int?" -> "int")
 		if (typeName.Length > 0 && typeName[typeName.Length - 1] == '?')
-			typeName = typeName[..^1];
+			typeName = typeName.Slice(0, typeName.Length - 1);
 
 		// Handle Nullable<T> syntax (e.g., "System.Nullable<int>" -> "int")
 		const string nullablePrefix = "System.Nullable<";
