@@ -19,7 +19,7 @@
 ///         have to guard for null values.
 ///     </para>
 /// </remarks>
-static internal class LoggerProvider
+public static class LoggerProvider
 {
 	/// <summary>
 	///     The private logger instance used for logging throughout the application.
@@ -47,5 +47,18 @@ static internal class LoggerProvider
 	static internal ILogger? GetLogger()
 	{
 		return Volatile.Read(ref _logger);
+	}
+
+	/// <summary>
+	///     Sets the logger instance to be used throughout the application.
+	/// </summary>
+	/// <param name="logger">The logger instance to configure</param>
+	/// <remarks>
+	///     This method should be called once during application startup.
+	///     Subsequent calls will replace the previous logger instance.
+	/// </remarks>
+	public static void SetLogger(ILogger logger)
+	{
+		Volatile.Write(ref _logger, logger);
 	}
 }
