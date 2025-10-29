@@ -9,7 +9,6 @@
         <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
         <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
         <IsRoslynComponent>true</IsRoslynComponent>
-        <IsRoslynComponent>true</IsRoslynComponent>
         <RootNamespace>CaeriusNet.Generator</RootNamespace>
         <PackageId>CaeriusNet.Generator</PackageId>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
@@ -21,7 +20,7 @@
         <PackageProjectUrl>https://caerius.net</PackageProjectUrl>
         <PackageTags>source-generators;roslyn;mapping;tvp;dto</PackageTags>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
-        <Version>10.0.0.4-alpha</Version>
+        <Version>10.0.0.5-alpha</Version>
     </PropertyGroup>
 
     <ItemGroup>

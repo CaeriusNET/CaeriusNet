@@ -1,21 +1,29 @@
-﻿using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System.Collections.Generic;
-
-namespace CaeriusNet.Generator.Models;
+﻿namespace CaeriusNet.Generator.Models;
 
 /// <summary>
-///     Contains metadata about a DTO class that was discovered with the [GenerateDto] attribute.
-///     This information is used to generate the ISpMapper implementation.
+///     Represents comprehensive metadata about a type targeted for source generation.
 /// </summary>
+/// <remarks>
+///     <para>
+///         This class serves as the primary data container during source generation, encapsulating
+///         all information needed to generate both <see cref="ISpMapper{T}" /> and <see cref="ITvpMapper{T}" />
+///         implementations.
+///         It combines syntactic and semantic information from Roslyn analysis with attribute configuration.
+///     </para>
+///     <para>
+///         Instances are created during the semantic analysis phase after a type has been validated
+///         as a generation candidate, and are subsequently used throughout the code generation process.
+///     </para>
+/// </remarks>
 public sealed class Metadata
 {
+
 	/// <summary>
-	///     Creates a new instance of DTOMetadata.
+	///     Initializes a new instance of the <see cref="Metadata" /> class.
 	/// </summary>
-	/// <param name="classSymbol">The compiled symbol for the DTO class.</param>
-	/// <param name="declarationSyntax">The syntax node for the class declaration.</param>
-	/// <param name="namespaceName">The namespace of the DTO class.</param>
+	/// <param name="classSymbol">The Roslyn type symbol for the target type.</param>
+	/// <param name="declarationSyntax">The syntax node for the type declaration.</param>
+	/// <param name="namespaceName">The fully qualified namespace name.</param>
 	public Metadata(INamedTypeSymbol classSymbol, TypeDeclarationSyntax declarationSyntax, string namespaceName)
 	{
 		ClassSymbol = classSymbol;
@@ -25,39 +33,67 @@ public sealed class Metadata
 	}
 
 	/// <summary>
-	///     Gets or sets the SQL Server schema name for the TVP.
-	///     Defaults to "dbo" if not specified by the user.
+	///     Gets the Roslyn type symbol representing the target type.
 	/// </summary>
-	public string? TvpSchema { get; set; }
-
-	/// <summary>
-	///     Gets or sets the TVP name (without schema) specified by the GenerateTvp attribute.
-	///     This is required and must be provided by the user.
-	/// </summary>
-	public string? TvpName { get; set; }
-
-	/// <summary>
-	///     The name of the DTO class or record.
-	/// </summary>
-	public string RecordName { get; }
-
-	/// <summary>
-	///     The full namespace of the DTO class.
-	/// </summary>
-	public string Namespace { get; }
-
-	/// <summary>
-	///     The compiled symbol representing the DTO class.
-	/// </summary>
+	/// <value>The <see cref="INamedTypeSymbol" /> for semantic analysis and type resolution.</value>
 	public INamedTypeSymbol ClassSymbol { get; }
 
 	/// <summary>
-	///     The syntax node for the class/record declaration.
+	///     Gets the syntax node for the type declaration.
 	/// </summary>
+	/// <value>
+	///     The <see cref="TypeDeclarationSyntax" /> representing the class or record declaration in source code.
+	/// </value>
 	public TypeDeclarationSyntax DeclarationSyntax { get; }
 
 	/// <summary>
-	///     List of constructor parameters from the primary constructor.
+	///     Gets the name of the target type.
 	/// </summary>
+	/// <value>The simple type name (without namespace qualification).</value>
+	public string RecordName { get; }
+
+	/// <summary>
+	///     Gets the fully qualified namespace of the target type.
+	/// </summary>
+	/// <value>
+	///     The namespace name, or "global" if the type is in the global namespace.
+	/// </value>
+	public string Namespace { get; }
+
+	/// <summary>
+	///     Gets or sets the SQL Server schema name for TVP generation.
+	/// </summary>
+	/// <value>
+	///     The schema name (e.g., "dbo", "app"), or <see langword="null" /> if not configured.
+	///     Defaults to "dbo" during TVP generation if not explicitly set.
+	/// </value>
+	/// <remarks>
+	///     This property is only relevant for types decorated with <see cref="GenerateTvpAttribute" />.
+	/// </remarks>
+	public string? TvpSchema { get; set; }
+
+	/// <summary>
+	///     Gets or sets the TVP type name (without schema qualification).
+	/// </summary>
+	/// <value>
+	///     The TVP type name as specified in the <see cref="GenerateTvpAttribute" />,
+	///     or <see langword="null" /> if not configured.
+	/// </value>
+	/// <remarks>
+	///     This property is required for TVP generation and must be provided by the user
+	///     through the <see cref="GenerateTvpAttribute" />.
+	/// </remarks>
+	public string? TvpName { get; set; }
+
+	/// <summary>
+	///     Gets the collection of constructor parameter metadata.
+	/// </summary>
+	/// <value>
+	///     A mutable list of <see cref="ParameterMetadata" /> objects representing each primary constructor parameter.
+	/// </value>
+	/// <remarks>
+	///     This collection is populated during the metadata extraction phase and preserves parameter order,
+	///     which is critical for generating correct ordinal-based data access code.
+	/// </remarks>
 	public List<ParameterMetadata> Parameters { get; } = [];
 }

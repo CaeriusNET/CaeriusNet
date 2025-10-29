@@ -1,38 +1,78 @@
-﻿using CaeriusNet.Generator.Models;
-using CaeriusNet.Generator.Utils;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System.Linq;
-using System.Threading;
-using Metadata=CaeriusNet.Generator.Models.Metadata;
-
-namespace CaeriusNet.Generator.Tvp;
+﻿namespace CaeriusNet.Generator.Tvp;
 
 public sealed partial class TvpSourceGenerator
 {
 	/// <summary>
-	///     Determines if a syntax node is a potential candidate for TVP generation.
+	///     Performs a fast syntactic check to determine if a node is a potential TVP generation candidate.
 	/// </summary>
 	/// <param name="syntaxNode">The syntax node to evaluate.</param>
-	/// <returns>True if the node could be a TVP candidate, false otherwise.</returns>
-	private static bool IsTvpCandidate(SyntaxNode syntaxNode)
+	/// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
+	/// <returns>
+	///     <see langword="true" /> if the node is a sealed partial type declaration (class or record);
+	///     otherwise, <see langword="false" />.
+	/// </returns>
+	/// <remarks>
+	///     This predicate performs minimal work to quickly filter out non-candidates before semantic analysis.
+	///     It checks for:
+	///     <list type="bullet">
+	///         <item>
+	///             <description>Type declaration syntax (class or record)</description>
+	///         </item>
+	///         <item>
+	///             <description>Sealed modifier (for performance and preventing inheritance issues)</description>
+	///         </item>
+	///         <item>
+	///             <description>Partial modifier (required for code generation)</description>
+	///         </item>
+	///     </list>
+	/// </remarks>
+	private static bool IsTvpCandidate(SyntaxNode syntaxNode, CancellationToken cancellationToken)
 	{
-		// We're looking for type declarations (class or record)
 		if (syntaxNode is not TypeDeclarationSyntax typeDeclaration)
 			return false;
 
-		// Must be partial to allow code generation
-		return typeDeclaration.Modifiers.Any(m => m.ValueText == "partial") &&
-		       // Must be sealed for performance and design reasons
-		       typeDeclaration.Modifiers.Any(m => m.ValueText == "sealed");
+		var modifiers = typeDeclaration.Modifiers;
+
+		// Must be both partial and sealed
+		bool hasPartial = false;
+		bool hasSealed = false;
+
+		foreach (var modifier in modifiers){
+			if (modifier.IsKind(SyntaxKind.PartialKeyword))
+				hasPartial = true;
+			else if (modifier.IsKind(SyntaxKind.SealedKeyword))
+				hasSealed = true;
+
+			if (hasPartial && hasSealed)
+				return true;
+		}
+
+		return false;
 	}
 
 	/// <summary>
-	///     Extracts metadata from a syntax node that has the GenerateTvp attribute.
+	///     Extracts comprehensive metadata from a type decorated with <see cref="GenerateTvpAttribute" />.
 	/// </summary>
-	/// <param name="context">The generator attribute syntax context.</param>
-	/// <param name="cancellationToken">Cancellation token.</param>
-	/// <returns>Metadata for TVP generation or null if extraction fails.</returns>
+	/// <param name="context">The generator attribute syntax context containing semantic information.</param>
+	/// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
+	/// <returns>
+	///     A <see cref="Metadata" /> object containing all information needed for code generation,
+	///     or <see langword="null" /> if the type is invalid or extraction fails.
+	/// </returns>
+	/// <remarks>
+	///     This transform method performs semantic analysis to extract:
+	///     <list type="bullet">
+	///         <item>
+	///             <description>Type and namespace information</description>
+	///         </item>
+	///         <item>
+	///             <description>TVP name and schema from the attribute</description>
+	///         </item>
+	///         <item>
+	///             <description>Constructor parameters with type mapping</description>
+	///         </item>
+	///     </list>
+	/// </remarks>
 	private static Metadata? ExtractTvpMetadata(GeneratorAttributeSyntaxContext context,
 		CancellationToken cancellationToken)
 	{
@@ -44,89 +84,127 @@ public sealed partial class TvpSourceGenerator
 		if (context.TargetNode is not TypeDeclarationSyntax declarationSyntax)
 			return null;
 
-		// Get the namespace
+		// Determine the namespace (empty string for global namespace)
 		string namespaceName = classSymbol.ContainingNamespace.IsGlobalNamespace
 			? string.Empty
 			: classSymbol.ContainingNamespace.ToDisplayString();
 
-		// Create the base metadata
+		// Create the metadata container
 		var metadata = new Metadata(classSymbol, declarationSyntax, namespaceName);
 
-		// Extract the TVP name from the attribute
+		// Extract TVP configuration from the attribute
 		ExtractTvpNameFromAttribute(context, metadata);
 
-		// Extract constructor parameters
+		// Extract and map constructor parameters
 		ExtractConstructorParameters(classSymbol, metadata);
 
 		return metadata;
 	}
 
 	/// <summary>
-	///     Extracts the TVP name and schema from the GenerateTvp attribute.
+	///     Extracts the TVP name and schema configuration from the <see cref="GenerateTvpAttribute" />.
 	/// </summary>
-	/// <param name="context">The generator context.</param>
-	/// <param name="metadata">The metadata to populate.</param>
+	/// <param name="context">The generator context containing attribute data.</param>
+	/// <param name="metadata">The metadata object to populate with TVP configuration.</param>
+	/// <remarks>
+	///     This method reads the named arguments from the attribute:
+	///     <list type="bullet">
+	///         <item>
+	///             <description><c>TvpName</c> (required): The name of the SQL Server TVP type</description>
+	///         </item>
+	///         <item>
+	///             <description><c>Schema</c> (optional): The database schema, defaults to "dbo"</description>
+	///         </item>
+	///     </list>
+	/// </remarks>
 	private static void ExtractTvpNameFromAttribute(GeneratorAttributeSyntaxContext context, Metadata metadata)
 	{
-		// Look for the attribute data
+		// Locate the GenerateTvp attribute in the context
 		var generateTvpAttribute = context.Attributes.FirstOrDefault(attr =>
 			attr.AttributeClass?.Name == "GenerateTvpAttribute");
 
 		if (generateTvpAttribute is null)
 			return;
 
-		// Extract TvpName from named arguments (required property)
-		var tvpNameArg = generateTvpAttribute.NamedArguments.FirstOrDefault(na => na.Key == "TvpName");
+		// Extract TvpName (required property)
+		var tvpNameArg =
+			generateTvpAttribute.NamedArguments.FirstOrDefault(na => na.Key == "TvpName");
+
 		if (tvpNameArg.Value.Value is string tvpName && !string.IsNullOrWhiteSpace(tvpName))
 			metadata.TvpName = tvpName;
 
-		// Extract Schema from named arguments (optional, defaults to "dbo")
-		var schemaArg = generateTvpAttribute.NamedArguments.FirstOrDefault(na => na.Key == "Schema");
-		if (schemaArg.Value.Value is string schema && !string.IsNullOrWhiteSpace(schema))
-			metadata.TvpSchema = schema;
-		else
-			metadata.TvpSchema = "dbo";// Default value
+		// Extract Schema (optional, defaults to "dbo")
+		var schemaArg =
+			generateTvpAttribute.NamedArguments.FirstOrDefault(na => na.Key == "Schema");
+
+		metadata.TvpSchema = schemaArg.Value.Value is string schema && !string.IsNullOrWhiteSpace(schema)
+			? schema
+			: "dbo";
 	}
 
 	/// <summary>
-	///     Extracts constructor parameters from the type symbol.
+	///     Extracts and maps constructor parameters to their SQL Server equivalents.
 	/// </summary>
-	/// <param name="classSymbol">The class symbol to analyze.</param>
-	/// <param name="metadata">The metadata to populate.</param>
+	/// <param name="classSymbol">The type symbol to analyze.</param>
+	/// <param name="metadata">The metadata object to populate with parameter information.</param>
+	/// <remarks>
+	///     <para>
+	///         This method identifies the primary constructor (or the constructor with the most parameters)
+	///         and creates a <see cref="ParameterMetadata" /> entry for each parameter, including:
+	///     </para>
+	///     <list type="bullet">
+	///         <item>
+	///             <description>Type mapping to SQL Server types</description>
+	///         </item>
+	///         <item>
+	///             <description>Nullability analysis</description>
+	///         </item>
+	///         <item>
+	///             <description>Appropriate SqlDataReader method selection</description>
+	///         </item>
+	///         <item>
+	///             <description>Special conversion requirements (e.g., DateOnly, TimeOnly)</description>
+	///         </item>
+	///     </list>
+	/// </remarks>
 	private static void ExtractConstructorParameters(INamedTypeSymbol classSymbol, Metadata metadata)
 	{
-		// Find the primary constructor or the constructor with the most parameters
+		// Find the primary constructor or the one with the most parameters
 		var constructor = classSymbol.Constructors
-			.Where(c => !c.IsStatic)
-			.OrderByDescending(c => c.Parameters.Length)
+			.Where(static c => !c.IsStatic)
+			.OrderByDescending(static c => c.Parameters.Length)
 			.FirstOrDefault();
 
 		if (constructor is null)
 			return;
 
-		for (int i = 0; i < constructor.Parameters.Length; i++){
-			var parameter = constructor.Parameters[i];
+		var parameters = constructor.Parameters;
+
+		for (int i = 0; i < parameters.Length; i++){
+			var parameter = parameters[i];
 			var parameterType = parameter.Type;
 
-			// Determine nullability
-			bool isNullable =
-				TypeDetector.IsTypeNullable(parameterType, nullableAnnotation: parameter.NullableAnnotation);
+			// Analyze nullability using the type detector
+			bool isNullable = TypeDetector.IsTypeNullable(
+			parameterType,
+			nullableAnnotation: parameter.NullableAnnotation);
 
-			// Get SQL type mapping
+			// Map to SQL type and determine reader method
 			string sqlType = TypeDetector.GetSqlType(parameterType);
 			string readerMethod = TypeDetector.GetReaderMethodForSqlType(sqlType);
-			bool requiresSpecialConversion = TypeDetector.RequiresSpecialConversion(parameterType.ToDisplayString());
+			string typeDisplayString = parameterType.ToDisplayString();
+			bool requiresSpecialConversion = TypeDetector.RequiresSpecialConversion(typeDisplayString);
 
+			// Create parameter metadata
 			var parameterMetadata = new ParameterMetadata(
 			parameter.Name,
-			parameterType.ToDisplayString(),
+			typeDisplayString,
 			parameterType,
 			isNullable,
 			i,
 			sqlType,
 			readerMethod,
-			requiresSpecialConversion
-			);
+			requiresSpecialConversion);
 
 			metadata.Parameters.Add(parameterMetadata);
 		}

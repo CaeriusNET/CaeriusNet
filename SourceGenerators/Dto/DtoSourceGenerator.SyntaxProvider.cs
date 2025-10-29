@@ -1,59 +1,78 @@
-﻿using CaeriusNet.Generator.Models;
-using CaeriusNet.Generator.Utils;
-using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Linq;
-using System.Threading;
-using Metadata=CaeriusNet.Generator.Models.Metadata;
-
-namespace CaeriusNet.Generator.Dto;
+﻿namespace CaeriusNet.Generator.Dto;
 
 public sealed partial class DtoSourceGenerator
 {
 	/// <summary>
-	///     Analyzes declarations to find types annotated with [GenerateDto] and extract their metadata.
+	///     Analyzes type declarations to find and extract metadata from types decorated with
+	///     <see cref="GenerateDtoAttribute" />.
 	/// </summary>
-	private static IEnumerable<Metadata?> GetDtoTypes(Compilation compilation,
-		ImmutableArray<TypeDeclarationSyntax> declarations, CancellationToken cancellationToken)
+	/// <param name="compilation">The current compilation containing type information.</param>
+	/// <param name="declarations">The collection of type declarations to analyze.</param>
+	/// <param name="cancellationToken">Token to monitor for cancellation requests.</param>
+	/// <returns>
+	///     An enumerable sequence of <see cref="Metadata" /> objects for valid DTO types,
+	///     or <see langword="null" /> for invalid or incomplete candidates.
+	/// </returns>
+	/// <remarks>
+	///     <para>
+	///         This method performs semantic analysis on candidate types to:
+	///     </para>
+	///     <list type="bullet">
+	///         <item>
+	///             <description>Verify the presence of <see cref="GenerateDtoAttribute" /></description>
+	///         </item>
+	///         <item>
+	///             <description>Validate type structure (sealed, partial, primary constructor)</description>
+	///         </item>
+	///         <item>
+	///             <description>Extract namespace and type information</description>
+	///         </item>
+	///         <item>
+	///             <description>Map constructor parameters to SQL types</description>
+	///         </item>
+	///     </list>
+	/// </remarks>
+	private static IEnumerable<Metadata?> GetDtoTypes(
+		Compilation compilation,
+		ImmutableArray<TypeDeclarationSyntax> declarations,
+		CancellationToken cancellationToken)
 	{
-		if (declarations.IsDefaultOrEmpty) yield break;
-
-		// Get the symbol for the GenerateDto attribute
-		var generateDtoAttributeSymbol = compilation.GetTypeByMetadataName("CaeriusNet.Attributes.Dto.GenerateDtoAttribute");
-
-		if (generateDtoAttributeSymbol is null)
-			// GenerateDto attribute is not referenced in the compilation
+		if (declarations.IsDefaultOrEmpty)
 			yield break;
 
-		// Find and process all the DTO candidates
+		// Resolve the GenerateDto attribute symbol
+		var generateDtoAttributeSymbol =
+			compilation.GetTypeByMetadataName("CaeriusNet.Attributes.Dto.GenerateDtoAttribute");
+
+		if (generateDtoAttributeSymbol is null)
+			yield break;
+
+		// Process each candidate type declaration
 		foreach (var typeDeclaration in declarations){
 			cancellationToken.ThrowIfCancellationRequested();
 
-			// Get the semantic model for this syntax node
+			// Get semantic model for this syntax tree
 			var semanticModel = compilation.GetSemanticModel(typeDeclaration.SyntaxTree);
 
-			// Get the type symbol for the class/record
+			// Resolve the type symbol
 			if (semanticModel.GetDeclaredSymbol(typeDeclaration) is not {} typeSymbol)
 				continue;
 
-			// Check if the type has the GenerateDto attribute
+			// Verify attribute presence
 			if (!HasGenerateDtoAttribute(typeSymbol, generateDtoAttributeSymbol))
 				continue;
 
-			// Validate that the type is a valid candidate for generation
+			// Validate type structure
 			if (!ValidateDtoType(typeDeclaration))
 				continue;
 
-			// Get the namespace
+			// Extract namespace information
 			string namespaceName = GetNamespace(typeSymbol);
 
-			// Create the DTO metadata
+			// Create metadata container
 			var dtoMetadata = new Metadata(typeSymbol, typeDeclaration, namespaceName);
 
-			// Extract parameter information from primary constructor
+			// Extract and map constructor parameters
 			if (!ExtractConstructorParameters(dtoMetadata, semanticModel))
 				continue;
 
@@ -62,55 +81,122 @@ public sealed partial class DtoSourceGenerator
 	}
 
 	/// <summary>
-	///     Checks if a type has the GenerateDto attribute.
+	///     Determines whether a type has the <see cref="GenerateDtoAttribute" /> applied.
 	/// </summary>
+	/// <param name="typeSymbol">The type symbol to check.</param>
+	/// <param name="attributeSymbol">The resolved GenerateDto attribute symbol.</param>
+	/// <returns>
+	///     <see langword="true" /> if the type has the GenerateDto attribute; otherwise, <see langword="false" />.
+	/// </returns>
 	private static bool HasGenerateDtoAttribute(INamedTypeSymbol typeSymbol, INamedTypeSymbol attributeSymbol)
 	{
 		return typeSymbol.GetAttributes()
-			.Any(a => a.AttributeClass?.Equals(attributeSymbol, SymbolEqualityComparer.Default) == true);
+			.Any(a => SymbolEqualityComparer.Default.Equals(a.AttributeClass, attributeSymbol));
 	}
 
 	/// <summary>
-	///     Validates that the DTO type meets the requirements for generation.
+	///     Validates that a DTO type meets all structural requirements for code generation.
 	/// </summary>
+	/// <param name="typeDeclaration">The type declaration to validate.</param>
+	/// <returns>
+	///     <see langword="true" /> if the type is valid for generation; otherwise, <see langword="false" />.
+	/// </returns>
+	/// <remarks>
+	///     Valid DTO types must:
+	///     <list type="bullet">
+	///         <item>
+	///             <description>Be declared as <c>partial</c> (to allow code generation)</description>
+	///         </item>
+	///         <item>
+	///             <description>Be declared as <c>sealed</c> (for performance and design safety)</description>
+	///         </item>
+	///         <item>
+	///             <description>Have a primary constructor with at least one parameter</description>
+	///         </item>
+	///     </list>
+	/// </remarks>
 	private static bool ValidateDtoType(TypeDeclarationSyntax typeDeclaration)
 	{
-		// Check if the type is partial
-		if (!typeDeclaration.Modifiers.Any(m => m.IsKind(SyntaxKind.PartialKeyword)))
+		var modifiers = typeDeclaration.Modifiers;
+
+		// Verify required modifiers: partial and sealed
+		bool hasPartial = false;
+		bool hasSealed = false;
+
+		foreach (var modifier in modifiers){
+			if (modifier.IsKind(SyntaxKind.PartialKeyword))
+				hasPartial = true;
+			else if (modifier.IsKind(SyntaxKind.SealedKeyword))
+				hasSealed = true;
+
+			if (hasPartial && hasSealed)
+				break;
+		}
+
+		if (!hasPartial || !hasSealed)
 			return false;
 
-		// Check if the type is sealed
-		if (!typeDeclaration.Modifiers.Any(m => m.IsKind(SyntaxKind.SealedKeyword)))
-			return false;
-
+		// Verify primary constructor presence
 		return typeDeclaration switch
 		{
-			// If it's a class, ensure it has a primary constructor
-			ClassDeclarationSyntax classDeclaration => classDeclaration.ParameterList != null,
-			// If it's a record, it always has a primary constructor (if parameters are present)
-			RecordDeclarationSyntax recordDeclaration => recordDeclaration.ParameterList != null,
+			ClassDeclarationSyntax classDeclaration => classDeclaration.ParameterList is not null,
+			RecordDeclarationSyntax recordDeclaration => recordDeclaration.ParameterList is not null,
 			_ => false
 		};
 	}
 
 	/// <summary>
-	///     Gets the fully qualified namespace for a type.
+	///     Extracts the fully qualified namespace for a type.
 	/// </summary>
+	/// <param name="typeSymbol">The type symbol to analyze.</param>
+	/// <returns>
+	///     The fully qualified namespace name, or "global" if the type is in the global namespace.
+	/// </returns>
 	private static string GetNamespace(INamedTypeSymbol typeSymbol)
 	{
-		// Handle global namespace
-		return string.IsNullOrEmpty(typeSymbol.ContainingNamespace?.ToDisplayString())
-			? "global"
-			: typeSymbol.ContainingNamespace!.ToDisplayString();
+		return typeSymbol.ContainingNamespace is { IsGlobalNamespace: false } ns
+			? ns.ToDisplayString()
+			: "global";
 	}
 
 	/// <summary>
-	///     Extracts and validates constructor parameters from a DTO type.
+	///     Extracts and maps constructor parameters from the DTO's primary constructor.
 	/// </summary>
+	/// <param name="metadata">The metadata object to populate with parameter information.</param>
+	/// <param name="semanticModel">The semantic model for resolving parameter symbols.</param>
+	/// <returns>
+	///     <see langword="true" /> if at least one parameter was successfully extracted;
+	///     otherwise, <see langword="false" />.
+	/// </returns>
+	/// <remarks>
+	///     <para>
+	///         This method analyzes each primary constructor parameter and creates a <see cref="ParameterMetadata" />
+	///         entry containing:
+	///     </para>
+	///     <list type="bullet">
+	///         <item>
+	///             <description>Type name and symbol information</description>
+	///         </item>
+	///         <item>
+	///             <description>Nullability analysis (considering nullable reference types and Nullable&lt;T&gt;)</description>
+	///         </item>
+	///         <item>
+	///             <description>SQL Server type mapping</description>
+	///         </item>
+	///         <item>
+	///             <description>Appropriate SqlDataReader method selection</description>
+	///         </item>
+	///         <item>
+	///             <description>Special conversion requirements (enums, DateOnly, TimeOnly, byte[])</description>
+	///         </item>
+	///         <item>
+	///             <description>Ordinal position for efficient column access</description>
+	///         </item>
+	///     </list>
+	/// </remarks>
 	private static bool ExtractConstructorParameters(Metadata metadata, SemanticModel semanticModel)
 	{
-		// Get the primary constructor parameters
-
+		// Resolve the primary constructor parameter list
 		var parameterList = metadata.DeclarationSyntax switch
 		{
 			RecordDeclarationSyntax recordDeclaration => recordDeclaration.ParameterList,
@@ -118,35 +204,41 @@ public sealed partial class DtoSourceGenerator
 			_ => null
 		};
 
-		if (parameterList == null || parameterList.Parameters.Count == 0)
+		if (parameterList is null || parameterList.Parameters.Count == 0)
 			return false;
 
-		// Process each parameter
-		for (int i = 0; i < parameterList.Parameters.Count; i++){
-			var parameterSyntax = parameterList.Parameters[i];
+		var parameters = parameterList.Parameters;
+
+		// Process each parameter in order (ordinal position matters for SqlDataReader)
+		for (int i = 0; i < parameters.Count; i++){
+			var parameterSyntax = parameters[i];
 			var parameterSymbol = semanticModel.GetDeclaredSymbol(parameterSyntax);
 
-			if (parameterSymbol == null)
+			if (parameterSymbol is null)
 				continue;
 
-			// Get the type information
-			string typeName = parameterSymbol.Type.ToDisplayString();
-			bool isNullable = TypeDetector.IsTypeNullable(parameterSymbol.Type, parameterSyntax.Type,
+			var parameterType = parameterSymbol.Type;
+			string typeName = parameterType.ToDisplayString();
+
+			// Analyze nullability considering all C# nullability features
+			bool isNullable = TypeDetector.IsTypeNullable(
+			parameterType,
+			parameterSyntax.Type,
 			parameterSymbol.NullableAnnotation);
 
-			// Check if the type is an enum
-			bool isEnum = TypeDetector.IsEnumType(parameterSymbol.Type);
+			// Determine if enum (requires cast in generated code)
+			bool isEnum = TypeDetector.IsEnumType(parameterType);
 
-			// Get SQL type and reader method
-			string sqlType = TypeDetector.GetSqlType(parameterSymbol.Type);
+			// Map to SQL Server type and determine appropriate reader method
+			string sqlType = TypeDetector.GetSqlType(parameterType);
 			string readerMethod = TypeDetector.GetReaderMethodForSqlType(sqlType);
 			bool requiresSpecialConversion = TypeDetector.RequiresSpecialConversion(typeName) || isEnum;
 
-			// Create the parameter metadata
+			// Create and add parameter metadata
 			var parameterMetadata = new ParameterMetadata(
 			parameterSymbol.Name,
 			typeName,
-			parameterSymbol.Type,
+			parameterType,
 			isNullable,
 			i,// Ordinal position
 			sqlType,
