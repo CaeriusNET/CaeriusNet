@@ -38,16 +38,16 @@ public static class SimpleReadSqlAsyncCommands
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
 		if (spParameters.CacheType.HasValue && !string.IsNullOrEmpty(spParameters.CacheKey))
-			if (CacheUtility.TryRetrieveFromCache<TResultSet>(spParameters, out var cachedResult))
+			if (CacheHelper.TryRetrieveFromCache(spParameters, context.RedisCacheManager, out TResultSet? cachedResult))
 				return cachedResult;
 
 		try{
-			using var connection = context.DbConnection();
-			var result = await SqlCommandUtility.ScalarQueryAsync<TResultSet>(
+			await using var connection = context.DbConnection();
+			var result = await SqlCommandHelper.ScalarQueryAsync<TResultSet>(
 			spParameters, connection, cancellationToken).ConfigureAwait(false);
 
 			if (result is not null)
-				CacheUtility.StoreInCache(spParameters, result);
+				CacheHelper.StoreInCache(spParameters, context.RedisCacheManager, result);
 
 			return result;
 		}
@@ -88,20 +88,20 @@ public static class SimpleReadSqlAsyncCommands
 		CancellationToken cancellationToken = default)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
-		if (CacheUtility.TryRetrieveFromCache(spParameters, out ReadOnlyCollection<TResultSet>? cachedResult) &&
+		if (CacheHelper.TryRetrieveFromCache(spParameters, context.RedisCacheManager, out ReadOnlyCollection<TResultSet>? cachedResult) &&
 		    cachedResult != null)
 			return cachedResult;
 
 		try{
-			using var connection = context.DbConnection();
-			var result = await SqlCommandUtility.ResultSetAsReadOnlyCollectionAsync<TResultSet>(
+			await using var connection = context.DbConnection();
+			var results = await SqlCommandHelper.ResultSetAsReadOnlyCollectionAsync<TResultSet>(
 			spParameters, connection, cancellationToken).ConfigureAwait(false);
 
-			if (result.Count == 0)
-				result = EmptyCollections.ReadOnlyCollection<TResultSet>();
+			if (results.Count == 0)
+				results = EmptyCollections.ReadOnlyCollection<TResultSet>();
 
-			CacheUtility.StoreInCache(spParameters, result);
-			return result;
+			CacheHelper.StoreInCache(spParameters, context.RedisCacheManager, results);
+			return results;
 		}
 		catch (SqlException ex){
 			throw new CaeriusNetSqlException(
@@ -135,25 +135,25 @@ public static class SimpleReadSqlAsyncCommands
 	///     Thrown when the execution of the stored procedure fails due to a SQL exception.
 	/// </exception>
 	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
-	public static async ValueTask<IEnumerable<TResultSet>> QueryAsIEnumerableAsync<TResultSet>(
+	public static async ValueTask<IEnumerable<TResultSet>?> QueryAsIEnumerableAsync<TResultSet>(
 		this ICaeriusNetDbContext context,
 		StoredProcedureParameters spParameters,
 		CancellationToken cancellationToken = default)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
-		if (CacheUtility.TryRetrieveFromCache(spParameters, out IEnumerable<TResultSet>? cachedResult) &&
+		if (CacheHelper.TryRetrieveFromCache(spParameters, context.RedisCacheManager, out IEnumerable<TResultSet>? cachedResult) &&
 		    cachedResult != null)
 			return cachedResult;
 
 		try{
 			var results = new List<TResultSet>(spParameters.Capacity);
-			using var connection = context.DbConnection();
+			await using var connection = context.DbConnection();
 
-			await foreach (var item in SqlCommandUtility.StreamQueryAsync<TResultSet>(
+			await foreach (var item in SqlCommandHelper.StreamQueryAsync<TResultSet>(
 			               spParameters, connection, cancellationToken).ConfigureAwait(false))
 				results.Add(item);
 
-			CacheUtility.StoreInCache(spParameters, results);
+			CacheHelper.StoreInCache(spParameters, context.RedisCacheManager, results);
 
 			return results;
 		}
@@ -194,17 +194,17 @@ public static class SimpleReadSqlAsyncCommands
 		CancellationToken cancellationToken = default)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
-		if (CacheUtility.TryRetrieveFromCache(spParameters, out ImmutableArray<TResultSet>? cachedResult) &&
+		if (CacheHelper.TryRetrieveFromCache(spParameters, context.RedisCacheManager, out ImmutableArray<TResultSet>? cachedResult) &&
 		    cachedResult.HasValue)
 			return cachedResult.Value;
 
 		try{
-			using var connection = context.DbConnection();
-			var result = await SqlCommandUtility.ResultSetAsImmutableArrayAsync<TResultSet>(
+			await using var connection = context.DbConnection();
+			var results = await SqlCommandHelper.ResultSetAsImmutableArrayAsync<TResultSet>(
 			spParameters, connection, cancellationToken).ConfigureAwait(false);
 
-			CacheUtility.StoreInCache(spParameters, result);
-			return result;
+			CacheHelper.StoreInCache(spParameters, context.RedisCacheManager, results);
+			return results;
 		}
 		catch (SqlException ex){
 			throw new CaeriusNetSqlException(

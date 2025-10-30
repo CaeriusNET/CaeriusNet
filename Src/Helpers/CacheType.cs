@@ -1,4 +1,4 @@
-﻿namespace CaeriusNet.Utilities;
+﻿namespace CaeriusNet.Helpers;
 
 /// <summary>
 ///     Defines the type of caching mechanism available for data storage and retrieval.

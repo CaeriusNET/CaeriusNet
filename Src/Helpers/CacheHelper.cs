@@ -1,21 +1,10 @@
-﻿namespace CaeriusNet.Utilities;
+﻿namespace CaeriusNet.Helpers;
 
 /// <summary>
 ///     Provides utility methods for caching data using different caching mechanisms.
 /// </summary>
-static internal class CacheUtility
+static internal class CacheHelper
 {
-	private static IRedisCacheManager? _redisCacheManager;
-
-	/// <summary>
-	///     Sets the Redis cache manager from dependency injection.
-	/// </summary>
-	/// <param name="redisCacheManager">The Redis cache manager instance to set.</param>
-	static internal void SetRedisCacheManager(IRedisCacheManager? redisCacheManager)
-	{
-		_redisCacheManager = redisCacheManager;
-	}
-
 	/// <summary>
 	///     Attempts to retrieve a cached result for the given stored procedure parameters.
 	/// </summary>
@@ -31,7 +20,10 @@ static internal class CacheUtility
 	///     If the cache type is not specified or the cache key is empty, the method returns false.
 	/// </remarks>
 	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
-	static internal bool TryRetrieveFromCache<T>(StoredProcedureParameters spParameters, out T? result)
+	static internal bool TryRetrieveFromCache<T>(
+		StoredProcedureParameters spParameters,
+		IRedisCacheManager? redisCacheManager,
+		out T? result)
 	{
 		result = default;
 
@@ -41,8 +33,7 @@ static internal class CacheUtility
 		{
 			Frozen => FrozenCacheManager.TryGet(spParameters.CacheKey, out result),
 			InMemory => InMemoryCacheManager.TryGet(spParameters.CacheKey, out result),
-			Redis => (_redisCacheManager?.IsInitialized ?? false) &&
-			         _redisCacheManager.TryGet(spParameters.CacheKey, out result),
+			Redis => redisCacheManager?.TryGet(spParameters.CacheKey, out result) ?? false,
 			_ => false
 		};
 	}
@@ -75,10 +66,14 @@ static internal class CacheUtility
 	///     If the cache type is not specified or the cache key is empty, the method returns without storing.
 	/// </remarks>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	static internal void StoreInCache<T>(StoredProcedureParameters spParameters, T result)
+	static internal void StoreInCache<T>(
+		StoredProcedureParameters spParameters,
+		IRedisCacheManager? redisCacheManager,
+		T result)
 		where T : notnull
 	{
-		if (spParameters.CacheType is null || string.IsNullOrEmpty(spParameters.CacheKey)) return;
+		if (spParameters.CacheType is null || string.IsNullOrEmpty(spParameters.CacheKey))
+			return;
 
 		switch (spParameters.CacheType.Value){
 			case Frozen:
@@ -90,8 +85,9 @@ static internal class CacheUtility
 				break;
 
 			case Redis:
-				_redisCacheManager?.Store(spParameters.CacheKey, result, spParameters.CacheExpiration);
+				redisCacheManager?.Store(spParameters.CacheKey, result, spParameters.CacheExpiration);
 				break;
+
 			default:
 				throw new ArgumentOutOfRangeException();
 		}

@@ -1,4 +1,4 @@
-﻿namespace CaeriusNet.Utilities;
+﻿namespace CaeriusNet.Helpers;
 
 /// <summary>
 ///     Internal helpers for reading multiple result sets from SQL Server data readers
@@ -27,6 +27,8 @@ static internal class MultiResultSetHelper
 
 		while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false)){
 			var item = T.MapFromDataReader(reader);
+
+			// ULTRA: Direct span manipulation with CollectionsMarshal
 			CollectionsMarshal.SetCount(list, list.Count + 1);
 			CollectionsMarshal.AsSpan(list)[^1] = item;
 		}
@@ -52,26 +54,25 @@ static internal class MultiResultSetHelper
 		CancellationToken cancellationToken)
 		where T : class, ISpMapper<T>
 	{
-		if (capacity <= 256){
-			var buffer = ArrayPool<T>.Shared.Rent(capacity);
-			int count = 0;
+		var buffer = ArrayPool<T>.Shared.Rent(capacity);
+		int count = 0;
 
-			try{
-				while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false) && count < capacity)
-					buffer[count++] = T.MapFromDataReader(reader);
+		try{
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false)){
+				if (count >= buffer.Length){
+					int newCapacity = buffer.Length * 3 / 2;
+					var newBuffer = ArrayPool<T>.Shared.Rent(newCapacity);
+					buffer.AsSpan(0, count).CopyTo(newBuffer);
+					ArrayPool<T>.Shared.Return(buffer);
+					buffer = newBuffer;
+				}
 
-				return ImmutableCollectionsMarshal.AsImmutableArray(buffer.AsSpan(0, count).ToArray());
+				buffer[count++] = T.MapFromDataReader(reader);
 			}
-			finally{ ArrayPool<T>.Shared.Return(buffer); }
+
+			return ImmutableCollectionsMarshal.AsImmutableArray(buffer.AsSpan(0, count).ToArray());
 		}
-
-		var builder = ImmutableArray.CreateBuilder<T>(capacity);
-		while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-			builder.Add(T.MapFromDataReader(reader));
-
-		return builder.Count == capacity
-			? builder.MoveToImmutable()
-			: builder.ToImmutable();
+		finally{ ArrayPool<T>.Shared.Return(buffer, true); }
 	}
 
 	/// <summary>
@@ -85,6 +86,9 @@ static internal class MultiResultSetHelper
 		SqlDataReader reader,
 		CancellationToken cancellationToken)
 	{
-		return new ValueTask<bool>(reader.NextResultAsync(cancellationToken));
+		var task = reader.NextResultAsync(cancellationToken);
+		return task.IsCompletedSuccessfully
+			? new ValueTask<bool>(task.Result)
+			: new ValueTask<bool>(task);
 	}
 }

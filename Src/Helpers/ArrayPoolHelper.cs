@@ -1,4 +1,4 @@
-﻿namespace CaeriusNet.Utilities;
+﻿namespace CaeriusNet.Helpers;
 
 /// <summary>
 ///     Helper for array pooling to reduce allocations

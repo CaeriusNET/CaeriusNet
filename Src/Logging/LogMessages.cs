@@ -1,6 +1,4 @@
-﻿using System.CodeDom.Compiler;
-
-namespace CaeriusNet.Logging;
+﻿namespace CaeriusNet.Logging;
 
 /// <summary>
 ///     High-performance logging messages using source generators for zero-allocation logging.

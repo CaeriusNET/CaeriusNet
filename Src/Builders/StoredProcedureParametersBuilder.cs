@@ -23,7 +23,7 @@ public sealed record StoredProcedureParametersBuilder(string SchemaName, string 
 	/// <summary>
 	///     Gets the collection of SQL parameters to be used in the stored procedure call.
 	/// </summary>
-	private List<SqlParameter> Parameters { get; } = [];
+	private List<SqlParameter> Parameters { get; } = new(4);
 
 	/// <summary>
 	///     Adds a parameter to the stored procedure call.

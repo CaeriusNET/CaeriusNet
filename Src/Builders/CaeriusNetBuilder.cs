@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
-
-namespace CaeriusNet.Builders;
+﻿namespace CaeriusNet.Builders;
 
 /// <summary>
 ///     Builder for configuring CaeriusNet dependency injection with flexible connection options.
@@ -19,21 +17,11 @@ public sealed class CaeriusNetBuilder
 		_services = services ?? throw new ArgumentNullException(nameof(services));
 	}
 
-	/// <summary>
-	///     Creates a new instance of the CaeriusNet builder.
-	/// </summary>
-	/// <param name="services">The service collection to configure.</param>
-	/// <returns>A new CaeriusNetBuilder instance.</returns>
 	public static CaeriusNetBuilder Create(IServiceCollection services)
 	{
 		return new CaeriusNetBuilder(services);
 	}
 
-	/// <summary>
-	///     Creates a new instance of the CaeriusNet builder for Aspire scenarios.
-	/// </summary>
-	/// <param name="builder">The Aspire host application builder.</param>
-	/// <returns>A new CaeriusNetBuilder instance.</returns>
 	public static CaeriusNetBuilder Create(IHostApplicationBuilder builder)
 	{
 		ArgumentNullException.ThrowIfNull(builder);
@@ -45,12 +33,6 @@ public sealed class CaeriusNetBuilder
 		return caeriusBuilder;
 	}
 
-	/// <summary>
-	///     Configures the SQL Server connection string for on-premise deployment.
-	/// </summary>
-	/// <param name="connectionString">The SQL Server connection string.</param>
-	/// <returns>The builder instance for chaining.</returns>
-	/// <exception cref="ArgumentException">Thrown when connection string is null or whitespace.</exception>
 	public CaeriusNetBuilder WithSqlServer(string connectionString)
 	{
 		if (string.IsNullOrWhiteSpace(connectionString))
@@ -60,24 +42,13 @@ public sealed class CaeriusNetBuilder
 		return this;
 	}
 
-	/// <summary>
-	///     Configures the Redis connection string for on-premise deployment.
-	/// </summary>
-	/// <param name="connectionString">The Redis connection string.</param>
-	/// <returns>The builder instance for chaining.</returns>
 	public CaeriusNetBuilder WithRedis(string? connectionString)
 	{
 		_redisConnectionString = connectionString;
 		return this;
 	}
 
-	/// <summary>
-	///     Configures SQL Server connection using Aspire integration.
-	/// </summary>
-	/// <param name="connectionName">The name of the SQL Server connection in Aspire configuration.</param>
-	/// <returns>The builder instance for chaining.</returns>
-	/// <exception cref="InvalidOperationException">Thrown when builder was not created with Aspire context.</exception>
-	public CaeriusNetBuilder WithAspireSqlServer(string connectionName)
+	public CaeriusNetBuilder WithAspireSqlServer(string connectionName = "sqlserver")
 	{
 		if (_aspireBuilder == null)
 			throw new InvalidOperationException("Aspire builder is required. Use Create(IHostApplicationBuilder) instead.");
@@ -89,13 +60,7 @@ public sealed class CaeriusNetBuilder
 		return this;
 	}
 
-	/// <summary>
-	///     Configures Redis connection using Aspire integration.
-	/// </summary>
-	/// <param name="connectionName">The name of the Redis connection in Aspire configuration (default: "cache").</param>
-	/// <returns>The builder instance for chaining.</returns>
-	/// <exception cref="InvalidOperationException">Thrown when builder was not created with Aspire context.</exception>
-	public CaeriusNetBuilder WithAspireRedis(string connectionName = "cache")
+	public CaeriusNetBuilder WithAspireRedis(string connectionName = "redis")
 	{
 		if (_aspireBuilder == null)
 			throw new InvalidOperationException("Aspire builder is required. Use Create(IHostApplicationBuilder) instead.");
@@ -107,22 +72,13 @@ public sealed class CaeriusNetBuilder
 		return this;
 	}
 
-	/// <summary>
-	///     Builds and configures all registered services.
-	/// </summary>
-	/// <returns>The configured IServiceCollection.</returns>
-	/// <exception cref="InvalidOperationException">Thrown when required configuration is missing.</exception>
 	public IServiceCollection Build()
 	{
-		// Validate that at least SQL Server is configured
 		if (string.IsNullOrWhiteSpace(_sqlServerConnectionString) && string.IsNullOrWhiteSpace(_aspireSqlServerConnectionName))
 			throw new InvalidOperationException("SQL Server connection must be configured using WithSqlServer() or WithAspireSqlServer().");
 
-		// Configure SQL Server
-		ConfigureSqlServer();
-
-		// Configure Redis (optional)
 		ConfigureRedis();
+		ConfigureSqlServer();
 
 		return _services;
 	}
@@ -130,41 +86,61 @@ public sealed class CaeriusNetBuilder
 	private void ConfigureSqlServer()
 	{
 		if (!string.IsNullOrWhiteSpace(_aspireSqlServerConnectionName) && _aspireBuilder != null){
-			// Aspire SQL Server configuration
 			_aspireBuilder.AddSqlServerClient(_aspireSqlServerConnectionName);
 
-			// Register CaeriusNetDbContext using connection string from configuration
-			_services.AddSingleton<ICaeriusNetDbContext>(_ => {
-				string? connectionString = _aspireBuilder.Configuration.GetConnectionString(_aspireSqlServerConnectionName);
-				return new CaeriusNetDbContext(connectionString!);
+			// Sanity check: confirm the connection string exists at runtime (AppHost injects it)
+			string? cs = _aspireBuilder.Configuration.GetConnectionString(_aspireSqlServerConnectionName);
+			if (string.IsNullOrWhiteSpace(cs))
+				throw new InvalidOperationException(
+				$"ConnectionStrings:{_aspireSqlServerConnectionName} is missing. " +
+				"Run via AppHost, ensure the project uses WithReference(AddSqlServer(...).AddDatabase(name)) " +
+				"and the same name is passed to WithAspireSqlServer/AddSqlServerClient."
+				);
+
+			_services.AddScoped<ICaeriusNetDbContext>(sp => {
+				// Create a fresh SqlConnection and set the connection string explicitly from config.
+				// This removes ambiguity if DI-provided SqlConnection had no ConnectionString due to launch/config issues.
+				var factory = () => new SqlConnection(cs);
+				var redis = sp.GetService<IRedisCacheManager>();
+				return new CaeriusNetDbContext(factory, redis);
 			});
 		}
 		else if (!string.IsNullOrWhiteSpace(_sqlServerConnectionString)){
-			// On-premise SQL Server configuration
-			_services.AddSingleton<ICaeriusNetDbContext>(_ => new CaeriusNetDbContext(_sqlServerConnectionString));
+			_services.AddScoped<ICaeriusNetDbContext>(sp => {
+				var redis = sp.GetService<IRedisCacheManager>();
+				string connectionString = _sqlServerConnectionString!;
+				var factory = () => new SqlConnection(connectionString);
+				return new CaeriusNetDbContext(factory, redis);
+			});
 		}
 	}
 
 	private void ConfigureRedis()
 	{
 		if (!string.IsNullOrWhiteSpace(_aspireRedisConnectionName) && _aspireBuilder != null){
-			// Aspire Redis configuration
-			_aspireBuilder.AddRedisClient(_aspireRedisConnectionName);
+			_aspireBuilder.AddRedisDistributedCache(_aspireRedisConnectionName);
 
-			_services.AddSingleton<IRedisCacheConnection>(provider =>
-				new RedisCacheConnection(provider.GetRequiredService<IConnectionMultiplexer>()));
-
-			_services.AddSingleton<IRedisCacheManager>(provider =>
-				new RedisCacheManager(
-				provider.GetRequiredService<IRedisCacheConnection>(),
-				provider.GetService<ILogger<RedisCacheManager>>()));
+			_services.AddSingleton<IRedisCacheManager>(provider => {
+				var distributedCache = provider.GetService<IDistributedCache>();
+				var loggerFactory = provider.GetService<ILoggerFactory>();
+				return new RedisCacheManager(distributedCache, loggerFactory);
+			});
 		}
 		else if (!string.IsNullOrWhiteSpace(_redisConnectionString)){
-			// On-premise Redis configuration
-			_services.AddSingleton<IRedisCacheManager>(sp =>
-				new RedisCacheManager(
-				_redisConnectionString,
-				sp.GetService<ILogger<RedisCacheManager>>()));
+			_services.AddStackExchangeRedisCache(options => {
+				options.Configuration = _redisConnectionString;
+				options.InstanceName = "CaeriusNet:";
+			});
+
+			_services.AddSingleton<IRedisCacheManager>(provider => {
+				var distributedCache = provider.GetService<IDistributedCache>();
+				var loggerFactory = provider.GetService<ILoggerFactory>();
+				return new RedisCacheManager(distributedCache, loggerFactory);
+			});
+		}
+		else{
+			_services.AddSingleton<IRedisCacheManager>(provider =>
+				new RedisCacheManager(null, provider.GetService<ILoggerFactory>()));
 		}
 	}
 }

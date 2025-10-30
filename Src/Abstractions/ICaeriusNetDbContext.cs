@@ -6,6 +6,12 @@ namespace CaeriusNet.Abstractions;
 /// </summary>
 public interface ICaeriusNetDbContext
 {
+
+	/// <summary>
+	///     Gets the Redis cache manager for distributed caching.
+	/// </summary>
+	IRedisCacheManager? RedisCacheManager { get; }
+
 	/// <summary>
 	///     Creates and returns a new database connection instance.
 	/// </summary>
@@ -25,5 +31,5 @@ public interface ICaeriusNetDbContext
 	/// 	 } // Connection is automatically disposed
 	/// 	 </code>
 	/// </example>
-	IDbConnection DbConnection();
+	SqlConnection DbConnection();
 }

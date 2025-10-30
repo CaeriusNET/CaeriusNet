@@ -1,4 +1,6 @@
-﻿namespace CaeriusNet.Caches;
+﻿using System.Numerics;
+
+namespace CaeriusNet.Caches;
 
 /// <summary>
 ///     Provides methods for managing an immutable, thread-safe cache using frozen dictionaries.
@@ -10,7 +12,7 @@ static internal class FrozenCacheManager
 	/// </summary>
 	private static FrozenDictionary<string, object> _frozenCache = FrozenDictionary<string, object>.Empty;
 
-	private static SpinLock _spinLock = new(enableThreadOwnerTracking: false);
+	private static readonly ReaderWriterLockSlim _lock = new(LockRecursionPolicy.NoRecursion);
 
 	/// <summary>
 	///     Lock object used for thread synchronization when modifying the cache.
@@ -40,35 +42,37 @@ static internal class FrozenCacheManager
 	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
 	static internal void Store<T>(string cacheKey, T value)
 	{
-		var currentCache = Volatile.Read(ref _frozenCache);
-		if (currentCache.ContainsKey(cacheKey))
-			return;
-
-		bool lockTaken = false;
+		_lock.EnterReadLock();
 		try{
-			_spinLock.Enter(ref lockTaken);
+			if (_frozenCache.ContainsKey(cacheKey))
+				return;
+		}
+		finally{ _lock.ExitReadLock(); }
 
-			currentCache = Volatile.Read(ref _frozenCache);
-			if (currentCache.ContainsKey(cacheKey)) return;
+		_lock.EnterWriteLock();
+		try{
+			if (_frozenCache.ContainsKey(cacheKey))
+				return;
 
-			var builder = currentCache.Count == 0
-				? new Dictionary<string, object>(1, StringComparer.Ordinal)
-				: new Dictionary<string, object>(currentCache.Count + 1, StringComparer.Ordinal);
+			var currentCache = _frozenCache;
+
+			int newCapacity = currentCache.Count == 0
+				? 16
+				: (int)BitOperations.RoundUpToPowerOf2((uint)(currentCache.Count + 1));
+
+			var builder = new Dictionary<string, object>(newCapacity, StringComparer.Ordinal);
 
 			foreach (var kvp in currentCache)
 				builder[kvp.Key] = kvp.Value;
 
 			builder[cacheKey] = value!;
 
-			Volatile.Write(ref _frozenCache, builder.ToFrozenDictionary(StringComparer.Ordinal));
+			_frozenCache = builder.ToFrozenDictionary(StringComparer.Ordinal);
 
 			if (IsLoggingEnabled)
 				Logger!.LogStoredInFrozenCache(cacheKey);
 		}
-		finally{
-			if (lockTaken)
-				_spinLock.Exit();
-		}
+		finally{ _lock.ExitWriteLock(); }
 	}
 
 	/// <summary>
@@ -88,18 +92,22 @@ static internal class FrozenCacheManager
 	[MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 	static internal bool TryGet<T>(string cacheKey, out T? value)
 	{
-		var cache = Volatile.Read(ref _frozenCache);
+		_lock.EnterReadLock();
+		try{
+			var cache = _frozenCache;
 
-		if (!cache.TryGetValue(cacheKey, out object? cached) || cached is not T typedValue){
-			value = default;
-			return false;
+			if (!cache.TryGetValue(cacheKey, out object? cached) || cached is not T typedValue){
+				value = default;
+				return false;
+			}
+
+			value = typedValue;
+
+			if (IsLoggingEnabled)
+				Logger!.LogRetrievedFromFrozenCache(cacheKey);
+
+			return true;
 		}
-
-		value = typedValue;
-
-		if (IsLoggingEnabled)
-			Logger!.LogRetrievedFromFrozenCache(cacheKey);
-
-		return true;
+		finally{ _lock.ExitReadLock(); }
 	}
 }

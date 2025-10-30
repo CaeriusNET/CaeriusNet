@@ -12,7 +12,7 @@
 
     <PropertyGroup>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <Version>10.0.0.7-alpha</Version>
+        <Version>10.0.0.8-alpha</Version>
         <Title>CaeriusNet</Title>
         <Authors>AriusII &amp; CaeriusNet</Authors>
         <Description>CaeriusNet is a high-performance framework developed in C# .NET10 + and optimized for SQL Server 2019 +. It emphasizes code quality, maintainability, and scalability by providing advanced tools for executing stored procedures and managing caching mechanisms.</Description>
@@ -23,6 +23,12 @@
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <RepositoryType>git</RepositoryType>
         <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <TieredCompilation>true</TieredCompilation>
+        <TieredCompilationQuickJit>false</TieredCompilationQuickJit>
+        <TieredPGO>true</TieredPGO>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -49,19 +55,23 @@
     <ItemGroup>
         <!-- Microsoft Data Access -->
         <PackageReference Include="Aspire.Microsoft.Data.SqlClient" Version="9.5.2"/>
-        <PackageReference Include="Aspire.StackExchange.Redis" Version="9.5.2"/>
+        <PackageReference Include="Aspire.StackExchange.Redis.DistributedCaching" Version="9.5.2"/>
         <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0-preview2.25289.6"/>
 
         <!-- Microsoft Extensions -->
         <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.0-rc.2.25502.107"/>
+        <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.0-rc.2.25502.107"/>
         <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.0-rc.2.25502.107"/>
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0-rc.2.25502.107"/>
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0-rc.2.25502.107"/>
 
-        <!-- Caching & Serialization -->
-        <PackageReference Include="StackExchange.Redis" Version="2.9.32"/>
-
         <!-- Source Generator -->
         <ProjectReference Include="..\SourceGenerators\CaeriusNet.Generator.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <Reference Include="Microsoft.Extensions.ObjectPool">
+            <HintPath>..\..\..\..\..\Program Files\dotnet\shared\Microsoft.AspNetCore.App\10.0.0-rc.2.25502.107\Microsoft.Extensions.ObjectPool.dll</HintPath>
+        </Reference>
     </ItemGroup>
 </Project>
