@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: "Caerius.NET"
-  text: "C# & TSQL enhanced by performance Micro-ORM"
-  tagline: Stored Procedure to DTO in µseconds !
+  text: "SQL Server Stored Procedures to C# DTOs — fast, simple, reliable"
+  tagline: Stored Procedure ➜ DTO in microseconds, with compile‑time safety.
   image:
     alt: Caerius Logo
   actions:
@@ -15,22 +15,28 @@ hero:
       text: Quickstart
       link: /quickstart/getting-started
     - theme: alt
-      text: Github
+      text: Caching
+      link: /documentation/cache
+    - theme: alt
+      text: GitHub
       link: https://github.com/CaeriusNET/CaeriusNet
 
 features:
   - icon: 🛠️
-    title: Two codes, One goal
-    details: Make </br> your Stored Procedure in TSQL, </br> your Data Transfer Object in C#, </br> with your favorites tools.
+    title: Two stacks, one pipeline
+    details: Write your data access where it belongs <b>T/SQL</b> Stored Procedures in SQL Server and <b>C# DTOs</b> in your app. Caerius.NET binds them with minimal API and DI.
   - icon: 🚀
-    title: C# mapping in µseconds
-    details: Let us do the heavy lifting for you, and focus on your business logic.
+    title: Mapping in µseconds
+    details: Ordinal, allocation‑aware mapping — no reflection on the hot path, pre‑sized collections, pooling, and <code>SequentialAccess</code> readers.
   - icon: 💪
-    title: Heavy sets of data
-    details: Caerius.NET is optimized for heavy sets of data, and will not slow down your application.</br>You don't trust us ?</br>We have plenty of benchmarks.
+    title: Heavy inputs, one call
+    details: Pass thousands of IDs or GUIDs via TVP. Combine parameters + TVP, return multiple result sets, and keep latency predictable.
   - icon: 🔄
-    title: Only Asynchronous
-    details: Cause we cannot know how long your Stored Procedure will take. We only provide asynchronous methods.
+    title: Async‑only I/O
+    details: All database calls are asynchronous by design for throughput and thread‑pool health.
+  - icon: 🧊
+    title: Caching when it counts
+    details: Enable per‑call caching Frozen (immutable), In‑Memory (TTL), or Redis (distributed) — pick the right layer for your workload.
 ---
 
 <style>

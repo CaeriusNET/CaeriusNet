@@ -1,6 +1,6 @@
 # API Reference
 
-This section provides a practical reference for the main public APIs exposed by the CaeriusNet package. All examples use C# 12/.NET 10 and Microsoft.Data.SqlClient.
+This section provides a practical reference for the main public APIs exposed by the CaeriusNet package. All examples use C# 13/.NET 10 and Microsoft.Data.SqlClient.
 
 - Namespaces shown below are abbreviated; use your project’s using directives accordingly.
 - Code examples assume Dependency Injection is configured via CaeriusNetBuilder.
