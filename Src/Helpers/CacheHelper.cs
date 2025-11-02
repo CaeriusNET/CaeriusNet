@@ -10,6 +10,7 @@ static internal class CacheHelper
 	/// </summary>
 	/// <typeparam name="T">The type of the cached value.</typeparam>
 	/// <param name="spParameters">The parameters of the stored procedure, including cache configuration.</param>
+	/// <param name="redisCacheManager"></param>
 	/// <param name="result">The output parameter where the cached result will be stored if found.</param>
 	/// <returns>
 	///     <c>true</c> if a cached result is successfully retrieved; otherwise, <c>false</c>.
@@ -45,6 +46,7 @@ static internal class CacheHelper
 	/// <param name="spParameters">
 	///     The stored procedure parameters containing cache key, cache type, and expiration information.
 	/// </param>
+	/// <param name="redisCacheManager"></param>
 	/// <param name="result">The result to be stored in the cache.</param>
 	/// <exception cref="ArgumentOutOfRangeException">
 	///     Thrown when an invalid cache type is specified in the parameters.

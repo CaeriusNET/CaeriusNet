@@ -5,7 +5,7 @@ This page demonstrates how to leverage Caerius.NET in your projects with various
 Given the unique nature of each project, this guide assumes readers are well-versed in best practices and possess solid knowledge of C# and TSQL.
 
 ### For C#:
-- Proficiency in C# 14 and .NET 10 is required.
+- Proficiency in C# 13 and .NET 10 is recommended.
 - Familiarity with `Best Practices`, `Clean Code`, `SOLID Principles`, `Repository Pattern`, and `Dependency Injection` is recommended.
 - Understanding of `sealed class` and `record` types is also recommended.
 
@@ -26,22 +26,22 @@ namespace TestProject.Repositories.Interfaces;
 
 public interface IUserRepository
 {
-    Task<IEnumerable<UserDto>> GetUserOlderThanAsync(byte age);
-    Task UpdateUserAgeByGuidAsync(Guid guid, byte age);
+    Task<IEnumerable<UserDto>> GetUserOlderThanAsync(byte age, CancellationToken cancellationToken);
+    Task UpdateUserAgeByGuidAsync(Guid guid, byte age, CancellationToken cancellationToken);
 }
 ```
 ```csharp [Record (Recommended)]
 namespace TestProject.Repositories;
 
-public sealed record UserRepository(ICaeriusDbContext DbContext)
+public sealed record UserRepository(ICaeriusNetDbContext DbContext)
     : IUserRepository
 {
-    public async Task<IEnumerable<UserDto>> GetUserOlderThanAsync(byte age)
+    public async Task<IEnumerable<UserDto>> GetUserOlderThanAsync(byte age, CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }
 
-    public async Task UpdateCustomUserAgeByGuidAsync(Guid guid, byte age)
+    public async Task UpdateCustomUserAgeByGuidAsync(Guid guid, byte age, CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }
@@ -50,15 +50,15 @@ public sealed record UserRepository(ICaeriusDbContext DbContext)
 ```csharp [Class]
 namespace TestProject.Repositories;
 
-public sealed class UserRepository(ICaeriusDbContext DbContext)
+public sealed class UserRepository(ICaeriusNetDbContext DbContext)
     : IUserRepository
 {
-    public async Task<IEnumerable<UserDto>> GetUserOlderThanAsync(byte age)
+    public async Task<IEnumerable<UserDto>> GetUserOlderThanAsync(byte age, CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }
 
-    public async Task UpdateUserAgeByGuidAsync(Guid guid, byte age)
+    public async Task UpdateUserAgeByGuidAsync(Guid guid, byte age, CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }
@@ -150,9 +150,9 @@ public sealed record UserDto(
     byte Age,
     DateTime CreatedAt,
     ushort Points)
-    : ISpMapper<CustomUsersDto>
+    : ISpMapper<UserDto>
 {
-    public static UserDto MapFromReader(SqlDataReader reader)
+    public static UserDto MapFromDataReader(SqlDataReader reader)
     {
         return new UserDto(
             Guid = reader.GetGuid(0),
@@ -167,7 +167,7 @@ public sealed record UserDto(
 ```
 ### Explanations
 
-To explain the `ISpMapper<T>` interface, it's a simple interface that contains a `MapFromReader` method.
+To explain the `ISpMapper<T>` interface, it's a simple interface that contains a `MapFromDataReader` method.
 This method will be used to map the result of the Stored Procedure to the DTO.
 
 The [`SqlDataReader`](https://learn.microsoft.com/en-us/dotnet/api/microsoft.data.sqlclient.sqldatareader?view=sqlclient-dotnet-standard-5.2) object is used to read the result of the Stored Procedure,
@@ -186,18 +186,18 @@ On the example below, we will implement the `GetUserOlderThanAsync` method.
 ```csharp
 namespace TestProject.Repositories;
 
-public sealed record UserRepository(ICaeriusDbContext DbContext)
+public sealed record UserRepository(ICaeriusNetDbContext DbContext)
     : IUserRepository
 {
-    public async Task<IEnumerable<UserDto>> GetUserOlderThanAsync(byte userAge)
+    public async Task<IEnumerable<UserDto>> GetUserOlderThanAsync(byte userAge, CancellationToken cancellationToken)
     {
-        var spParams = new StoredProcedureParametersBuilder("dbo.sp_GetUser_By_Age", 450)
+        var spParams = new StoredProcedureParametersBuilder("dbo", "sp_GetUser_By_Age", 450)
             .AddParameter("Age", userAge, SqlDbType.TinyInt)
             .Build();
 
-        var users = await DbContext.FirstQueryAsync<UserDto>(spParams);
+        var users = await DbContext.QueryAsIEnumerableAsync<UserDto>(spParams, cancellationToken);
 
-        return users;
+        return users ?? Array.Empty<UserDto>();
     }
 }
 ```
@@ -265,18 +265,18 @@ With this method we are required to define the `Guid` and the `Age` parameters.
 ```csharp [With Affected Rows]
 namespace TestProject.Repositories;
 
-public sealed record UserRepository(ICaeriusDbContext DbContext)
+public sealed record UserRepository(ICaeriusNetDbContext DbContext)
     : IUserRepository
 {
 
-    public async Task<int> UpdateUserAgeByGuidAsync(Guid userGuid, byte userAge)
+    public async Task<int> UpdateUserAgeByGuidAsync(Guid userGuid, byte userAge, CancellationToken cancellationToken)
     {
-        var spParams = new StoredProcedureParametersBuilder("dbo.sp_UpdateCustomUserAge_By_Guid")
+        var spParams = new StoredProcedureParametersBuilder("dbo", "sp_UpdateUserAge_By_Guid")
             .AddParameter("Guid", userGuid, SqlDbType.UniqueIdentifier)
             .AddParameter("Age", userAge, SqlDbType.TinyInt)
             .Build();
 
-        var rows = await DbContext.ExecuteAsync(spParams);
+        var rows = await DbContext.ExecuteNonQueryAsync(spParams, cancellationToken);
         
         return rows;
     }
@@ -285,32 +285,29 @@ public sealed record UserRepository(ICaeriusDbContext DbContext)
 ```csharp [Without Affected Rows]
 namespace TestProject.Repositories;
 
-public sealed record UserRepository(ICaeriusDbContext DbContext)
+public sealed record UserRepository(ICaeriusNetDbContext DbContext)
     : IUserRepository
 {
 
-    public async Task UpdateUserAgeByGuidAsync(Guid userGuid, byte userAge)
+    public async Task UpdateUserAgeByGuidAsync(Guid userGuid, byte userAge, CancellationToken cancellationToken)
     {
-        var spParams = new StoredProcedureParametersBuilder("dbo.sp_UpdateCustomUserAge_By_Guid")
+        var spParams = new StoredProcedureParametersBuilder("dbo", "sp_UpdateUserAge_By_Guid")
             .AddParameter("Guid", userGuid, SqlDbType.UniqueIdentifier)
             .AddParameter("Age", userAge, SqlDbType.TinyInt)
             .Build();
 
-        return await DbContext.ExecuteScalarAsync(spParams);
+        await DbContext.ExecuteAsync(spParams, cancellationToken);
     }
 }
 ```
 
 ### Explanations
 
-To explain the `ExecuteAsync` and `ExecuteScalarAsync` methods, they are used to execute the Stored Procedure, as `Fire and Forget`.
- - `ExecuteAsync` is used for `INSERT INTO`, `DELETE`, `UPDATE`, `MERGE` operations,  
-and _**will not**_ return the number of rows affected by the operation.
+- `ExecuteNonQueryAsync` is used for `INSERT`, `UPDATE`, `DELETE`, or `MERGE` operations and returns the number of rows affected.
+- `ExecuteAsync` is a fire-and-forget variant for write operations and does not return the affected rows count.
+- `ExecuteScalarAsync<T>` executes a command that returns a single scalar value (e.g., SELECT COUNT(*), SCOPE_IDENTITY()), converted to `T`.
 
- - `ExecuteScalarAsync` is used for `INSERT INTO`, `DELETE`, `UPDATE`, `MERGE` operations,  
-and _**will**_ return the number of rows affected by the operation.  
-
-**Note** : You don't have to specify the `List Capacity` for the `ExecuteAsync` and `ExecuteScalarAsync` methods, because they are not returning a `List<T>`.
+Note: You don't have to specify the `List Capacity` for write operations (`ExecuteNonQueryAsync`, `ExecuteAsync`, `ExecuteScalarAsync`) because they do not materialize a list.
 
 
 

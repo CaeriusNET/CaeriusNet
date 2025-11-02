@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: "Caerius.NET"
-  text: "C# & TSQL enchanced by performance Micro-ORM"
+  text: "C# & TSQL enhanced by performance Micro-ORM"
   tagline: Stored Procedure to DTO in µseconds !
   image:
     alt: Caerius Logo

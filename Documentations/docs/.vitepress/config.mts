@@ -14,7 +14,9 @@ export default defineConfig({
                 items: [
                     { text: 'Usage', link: '/documentation/usage' },
                     { text: 'Advanced Usage', link: '/documentation/advanced-usage' },
-                    { text: 'API', link: '/documentation/api' }
+                    { text: 'Caching', link: '/documentation/cache' },
+                    { text: 'Best Practices', link: '/documentation/best-practices' },
+                    { text: 'API Reference', link: '/documentation/api' }
                 ]
             },
         ],
@@ -30,9 +32,11 @@ export default defineConfig({
             {
                 text: 'Documentation',
                 items: [
-
                     { text: 'Usage', link: '/documentation/usage' },
-                    { text: 'Advanced Usage', link: '/documentation/advanced-usage' }
+                    { text: 'Advanced Usage', link: '/documentation/advanced-usage' },
+                    { text: 'Caching', link: '/documentation/cache' },
+                    { text: 'Best Practices', link: '/documentation/best-practices' },
+                    { text: 'API Reference', link: '/documentation/api' }
                 ]
             }
         ],

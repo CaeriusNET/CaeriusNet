@@ -12,12 +12,7 @@ static internal class FrozenCacheManager
 	/// </summary>
 	private static FrozenDictionary<string, object> _frozenCache = FrozenDictionary<string, object>.Empty;
 
-	private static readonly ReaderWriterLockSlim _lock = new(LockRecursionPolicy.NoRecursion);
-
-	/// <summary>
-	///     Lock object used for thread synchronization when modifying the cache.
-	/// </summary>
-	private static readonly Lock Lock = new();
+	private static readonly ReaderWriterLockSlim LockSlim = new(LockRecursionPolicy.NoRecursion);
 
 	/// <summary>
 	///     Logger instance for cache operations.
@@ -42,14 +37,14 @@ static internal class FrozenCacheManager
 	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
 	static internal void Store<T>(string cacheKey, T value)
 	{
-		_lock.EnterReadLock();
+		LockSlim.EnterReadLock();
 		try{
 			if (_frozenCache.ContainsKey(cacheKey))
 				return;
 		}
-		finally{ _lock.ExitReadLock(); }
+		finally{ LockSlim.ExitReadLock(); }
 
-		_lock.EnterWriteLock();
+		LockSlim.EnterWriteLock();
 		try{
 			if (_frozenCache.ContainsKey(cacheKey))
 				return;
@@ -72,7 +67,7 @@ static internal class FrozenCacheManager
 			if (IsLoggingEnabled)
 				Logger!.LogStoredInFrozenCache(cacheKey);
 		}
-		finally{ _lock.ExitWriteLock(); }
+		finally{ LockSlim.ExitWriteLock(); }
 	}
 
 	/// <summary>
@@ -92,7 +87,7 @@ static internal class FrozenCacheManager
 	[MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
 	static internal bool TryGet<T>(string cacheKey, out T? value)
 	{
-		_lock.EnterReadLock();
+		LockSlim.EnterReadLock();
 		try{
 			var cache = _frozenCache;
 
@@ -108,6 +103,6 @@ static internal class FrozenCacheManager
 
 			return true;
 		}
-		finally{ _lock.ExitReadLock(); }
+		finally{ LockSlim.ExitReadLock(); }
 	}
 }

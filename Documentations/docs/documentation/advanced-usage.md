@@ -49,7 +49,7 @@ using CaeriusNet.Attributes.Tvp;
 
 namespace TestProject.Models.Tvps;
 
-[GenerateTvp(Name="dbo.tvp_int")]
+[GenerateTvp(Schema = "dbo", TvpName = "tvp_int")]
 public partial sealed record UsersIdsTvp(int Id);
 ```
 ```csharp [TVP]
@@ -58,7 +58,9 @@ namespace TestProject.Models.Tvps;
 public sealed record UsersIdsTvp(int Id)
     : ITvpMapper<UsersIdsTvp>
 {
-    public DataTable MapToDataTable(IEnumerable<UsersIdsTvp> items)
+    public static string TvpTypeName => "dbo.tvp_int";
+
+    public DataTable MapAsDataTable(IEnumerable<UsersIdsTvp> items)
     {
         var dataTable = new DataTable("dbo.tvp_int");
         dataTable.Columns.Add("Id", typeof(int));
@@ -70,7 +72,7 @@ public sealed record UsersIdsTvp(int Id)
 }
 ```
 ```csharp [Service]
-using CaeriusNET.Models.Tvps;
+using TestProject.Models.Tvps;
 
 namespace TestProject.Services;
 
@@ -79,67 +81,66 @@ public sealed record UserService(IUserRepository UserRepository)
 {
     private readonly Random _random = new();
 
-    public async Task<IEnumerable<UserDto>> GetUsersByTvpIds(IEnumerable<UserDto> users)
+    public async Task<IEnumerable<UserDto>> GetUsersByTvpIds(IEnumerable<UserDto> users, CancellationToken cancellationToken)
     {
         var usersToGet = users
             .Take(4242)
             .Select(u => new UsersIdsTvp(u.Id))
             .ToList();
             
-        var users = await CustomUsersRepository.GetUsersByTvpIds(usersToGet);
+        var result = await UserRepository.GetUsersByTvpIds(usersToGet, cancellationToken);
         
-        return users;
+        return result;
     }
 }
 ```
 ```csharp [Repository]
-using CaeriusNET.Models.Tvps;
+using TestProject.Models.Tvps;
 
 namespace TestProject.Repositories;
 
-public sealed record UserRepository(ICaeriusDbContext DbContext)
+public sealed record UserRepository(ICaeriusNetDbContext DbContext)
     : IUserRepository
 {
-    public async Task<IEnumerable<UserDto>> GetUsersByTvpIds(IEnumerable<UsersIdsTvp> users)
+    public async Task<IEnumerable<UserDto>> GetUsersByTvpIds(IEnumerable<UsersIdsTvp> items, CancellationToken cancellationToken)
     {
-        var parameters = new StoredProcedureParametersBuilder("dbo.sp_GetUsers_By_Tvp_Ids", 4242);
-            .AddTableValuedParameter("Ids", "dbo.tvp_int", users)
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Tvp_Ids", 4242)
+            .AddTvpParameter("Ids", items)
             .Build();
 
-        var users = await DbContext.QueryAsync<UserDto>("dbo.sp_GetUsers_By_Tvp_Ids", parameters);
-        
-        return users;
+        var result = await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, cancellationToken);
+        return result ?? Array.Empty<UserDto>();
     }
 }
 ```
 :::
-## Multiples parameters
+## Multiple parameters
 
 Sometimes you need to use Stored Procedures parameters and TVP in the same call.
 
-To do this, you can use the `.AddStoredProcedureParameter()` with `.AddTableValuedParameter()` method of the `StoredProcedureParametersBuilder` class.
+To do this, combine `.AddParameter()` with `.AddTvpParameter()` on the `StoredProcedureParametersBuilder`.
 
 Here is an example:
 
 ::: code-group
 ```csharp [Repository]
-using CaeriusNET.Models.Tvps;
+using TestProject.Models.Tvps;
 
 namespace TestProject.Repositories;
 
-public sealed record UserRepository(ICaeriusDbContext DbContext)
+public sealed record UserRepository(ICaeriusNetDbContext DbContext)
     : IUserRepository
 {
-    public async Task<IEnumerable<UserDto>> GetUsersByTvpIdsAndAge(IEnumerable<UsersIdsTvp> users, int age)
+    public async Task<IEnumerable<UserDto>> GetUsersByTvpIdsAndAge(IEnumerable<UsersIdsTvp> users, int age, CancellationToken cancellationToken)
     {
-        var parameters = new StoredProcedureParametersBuilder("dbo.sp_GetUsers_By_Tvp_Ids_And_Age", 4242)
-            .AddTableValuedParameter("Ids", "dbo.tvp_int", users)
-            .AddStoredProcedureParameter("Age", age, SqlDbType.Int)
-            .Build()
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Tvp_Ids_And_Age", 4242)
+            .AddTvpParameter("Ids", users)
+            .AddParameter("Age", age, SqlDbType.Int)
+            .Build();
 
-        var users = await DbContext.FirstQueryAsync<UserDto>("dbo.sp_GetUsers_By_Tvp_Ids_And_Age", parameters);
+        var result = await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, cancellationToken);
         
-        return users;
+        return result ?? Array.Empty<UserDto>();
     }
 }
 ```

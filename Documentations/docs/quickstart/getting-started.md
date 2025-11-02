@@ -43,28 +43,47 @@ This step requires the `Microsoft.Extensions.Configuration.Json` package to read
 ### Configuring Program.cs
 
 In your `Program.cs` file, integrate Caerius.NET into your `ServiceCollection` using `Dependency Injection`:
-
-```csharp
-using CaeriusNet.Extensions;
+::: code-group
+```csharp [Manual]
+using CaeriusNet.Builders;
 using Microsoft.Extensions.Configuration;
 
 var services = new ServiceCollection();
 
 var configuration = new ConfigurationBuilder()
-    .AddJsonFile("appsettings.json", false, false)
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
     .Build();
 
 services.AddSingleton<IConfiguration>(configuration);
 
-var connectionString = configuration.GetConnectionString("Default");
+var connectionString = configuration.GetConnectionString("Default")!;
 
-services // [!code focus]
-    .AddCaeriusNet(connectionString); // [!code focus]
-    // ... additional DI configuration // [!code --]
+CaeriusNetBuilder
+    .Create(services)
+    .WithSqlServer(connectionString)
+    // .WithRedis("localhost:6379") // optional distributed cache
+    .Build();
 
 var serviceProvider = services.BuildServiceProvider();
 ```
+```csharp [Aspire]
+using CaeriusNet.Builders;
+using Microsoft.Extensions.Hosting;
 
+var builder = new HostApplicationBuilder();
+
+builder.AddServiceDefaults();
+
+CaeriusNetBuilder.Create(builder)
+	.WithAspireSqlServer("CaeriusNet")
+	.WithAspireRedis() // Default is : redis
+	.Build();
+
+var app = builder.Build();
+
+await app.RunAsync();
+```
+:::
 ## Utilizing Caerius.NET
 Post-configuration, Caerius.NET is ready for use within your `Repository` classes.  
 
@@ -82,36 +101,36 @@ public interface ITestRepository
 ```csharp [Class]
 namespace TestProject.Repositories;
 
-public sealed class TestRepository(ICaeriusDbContext DbContext)
+public sealed class TestRepository(ICaeriusNetDbContext DbContext)
     : ITestRepository
 {
     public async Task<IEnumerable<UserDto>> GetUsersOlderThanAsync(int usersAge)
     {
-        var spParams = new StoredProcedureParametersBuilder("dbo.sp_GetUser_By_Age")
+        var spParams = new StoredProcedureParametersBuilder("dbo", "sp_GetUser_By_Age", 128)
             .AddParameter("Age", usersAge, SqlDbType.Int)
             .Build();
 
-        var users = await DbContext.FirstQueryAsync<UserDto>(spParams);
+        var users = await DbContext.QueryAsIEnumerableAsync<UserDto>(spParams);
 
-        return users;
+        return users ?? Array.Empty<UserDto>();
     }
 }
 ```
 ```csharp [Record (Recommended)]
 namespace TestProject.Repositories;
 
-public sealed record TestRepository(ICaeriusDbContext DbContext)
+public sealed record TestRepository(ICaeriusNetDbContext DbContext)
     : ITestRepository
 {
     public async Task<IEnumerable<UserDto>> GetUsersOlderThanAsync(int usersAge)
     {
-        var spParams = new StoredProcedureParametersBuilder("dbo.sp_GetUser_By_Age")
+        var spParams = new StoredProcedureParametersBuilder("dbo", "sp_GetUser_By_Age", 128)
             .AddParameter("Age", usersAge, SqlDbType.Int)
             .Build();
 
-        var users = await DbContext.FirstQueryAsync<UserDto>(spParams);
+        var users = await DbContext.QueryAsIEnumerableAsync<UserDto>(spParams);
 
-        return users;
+        return users ?? Array.Empty<UserDto>();
     }
 }
 ```
@@ -119,53 +138,14 @@ public sealed record TestRepository(ICaeriusDbContext DbContext)
 
 Refer to the provided DTO classes in your implementation:
 
-::: code-group
-```csharp [Source Generator (Most Recommended)]
+```csharp
 using CaeriusNet.Attributes.Dto;
 
 namespace TestProject.Models.Dtos;
 
-[GeneratedDto]
+[GenerateDto]
 public partial sealed record UserDto(int Id, string Name, byte Age);
 ```
-```csharp [Record (Recommended)]
-namespace TestProject.Models.Dtos;
-
-public sealed record UserDto(int Id, string Name, byte Age)
-    : ISpMapper<UserDto>
-{
-    public static UserDto MapFromReader(SqlDataReader reader)
-    {
-        return new UserDto(
-            Id = reader.GetInt32(0),
-            Name = reader.GetString(1),
-            Age = reader.GetByte(2)
-        );
-    }
-}
-```
-```csharp [Class]
-namespace TestProject.Models.Dtos;
-
-public sealed class UserDto
-    : ISpMapper<UserDto>
-{
-    public int Id { get; set; }
-    public string Name { get; set; }
-    public byte Age { get; set; }
-
-    public static UserDto MapFromReader(SqlDataReader reader)
-    {
-        return new UserDto
-        {
-            Id = reader.GetInt32(0),
-            Name = reader.GetString(1),
-            Age = reader.GetByte(2)
-        };
-    }
-}
-```
-:::
 
 Refer to the provided Stored Procedure:
 ::: code-group
