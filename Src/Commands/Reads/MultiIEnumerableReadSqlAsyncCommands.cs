@@ -17,7 +17,7 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 		where TResultSet1 : class, ISpMapper<TResultSet1>
 		where TResultSet2 : class, ISpMapper<TResultSet2>
 	{
-		return await SqlCommandUtility.ExecuteCommandAsync(context, spParameters, execute: async command => {
+		return await SqlCommandHelper.ExecuteCommandAsync(context, spParameters, execute: async command => {
 			await using var reader = await command.ExecuteReaderAsync(
 			CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
 
@@ -46,7 +46,7 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 		where TResultSet2 : class, ISpMapper<TResultSet2>
 		where TResultSet3 : class, ISpMapper<TResultSet3>
 	{
-		return await SqlCommandUtility.ExecuteCommandAsync(context, spParameters, execute: async command => {
+		return await SqlCommandHelper.ExecuteCommandAsync(context, spParameters, execute: async command => {
 			await using var reader = await command.ExecuteReaderAsync(
 			CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
 
@@ -83,7 +83,7 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 		where TResultSet3 : class, ISpMapper<TResultSet3>
 		where TResultSet4 : class, ISpMapper<TResultSet4>
 	{
-		return await SqlCommandUtility.ExecuteCommandAsync(context, spParameters, execute: async command => {
+		return await SqlCommandHelper.ExecuteCommandAsync(context, spParameters, execute: async command => {
 			await using var reader = await command.ExecuteReaderAsync(
 			CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
 
@@ -127,7 +127,7 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 		where TResultSet4 : class, ISpMapper<TResultSet4>
 		where TResultSet5 : class, ISpMapper<TResultSet5>
 	{
-		return await SqlCommandUtility.ExecuteCommandAsync(context, spParameters, execute: async command => {
+		return await SqlCommandHelper.ExecuteCommandAsync(context, spParameters, execute: async command => {
 			await using var reader = await command.ExecuteReaderAsync(
 			CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
 

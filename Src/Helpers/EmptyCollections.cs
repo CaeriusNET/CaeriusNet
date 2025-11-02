@@ -1,4 +1,4 @@
-﻿namespace CaeriusNet.Utilities;
+﻿namespace CaeriusNet.Helpers;
 
 /// <summary>
 ///     Provides cached empty collections to avoid repeated allocations

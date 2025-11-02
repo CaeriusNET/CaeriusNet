@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\..\Libs\CaeriusNet.Exemples.Libs.Commons\CaeriusNet.Exemples.Libs.Commons.csproj"/>
+        <ProjectReference Include="..\CaeriusNet.Exemples.Aspire.ServiceDefaults\CaeriusNet.Exemples.Aspire.ServiceDefaults.csproj"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0-rc.2.25502.107"/>
+        <!-- Ensure the app process loads Microsoft.Data.SqlClient (align with library) -->
+        <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0-preview2.25289.6"/>
+    </ItemGroup>
+</Project>

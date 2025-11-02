@@ -1,4 +1,4 @@
-﻿namespace CaeriusNet.Utilities;
+﻿namespace CaeriusNet.Helpers;
 
 /// <summary>
 ///     Contains a collection of static utility methods designed to streamline the execution of SQL commands,
@@ -25,9 +25,9 @@
 ///     </list>
 /// </remarks>
 /// <seealso cref="MultiResultSetHelper" />
-/// <seealso cref="CacheUtility" />
+/// <seealso cref="CacheHelper" />
 /// <seealso cref="EmptyCollections" />
-static internal class SqlCommandUtility
+static internal class SqlCommandHelper
 {
 	/// <summary>
 	///     Executes a stored procedure query asynchronously and returns a single scalar result mapped to the specified result
@@ -77,10 +77,9 @@ static internal class SqlCommandUtility
 			.ExecuteReaderAsync(CommandBehavior.SingleResult | CommandBehavior.SingleRow | CommandBehavior.SequentialAccess, cancellationToken)
 			.ConfigureAwait(false);
 
-		if (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-			return TResultSet.MapFromDataReader(reader);
-
-		return null;
+		return await reader.ReadAsync(cancellationToken).ConfigureAwait(false)
+			? TResultSet.MapFromDataReader(reader)
+			: null;
 	}
 
 	/// <summary>
@@ -186,33 +185,21 @@ static internal class SqlCommandUtility
 		CancellationToken cancellationToken = default)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
-		var buffer = ArrayPoolHelper.Rent<TResultSet>(spParameters.Capacity);
-		int count = 0;
+		var results = new List<TResultSet>(spParameters.Capacity);
 
-		try{
-			await using var command = await ExecuteSqlCommandAsync(spParameters, connection, cancellationToken).ConfigureAwait(false);
-			await using var reader = await command
-				.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken)
-				.ConfigureAwait(false);
+		await using var command = await ExecuteSqlCommandAsync(spParameters, connection, cancellationToken).ConfigureAwait(false);
+		await using var reader = await command
+			.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken)
+			.ConfigureAwait(false);
 
-			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false)){
-				if (count >= buffer.Length){
-					var newBuffer = ArrayPoolHelper.Rent<TResultSet>(buffer.Length * 2);
-					Array.Copy(buffer, newBuffer, count);
-					ArrayPoolHelper.Return(buffer);
-					buffer = newBuffer;
-				}
+		while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false)){
+			var item = TResultSet.MapFromDataReader(reader);
 
-				buffer[count++] = TResultSet.MapFromDataReader(reader);
-			}
-
-			var results = new List<TResultSet>(count);
-			for (int i = 0; i < count; i++)
-				results.Add(buffer[i]);
-
-			return results.AsReadOnly();
+			CollectionsMarshal.SetCount(results, results.Count + 1);
+			CollectionsMarshal.AsSpan(results)[^1] = item;
 		}
-		finally{ ArrayPoolHelper.Return(buffer, true); }
+
+		return results.AsReadOnly();
 	}
 
 	/// <summary>
@@ -267,18 +254,29 @@ static internal class SqlCommandUtility
 		CancellationToken cancellationToken = default)
 		where TResultSet : class, ISpMapper<TResultSet>
 	{
-		var builder = ImmutableArray.CreateBuilder<TResultSet>(spParameters.Capacity);
-		await using var command = await ExecuteSqlCommandAsync(spParameters, connection, cancellationToken).ConfigureAwait(false);
-		await using var reader = await command
-			.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken)
-			.ConfigureAwait(false);
+		var buffer = ArrayPool<TResultSet>.Shared.Rent(spParameters.Capacity);
+		int count = 0;
 
-		while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-			builder.Add(TResultSet.MapFromDataReader(reader));
+		try{
+			await using var command = await ExecuteSqlCommandAsync(spParameters, connection, cancellationToken).ConfigureAwait(false);
+			await using var reader = await command
+				.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken)
+				.ConfigureAwait(false);
 
-		return builder.Count == builder.Capacity
-			? builder.MoveToImmutable()
-			: builder.ToImmutable();
+			while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false)){
+				if (count >= buffer.Length){
+					var newBuffer = ArrayPool<TResultSet>.Shared.Rent(buffer.Length * 3 / 2);
+					buffer.AsSpan(0, count).CopyTo(newBuffer);
+					ArrayPool<TResultSet>.Shared.Return(buffer);
+					buffer = newBuffer;
+				}
+
+				buffer[count++] = TResultSet.MapFromDataReader(reader);
+			}
+
+			return ImmutableCollectionsMarshal.AsImmutableArray(buffer.AsSpan(0, count).ToArray());
+		}
+		finally{ ArrayPool<TResultSet>.Shared.Return(buffer, true); }
 	}
 
 	/// <summary>
@@ -323,14 +321,18 @@ static internal class SqlCommandUtility
 		if (sqlConnection.State != ConnectionState.Open)
 			await sqlConnection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-		var command = sqlConnection.CreateCommand();
-		command.CommandText = $"{spParameters.SchemaName}.{spParameters.ProcedureName}";
-		command.CommandType = CommandType.StoredProcedure;
-		command.CommandTimeout = 30;
+		var command = new SqlCommand($"{spParameters.SchemaName}.{spParameters.ProcedureName}", sqlConnection)
+		{
+			CommandType = CommandType.StoredProcedure,
+			CommandTimeout = 30
+		};
 
-		var paramsSpan = spParameters.Parameters.Span;
+		// ULTRA: Use Span for zero-copy parameter addition
+		var paramsSpan = spParameters.GetParametersSpan();
+		ref var searchSpace = ref MemoryMarshal.GetReference(paramsSpan);
+
 		for (int i = 0; i < paramsSpan.Length; i++)
-			command.Parameters.Add(paramsSpan[i]);
+			command.Parameters.Add(Unsafe.Add(ref searchSpace, i));
 
 		return command;
 	}
@@ -339,7 +341,7 @@ static internal class SqlCommandUtility
 	///     Executes an asynchronous SQL command using a stored procedure and a provided execution function.
 	/// </summary>
 	/// <typeparam name="T">The type of the result produced by the execution function.</typeparam>
-	/// <param name="netDbContext">The database context providing access to the underlying database connection.</param>
+	/// <param name="dbContext">The database context providing access to the underlying database connection.</param>
 	/// <param name="spParameters">
 	///     An object containing the stored procedure name, parameters, and optional cache configuration.
 	///     The following properties are included:
@@ -380,13 +382,13 @@ static internal class SqlCommandUtility
 	/// </exception>
 	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
 	static internal async ValueTask<T> ExecuteCommandAsync<T>(
-		ICaeriusNetDbContext netDbContext,
+		ICaeriusNetDbContext dbContext,
 		StoredProcedureParameters spParameters,
 		Func<SqlCommand, ValueTask<T>> execute,
 		CancellationToken cancellationToken = default)
 	{
 		try{
-			using var connection = netDbContext.DbConnection();
+			await using var connection = dbContext.DbConnection();
 			await using var command = await ExecuteSqlCommandAsync(spParameters, connection, cancellationToken).ConfigureAwait(false);
 
 			return await execute(command).ConfigureAwait(false);
@@ -442,6 +444,7 @@ static internal class SqlCommandUtility
 		await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SequentialAccess).ConfigureAwait(false);
 
 		var results = new List<IReadOnlyCollection<object>>(mappers.Length);
+
 		int mappersCount = mappers.Length;
 
 		for (int i = 0; i < mappersCount; i++){
@@ -453,10 +456,7 @@ static internal class SqlCommandUtility
 
 			results.Add(items.AsReadOnly());
 
-			if (i >= mappersCount - 1)
-				continue;
-
-			if (!await reader.NextResultAsync().ConfigureAwait(false))
+			if (i < mappersCount - 1 && !await reader.NextResultAsync().ConfigureAwait(false))
 				break;
 		}
 
@@ -516,18 +516,27 @@ static internal class SqlCommandUtility
 		int mappersCount = mappers.Length;
 
 		for (int i = 0; i < mappersCount; i++){
-			var builder = ImmutableArray.CreateBuilder<object>(spParameters.Capacity);
+			object[] buffer = ArrayPool<object>.Shared.Rent(spParameters.Capacity);
+			int count = 0;
 			var currentMapper = mappers[i];
 
-			while (await reader.ReadAsync().ConfigureAwait(false))
-				builder.Add(currentMapper(reader));
+			try{
+				while (await reader.ReadAsync().ConfigureAwait(false)){
+					if (count >= buffer.Length){
+						object[] newBuffer = ArrayPool<object>.Shared.Rent(buffer.Length * 2);
+						buffer.AsSpan(0, count).CopyTo(newBuffer);
+						ArrayPool<object>.Shared.Return(buffer);
+						buffer = newBuffer;
+					}
 
-			results.Add(builder.ToImmutable());
+					buffer[count++] = currentMapper(reader);
+				}
 
-			if (i >= mappersCount - 1)
-				continue;
+				results.Add(ImmutableCollectionsMarshal.AsImmutableArray(buffer.AsSpan(0, count).ToArray()));
+			}
+			finally{ ArrayPool<object>.Shared.Return(buffer, true); }
 
-			if (!await reader.NextResultAsync().ConfigureAwait(false))
+			if (i < mappersCount - 1 && !await reader.NextResultAsync().ConfigureAwait(false))
 				break;
 		}
 
@@ -601,10 +610,7 @@ static internal class SqlCommandUtility
 
 			results.Add(resultSet);
 
-			if (i >= mappersCount - 1)
-				continue;
-
-			if (!await reader.NextResultAsync().ConfigureAwait(false))
+			if (i < mappersCount - 1 && !await reader.NextResultAsync().ConfigureAwait(false))
 				break;
 		}
 

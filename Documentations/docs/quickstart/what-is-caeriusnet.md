@@ -1,6 +1,6 @@
 # What is Caerius.NET?
 
-Caerius.NET is a `C# 12 .NET 8` `NuGet Package` library designed to swiftly map the results of TSQL Stored Procedures to C# Data Transfer Objects (DTOs).  
+Caerius.NET is a `C# 13 .NET 10` `NuGet Package` library designed to swiftly map the results of TSQL Stored Procedures to C# Data Transfer Objects (DTOs).
 Our passion for C#, ADO.NET, and TSQL drove us to simplify their integration.  
 Currently, we exclusively support C# and SQL Server — and we take pride in this specialization.
 
@@ -18,4 +18,4 @@ Your applications reliability is our priority. Caerius.NET is underpinned by com
 We understand that performance is critical, especially when result set mapping could become a bottleneck. Caerius.NET is performance-optimized, with benchmarks to substantiate its efficiency.
 
 ## Interested in trying it out? How does it work?
-Visit our [Getting Started](https://caerius.net/quickstart/getting-started.html) page to learn how to integrate Caerius.NET into your project.
+Visit our [Getting Started](/quickstart/getting-started) page to learn how to integrate Caerius.NET into your project.

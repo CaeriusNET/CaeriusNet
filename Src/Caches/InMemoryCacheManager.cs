@@ -16,8 +16,9 @@ static internal class InMemoryCacheManager
 	private static readonly MemoryCache MemoryCache = new(new MemoryCacheOptions
 	{
 		SizeLimit = null,
-		CompactionPercentage = 0.1,
-		ExpirationScanFrequency = TimeSpan.FromMinutes(5)
+		CompactionPercentage = 0.05,
+		ExpirationScanFrequency = TimeSpan.FromMinutes(2),
+		TrackLinkedCacheEntries = false
 	});
 
 	/// <summary>
@@ -47,7 +48,13 @@ static internal class InMemoryCacheManager
 		if (IsLoggingEnabled)
 			Logger!.LogStoringInMemoryCache(cacheKey);
 
-		MemoryCache.Set(cacheKey, value!, expiration);
+		var options = new MemoryCacheEntryOptions
+		{
+			AbsoluteExpirationRelativeToNow = expiration,
+			Priority = CacheItemPriority.Normal
+		};
+
+		MemoryCache.Set(cacheKey, value!, options);
 	}
 
 	/// <summary>

@@ -42,14 +42,12 @@
 public sealed class GenerateTvpAttribute : Attribute
 {
 	/// <summary>
-	///     Gets or sets the SQL Server schema name to use for this TVP.
-	///     Defaults to "dbo" if not specified.
+	///     Gets or sets the SQL Server schema name to use for this TVP. (default: "dbo")
 	/// </summary>
 	public required string Schema { get; init; } = "dbo";
 
 	/// <summary>
 	///     Gets or sets the SQL Server table type name (without schema) to use for this TVP.
-	///     This property is required and must be specified by the user.
 	/// </summary>
 	public required string TvpName { get; init; }
 }
