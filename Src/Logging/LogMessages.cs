@@ -8,7 +8,7 @@
 ///     - 3xxx: Redis Cache
 ///     - 4xxx: Database Operations
 /// </summary>
-[GeneratedCode("Microsoft.Extensions.Logging.Generators", "8.0.0.0")]// Type documentation
+[GeneratedCode("Microsoft.Extensions.Logging.Generators", "8.0.0.0")]
 public static partial class LogMessages
 {
 

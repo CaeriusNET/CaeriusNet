@@ -88,8 +88,8 @@ public sealed class CaeriusNetBuilder
 		if (!string.IsNullOrWhiteSpace(_aspireSqlServerConnectionName) && _aspireBuilder != null){
 			_aspireBuilder.AddSqlServerClient(_aspireSqlServerConnectionName);
 
-			// Sanity check: confirm the connection string exists at runtime (AppHost injects it)
 			string? cs = _aspireBuilder.Configuration.GetConnectionString(_aspireSqlServerConnectionName);
+
 			if (string.IsNullOrWhiteSpace(cs))
 				throw new InvalidOperationException(
 				$"ConnectionStrings:{_aspireSqlServerConnectionName} is missing. " +
@@ -98,19 +98,25 @@ public sealed class CaeriusNetBuilder
 				);
 
 			_services.AddScoped<ICaeriusNetDbContext>(sp => {
-				// Create a fresh SqlConnection and set the connection string explicitly from config.
-				// This removes ambiguity if DI-provided SqlConnection had no ConnectionString due to launch/config issues.
-				var factory = () => new SqlConnection(cs);
 				var redis = sp.GetService<IRedisCacheManager>();
-				return new CaeriusNetDbContext(factory, redis);
+				return new CaeriusNetDbContext(Factory, redis);
+
+				SqlConnection Factory()
+				{
+					return new SqlConnection(cs);
+				}
 			});
 		}
 		else if (!string.IsNullOrWhiteSpace(_sqlServerConnectionString)){
 			_services.AddScoped<ICaeriusNetDbContext>(sp => {
 				var redis = sp.GetService<IRedisCacheManager>();
 				string connectionString = _sqlServerConnectionString!;
-				var factory = () => new SqlConnection(connectionString);
-				return new CaeriusNetDbContext(factory, redis);
+				return new CaeriusNetDbContext(Factory, redis);
+
+				SqlConnection Factory()
+				{
+					return new SqlConnection(connectionString);
+				}
 			});
 		}
 	}

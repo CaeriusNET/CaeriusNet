@@ -5,8 +5,22 @@
 /// </summary>
 internal sealed class RedisCacheManager : IRedisCacheManager
 {
+	/// <summary>
+	///     A thread-local pool of ArrayBufferWriter instances used for efficient byte buffer management.
+	/// </summary>
+	/// <remarks>
+	///     Each thread maintains its own ArrayBufferWriter instance with an initial capacity of 4096 bytes.
+	///     This helps avoid allocation overhead in high-concurrency scenarios.
+	/// </remarks>
 	private static readonly ThreadLocal<ArrayBufferWriter<byte>> BufferWriterPool = new(() => new ArrayBufferWriter<byte>(4096));
 
+	/// <summary>
+	///     JSON serialization options for Redis cache operations.
+	/// </summary>
+	/// <remarks>
+	///     Configures serialization to ignore null values, use case-insensitive property names,
+	///     and populate existing object instances during deserialization.
+	/// </remarks>
 	private static readonly JsonSerializerOptions JsonOptions = new()
 	{
 		DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -14,7 +28,14 @@ internal sealed class RedisCacheManager : IRedisCacheManager
 		PreferredObjectCreationHandling = JsonObjectCreationHandling.Populate
 	};
 
+	/// <summary>
+	///     The distributed cache instance for Redis operations.
+	/// </summary>
 	private readonly IDistributedCache? _distributedCache;
+
+	/// <summary>
+	///     Logger instance for diagnostic and error reporting.
+	/// </summary>
 	private readonly ILogger? _logger;
 
 	/// <summary>

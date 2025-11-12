@@ -12,6 +12,10 @@ static internal class FrozenCacheManager
 	/// </summary>
 	private static FrozenDictionary<string, object> _frozenCache = FrozenDictionary<string, object>.Empty;
 
+	/// <summary>
+	///     A thread synchronization lock that manages access to the frozen cache.
+	///     Uses no recursion policy to prevent potential deadlocks.
+	/// </summary>
 	private static readonly ReaderWriterLockSlim LockSlim = new(LockRecursionPolicy.NoRecursion);
 
 	/// <summary>

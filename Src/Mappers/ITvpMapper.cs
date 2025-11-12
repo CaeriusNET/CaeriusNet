@@ -10,20 +10,6 @@ public interface ITvpMapper<in T> where T : class
 	/// <summary>
 	///     Gets the SQL Server type name for this TVP (e.g., "dbo.tvp_MyType").
 	/// </summary>
-	/// <example>
-	///     <code>
-	///  public class MyTvpMapper : ITvpMapper<MyType>
-	///             {
-	///             public static string TvpTypeName => "dbo.tvp_MyType";
-	///             public DataTable MapAsDataTable(IEnumerable
-	///             <MyType>
-	///                 items)
-	///                 {
-	///                 // Implementation
-	///                 }
-	///                 }
-	///  </code>
-	/// </example>
 	static abstract string TvpTypeName { get; }
 
 	/// <summary>

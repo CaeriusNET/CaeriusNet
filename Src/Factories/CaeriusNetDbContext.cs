@@ -16,6 +16,9 @@ internal sealed record CaeriusNetDbContext : ICaeriusNetDbContext
 	/// </summary>
 	private readonly ILogger? _logger = LoggerProvider.GetLogger();
 
+	/// <summary>
+	///     A factory function that creates new SQL connection instances.
+	/// </summary>
 	private readonly Func<SqlConnection> _sqlConnectionFactory;
 
 	public CaeriusNetDbContext(Func<SqlConnection> sqlConnectionFactory, IRedisCacheManager? redisCacheManager = null)
@@ -26,6 +29,20 @@ internal sealed record CaeriusNetDbContext : ICaeriusNetDbContext
 
 	public IRedisCacheManager? RedisCacheManager { get; }
 
+	/// <summary>
+	///     Creates and opens a new SQL database connection.
+	/// </summary>
+	/// <returns>
+	///     An opened <see cref="SqlConnection" /> instance ready for database operations.
+	/// </returns>
+	/// <exception cref="CaeriusNetSqlException">
+	///     Thrown when the database connection cannot be established or opened.
+	/// </exception>
+	/// <remarks>
+	///     This method attempts to create a new SQL connection using the configured factory.
+	///     If the connection is closed, it will be opened automatically.
+	///     All connection attempts are logged if logging is enabled.
+	/// </remarks>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
 	public SqlConnection DbConnection()
 	{

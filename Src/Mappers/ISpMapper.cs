@@ -1,7 +1,7 @@
 namespace CaeriusNet.Mappers;
 
 /// <summary>
-///     Defines a contract for mapping a row from a <see cref="System.Data.SqlClient.SqlDataReader" /> into an instance of
+///     Defines a contract for mapping a row from a <see cref="SqlDataReader" /> into an instance of
 ///     a specific DTO type.
 /// </summary>
 /// <typeparam name="T">The type of the data transfer object (DTO) to map to.</typeparam>
@@ -34,11 +34,11 @@ namespace CaeriusNet.Mappers;
 public interface ISpMapper<out T> where T : class
 {
 	/// <summary>
-	///     Maps the current row of the specified <see cref="System.Data.SqlClient.SqlDataReader" /> to a new instance of type
+	///     Maps the current row of the specified <see cref="SqlDataReader" /> to a new instance of type
 	///     <typeparamref name="T" />.
 	/// </summary>
 	/// <param name="reader">
-	///     A <see cref="System.Data.SqlClient.SqlDataReader" /> that contains the data to map. The reader
+	///     A <see cref="SqlDataReader" /> that contains the data to map. The reader
 	///     must be positioned at a valid row.
 	/// </param>
 	/// <returns>A new instance of <typeparamref name="T" /> populated with data from the current row of the reader.</returns>
