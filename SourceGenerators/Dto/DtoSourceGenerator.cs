@@ -54,22 +54,22 @@ public sealed partial class DtoSourceGenerator : IIncrementalGenerator
 	///     </list>
 	/// </remarks>
 	public void Initialize(IncrementalGeneratorInitializationContext context)
-	{
-		// Filter for syntax nodes that might be DTO records or classes
-		var classDeclarations = context.SyntaxProvider
-			.CreateSyntaxProvider(
-			predicate: static (s, _) => IsTargetForGeneration(s),
-			transform: static (ctx, _) => GetTypeDeclarationForGeneration(ctx))
-			.Where(static m => m is not null);
+    {
+        // Filter for syntax nodes that might be DTO records or classes
+        var classDeclarations = context.SyntaxProvider
+            .CreateSyntaxProvider(
+                static (s, _) => IsTargetForGeneration(s),
+                static (ctx, _) => GetTypeDeclarationForGeneration(ctx))
+            .Where(static m => m is not null);
 
-		// Combine with compilation for semantic analysis
-		IncrementalValueProvider<(Compilation Compilation, ImmutableArray<TypeDeclarationSyntax> Declarations)>
-			compilationAndTypes = context.CompilationProvider.Combine(classDeclarations.Collect());
+        // Combine with compilation for semantic analysis
+        IncrementalValueProvider<(Compilation Compilation, ImmutableArray<TypeDeclarationSyntax> Declarations)>
+            compilationAndTypes = context.CompilationProvider.Combine(classDeclarations.Collect());
 
-		// Register the code generation action
-		context.RegisterSourceOutput(compilationAndTypes,
-		action: static (spc, source) => Execute(source.Compilation, source.Declarations, spc));
-	}
+        // Register the code generation action
+        context.RegisterSourceOutput(compilationAndTypes,
+            static (spc, source) => Execute(source.Compilation, source.Declarations, spc));
+    }
 
 	/// <summary>
 	///     Performs a fast syntactic filter to identify potential DTO generation candidates.
@@ -84,11 +84,11 @@ public sealed partial class DtoSourceGenerator : IIncrementalGenerator
 	///     It looks for type declarations (class or record) that have at least one attribute.
 	/// </remarks>
 	private static bool IsTargetForGeneration(SyntaxNode node)
-	{
-		// Looking for class or record declarations with attributes
-		return node is TypeDeclarationSyntax { AttributeLists.Count: > 0 }
-			and (ClassDeclarationSyntax or RecordDeclarationSyntax);
-	}
+    {
+        // Looking for class or record declarations with attributes
+        return node is TypeDeclarationSyntax { AttributeLists.Count: > 0 }
+            and (ClassDeclarationSyntax or RecordDeclarationSyntax);
+    }
 
 	/// <summary>
 	///     Extracts the type declaration from the generator syntax context.
@@ -100,9 +100,9 @@ public sealed partial class DtoSourceGenerator : IIncrementalGenerator
 	///     for collection and later semantic analysis.
 	/// </remarks>
 	private static TypeDeclarationSyntax GetTypeDeclarationForGeneration(GeneratorSyntaxContext context)
-	{
-		return (TypeDeclarationSyntax)context.Node;
-	}
+    {
+        return (TypeDeclarationSyntax)context.Node;
+    }
 
 	/// <summary>
 	///     Executes the main source generation process for all DTO candidates.
@@ -127,21 +127,22 @@ public sealed partial class DtoSourceGenerator : IIncrementalGenerator
 	///     </list>
 	/// </remarks>
 	private static void Execute(
-		Compilation compilation,
-		ImmutableArray<TypeDeclarationSyntax> declarations,
-		SourceProductionContext context)
-	{
-		if (declarations.IsDefaultOrEmpty)
-			return;
+        Compilation compilation,
+        ImmutableArray<TypeDeclarationSyntax> declarations,
+        SourceProductionContext context)
+    {
+        if (declarations.IsDefaultOrEmpty)
+            return;
 
-		// Process each DTO candidate and generate mapper implementations
-		foreach (var dtoMetadata in GetDtoTypes(compilation, declarations, context.CancellationToken)){
-			if (dtoMetadata is null)
-				continue;
+        // Process each DTO candidate and generate mapper implementations
+        foreach (var dtoMetadata in GetDtoTypes(compilation, declarations, context.CancellationToken))
+        {
+            if (dtoMetadata is null)
+                continue;
 
-			// Generate and add the source code
-			string source = GenerateMapperSource(dtoMetadata);
-			context.AddSource($"{dtoMetadata.RecordName}.g.cs", source);
-		}
-	}
+            // Generate and add the source code
+            var source = GenerateMapperSource(dtoMetadata);
+            context.AddSource($"{dtoMetadata.RecordName}.g.cs", source);
+        }
+    }
 }

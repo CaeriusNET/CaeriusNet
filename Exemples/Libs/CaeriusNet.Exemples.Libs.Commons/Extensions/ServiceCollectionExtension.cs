@@ -2,8 +2,8 @@
 
 public static class ServiceCollectionExtension
 {
-	public static IServiceCollection AddDependenciesInjections(this IServiceCollection services)
-	{
-		return services.AddScoped<IUsersRepository, UsersRepository>();
-	}
+    public static IServiceCollection AddDependenciesInjections(this IServiceCollection services)
+    {
+        return services.AddScoped<IUsersRepository, UsersRepository>();
+    }
 }

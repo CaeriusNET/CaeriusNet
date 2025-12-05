@@ -1,6 +1,4 @@
-﻿// Global using directives
-
-global using CaeriusNet.Abstractions;
+﻿global using CaeriusNet.Abstractions;
 global using CaeriusNet.Attributes.Dto;
 global using Microsoft.Extensions.DependencyInjection;
 global using System.Collections.Immutable;

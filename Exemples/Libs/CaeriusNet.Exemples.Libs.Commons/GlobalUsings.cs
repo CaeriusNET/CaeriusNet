@@ -1,5 +1,4 @@
-﻿// Global using directives
-global using CaeriusNet.Abstractions;
+﻿global using CaeriusNet.Abstractions;
 global using CaeriusNet.Attributes.Dto;
 global using CaeriusNet.Attributes.Tvp;
 global using CaeriusNet.Builders;

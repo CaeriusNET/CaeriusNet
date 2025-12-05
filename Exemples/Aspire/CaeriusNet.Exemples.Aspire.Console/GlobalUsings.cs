@@ -1,5 +1,4 @@
-﻿// Global using directives
-global using CaeriusNet.Builders;
+﻿global using CaeriusNet.Builders;
 global using CaeriusNet.Exemples.Aspire.ServiceDefaults;
 global using CaeriusNet.Exemples.Libs.Commons.Abstractions;
 global using CaeriusNet.Exemples.Libs.Commons.Extensions;

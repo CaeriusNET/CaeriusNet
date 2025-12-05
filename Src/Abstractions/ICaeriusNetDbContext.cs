@@ -6,7 +6,6 @@ namespace CaeriusNet.Abstractions;
 /// </summary>
 public interface ICaeriusNetDbContext
 {
-
 	/// <summary>
 	///     Gets the Redis cache manager for distributed caching.
 	/// </summary>

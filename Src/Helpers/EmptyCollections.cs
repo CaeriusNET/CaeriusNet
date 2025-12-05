@@ -3,7 +3,7 @@
 /// <summary>
 ///     Provides cached empty collections to avoid repeated allocations
 /// </summary>
-static internal class EmptyCollections
+internal static class EmptyCollections
 {
 	/// <summary>
 	///     Returns a cached empty read-only collection for the given type.
@@ -16,24 +16,24 @@ static internal class EmptyCollections
 	///     The returned collection is thread-safe and immutable.
 	/// </remarks>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-	public static ReadOnlyCollection<T> ReadOnlyCollection<T>()
-	{
-		return EmptyReadOnlyCollection<T>.Instance;
-	}
+    public static ReadOnlyCollection<T> ReadOnlyCollection<T>()
+    {
+        return EmptyReadOnlyCollection<T>.Instance;
+    }
 
 	/// <summary>
 	///     Represents a generic empty read-only collection.
 	/// </summary>
 	/// <typeparam name="T">The type of elements in the collection.</typeparam>
 	private static class EmptyReadOnlyCollection<T>
-	{
-		/// <summary>
-		///     Gets the singleton instance of an empty read-only collection.
-		/// </summary>
-		/// <value>
-		///     A read-only collection containing no elements.
-		/// </value>
-		public static readonly ReadOnlyCollection<T> Instance =
-			new(Array.Empty<T>());
-	}
+    {
+	    /// <summary>
+	    ///     Gets the singleton instance of an empty read-only collection.
+	    /// </summary>
+	    /// <value>
+	    ///     A read-only collection containing no elements.
+	    /// </value>
+	    public static readonly ReadOnlyCollection<T> Instance =
+            new(Array.Empty<T>());
+    }
 }

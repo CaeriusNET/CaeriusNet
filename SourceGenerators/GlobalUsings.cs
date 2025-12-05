@@ -1,5 +1,4 @@
-﻿// Global using directives
-global using CaeriusNet.Generator.Helpers;
+﻿global using CaeriusNet.Generator.Helpers;
 global using CaeriusNet.Generator.Models;
 global using Microsoft.CodeAnalysis;
 global using Microsoft.CodeAnalysis.CSharp;
@@ -12,4 +11,4 @@ global using System.Linq;
 global using System.Runtime.CompilerServices;
 global using System.Text;
 global using System.Threading;
-global using Metadata=CaeriusNet.Generator.Models.Metadata;
+global using Metadata = CaeriusNet.Generator.Models.Metadata;

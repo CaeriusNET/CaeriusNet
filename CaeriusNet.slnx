@@ -1,30 +1,30 @@
 ﻿<Solution>
-    <Folder Name="/Benchmark/">
-        <Project Path="Benchmark\CaeriusNet.Benchmark.csproj" Type="Classic C#"/>
-    </Folder>
-    <Folder Name="/Documentations/"/>
-    <Folder Name="/Exemples/"/>
-    <Folder Name="/Exemples/Aspire/">
-        <Project Path="Exemples\Aspire\CaeriusNet.Exemples.Aspire.AppHost\CaeriusNet.Exemples.Aspire.AppHost.csproj"
-                 Type="Classic C#"/>
-        <Project
-                Path="Exemples\Aspire\CaeriusNet.Exemples.Aspire.ServiceDefaults\CaeriusNet.Exemples.Aspire.ServiceDefaults.csproj"
-                Type="Classic C#"/>
-        <Project Path="Exemples\Aspire\CaeriusNet.Exemples.Aspire.Console\CaeriusNet.Exemples.Aspire.Console.csproj"
-                 Type="Classic C#"/>
-    </Folder>
-    <Folder Name="/Exemples/Default/">
-        <Project Path="Exemples\Default\CaeriusNet.Exemples.Default.Console\CaeriusNet.Exemples.Default.Console.csproj"
-                 Type="Classic C#"/>
-    </Folder>
-    <Folder Name="/Exemples/Libs/">
-        <Project Path="Exemples\Libs\CaeriusNet.Exemples.Libs.Commons\CaeriusNet.Exemples.Libs.Commons.csproj"
-                 Type="Classic C#"/>
-    </Folder>
-    <Folder Name="/SourceGenerators/">
-        <Project Path="SourceGenerators\CaeriusNet.Generator.csproj" Type="Classic C#"/>
-    </Folder>
-    <Folder Name="/Src/">
-        <Project Path="Src\CaeriusNet.csproj" Type="Classic C#"/>
-    </Folder>
+	<Folder Name="/Benchmark/">
+		<Project Path="Benchmark\CaeriusNet.Benchmark.csproj" Type="Classic C#"/>
+	</Folder>
+	<Folder Name="/Documentations/"/>
+	<Folder Name="/Exemples/"/>
+	<Folder Name="/Exemples/Aspire/">
+		<Project Path="Exemples\Aspire\CaeriusNet.Exemples.Aspire.AppHost\CaeriusNet.Exemples.Aspire.AppHost.csproj"
+		         Type="Classic C#"/>
+		<Project
+				Path="Exemples\Aspire\CaeriusNet.Exemples.Aspire.ServiceDefaults\CaeriusNet.Exemples.Aspire.ServiceDefaults.csproj"
+				Type="Classic C#"/>
+		<Project Path="Exemples\Aspire\CaeriusNet.Exemples.Aspire.Console\CaeriusNet.Exemples.Aspire.Console.csproj"
+		         Type="Classic C#"/>
+	</Folder>
+	<Folder Name="/Exemples/Default/">
+		<Project Path="Exemples\Default\CaeriusNet.Exemples.Default.Console\CaeriusNet.Exemples.Default.Console.csproj"
+		         Type="Classic C#"/>
+	</Folder>
+	<Folder Name="/Exemples/Libs/">
+		<Project Path="Exemples\Libs\CaeriusNet.Exemples.Libs.Commons\CaeriusNet.Exemples.Libs.Commons.csproj"
+		         Type="Classic C#"/>
+	</Folder>
+	<Folder Name="/SourceGenerators/">
+		<Project Path="SourceGenerators\CaeriusNet.Generator.csproj" Type="Classic C#"/>
+	</Folder>
+	<Folder Name="/Src/">
+		<Project Path="Src\CaeriusNet.csproj" Type="Classic C#"/>
+	</Folder>
 </Solution>

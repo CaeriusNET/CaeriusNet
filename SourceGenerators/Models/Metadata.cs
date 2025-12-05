@@ -15,9 +15,8 @@
 ///         as a generation candidate, and are subsequently used throughout the code generation process.
 ///     </para>
 /// </remarks>
-public sealed class Metadata
+internal sealed class Metadata
 {
-
 	/// <summary>
 	///     Initializes a new instance of the <see cref="Metadata" /> class.
 	/// </summary>
@@ -25,12 +24,12 @@ public sealed class Metadata
 	/// <param name="declarationSyntax">The syntax node for the type declaration.</param>
 	/// <param name="namespaceName">The fully qualified namespace name.</param>
 	public Metadata(INamedTypeSymbol classSymbol, TypeDeclarationSyntax declarationSyntax, string namespaceName)
-	{
-		ClassSymbol = classSymbol;
-		DeclarationSyntax = declarationSyntax;
-		RecordName = classSymbol.Name;
-		Namespace = namespaceName;
-	}
+    {
+        ClassSymbol = classSymbol;
+        DeclarationSyntax = declarationSyntax;
+        RecordName = classSymbol.Name;
+        Namespace = namespaceName;
+    }
 
 	/// <summary>
 	///     Gets the Roslyn type symbol representing the target type.
