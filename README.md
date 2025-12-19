@@ -3,13 +3,13 @@
 
 <p align="center">
     <img src="https://custom-icon-badges.demolab.com/badge/C%23-%23239120.svg?logoColor=white" alt="CSharp">
-    <img src="https://img.shields.io/badge/.NET%209-512BD4.svg?style=flat&logo=dotnet&logoColor=white" alt=".NET 8 +">
+    <img src="https://img.shields.io/badge/.NET%2010-512BD4.svg?style=flat&logo=dotnet&logoColor=white" alt=".NET 10 +">
     <img src="https://img.shields.io/badge/SQL%20Server-CC2927.svg?style=flat&logo=microsoft-sql-server&logoColor=white" alt="SQL Server 2019 +">
 </p>
 
 ## Overview
 
-**CaeriusNet** is a high-performance framework developed in C# .NET 8 + and optimized for SQL Server 2019 +. It emphasizes code quality, maintainability, and scalability by providing advanced tools for executing stored procedures and managing caching mechanisms.
+**CaeriusNet** is a high-performance framework developed in C# .NET 10 + and optimized for SQL Server 2019 +. It emphasizes code quality, maintainability, and scalability by providing advanced tools for executing stored procedures and managing caching mechanisms.
 
 Official documentation: [CaeriusNet Documentation](https://caerius.net/)
 
