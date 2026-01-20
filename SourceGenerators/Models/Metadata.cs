@@ -24,12 +24,12 @@ internal sealed class Metadata
 	/// <param name="declarationSyntax">The syntax node for the type declaration.</param>
 	/// <param name="namespaceName">The fully qualified namespace name.</param>
 	public Metadata(INamedTypeSymbol classSymbol, TypeDeclarationSyntax declarationSyntax, string namespaceName)
-    {
-        ClassSymbol = classSymbol;
-        DeclarationSyntax = declarationSyntax;
-        RecordName = classSymbol.Name;
-        Namespace = namespaceName;
-    }
+	{
+		ClassSymbol = classSymbol;
+		DeclarationSyntax = declarationSyntax;
+		RecordName = classSymbol.Name;
+		Namespace = namespaceName;
+	}
 
 	/// <summary>
 	///     Gets the Roslyn type symbol representing the target type.

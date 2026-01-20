@@ -170,6 +170,6 @@ This project is licensed under the [MIT](https://choosealicense.com/licenses/mit
 
 ## Acknowledgments
 
-- **.NET 8 +** : For its language and runtime enhancements.
+- **.NET 10 +** : For its language and runtime enhancements.
 - - **Microsoft.Data.SqlClient** : For its performance and reliability in SQL Server connectivity.
 - **SQL Server 2019 +** : For its power and flexibility in database management.

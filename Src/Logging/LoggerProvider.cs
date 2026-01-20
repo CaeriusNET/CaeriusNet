@@ -45,9 +45,9 @@ public static class LoggerProvider
 	///     </para>
 	/// </remarks>
 	internal static ILogger? GetLogger()
-    {
-        return Volatile.Read(ref _logger);
-    }
+	{
+		return Volatile.Read(ref _logger);
+	}
 
 	/// <summary>
 	///     Sets the logger instance to be used throughout the application.
@@ -58,7 +58,7 @@ public static class LoggerProvider
 	///     Subsequent calls will replace the previous logger instance.
 	/// </remarks>
 	public static void SetLogger(ILogger logger)
-    {
-        Volatile.Write(ref _logger, logger);
-    }
+	{
+		Volatile.Write(ref _logger, logger);
+	}
 }

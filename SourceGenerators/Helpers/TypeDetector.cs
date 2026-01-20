@@ -23,13 +23,13 @@ internal static class TypeDetector
 	///     with the special type <see cref="SpecialType.System_Nullable_T" />.
 	/// </remarks>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsNullableType(ITypeSymbol type)
-    {
-        return type is INamedTypeSymbol
-        {
-            IsValueType: true, OriginalDefinition.SpecialType: SpecialType.System_Nullable_T
-        };
-    }
+	private static bool IsNullableType(ITypeSymbol type)
+	{
+		return type is INamedTypeSymbol
+		{
+			IsValueType: true, OriginalDefinition.SpecialType: SpecialType.System_Nullable_T
+		};
+	}
 
 	/// <summary>
 	///     Determines whether the specified type is a reference type.
@@ -39,10 +39,10 @@ internal static class TypeDetector
 	///     <see langword="true" /> if the type is a reference type; otherwise, <see langword="false" />.
 	/// </returns>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsReferenceType(ITypeSymbol type)
-    {
-        return !type.IsValueType;
-    }
+	private static bool IsReferenceType(ITypeSymbol type)
+	{
+		return !type.IsValueType;
+	}
 
 	/// <summary>
 	///     Determines whether the specified type is an enumeration type.
@@ -52,10 +52,10 @@ internal static class TypeDetector
 	///     <see langword="true" /> if the type is an enum; otherwise, <see langword="false" />.
 	/// </returns>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static bool IsEnumType(ITypeSymbol type)
-    {
-        return type.TypeKind == TypeKind.Enum;
-    }
+	public static bool IsEnumType(ITypeSymbol type)
+	{
+		return type.TypeKind == TypeKind.Enum;
+	}
 
 	/// <summary>
 	///     Retrieves the underlying integral type of an enumeration.
@@ -66,10 +66,10 @@ internal static class TypeDetector
 	///     or <see langword="null" /> if the type is not an enum.
 	/// </returns>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static ITypeSymbol? GetEnumUnderlyingType(ITypeSymbol type)
-    {
-        return IsEnumType(type) ? ((INamedTypeSymbol)type).EnumUnderlyingType : null;
-    }
+	private static ITypeSymbol? GetEnumUnderlyingType(ITypeSymbol type)
+	{
+		return IsEnumType(type) ? ((INamedTypeSymbol)type).EnumUnderlyingType : null;
+	}
 
 	/// <summary>
 	///     Maps a C# type to its corresponding SQL Server data type.
@@ -85,45 +85,45 @@ internal static class TypeDetector
 	///     Enum types are mapped based on their underlying integral type.
 	/// </remarks>
 	public static string GetSqlType(ITypeSymbol type)
-    {
-        // Handle nullable types
-        if (IsNullableType(type) && type is INamedTypeSymbol namedType)
-            type = namedType.TypeArguments[0];
+	{
+		// Handle nullable types
+		if (IsNullableType(type) && type is INamedTypeSymbol namedType)
+			type = namedType.TypeArguments[0];
 
-        // Handle enums
-        if (IsEnumType(type))
-            type = GetEnumUnderlyingType(type) ?? type;
+		// Handle enums
+		if (IsEnumType(type))
+			type = GetEnumUnderlyingType(type) ?? type;
 
-        // Map types to SQL types
-        return type.SpecialType switch
-        {
-            SpecialType.System_Boolean => "bit",
-            SpecialType.System_Byte => "tinyint",
-            SpecialType.System_SByte => "smallint",
-            SpecialType.System_Int16 => "smallint",
-            SpecialType.System_UInt16 => "int",
-            SpecialType.System_Int32 => "int",
-            SpecialType.System_UInt32 => "bigint",
-            SpecialType.System_Int64 => "bigint",
-            SpecialType.System_UInt64 => "decimal",
-            SpecialType.System_Decimal => "decimal",
-            SpecialType.System_Single => "real",
-            SpecialType.System_Double => "float",
-            SpecialType.System_String => "nvarchar",
-            SpecialType.System_Char => "nchar",
-            SpecialType.System_DateTime => "datetime2",
-            _ => type.ToString() switch
-            {
-                "System.Guid" => "uniqueidentifier",
-                "System.DateTimeOffset" => "datetimeoffset",
-                "System.TimeSpan" => "time",
-                "System.DateOnly" => "date",
-                "System.TimeOnly" => "time",
-                "byte[]" or "System.Byte[]" => "varbinary",
-                _ => "sql_variant"
-            }
-        };
-    }
+		// Map types to SQL types
+		return type.SpecialType switch
+		{
+			SpecialType.System_Boolean => "bit",
+			SpecialType.System_Byte => "tinyint",
+			SpecialType.System_SByte => "smallint",
+			SpecialType.System_Int16 => "smallint",
+			SpecialType.System_UInt16 => "int",
+			SpecialType.System_Int32 => "int",
+			SpecialType.System_UInt32 => "bigint",
+			SpecialType.System_Int64 => "bigint",
+			SpecialType.System_UInt64 => "decimal",
+			SpecialType.System_Decimal => "decimal",
+			SpecialType.System_Single => "real",
+			SpecialType.System_Double => "float",
+			SpecialType.System_String => "nvarchar",
+			SpecialType.System_Char => "nchar",
+			SpecialType.System_DateTime => "datetime2",
+			_ => type.ToString() switch
+			{
+				"System.Guid" => "uniqueidentifier",
+				"System.DateTimeOffset" => "datetimeoffset",
+				"System.TimeSpan" => "time",
+				"System.DateOnly" => "date",
+				"System.TimeOnly" => "time",
+				"byte[]" or "System.Byte[]" => "varbinary",
+				_ => "sql_variant"
+			}
+		};
+	}
 
 	/// <summary>
 	///     Checks if a type is explicitly marked as nullable in the syntax (e.g., "int?", "string?").
@@ -134,14 +134,14 @@ internal static class TypeDetector
 	///     otherwise, <see langword="false" />.
 	/// </returns>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static bool IsExplicitlyNullableInSyntax(TypeSyntax? typeSyntax)
-    {
-        if (typeSyntax is null)
-            return false;
+	private static bool IsExplicitlyNullableInSyntax(TypeSyntax? typeSyntax)
+	{
+		if (typeSyntax is null)
+			return false;
 
-        var typeText = typeSyntax.ToString();
-        return typeText.Length > 0 && typeText[typeText.Length - 1] == '?';
-    }
+		var typeText = typeSyntax.ToString();
+		return typeText.Length > 0 && typeText[typeText.Length - 1] == '?';
+	}
 
 	/// <summary>
 	///     Determines whether a type is nullable considering multiple C# nullability mechanisms.
@@ -170,13 +170,13 @@ internal static class TypeDetector
 	///     </list>
 	/// </remarks>
 	public static bool IsTypeNullable(ITypeSymbol type, TypeSyntax? typeSyntax = null,
-        NullableAnnotation? nullableAnnotation = null)
-    {
-        return nullableAnnotation is NullableAnnotation.Annotated
-               || IsNullableType(type)
-               || (IsReferenceType(type) && type.NullableAnnotation != NullableAnnotation.NotAnnotated)
-               || IsExplicitlyNullableInSyntax(typeSyntax);
-    }
+		NullableAnnotation? nullableAnnotation = null)
+	{
+		return nullableAnnotation is NullableAnnotation.Annotated
+		       || IsNullableType(type)
+		       || (IsReferenceType(type) && type.NullableAnnotation != NullableAnnotation.NotAnnotated)
+		       || IsExplicitlyNullableInSyntax(typeSyntax);
+	}
 
 	/// <summary>
 	///     Gets the appropriate <see cref="System.Data.SqlClient.SqlDataReader" /> method name for reading a SQL type.
@@ -191,25 +191,25 @@ internal static class TypeDetector
 	///     for optimal performance when reading data from result sets.
 	/// </remarks>
 	public static string GetReaderMethodForSqlType(string sqlType)
-    {
-        return sqlType switch
-        {
-            "bit" => "GetBoolean",
-            "tinyint" => "GetByte",
-            "smallint" => "GetInt16",
-            "int" => "GetInt32",
-            "bigint" => "GetInt64",
-            "decimal" => "GetDecimal",
-            "real" => "GetFloat",
-            "float" => "GetDouble",
-            "nvarchar" or "nchar" or "varchar" or "char" or "text" => "GetString",
-            "datetime" or "datetime2" or "date" or "smalldatetime" => "GetDateTime",
-            "uniqueidentifier" => "GetGuid",
-            "datetimeoffset" => "GetDateTimeOffset",
-            "time" => "GetTimeSpan",
-            _ => "GetValue"
-        };
-    }
+	{
+		return sqlType switch
+		{
+			"bit" => "GetBoolean",
+			"tinyint" => "GetByte",
+			"smallint" => "GetInt16",
+			"int" => "GetInt32",
+			"bigint" => "GetInt64",
+			"decimal" => "GetDecimal",
+			"real" => "GetFloat",
+			"float" => "GetDouble",
+			"nvarchar" or "nchar" or "varchar" or "char" or "text" => "GetString",
+			"datetime" or "datetime2" or "date" or "smalldatetime" => "GetDateTime",
+			"uniqueidentifier" => "GetGuid",
+			"datetimeoffset" => "GetDateTimeOffset",
+			"time" => "GetTimeSpan",
+			_ => "GetValue"
+		};
+	}
 
 	/// <summary>
 	///     Determines whether a type requires special conversion logic beyond direct SqlDataReader calls.
@@ -235,17 +235,17 @@ internal static class TypeDetector
 	///     </list>
 	/// </remarks>
 	public static bool RequiresSpecialConversion(string typeName)
-    {
-        var baseTypeName = ExtractBaseTypeFromNullable(typeName.AsSpan());
+	{
+		var baseTypeName = ExtractBaseTypeFromNullable(typeName.AsSpan());
 
-        return baseTypeName switch
-        {
-            "System.DateOnly" or "DateOnly" => true,
-            "System.TimeOnly" or "TimeOnly" => true,
-            "byte[]" or "System.Byte[]" => true,
-            _ => false
-        };
-    }
+		return baseTypeName switch
+		{
+			"System.DateOnly" or "DateOnly" => true,
+			"System.TimeOnly" or "TimeOnly" => true,
+			"byte[]" or "System.Byte[]" => true,
+			_ => false
+		};
+	}
 
 	/// <summary>
 	///     Extracts the base type name from a potentially nullable type representation.
@@ -259,15 +259,15 @@ internal static class TypeDetector
 	///     using span operations to avoid string allocations.
 	/// </remarks>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static ReadOnlySpan<char> ExtractBaseTypeFromNullable(ReadOnlySpan<char> typeName)
-    {
-        const string nullablePrefix = "System.Nullable<";
+	private static ReadOnlySpan<char> ExtractBaseTypeFromNullable(ReadOnlySpan<char> typeName)
+	{
+		const string nullablePrefix = "System.Nullable<";
 
-        if (typeName.Length > nullablePrefix.Length + 1 &&
-            typeName.StartsWith(nullablePrefix.AsSpan()) &&
-            typeName[typeName.Length - 1] == '>')
-            return typeName.Slice(nullablePrefix.Length, typeName.Length - nullablePrefix.Length - 1);
+		if (typeName.Length > nullablePrefix.Length + 1 &&
+		    typeName.StartsWith(nullablePrefix.AsSpan()) &&
+		    typeName[typeName.Length - 1] == '>')
+			return typeName.Slice(nullablePrefix.Length, typeName.Length - nullablePrefix.Length - 1);
 
-        return typeName;
-    }
+		return typeName;
+	}
 }

@@ -20,13 +20,13 @@ internal sealed record CaeriusNetDbContext : ICaeriusNetDbContext
     /// </summary>
     private readonly Func<SqlConnection> _sqlConnectionFactory;
 
-    public CaeriusNetDbContext(Func<SqlConnection> sqlConnectionFactory, IRedisCacheManager? redisCacheManager = null)
-    {
-        _sqlConnectionFactory = sqlConnectionFactory ?? throw new ArgumentNullException(nameof(sqlConnectionFactory));
-        RedisCacheManager = redisCacheManager;
-    }
+	public CaeriusNetDbContext(Func<SqlConnection> sqlConnectionFactory, IRedisCacheManager? redisCacheManager = null)
+	{
+		_sqlConnectionFactory = sqlConnectionFactory ?? throw new ArgumentNullException(nameof(sqlConnectionFactory));
+		RedisCacheManager = redisCacheManager;
+	}
 
-    public IRedisCacheManager? RedisCacheManager { get; }
+	public IRedisCacheManager? RedisCacheManager { get; }
 
     /// <summary>
     ///     Creates and opens a new SQL database connection.
@@ -43,28 +43,28 @@ internal sealed record CaeriusNetDbContext : ICaeriusNetDbContext
     ///     All connection attempts are logged if logging is enabled.
     /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public SqlConnection DbConnection()
-    {
-        if (_isLoggingEnabled)
-            _logger!.LogDatabaseConnecting();
+	public SqlConnection DbConnection()
+	{
+		if (_isLoggingEnabled)
+			_logger!.LogDatabaseConnecting();
 
-        try
-        {
-            var connection = _sqlConnectionFactory();
+		try
+		{
+			var connection = _sqlConnectionFactory();
 
-            if (connection.State == ConnectionState.Closed)
-                connection.Open();
+			if (connection.State == ConnectionState.Closed)
+				connection.Open();
 
-            if (_isLoggingEnabled)
-                _logger!.LogDatabaseConnected();
+			if (_isLoggingEnabled)
+				_logger!.LogDatabaseConnected();
 
-            return connection;
-        }
-        catch (SqlException ex)
-        {
-            if (_isLoggingEnabled)
-                _logger!.LogDatabaseConnectionFailed(ex);
-            throw new CaeriusNetSqlException("Failed to open database connection", ex);
-        }
-    }
+			return connection;
+		}
+		catch (SqlException ex)
+		{
+			if (_isLoggingEnabled)
+				_logger!.LogDatabaseConnectionFailed(ex);
+			throw new CaeriusNetSqlException("Failed to open database connection", ex);
+		}
+	}
 }

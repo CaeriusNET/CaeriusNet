@@ -28,24 +28,24 @@ internal sealed class ParameterMetadata
 	/// <param name="readerMethod">The SqlDataReader method name for reading this type (e.g., "GetInt32").</param>
 	/// <param name="requiresSpecialConversion">Indicates whether special conversion logic is needed (e.g., DateOnly, enums).</param>
 	public ParameterMetadata(
-        string name,
-        string typeName,
-        ITypeSymbol typeSymbol,
-        bool isNullable,
-        int ordinalPosition,
-        string sqlType,
-        string readerMethod,
-        bool requiresSpecialConversion)
-    {
-        Name = name;
-        TypeName = typeName;
-        TypeSymbol = typeSymbol;
-        IsNullable = isNullable;
-        OrdinalPosition = ordinalPosition;
-        SqlType = sqlType;
-        ReaderMethod = readerMethod;
-        RequiresSpecialConversion = requiresSpecialConversion;
-    }
+		string name,
+		string typeName,
+		ITypeSymbol typeSymbol,
+		bool isNullable,
+		int ordinalPosition,
+		string sqlType,
+		string readerMethod,
+		bool requiresSpecialConversion)
+	{
+		Name = name;
+		TypeName = typeName;
+		TypeSymbol = typeSymbol;
+		IsNullable = isNullable;
+		OrdinalPosition = ordinalPosition;
+		SqlType = sqlType;
+		ReaderMethod = readerMethod;
+		RequiresSpecialConversion = requiresSpecialConversion;
+	}
 
 	/// <summary>
 	///     Gets the name of the parameter.

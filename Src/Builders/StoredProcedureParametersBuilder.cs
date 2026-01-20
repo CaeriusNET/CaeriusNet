@@ -15,13 +15,13 @@
 ///     Default is 1 for single-row results.
 /// </param>
 public sealed record StoredProcedureParametersBuilder(
-    string SchemaName,
-    string ProcedureName,
-    int ResultSetCapacity = 1)
+	string SchemaName,
+	string ProcedureName,
+	int ResultSetCapacity = 1)
 {
-    private TimeSpan? _cacheExpiration;
-    private string? _cacheKey;
-    private CacheType? _cacheType;
+	private TimeSpan? _cacheExpiration;
+	private string? _cacheKey;
+	private CacheType? _cacheType;
 
     /// <summary>
     ///     Gets the collection of SQL parameters to be used in the stored procedure call.
@@ -39,10 +39,10 @@ public sealed record StoredProcedureParametersBuilder(
     ///     <paramref name="parameter" /> is null.
     /// </exception>
     public StoredProcedureParametersBuilder AddParameter(string parameter, object value, SqlDbType dbType)
-    {
-        Parameters.Add(new SqlParameter(parameter, dbType) { Value = value });
-        return this;
-    }
+	{
+		Parameters.Add(new SqlParameter(parameter, dbType) { Value = value });
+		return this;
+	}
 
     /// <summary>
     ///     Adds a Table-Valued Parameter (TVP) to the stored procedure call.
@@ -56,22 +56,22 @@ public sealed record StoredProcedureParametersBuilder(
     ///     <paramref name="parameter" /> or <paramref name="items" /> is null.
     /// </exception>
     public StoredProcedureParametersBuilder AddTvpParameter<T>(string parameter, IEnumerable<T> items)
-        where T : class, ITvpMapper<T>
-    {
-        var tvpMappers = items.ToList();
-        if (tvpMappers.Count == 0)
-            throw new ArgumentException("No items found in the collection to map to a Table-Valued Parameter.");
+		where T : class, ITvpMapper<T>
+	{
+		var tvpMappers = items.ToList();
+		if (tvpMappers.Count == 0)
+			throw new ArgumentException("No items found in the collection to map to a Table-Valued Parameter.");
 
-        var dataTable = tvpMappers[0].MapAsDataTable(tvpMappers);
-        var currentTvpParameter = new SqlParameter(parameter, SqlDbType.Structured)
-        {
-            TypeName = T.TvpTypeName,
-            Value = dataTable
-        };
+		var dataTable = tvpMappers[0].MapAsDataTable(tvpMappers);
+		var currentTvpParameter = new SqlParameter(parameter, SqlDbType.Structured)
+		{
+			TypeName = T.TvpTypeName,
+			Value = dataTable
+		};
 
-        Parameters.Add(currentTvpParameter);
-        return this;
-    }
+		Parameters.Add(currentTvpParameter);
+		return this;
+	}
 
     /// <summary>
     ///     Configures the stored procedure to use in-memory caching.
@@ -83,12 +83,12 @@ public sealed record StoredProcedureParametersBuilder(
     ///     <paramref name="cacheKey" /> is null.
     /// </exception>
     public StoredProcedureParametersBuilder AddInMemoryCache(string cacheKey, TimeSpan expiration)
-    {
-        _cacheKey = cacheKey;
-        _cacheType = InMemory;
-        _cacheExpiration = expiration;
-        return this;
-    }
+	{
+		_cacheKey = cacheKey;
+		_cacheType = InMemory;
+		_cacheExpiration = expiration;
+		return this;
+	}
 
     /// <summary>
     ///     Configures the stored procedure to use frozen (immutable) caching.
@@ -99,12 +99,12 @@ public sealed record StoredProcedureParametersBuilder(
     ///     <paramref name="cacheKey" /> is null.
     /// </exception>
     public StoredProcedureParametersBuilder AddFrozenCache(string cacheKey)
-    {
-        _cacheKey = cacheKey;
-        _cacheType = Frozen;
-        _cacheExpiration = null;
-        return this;
-    }
+	{
+		_cacheKey = cacheKey;
+		_cacheType = Frozen;
+		_cacheExpiration = null;
+		return this;
+	}
 
     /// <summary>
     ///     Configures the stored procedure to use Redis distributed caching.
@@ -116,31 +116,31 @@ public sealed record StoredProcedureParametersBuilder(
     ///     <paramref name="cacheKey" /> is null.
     /// </exception>
     public StoredProcedureParametersBuilder AddRedisCache(string cacheKey, TimeSpan? expiration = null)
-    {
-        _cacheType = Redis;
-        _cacheKey = cacheKey;
-        _cacheExpiration = expiration;
-        return this;
-    }
+	{
+		_cacheType = Redis;
+		_cacheKey = cacheKey;
+		_cacheExpiration = expiration;
+		return this;
+	}
 
     /// <summary>
     ///     Creates a new <see cref="StoredProcedureParameters" /> instance with the configured settings.
     /// </summary>
     /// <returns>A new <see cref="StoredProcedureParameters" /> object containing all specified parameters and settings.</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-    public StoredProcedureParameters Build()
-    {
-        var parametersMemory = Parameters.Count > 0
-            ? CollectionsMarshal.AsSpan(Parameters).ToArray().AsMemory()
-            : ReadOnlyMemory<SqlParameter>.Empty;
+	public StoredProcedureParameters Build()
+	{
+		var parametersMemory = Parameters.Count > 0
+			? CollectionsMarshal.AsSpan(Parameters).ToArray().AsMemory()
+			: ReadOnlyMemory<SqlParameter>.Empty;
 
-        return new StoredProcedureParameters(
-            SchemaName,
-            ProcedureName,
-            ResultSetCapacity,
-            parametersMemory,
-            _cacheKey,
-            _cacheExpiration,
-            _cacheType);
-    }
+		return new StoredProcedureParameters(
+			SchemaName,
+			ProcedureName,
+			ResultSetCapacity,
+			parametersMemory,
+			_cacheKey,
+			_cacheExpiration,
+			_cacheType);
+	}
 }

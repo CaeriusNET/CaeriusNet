@@ -14,12 +14,12 @@ internal static class InMemoryCacheManager
 	///     The memory cache instance used for storing cached items.
 	/// </summary>
 	private static readonly MemoryCache MemoryCache = new(new MemoryCacheOptions
-    {
-        SizeLimit = null,
-        CompactionPercentage = 0.05,
-        ExpirationScanFrequency = TimeSpan.FromMinutes(2),
-        TrackLinkedCacheEntries = false
-    });
+	{
+		SizeLimit = null,
+		CompactionPercentage = 0.05,
+		ExpirationScanFrequency = TimeSpan.FromMinutes(2),
+		TrackLinkedCacheEntries = false
+	});
 
 	/// <summary>
 	///     The logger instance used for recording cache operations.
@@ -43,19 +43,19 @@ internal static class InMemoryCacheManager
 	///     The value is stored in the memory cache with the specified expiration duration.
 	/// </remarks>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static void Store<T>(string cacheKey, T value, TimeSpan expiration)
-    {
-        if (IsLoggingEnabled)
-            Logger!.LogStoringInMemoryCache(cacheKey);
+	internal static void Store<T>(string cacheKey, T value, TimeSpan expiration)
+	{
+		if (IsLoggingEnabled)
+			Logger!.LogStoringInMemoryCache(cacheKey);
 
-        var options = new MemoryCacheEntryOptions
-        {
-            AbsoluteExpirationRelativeToNow = expiration,
-            Priority = CacheItemPriority.Normal
-        };
+		var options = new MemoryCacheEntryOptions
+		{
+			AbsoluteExpirationRelativeToNow = expiration,
+			Priority = CacheItemPriority.Normal
+		};
 
-        MemoryCache.Set(cacheKey, value!, options);
-    }
+		MemoryCache.Set(cacheKey, value!, options);
+	}
 
 	/// <summary>
 	///     Attempts to retrieve a cached value from the in-memory cache based on the specified cache key.
@@ -76,19 +76,19 @@ internal static class InMemoryCacheManager
 	///     This method will log the retrieval operation if logging is enabled and the value is successfully retrieved.
 	/// </remarks>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static bool TryGet<T>(string cacheKey, out T? value)
-    {
-        if (!MemoryCache.TryGetValue(cacheKey, out var cached) || cached is not T typedValue)
-        {
-            value = default;
-            return false;
-        }
+	internal static bool TryGet<T>(string cacheKey, out T? value)
+	{
+		if (!MemoryCache.TryGetValue(cacheKey, out var cached) || cached is not T typedValue)
+		{
+			value = default;
+			return false;
+		}
 
-        value = typedValue;
+		value = typedValue;
 
-        if (IsLoggingEnabled)
-            Logger!.LogRetrievedFromMemoryCache(cacheKey);
+		if (IsLoggingEnabled)
+			Logger!.LogRetrievedFromMemoryCache(cacheKey);
 
-        return true;
-    }
+		return true;
+	}
 }
