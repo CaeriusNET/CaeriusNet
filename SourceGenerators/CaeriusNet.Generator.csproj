@@ -20,7 +20,7 @@
 		<PackageProjectUrl>https://caerius.net</PackageProjectUrl>
 		<PackageTags>source-generators;roslyn;mapping;tvp;dto</PackageTags>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<Version>10.1.1</Version>
+		<Version>10.1.2</Version>
 	</PropertyGroup>
 	
 	<ItemGroup>
