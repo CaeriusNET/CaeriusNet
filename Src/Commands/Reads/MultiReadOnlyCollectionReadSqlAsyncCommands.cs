@@ -4,11 +4,11 @@ public static class MultiReadOnlyCollectionReadSqlAsyncCommands
 {
 	extension(ICaeriusNetDbContext netDbContext)
 	{
-        /// <summary>
-        ///     Executes a stored procedure to retrieve two result sets, mapping each into a read-only collection of the specified
-        ///     types, with zero delegate indirections and minimal allocations.
-        /// </summary>
-        public async Task<(ReadOnlyCollection<TResultSet1>, ReadOnlyCollection<TResultSet2>)>
+		/// <summary>
+		///     Executes a stored procedure to retrieve two result sets, mapping each into a read-only collection of the specified
+		///     types, with zero delegate indirections and minimal allocations.
+		/// </summary>
+		public async Task<(ReadOnlyCollection<TResultSet1>, ReadOnlyCollection<TResultSet2>)>
 			QueryMultipleReadOnlyCollectionAsync<TResultSet1, TResultSet2>(StoredProcedureParameters spParameters,
 				CancellationToken cancellationToken = default)
 			where TResultSet1 : class, ISpMapper<TResultSet1>
@@ -34,10 +34,10 @@ public static class MultiReadOnlyCollectionReadSqlAsyncCommands
 			}, cancellationToken).ConfigureAwait(false);
 		}
 
-        /// <summary>
-        ///     Executes a stored procedure to retrieve three result sets, mapping each into a read-only collection.
-        /// </summary>
-        public async Task<(ReadOnlyCollection<TResultSet1>, ReadOnlyCollection<TResultSet2>,
+		/// <summary>
+		///     Executes a stored procedure to retrieve three result sets, mapping each into a read-only collection.
+		/// </summary>
+		public async Task<(ReadOnlyCollection<TResultSet1>, ReadOnlyCollection<TResultSet2>,
 				ReadOnlyCollection<TResultSet3>)>
 			QueryMultipleReadOnlyCollectionAsync<TResultSet1, TResultSet2, TResultSet3>(
 				StoredProcedureParameters spParameters,
@@ -73,10 +73,10 @@ public static class MultiReadOnlyCollectionReadSqlAsyncCommands
 			}, cancellationToken).ConfigureAwait(false);
 		}
 
-        /// <summary>
-        ///     Executes a stored procedure to retrieve four result sets, mapping each into a read-only collection.
-        /// </summary>
-        public async Task<(ReadOnlyCollection<TResultSet1>, ReadOnlyCollection<TResultSet2>,
+		/// <summary>
+		///     Executes a stored procedure to retrieve four result sets, mapping each into a read-only collection.
+		/// </summary>
+		public async Task<(ReadOnlyCollection<TResultSet1>, ReadOnlyCollection<TResultSet2>,
 				ReadOnlyCollection<TResultSet3>, ReadOnlyCollection<TResultSet4>)>
 			QueryMultipleReadOnlyCollectionAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4>(
 				StoredProcedureParameters spParameters,
@@ -120,10 +120,10 @@ public static class MultiReadOnlyCollectionReadSqlAsyncCommands
 			}, cancellationToken).ConfigureAwait(false);
 		}
 
-        /// <summary>
-        ///     Executes a stored procedure to retrieve five result sets, mapping each into a read-only collection.
-        /// </summary>
-        public async Task<(ReadOnlyCollection<TResultSet1>, ReadOnlyCollection<TResultSet2>,
+		/// <summary>
+		///     Executes a stored procedure to retrieve five result sets, mapping each into a read-only collection.
+		/// </summary>
+		public async Task<(ReadOnlyCollection<TResultSet1>, ReadOnlyCollection<TResultSet2>,
 				ReadOnlyCollection<TResultSet3>, ReadOnlyCollection<TResultSet4>, ReadOnlyCollection<TResultSet5>)>
 			QueryMultipleReadOnlyCollectionAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4, TResultSet5>(
 				StoredProcedureParameters spParameters,

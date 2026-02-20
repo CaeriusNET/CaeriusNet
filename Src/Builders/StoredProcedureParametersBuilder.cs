@@ -23,39 +23,39 @@ public sealed record StoredProcedureParametersBuilder(
 	private string? _cacheKey;
 	private CacheType? _cacheType;
 
-    /// <summary>
-    ///     Gets the collection of SQL parameters to be used in the stored procedure call.
-    /// </summary>
-    private List<SqlParameter> Parameters { get; } = new(4);
+	/// <summary>
+	///     Gets the collection of SQL parameters to be used in the stored procedure call.
+	/// </summary>
+	private List<SqlParameter> Parameters { get; } = new(4);
 
-    /// <summary>
-    ///     Adds a parameter to the stored procedure call.
-    /// </summary>
-    /// <param name="parameter">The name of the parameter.</param>
-    /// <param name="value">The value of the parameter.</param>
-    /// <param name="dbType">The SQL Server data type of the parameter.</param>
-    /// <returns>The current builder instance to enable method chaining.</returns>
-    /// <exception cref="ArgumentNullException">
-    ///     <paramref name="parameter" /> is null.
-    /// </exception>
-    public StoredProcedureParametersBuilder AddParameter(string parameter, object value, SqlDbType dbType)
+	/// <summary>
+	///     Adds a parameter to the stored procedure call.
+	/// </summary>
+	/// <param name="parameter">The name of the parameter.</param>
+	/// <param name="value">The value of the parameter.</param>
+	/// <param name="dbType">The SQL Server data type of the parameter.</param>
+	/// <returns>The current builder instance to enable method chaining.</returns>
+	/// <exception cref="ArgumentNullException">
+	///     <paramref name="parameter" /> is null.
+	/// </exception>
+	public StoredProcedureParametersBuilder AddParameter(string parameter, object value, SqlDbType dbType)
 	{
 		Parameters.Add(new SqlParameter(parameter, dbType) { Value = value });
 		return this;
 	}
 
-    /// <summary>
-    ///     Adds a Table-Valued Parameter (TVP) to the stored procedure call.
-    /// </summary>
-    /// <typeparam name="T">The type of objects in the TVP that implement <see cref="ITvpMapper{T}" />.</typeparam>
-    /// <param name="parameter">The name of the TVP parameter.</param>
-    /// <param name="items">The collection of items to include in the TVP.</param>
-    /// <returns>The current builder instance to enable method chaining.</returns>
-    /// <exception cref="ArgumentException">The items collection is empty.</exception>
-    /// <exception cref="ArgumentNullException">
-    ///     <paramref name="parameter" /> or <paramref name="items" /> is null.
-    /// </exception>
-    public StoredProcedureParametersBuilder AddTvpParameter<T>(string parameter, IEnumerable<T> items)
+	/// <summary>
+	///     Adds a Table-Valued Parameter (TVP) to the stored procedure call.
+	/// </summary>
+	/// <typeparam name="T">The type of objects in the TVP that implement <see cref="ITvpMapper{T}" />.</typeparam>
+	/// <param name="parameter">The name of the TVP parameter.</param>
+	/// <param name="items">The collection of items to include in the TVP.</param>
+	/// <returns>The current builder instance to enable method chaining.</returns>
+	/// <exception cref="ArgumentException">The items collection is empty.</exception>
+	/// <exception cref="ArgumentNullException">
+	///     <paramref name="parameter" /> or <paramref name="items" /> is null.
+	/// </exception>
+	public StoredProcedureParametersBuilder AddTvpParameter<T>(string parameter, IEnumerable<T> items)
 		where T : class, ITvpMapper<T>
 	{
 		var tvpMappers = items.ToList();
@@ -73,16 +73,16 @@ public sealed record StoredProcedureParametersBuilder(
 		return this;
 	}
 
-    /// <summary>
-    ///     Configures the stored procedure to use in-memory caching.
-    /// </summary>
-    /// <param name="cacheKey">The unique key for the cache entry.</param>
-    /// <param name="expiration">The time span after which the cache entry expires.</param>
-    /// <returns>The current builder instance to enable method chaining.</returns>
-    /// <exception cref="ArgumentNullException">
-    ///     <paramref name="cacheKey" /> is null.
-    /// </exception>
-    public StoredProcedureParametersBuilder AddInMemoryCache(string cacheKey, TimeSpan expiration)
+	/// <summary>
+	///     Configures the stored procedure to use in-memory caching.
+	/// </summary>
+	/// <param name="cacheKey">The unique key for the cache entry.</param>
+	/// <param name="expiration">The time span after which the cache entry expires.</param>
+	/// <returns>The current builder instance to enable method chaining.</returns>
+	/// <exception cref="ArgumentNullException">
+	///     <paramref name="cacheKey" /> is null.
+	/// </exception>
+	public StoredProcedureParametersBuilder AddInMemoryCache(string cacheKey, TimeSpan expiration)
 	{
 		_cacheKey = cacheKey;
 		_cacheType = InMemory;
@@ -90,15 +90,15 @@ public sealed record StoredProcedureParametersBuilder(
 		return this;
 	}
 
-    /// <summary>
-    ///     Configures the stored procedure to use frozen (immutable) caching.
-    /// </summary>
-    /// <param name="cacheKey">The unique key for the frozen cache entry.</param>
-    /// <returns>The current builder instance to enable method chaining.</returns>
-    /// <exception cref="ArgumentNullException">
-    ///     <paramref name="cacheKey" /> is null.
-    /// </exception>
-    public StoredProcedureParametersBuilder AddFrozenCache(string cacheKey)
+	/// <summary>
+	///     Configures the stored procedure to use frozen (immutable) caching.
+	/// </summary>
+	/// <param name="cacheKey">The unique key for the frozen cache entry.</param>
+	/// <returns>The current builder instance to enable method chaining.</returns>
+	/// <exception cref="ArgumentNullException">
+	///     <paramref name="cacheKey" /> is null.
+	/// </exception>
+	public StoredProcedureParametersBuilder AddFrozenCache(string cacheKey)
 	{
 		_cacheKey = cacheKey;
 		_cacheType = Frozen;
@@ -106,16 +106,16 @@ public sealed record StoredProcedureParametersBuilder(
 		return this;
 	}
 
-    /// <summary>
-    ///     Configures the stored procedure to use Redis distributed caching.
-    /// </summary>
-    /// <param name="cacheKey">The unique key for the Redis cache entry.</param>
-    /// <param name="expiration">Optional time span after which the Redis cache entry expires.</param>
-    /// <returns>The current builder instance to enable method chaining.</returns>
-    /// <exception cref="ArgumentNullException">
-    ///     <paramref name="cacheKey" /> is null.
-    /// </exception>
-    public StoredProcedureParametersBuilder AddRedisCache(string cacheKey, TimeSpan? expiration = null)
+	/// <summary>
+	///     Configures the stored procedure to use Redis distributed caching.
+	/// </summary>
+	/// <param name="cacheKey">The unique key for the Redis cache entry.</param>
+	/// <param name="expiration">Optional time span after which the Redis cache entry expires.</param>
+	/// <returns>The current builder instance to enable method chaining.</returns>
+	/// <exception cref="ArgumentNullException">
+	///     <paramref name="cacheKey" /> is null.
+	/// </exception>
+	public StoredProcedureParametersBuilder AddRedisCache(string cacheKey, TimeSpan? expiration = null)
 	{
 		_cacheType = Redis;
 		_cacheKey = cacheKey;
@@ -123,11 +123,11 @@ public sealed record StoredProcedureParametersBuilder(
 		return this;
 	}
 
-    /// <summary>
-    ///     Creates a new <see cref="StoredProcedureParameters" /> instance with the configured settings.
-    /// </summary>
-    /// <returns>A new <see cref="StoredProcedureParameters" /> object containing all specified parameters and settings.</returns>
-    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+	/// <summary>
+	///     Creates a new <see cref="StoredProcedureParameters" /> instance with the configured settings.
+	/// </summary>
+	/// <returns>A new <see cref="StoredProcedureParameters" /> object containing all specified parameters and settings.</returns>
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
 	public StoredProcedureParameters Build()
 	{
 		var parametersMemory = Parameters.Count > 0

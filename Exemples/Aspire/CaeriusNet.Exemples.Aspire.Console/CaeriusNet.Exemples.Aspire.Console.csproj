@@ -13,7 +13,7 @@
 	</ItemGroup>
 	
 	<ItemGroup>
-		<PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.2"/>
+		<PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.3"/>
 		<!-- Ensure the app process loads Microsoft.Data.SqlClient (align with library) -->
 		<PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.4"/>
 	</ItemGroup>

@@ -9,15 +9,15 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
 	/// <param name="context">The database context for executing the query.</param>
 	extension(ICaeriusNetDbContext context)
 	{
-        /// <summary>
-        ///     Executes a stored procedure and maps the results into two immutable arrays of specified result types.
-        /// </summary>
-        /// <typeparam name="TResultSet1">The type of the first result set.</typeparam>
-        /// <typeparam name="TResultSet2">The type of the second result set.</typeparam>
-        /// <param name="spParameters">The parameters required to execute the stored procedure.</param>
-        /// <param name="cancellationToken">Cancellation token.</param>
-        /// <returns>A tuple containing two immutable arrays, one for each result set.</returns>
-        public async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>)>
+		/// <summary>
+		///     Executes a stored procedure and maps the results into two immutable arrays of specified result types.
+		/// </summary>
+		/// <typeparam name="TResultSet1">The type of the first result set.</typeparam>
+		/// <typeparam name="TResultSet2">The type of the second result set.</typeparam>
+		/// <param name="spParameters">The parameters required to execute the stored procedure.</param>
+		/// <param name="cancellationToken">Cancellation token.</param>
+		/// <returns>A tuple containing two immutable arrays, one for each result set.</returns>
+		public async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>)>
 			QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2>(StoredProcedureParameters spParameters,
 				CancellationToken cancellationToken = default)
 			where TResultSet1 : class, ISpMapper<TResultSet1>
@@ -41,10 +41,10 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
 			}, cancellationToken).ConfigureAwait(false);
 		}
 
-        /// <summary>
-        ///     Executes a stored procedure and maps the results into three immutable arrays.
-        /// </summary>
-        public async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>, ImmutableArray<TResultSet3>)>
+		/// <summary>
+		///     Executes a stored procedure and maps the results into three immutable arrays.
+		/// </summary>
+		public async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>, ImmutableArray<TResultSet3>)>
 			QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2, TResultSet3>(
 				StoredProcedureParameters spParameters,
 				CancellationToken cancellationToken = default)
@@ -76,10 +76,10 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
 			}, cancellationToken).ConfigureAwait(false);
 		}
 
-        /// <summary>
-        ///     Executes a stored procedure and maps the results into four immutable arrays.
-        /// </summary>
-        public async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>, ImmutableArray<TResultSet3>,
+		/// <summary>
+		///     Executes a stored procedure and maps the results into four immutable arrays.
+		/// </summary>
+		public async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>, ImmutableArray<TResultSet3>,
 				ImmutableArray<TResultSet4>)>
 			QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4>(
 				StoredProcedureParameters spParameters,
@@ -120,10 +120,10 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
 			}, cancellationToken).ConfigureAwait(false);
 		}
 
-        /// <summary>
-        ///     Executes a stored procedure and maps the results into five immutable arrays.
-        /// </summary>
-        public async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>, ImmutableArray<TResultSet3>,
+		/// <summary>
+		///     Executes a stored procedure and maps the results into five immutable arrays.
+		/// </summary>
+		public async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>, ImmutableArray<TResultSet3>,
 				ImmutableArray<TResultSet4>, ImmutableArray<TResultSet5>)>
 			QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4, TResultSet5>(
 				StoredProcedureParameters spParameters,

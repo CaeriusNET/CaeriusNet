@@ -8,10 +8,10 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 {
 	extension(ICaeriusNetDbContext context)
 	{
-        /// <summary>
-        ///     Executes a stored procedure and returns multiple result sets as enumerable collections.
-        /// </summary>
-        public async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>)>
+		/// <summary>
+		///     Executes a stored procedure and returns multiple result sets as enumerable collections.
+		/// </summary>
+		public async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>)>
 			QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2>(StoredProcedureParameters spParameters,
 				CancellationToken cancellationToken = default)
 			where TResultSet1 : class, ISpMapper<TResultSet1>
@@ -35,10 +35,10 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 			}, cancellationToken).ConfigureAwait(false);
 		}
 
-        /// <summary>
-        ///     Executes a stored procedure and returns three result sets as enumerable collections.
-        /// </summary>
-        public async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>)>
+		/// <summary>
+		///     Executes a stored procedure and returns three result sets as enumerable collections.
+		/// </summary>
+		public async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>)>
 			QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3>(StoredProcedureParameters spParameters,
 				CancellationToken cancellationToken = default)
 			where TResultSet1 : class, ISpMapper<TResultSet1>
@@ -69,10 +69,10 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 			}, cancellationToken).ConfigureAwait(false);
 		}
 
-        /// <summary>
-        ///     Executes a stored procedure and returns multiple result sets as enumerable collections (4 sets).
-        /// </summary>
-        public async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>,
+		/// <summary>
+		///     Executes a stored procedure and returns multiple result sets as enumerable collections (4 sets).
+		/// </summary>
+		public async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>,
 				IEnumerable<TResultSet4>)>
 			QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4>(
 				StoredProcedureParameters spParameters,
@@ -112,10 +112,10 @@ public static class MultiIEnumerableReadSqlAsyncCommands
 			}, cancellationToken).ConfigureAwait(false);
 		}
 
-        /// <summary>
-        ///     Executes a stored procedure and retrieves five result sets as enumerable collections.
-        /// </summary>
-        public async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>,
+		/// <summary>
+		///     Executes a stored procedure and retrieves five result sets as enumerable collections.
+		/// </summary>
+		public async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>,
 				IEnumerable<TResultSet4>, IEnumerable<TResultSet5>)>
 			QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4, TResultSet5>(
 				StoredProcedureParameters spParameters,

@@ -16,11 +16,11 @@
 		<Title>CaeriusNet Source Generator</Title>
 		<Authors>CaeriusNet</Authors>
 		<Description>Source generators for CaeriusNet. Automatically generates DTO mappers and TVP converters.</Description>
-		<Copyright>2025</Copyright>
+		<Copyright>2026</Copyright>
 		<PackageProjectUrl>https://caerius.net</PackageProjectUrl>
 		<PackageTags>source-generators;roslyn;mapping;tvp;dto</PackageTags>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<Version>10.1.2</Version>
+		<Version>10.1.3</Version>
 	</PropertyGroup>
 	
 	<ItemGroup>
