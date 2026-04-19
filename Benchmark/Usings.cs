@@ -11,6 +11,7 @@ global using BenchmarkDotNet.Exporters;
 global using BenchmarkDotNet.Exporters.Json;
 global using BenchmarkDotNet.Jobs;
 global using BenchmarkDotNet.Running;
+global using BenchmarkDotNet.Toolchains.InProcess.Emit;
 global using Bogus;
 global using CaeriusNet.Builders;
 global using CaeriusNet.Mappers;
