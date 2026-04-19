@@ -12,7 +12,7 @@
 
     <PropertyGroup>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <Version>10.2.0</Version>
+        <Version>10.2.1</Version>
         <Title>CaeriusNet</Title>
         <Authors>AriusII &amp; CaeriusNet</Authors>
         <Description>High-performance micro-ORM for C# 14 / .NET 10 and SQL Server. Execute Stored Procedures, map DTOs at compile-time ([GenerateDto]), pass Table-Valued Parameters ([GenerateTvp]), and cache results — all in a single package.</Description>
@@ -33,6 +33,25 @@
         <TieredPGO>true</TieredPGO>
     </PropertyGroup>
 
+    <PropertyGroup>
+        <Deterministic>true</Deterministic>
+        <EmbedUntrackedSources>true</EmbedUntrackedSources>
+        <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+        <IncludeSymbols>true</IncludeSymbols>
+        <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <NuGetAuditLevel>moderate</NuGetAuditLevel>
+        <NuGetAuditMode>all</NuGetAuditMode>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <EnableNETAnalyzers>true</EnableNETAnalyzers>
+        <AnalysisLevel>latest-recommended</AnalysisLevel>
+        <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    </PropertyGroup>
+
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
         <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
         <DefineConstants>DEBUG;TRACE</DefineConstants>
@@ -42,10 +61,12 @@
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
         <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
-        <PlatformTarget>x64</PlatformTarget>
         <DebugType>portable</DebugType>
         <DebugSymbols>true</DebugSymbols>
         <Optimize>true</Optimize>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <WarningLevel>4</WarningLevel>
+        <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
     </PropertyGroup>
 
     <ItemGroup>

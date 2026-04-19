@@ -26,6 +26,9 @@ concurrency:
   group: pages
   cancel-in-progress: false
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   # Build job
   build:
@@ -50,6 +53,9 @@ jobs:
       - name: Install dependencies
         working-directory: Documentations
         run: npm ci # or pnpm install / yarn install / bun install
+      - name: Audit npm dependencies
+        working-directory: Documentations
+        run: npm audit --audit-level=high
       - name: Build with VitePress
         working-directory: Documentations
         run: npm run docs:build # or pnpm docs:build / yarn docs:build / bun run docs:build

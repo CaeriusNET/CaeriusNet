@@ -10,6 +10,7 @@
         <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
         <IsRoslynComponent>true</IsRoslynComponent>
         <RootNamespace>CaeriusNet.Generator</RootNamespace>
+        <Deterministic>true</Deterministic>
     </PropertyGroup>
 
     <ItemGroup>

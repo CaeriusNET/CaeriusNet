@@ -26,3 +26,6 @@ global using System.Runtime.CompilerServices;
 global using System.Runtime.InteropServices;
 global using System.Text.Json.Serialization;
 global using static CaeriusNet.Helpers.CacheType;
+
+[assembly: InternalsVisibleTo("CaeriusNet.Tests")]
+[assembly: CLSCompliant(false)]

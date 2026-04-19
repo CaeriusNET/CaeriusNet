@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace CaeriusNet.Generator.Tests.Tvp;
 
 public sealed class TvpSourceGeneratorTests
@@ -163,8 +165,137 @@ public sealed class TvpSourceGeneratorTests
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
 
         var generated = result.GeneratedTrees[0].GetText().ToString();
-        // Verify the generator creates a single SqlDataRecord and reuses it (no new inside loop)
         Assert.Contains("var record = new SqlDataRecord(_tvpMetaData);", generated);
         Assert.Contains("yield return record;", generated);
+    }
+
+    [Fact]
+    public void Bool_Field_Generates_SqlDbType_Bit()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Tvp;
+                              namespace Test.Models;
+                              [GenerateTvp(Schema = "dbo", TvpName = "tvp_flag")]
+                              public sealed partial record FlagTvp(int Id, bool IsActive);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
+
+        var generated = result.GeneratedTrees[0].GetText().ToString();
+        Assert.Contains("SqlDbType.Bit", generated);
+    }
+
+    [Fact]
+    public void Long_Field_Generates_SqlDbType_BigInt()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Tvp;
+                              namespace Test.Models;
+                              [GenerateTvp(Schema = "dbo", TvpName = "tvp_big")]
+                              public sealed partial record BigIntTvp(int Id, long Ticks);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
+
+        var generated = result.GeneratedTrees[0].GetText().ToString();
+        Assert.Contains("SqlDbType.BigInt", generated);
+    }
+
+    [Fact]
+    public void Decimal_Field_Generates_SqlDbType_Decimal()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Tvp;
+                              namespace Test.Models;
+                              [GenerateTvp(Schema = "dbo", TvpName = "tvp_price")]
+                              public sealed partial record PriceTvp(int Id, decimal Price);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
+
+        var generated = result.GeneratedTrees[0].GetText().ToString();
+        Assert.Contains("SqlDbType.Decimal", generated);
+    }
+
+    [Fact]
+    public void Guid_Field_Generates_SqlDbType_UniqueIdentifier()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Tvp;
+                              namespace Test.Models;
+                              [GenerateTvp(Schema = "dbo", TvpName = "tvp_guid")]
+                              public sealed partial record GuidTvp(int Id, System.Guid TraceId);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
+
+        var generated = result.GeneratedTrees[0].GetText().ToString();
+        Assert.Contains("SqlDbType.UniqueIdentifier", generated);
+    }
+
+    [Fact]
+    public void Nullable_String_Generates_SetDBNull_And_NVarChar()
+    {
+        const string source = """
+                              #nullable enable
+                              using CaeriusNet.Attributes.Tvp;
+                              namespace Test.Models;
+                              [GenerateTvp(Schema = "dbo", TvpName = "tvp_optstr")]
+                              public sealed partial record OptStrTvp(int Id, string? Name);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
+
+        var generated = result.GeneratedTrees[0].GetText().ToString();
+        Assert.Contains("SqlDbType.NVarChar", generated);
+        Assert.Contains("SetDBNull", generated);
+    }
+
+    [Fact]
+    public void MultiColumn_MetaData_Array_Has_Correct_Length()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Tvp;
+                              namespace Test.Models;
+                              [GenerateTvp(Schema = "dbo", TvpName = "tvp_multi")]
+                              public sealed partial record MultiTvp(int Id, string Name, decimal Price, bool IsActive);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
+
+        var generated = result.GeneratedTrees[0].GetText().ToString();
+        // Generator uses C# collection expressions; verify all 4 properties map to SqlMetaData entries
+        var metaDataEntries = Regex.Matches(generated, @"new SqlMetaData\(").Count;
+        Assert.Equal(4, metaDataEntries);
+    }
+
+    [Fact]
+    public void NonSealed_Type_Does_Not_Generate()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Tvp;
+                              namespace Test.Models;
+                              [GenerateTvp(Schema = "dbo", TvpName = "tvp_int")]
+                              public partial record UserIdTvp(int Id);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
+
+        Assert.Empty(result.GeneratedTrees);
+    }
+
+    [Fact]
+    public void NonPartial_Type_Does_Not_Generate()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Tvp;
+                              namespace Test.Models;
+                              [GenerateTvp(Schema = "dbo", TvpName = "tvp_int")]
+                              public sealed record UserIdTvp(int Id);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
+
+        Assert.Empty(result.GeneratedTrees);
     }
 }

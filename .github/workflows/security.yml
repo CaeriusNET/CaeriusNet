@@ -1,0 +1,103 @@
+name: Security Audit
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 4 * * 1'  # Monday 04:00 UTC
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_NOLOGO: true
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  dependency-review:
+    name: Dependency Review (PR only)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0
+          comment-summary-in-pr: always
+
+  vulnerability-scan:
+    name: Vulnerable Package Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore CaeriusNet.slnx
+
+      - name: Scan for vulnerable packages (main library)
+        run: |
+          echo "=== Scanning Src/CaeriusNet.csproj for vulnerabilities ==="
+          RESULT=$(dotnet list Src/CaeriusNet.csproj package --vulnerable --include-transitive --format json 2>&1)
+          echo "$RESULT"
+          VULN_COUNT=$(echo "$RESULT" | jq '[.projects[].frameworks[] | ((.topLevelPackages // [])[], (.transitivePackages // [])[]) | select((.vulnerabilities // []) | length > 0)] | length' || echo 0)
+          if [ "$VULN_COUNT" -gt 0 ]; then
+            echo "::error title=Vulnerable Packages::Vulnerable NuGet packages detected in CaeriusNet! See log for details."
+            exit 1
+          fi
+          echo "✅ No vulnerable packages found in main library."
+
+      - name: Scan for vulnerable packages (source generator)
+        run: |
+          echo "=== Scanning SourceGenerators/CaeriusNet.Generator.csproj for vulnerabilities ==="
+          RESULT=$(dotnet list SourceGenerators/CaeriusNet.Generator.csproj package --vulnerable --include-transitive --format json 2>&1)
+          echo "$RESULT"
+          VULN_COUNT=$(echo "$RESULT" | jq '[.projects[].frameworks[] | ((.topLevelPackages // [])[], (.transitivePackages // [])[]) | select((.vulnerabilities // []) | length > 0)] | length' || echo 0)
+          if [ "$VULN_COUNT" -gt 0 ]; then
+            echo "::error title=Vulnerable Packages::Vulnerable NuGet packages detected in CaeriusNet.Generator! See log for details."
+            exit 1
+          fi
+          echo "✅ No vulnerable packages found in source generator."
+
+      - name: Scan for vulnerable packages (test projects, informational)
+        run: |
+          echo "=== Scanning test projects for vulnerabilities (non-blocking) ==="
+          RESULT_TESTS=$(dotnet list Tests/CaeriusNet.Tests/CaeriusNet.Tests.csproj package --vulnerable --include-transitive --format json 2>&1 || true)
+          RESULT_GEN=$(dotnet list Tests/CaeriusNet.Generator.Tests/CaeriusNet.Generator.Tests.csproj package --vulnerable --include-transitive --format json 2>&1 || true)
+          echo "$RESULT_TESTS"
+          echo "$RESULT_GEN"
+          VULN_COUNT=$(( \
+            $(echo "$RESULT_TESTS" | jq '[.projects[].frameworks[] | ((.topLevelPackages // [])[], (.transitivePackages // [])[]) | select((.vulnerabilities // []) | length > 0)] | length' || echo 0) + \
+            $(echo "$RESULT_GEN"   | jq '[.projects[].frameworks[] | ((.topLevelPackages // [])[], (.transitivePackages // [])[]) | select((.vulnerabilities // []) | length > 0)] | length' || echo 0) \
+          ))
+          if [ "$VULN_COUNT" -gt 0 ]; then
+            echo "::warning title=Vulnerable Packages::Vulnerable packages found in test projects (non-blocking)."
+          else
+            echo "✅ No vulnerable packages found in test projects."
+          fi
+          if [ "$VULN_COUNT" -gt 0 ]; then
+            echo "::warning title=Vulnerable Packages::Vulnerable packages found in test projects (non-blocking)."
+          else
+            echo "✅ No vulnerable packages found in test projects."
+          fi
+
+      - name: Report outdated packages (informational)
+        run: |
+          echo "=== Outdated packages (informational, non-blocking) ==="
+          dotnet list Src/CaeriusNet.csproj package --outdated || true
+        continue-on-error: true

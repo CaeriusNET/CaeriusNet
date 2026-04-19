@@ -77,4 +77,39 @@ public sealed class StoredProcedureParametersTests
 
         Assert.Equal("@UserId", span[0].ParameterName);
     }
+
+    [Fact]
+    public void GetParametersSpan_Returns_Correct_SqlDbType()
+    {
+        var parameters = new SqlParameter[] { new("@Flag", SqlDbType.Bit) };
+        var sp = new StoredProcedureParameters("dbo", "sp_Test", 16, parameters, null, null, null);
+
+        var span = sp.GetParametersSpan();
+
+        Assert.Equal(SqlDbType.Bit, span[0].SqlDbType);
+    }
+
+    [Fact]
+    public void GetParametersSpan_LargeArray_ReturnsCorrectLength()
+    {
+        var parameters = Enumerable.Range(0, 100)
+            .Select(i => new SqlParameter($"@P{i}", SqlDbType.Int))
+            .ToArray();
+        var sp = new StoredProcedureParameters("dbo", "sp_Test", 16, parameters, null, null, null);
+
+        Assert.Equal(100, sp.GetParametersSpan().Length);
+    }
+
+    [Fact]
+    public void Two_Distinct_Instances_HaveIndependent_ParameterSpans()
+    {
+        var params1 = new SqlParameter[] { new("@Id", SqlDbType.Int) };
+        var params2 = new SqlParameter[] { new("@Name", SqlDbType.NVarChar) };
+
+        var sp1 = new StoredProcedureParameters("dbo", "sp_Test", 16, params1, null, null, null);
+        var sp2 = new StoredProcedureParameters("dbo", "sp_Test", 16, params2, null, null, null);
+
+        Assert.Equal("@Id", sp1.GetParametersSpan()[0].ParameterName);
+        Assert.Equal("@Name", sp2.GetParametersSpan()[0].ParameterName);
+    }
 }
