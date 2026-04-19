@@ -20,7 +20,9 @@ public class BenchmarkConfig : ManualConfig
 
         AddExporter(JsonExporter.Full);
 
-        if (!isCI)
+        if (isCI)
+            AddExporter(MarkdownExporter.GitHub);
+        else
             AddExporter(HtmlExporter.Default);
 
         AddDiagnoser(MemoryDiagnoser.Default);

@@ -1,0 +1,1 @@
+> ℹ️ **No benchmark data yet.** Real results are generated automatically when a [GitHub Release](https://github.com/CaeriusNET/CaeriusNet/releases) is published. You can also trigger the [benchmark workflow](https://github.com/CaeriusNET/CaeriusNet/actions/workflows/benchmark.yml) manually.
