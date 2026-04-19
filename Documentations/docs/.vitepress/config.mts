@@ -34,7 +34,8 @@ export default defineConfig({
           { text: 'API Reference', link: '/documentation/api' },
           { text: 'Best Practices', link: '/documentation/best-practices' },
         ]
-      }
+      },
+      { text: 'Performance', link: '/benchmarks/performance' }
     ],
 
     sidebar: [
@@ -73,6 +74,13 @@ export default defineConfig({
         items: [
           { text: 'API Reference', link: '/documentation/api' },
           { text: 'Best Practices', link: '/documentation/best-practices' }
+        ]
+      },
+      {
+        text: 'Performance',
+        collapsed: false,
+        items: [
+          { text: 'Benchmark Results', link: '/benchmarks/performance' }
         ]
       }
     ],
