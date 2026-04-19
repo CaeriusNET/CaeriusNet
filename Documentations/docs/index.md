@@ -2,41 +2,41 @@
 layout: home
 
 hero:
-  name: "Caerius.NET"
-  text: "SQL Server Stored Procedures to C# DTOs — fast, simple, reliable"
-  tagline: Stored Procedure ➜ DTO in microseconds, with compile‑time safety.
+  name: "CaeriusNet"
+  text: "SQL Server Stored Procedures → C# DTOs"
+  tagline: Compile-time safe mapping. No reflection. No DataTable. Just SQL Server + C#.
   image:
-    alt: Caerius Logo
+    alt: CaeriusNet Logo
   actions:
     - theme: brand
-      text: What is Caerius.NET?
+      text: What is CaeriusNet?
       link: /quickstart/what-is-caeriusnet
     - theme: alt
-      text: Quickstart
+      text: Get Started
       link: /quickstart/getting-started
     - theme: alt
-      text: Caching
-      link: /documentation/cache
+      text: Usage
+      link: /documentation/usage
     - theme: alt
       text: GitHub
       link: https://github.com/CaeriusNET/CaeriusNet
 
 features:
   - icon: 🛠️
-    title: Two stacks, one pipeline
-    details: Write your data access where it belongs <b>T/SQL</b> Stored Procedures in SQL Server and <b>C# DTOs</b> in your app. Caerius.NET binds them with minimal API and DI.
+    title: Stored Procedures only
+    details: Data access lives in T/SQL Stored Procedures, results land in typed C# DTOs. CaeriusNet binds both sides with minimal boilerplate and DI-first design.
   - icon: 🚀
-    title: Mapping in µseconds
-    details: Ordinal, allocation‑aware mapping — no reflection on the hot path, pre‑sized collections, pooling, and <code>SequentialAccess</code> readers.
+    title: Ordinal mapping — no reflection
+    details: Allocation-aware, ordinal-indexed mapping via <code>SqlDataReader</code>. Pre-sized collections, <code>SequentialAccess</code> readers, and compile-time source generators.
   - icon: 💪
-    title: Heavy inputs, one call
-    details: Pass thousands of IDs or GUIDs via TVP. Combine parameters + TVP, return multiple result sets, and keep latency predictable.
+    title: TVP + multi-result in one call
+    details: Stream thousands of IDs via Table-Valued Parameters, combine them with scalar parameters, and return up to 5 result sets in a single round-trip.
   - icon: 🔄
-    title: Async‑only I/O
-    details: All database calls are asynchronous by design for throughput and thread‑pool health.
+    title: Async-only I/O
+    details: Every database call is async and <code>CancellationToken</code>-aware for throughput and thread-pool health.
   - icon: 🧊
-    title: Caching when it counts
-    details: Enable per‑call caching Frozen (immutable), In‑Memory (TTL), or Redis (distributed) — pick the right layer for your workload.
+    title: Per-call caching
+    details: Opt into Frozen (immutable), InMemory (TTL), or Redis (distributed) caching directly on the parameters builder — zero overhead when not used.
 ---
 
 <style>

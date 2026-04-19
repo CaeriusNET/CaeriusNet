@@ -1,186 +1,159 @@
-# Getting Started
-To successfully integrate Caerius.NET into your project, ensure the following prerequisites are met:
-- C# .NET 10.0 or higher
+---
+prev:
+  text: 'What is CaeriusNet?'
+  link: '/quickstart/what-is-caeriusnet'
+next:
+  text: 'DTO Mapping'
+  link: '/documentation/dto-mapping'
+---
+
+# Installation & Setup
+
+## Prerequisites
+
+- .NET 10.0 SDK or higher
 - SQL Server 2019 or higher
+- C# 14 language version
 
-Once you have verified the prerequisites, you can proceed with installing Caerius.NET.
-
-## Installation
-Caerius.NET can be installed using the NuGet Package Manager available in your preferred IDE or directly via the .NET CLI:
+## Install the package
 
 ```bash
-dotnet add package Caerius.NET
+dotnet add package CaeriusNet
 ```
 
-Following installation, you are ready to incorporate Caerius.NET into your project.
+## Configure the connection string
 
-## Configuration
-Begin by configuring Caerius.NET within your C# project.  
+Add your SQL Server connection string to `appsettings.json`:
 
-Add the following entries to your `appsettings.json` file:
-
-### Setting up the Connection String
 ```json
 {
   "ConnectionStrings": {
-    "Default": "Server=localhost,1433;Database=sandbox;User Id=sa;Password=HashedPassword!;Trusted_Connection=True;MultipleActiveResultSets=true;Encrypt=True;", // [!code focus]
-    "Template": "Server=<>;Database=<>;User Id=<>;Password=<>;Trusted_Connection=True;MultipleActiveResultSets=true;Encrypt=True;" // [!code focus]
+    "Default": "Server=localhost,1433;Database=MyAppDb;User Id=sa;Password=YourPassword!;Trusted_Connection=True;MultipleActiveResultSets=true;Encrypt=True;"
   }
 }
 ```
 
-::: details
+::: details Connection string parameters
+The parameters `Trusted_Connection=True;MultipleActiveResultSets=true;Encrypt=True;` are required by `Microsoft.Data.SqlClient`.
 
-Utilize the Template connection string to establish a new database connection.  
-Replace placeholders (<>) with actual values.  
-
-Visit https://www.connectionstrings.com/sql-server/ to generate a connection string specific to your SQL Server setup.  
-
-The parameters `Trusted_Connection=True;MultipleActiveResultSets=true;Encrypt=True;` are crucial for proper connection functionality due to `Microsoft.Data.SqlClient` requirements.
+Visit [connectionstrings.com/sql-server](https://www.connectionstrings.com/sql-server/) to generate a connection string for your environment.
 :::
-This step requires the `Microsoft.Extensions.Configuration.Json` package to read the configuration settings from the `appsettings.json` file.
 
-### Configuring Program.cs
+## Register CaeriusNet
 
-In your `Program.cs` file, integrate Caerius.NET into your `ServiceCollection` using `Dependency Injection`:
 ::: code-group
-```csharp [Manual]
+```csharp [ASP.NET Core / Generic Host]
 using CaeriusNet.Builders;
-using Microsoft.Extensions.Configuration;
 
-var services = new ServiceCollection();
+var builder = WebApplication.CreateBuilder(args);
 
-var configuration = new ConfigurationBuilder()
-    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
+CaeriusNetBuilder
+    .Create(builder)
+    .WithSqlServer(builder.Configuration.GetConnectionString("Default")!)
+    // .WithRedis("localhost:6379")  // optional distributed cache
     .Build();
 
-services.AddSingleton<IConfiguration>(configuration);
+var app = builder.Build();
+app.Run();
+```
+```csharp [.NET Aspire]
+using CaeriusNet.Builders;
 
-var connectionString = configuration.GetConnectionString("Default")!;
+var builder = WebApplication.CreateBuilder(args);
+builder.AddServiceDefaults();
+
+CaeriusNetBuilder
+    .Create(builder)
+    .WithAspireSqlServer("sqlserver")
+    .WithAspireRedis()   // optional — defaults to "redis"
+    .Build();
+
+var app = builder.Build();
+app.MapDefaultEndpoints();
+app.Run();
+```
+```csharp [Console / Worker Service]
+using CaeriusNet.Builders;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+
+var services = new ServiceCollection();
+var configuration = new ConfigurationBuilder()
+    .AddJsonFile("appsettings.json")
+    .Build();
 
 CaeriusNetBuilder
     .Create(services)
-    .WithSqlServer(connectionString)
-    // .WithRedis("localhost:6379") // optional distributed cache
+    .WithSqlServer(configuration.GetConnectionString("Default")!)
     .Build();
-
-var serviceProvider = services.BuildServiceProvider();
-```
-```csharp [Aspire]
-using CaeriusNet.Builders;
-using Microsoft.Extensions.Hosting;
-
-var builder = new HostApplicationBuilder();
-
-builder.AddServiceDefaults();
-
-CaeriusNetBuilder.Create(builder)
-	.WithAspireSqlServer("CaeriusNet")
-	.WithAspireRedis() // Default is : redis
-	.Build();
-
-var app = builder.Build();
-
-await app.RunAsync();
-```
-:::
-## Utilizing Caerius.NET
-Post-configuration, Caerius.NET is ready for use within your `Repository` classes.  
-
-Employing clean architecture principles such as `SOLID`, the `Repository Pattern`, and `Dependency Injection` enhances the structure and maintainability of your code.
-
-::: code-group
-```csharp [Interface]
-namespace TestProject.Repositories;
-
-public interface ITestRepository
-{
-    Task<IEnumerable<UserDto>> GetUsersOlderThanAsync(int usersAge);
-}
-```
-```csharp [Class]
-namespace TestProject.Repositories;
-
-public sealed class TestRepository(ICaeriusNetDbContext DbContext)
-    : ITestRepository
-{
-    public async Task<IEnumerable<UserDto>> GetUsersOlderThanAsync(int usersAge)
-    {
-        var spParams = new StoredProcedureParametersBuilder("dbo", "sp_GetUser_By_Age", 128)
-            .AddParameter("Age", usersAge, SqlDbType.Int)
-            .Build();
-
-        var users = await DbContext.QueryAsIEnumerableAsync<UserDto>(spParams);
-
-        return users ?? Array.Empty<UserDto>();
-    }
-}
-```
-```csharp [Record (Recommended)]
-namespace TestProject.Repositories;
-
-public sealed record TestRepository(ICaeriusNetDbContext DbContext)
-    : ITestRepository
-{
-    public async Task<IEnumerable<UserDto>> GetUsersOlderThanAsync(int usersAge)
-    {
-        var spParams = new StoredProcedureParametersBuilder("dbo", "sp_GetUser_By_Age", 128)
-            .AddParameter("Age", usersAge, SqlDbType.Int)
-            .Build();
-
-        var users = await DbContext.QueryAsIEnumerableAsync<UserDto>(spParams);
-
-        return users ?? Array.Empty<UserDto>();
-    }
-}
 ```
 :::
 
-Refer to the provided DTO classes in your implementation:
+## Register your repositories
+
+Register your repositories in the DI container:
+
+```csharp
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+```
+
+## Your first query
+
+### 1. Create a Stored Procedure
+
+```sql
+CREATE PROCEDURE dbo.sp_GetUsers_By_Age
+    @Age INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT Id, Name, Age
+    FROM dbo.Users
+    WHERE Age >= @Age;
+END
+```
+
+### 2. Define a DTO
 
 ```csharp
 using CaeriusNet.Attributes.Dto;
 
-namespace TestProject.Models.Dtos;
-
 [GenerateDto]
-public partial sealed record UserDto(int Id, string Name, byte Age);
+public sealed partial record UserDto(int Id, string Name, byte Age);
 ```
 
-Refer to the provided Stored Procedure:
-::: code-group
-```sql [Stored Procedure (simple)]
-CREATE PROCEDURE dbo.sp_GetUser_By_Age
-    @Age INT
-AS
-BEGIN
-    SELECT Id, Name, Age
-    FROM dbo.Users
-    WHERE Age > @Age
-END
+### 3. Implement a repository
+
+```csharp
+using CaeriusNet.Abstractions;
+using CaeriusNet.Builders;
+using System.Data;
+
+public sealed record UserRepository(ICaeriusNetDbContext DbContext)
+    : IUserRepository
+{
+    public async Task<IEnumerable<UserDto>> GetUsersOlderThanAsync(
+        int age, CancellationToken cancellationToken)
+    {
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Age", 128)
+            .AddParameter("Age", age, SqlDbType.Int)
+            .Build();
+
+        return await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, cancellationToken) ?? [];
+    }
+}
 ```
-```sql [Stored Procedure (transaction)]
-CREATE PROCEDURE dbo.sp_GetUser_By_Age
-    @Age INT
-AS
-BEGIN
-    SET NOCOUNT ON
-    SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED
-    
-    BEGIN TRY
-        BEGIN TRANSACTION
-            
-        SELECT Id, Name, Age
-        FROM dbo.Users
-        WHERE Age >= @Age
-        
-        IF @@TRANCOUNT > 0
-            COMMIT TRANSACTION
-        
-    END TRY
-    BEGIN CATCH
-        IF @@TRANCOUNT > 0
-            ROLLBACK TRANSACTION
-    END CATCH        
-END
+
+### 4. Inject and call
+
+```csharp
+public sealed class UserService(IUserRepository repository)
+{
+    public Task<IEnumerable<UserDto>> GetAdultsAsync(CancellationToken ct)
+        => repository.GetUsersOlderThanAsync(18, ct);
+}
 ```
+
+---
+
+**Next:** [DTO Mapping](/documentation/dto-mapping) — learn how ordinal-based mapping works.
