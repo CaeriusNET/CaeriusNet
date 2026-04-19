@@ -1,5 +1,6 @@
 ﻿namespace CaeriusNet.Benchmark.Data.Simple;
 
+/// <summary>Minimal DTO used for collection read/create benchmarks (no source generator).</summary>
 public sealed class SimpleDto
 {
     public SimpleDto(int id, Guid guid, string name)
@@ -9,9 +10,7 @@ public sealed class SimpleDto
         Name = name;
     }
 
-    public SimpleDto()
-    {
-    }
+    public SimpleDto() { }
 
     public int Id { get; set; }
     public Guid Guid { get; set; }

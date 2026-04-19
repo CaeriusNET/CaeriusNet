@@ -1,15 +1,27 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <TargetFramework>net10.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <Optimize>true</Optimize>
     </PropertyGroup>
 
     <ItemGroup>
         <PackageReference Include="BenchmarkDotNet" Version="0.15.8"/>
         <PackageReference Include="Bogus" Version="35.6.5"/>
+        <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0"/>
     </ItemGroup>
 
+    <ItemGroup>
+        <!-- Reference main CaeriusNet library for accessing builder/mapper types -->
+        <ProjectReference Include="..\Src\CaeriusNet.csproj"/>
+        <!-- Source generator must also run on THIS project to generate [GenerateDto] / [GenerateTvp] implementations -->
+        <ProjectReference Include="..\SourceGenerators\CaeriusNet.Generator.csproj"
+                          ReferenceOutputAssembly="false"
+                          OutputItemType="Analyzer"
+                          PrivateAssets="all"/>
+    </ItemGroup>
 </Project>
