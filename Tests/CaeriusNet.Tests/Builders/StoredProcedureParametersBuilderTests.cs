@@ -195,4 +195,117 @@ public sealed class StoredProcedureParametersBuilderTests
 
         Assert.Same(builder, returned);
     }
+
+    [Fact]
+    public void AddParameter_CorrectParameterName_SetInSpan()
+    {
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_Test")
+            .AddParameter("@UserId", 42, SqlDbType.Int)
+            .Build();
+
+        Assert.Equal("@UserId", sp.GetParametersSpan()[0].ParameterName);
+    }
+
+    [Fact]
+    public void AddParameter_CorrectSqlDbType_SetInSpan()
+    {
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_Test")
+            .AddParameter("@Code", (short)7, SqlDbType.SmallInt)
+            .Build();
+
+        Assert.Equal(SqlDbType.SmallInt, sp.GetParametersSpan()[0].SqlDbType);
+    }
+
+    [Fact]
+    public void AddParameter_CorrectValue_SetInSpan()
+    {
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_Test")
+            .AddParameter("@Score", 99, SqlDbType.Int)
+            .Build();
+
+        Assert.Equal(99, sp.GetParametersSpan()[0].Value);
+    }
+
+    [Fact]
+    public void AddParameter_NullValue_SetsValueToNull()
+    {
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_Test")
+            .AddParameter("@OptName", null!, SqlDbType.NVarChar)
+            .Build();
+
+        Assert.Null(sp.GetParametersSpan()[0].Value);
+    }
+
+    [Fact]
+    public void Builder_Capacity_Zero_Is_Accepted()
+    {
+        var builder = new StoredProcedureParametersBuilder("dbo", "sp_Test", 0, 30);
+
+        var exception = Record.Exception(() => builder.Build());
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
+    public void Builder_Capacity_One_Is_Accepted()
+    {
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_Test", 1, 30).Build();
+
+        Assert.Equal(1, sp.Capacity);
+    }
+
+    [Fact]
+    public void Builder_Timeout_Zero_Is_Accepted()
+    {
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_Test", 16, 0).Build();
+
+        Assert.Equal(0, sp.CommandTimeout);
+    }
+
+    [Fact]
+    public void AddTvpParameter_Sets_SqlDbType_Structured()
+    {
+        var items = new List<TestTvpItem> { new(1) };
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_Test")
+            .AddTvpParameter("@Ids", items)
+            .Build();
+
+        Assert.Equal(SqlDbType.Structured, sp.GetParametersSpan()[0].SqlDbType);
+    }
+
+    [Fact]
+    public void AddTvpParameter_Sets_TypeName_Correctly()
+    {
+        var items = new List<TestTvpItem> { new(1) };
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_Test")
+            .AddTvpParameter("@Ids", items)
+            .Build();
+
+        Assert.Equal(TestTvpItem.TvpTypeName, sp.GetParametersSpan()[0].TypeName);
+    }
+
+    [Fact]
+    public void AddTvpParameter_Multiple_TVPs_Adds_Multiple_Parameters()
+    {
+        var items = new List<TestTvpItem> { new(1), new(2) };
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_Test")
+            .AddTvpParameter("@Ids1", items)
+            .AddTvpParameter("@Ids2", items)
+            .Build();
+
+        Assert.Equal(2, sp.GetParametersSpan().Length);
+    }
+
+    [Fact]
+    public void GetParametersSpan_LargeParameterCount_AllPresent()
+    {
+        var builder = new StoredProcedureParametersBuilder("dbo", "sp_Test");
+
+        for (var i = 0; i < 50; i++)
+            builder.AddParameter($"@Param{i}", i, SqlDbType.Int);
+
+        var sp = builder.Build();
+
+        Assert.Equal(50, sp.GetParametersSpan().Length);
+    }
 }
