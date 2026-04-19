@@ -1,0 +1,156 @@
+name: Benchmarks
+
+on:
+  # Auto-triggered when a GitHub Release is published (merging to main)
+  release:
+    types: [published]
+
+  # Manual trigger — restricted to 'production' environment (AriusII approval required)
+  workflow_dispatch:
+    inputs:
+      category:
+        description: 'Benchmark category to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - in-memory
+          - tvp
+          - sql-server
+          - collections
+
+# Minimal default permissions
+permissions:
+  contents: write  # needed to commit results back to repo
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_NOLOGO: true
+  DOTNET_VERSION: '10.0.x'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+  # SQL Server connection for benchmark service container
+  SA_PASSWORD: 'BenchmarkP@ss2026!'
+
+jobs:
+  benchmark:
+    name: Run Benchmarks (${{ github.event.inputs.category || 'all' }})
+    runs-on: ubuntu-latest
+
+    # environment: production requires manual approval from AriusII for workflow_dispatch.
+    # For release events, no approval gate is needed — runs automatically.
+    environment: ${{ github.event_name == 'workflow_dispatch' && 'production' || '' }}
+
+    # SQL Server 2022 service container for SQL benchmarks
+    services:
+      sqlserver:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          SA_PASSWORD: ${{ env.SA_PASSWORD }}
+          ACCEPT_EULA: 'Y'
+          MSSQL_PID: Developer
+        ports:
+          - 1433:1433
+        options: >-
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'BenchmarkP@ss2026!' -Q 'SELECT 1' -C -l 10"
+          --health-interval 15s
+          --health-timeout 10s
+          --health-retries 10
+          --health-start-period 30s
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: nuget-bench-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/*.slnx') }}
+          restore-keys: nuget-bench-${{ runner.os }}-
+
+      - name: Restore dependencies
+        run: dotnet restore CaeriusNet.slnx
+
+      - name: Build (Release)
+        run: |
+          dotnet build Benchmark/CaeriusNet.Benchmark.csproj \
+            --configuration Release \
+            --no-restore
+
+      - name: Wait for SQL Server to be ready
+        run: |
+          echo "⏳ Waiting for SQL Server..."
+          for i in $(seq 1 20); do
+            if /opt/mssql-tools18/bin/sqlcmd -S localhost,1433 -U sa -P "${{ env.SA_PASSWORD }}" -Q "SELECT 1" -C -l 5 >/dev/null 2>&1; then
+              echo "✅ SQL Server is ready."
+              break
+            fi
+            echo "  Attempt $i/20 — waiting 5s..."
+            sleep 5
+          done
+
+      - name: Run Benchmarks
+        env:
+          BENCHMARK_SQL_CONNECTION: "Server=localhost,1433;Database=master;User Id=sa;Password=${{ env.SA_PASSWORD }};TrustServerCertificate=True"
+          CI: 'true'
+        run: |
+          CATEGORY="${{ github.event.inputs.category || 'all' }}"
+          echo "🚀 Running benchmarks: category=${CATEGORY}"
+          dotnet run \
+            --project Benchmark/CaeriusNet.Benchmark.csproj \
+            --configuration Release \
+            --no-build \
+            -- "${CATEGORY}"
+
+      - name: Copy JSON results to documentation
+        if: always()
+        run: |
+          RESULTS_DIR="Benchmark/BenchmarkDotNet.Artifacts/results"
+          DOCS_DIR="Documentations/docs/benchmarks/results"
+          mkdir -p "$DOCS_DIR"
+
+          if [ -d "$RESULTS_DIR" ]; then
+            cp "$RESULTS_DIR"/*.json "$DOCS_DIR/" 2>/dev/null || echo "ℹ️  No JSON results found."
+            echo "✅ Copied JSON results to $DOCS_DIR"
+            ls -la "$DOCS_DIR"
+          else
+            echo "ℹ️  No BenchmarkDotNet.Artifacts/results directory found."
+          fi
+
+      - name: Commit benchmark results
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Documentations/docs/benchmarks/results/ || true
+
+          if git diff --staged --quiet; then
+            echo "ℹ️  No benchmark result changes to commit."
+          else
+            CATEGORY="${{ github.event.inputs.category || 'all' }}"
+            VERSION=$(grep -oP '(?<=<Version>)\d+\.\d+\.\d+(?=</Version>)' Src/CaeriusNet.csproj || echo "unknown")
+            git commit -m "chore(bench): update benchmark results v${VERSION} [category:${CATEGORY}] [skip ci]"
+            git push
+            echo "✅ Benchmark results committed."
+          fi
+
+      - name: Upload HTML reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-reports-${{ github.run_number }}
+          path: |
+            Benchmark/BenchmarkDotNet.Artifacts/results/*.html
+            Benchmark/BenchmarkDotNet.Artifacts/results/*.csv
+          retention-days: 90
+          if-no-files-found: warn

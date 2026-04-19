@@ -9,6 +9,10 @@ updates:
     labels:
       - "dependencies"
       - "dotnet"
+    assignees:
+      - "AriusII"
+    reviewers:
+      - "AriusII"
     groups:
       microsoft-extensions:
         patterns:
@@ -26,6 +30,10 @@ updates:
     labels:
       - "dependencies"
       - "documentation"
+    assignees:
+      - "AriusII"
+    reviewers:
+      - "AriusII"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -35,3 +43,7 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
+    assignees:
+      - "AriusII"
+    reviewers:
+      - "AriusII"
