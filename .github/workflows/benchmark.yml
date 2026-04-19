@@ -176,8 +176,8 @@ jobs:
             out_file="$DOCS_DIR/${classname}.md"
             awk '/^\|/' "$md_file" > "$out_file"
             line_count=$(wc -l < "$out_file")
-            if [ "$line_count" -lt 2 ]; then
-              echo "  ⚠️  ${classname}.md has only ${line_count} line(s) — skipping (expected header + data rows)."
+            if [ "$line_count" -lt 3 ]; then
+              echo "  ⚠️  ${classname}.md has only ${line_count} line(s) — skipping (expected header + separator + ≥1 data row)."
               rm -f "$out_file"
               skipped=$((skipped + 1))
             else
