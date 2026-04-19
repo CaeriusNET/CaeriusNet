@@ -115,23 +115,51 @@ jobs:
             --no-build \
             -- "${CATEGORY}"
 
-      - name: Copy JSON results to documentation
+      - name: Diagnose benchmark artifact paths
+        if: always()
+        run: |
+          echo "=== CWD ==="
+          pwd
+          echo "=== BenchmarkDotNet.Artifacts (repo root) ==="
+          find . -maxdepth 4 -name "*.json" -path "*/BenchmarkDotNet.Artifacts/*" 2>/dev/null || true
+          find . -maxdepth 4 -name "*.md"   -path "*/BenchmarkDotNet.Artifacts/*" 2>/dev/null || true
+          echo "=== Benchmark/ subdirectory ==="
+          ls -la Benchmark/BenchmarkDotNet.Artifacts/results/ 2>/dev/null || echo "⚠️ Directory not found: Benchmark/BenchmarkDotNet.Artifacts/results/"
+
+      - name: Extract and copy results to documentation
         if: always()
         run: |
           RESULTS_DIR="Benchmark/BenchmarkDotNet.Artifacts/results"
           DOCS_DIR="Documentations/docs/benchmarks/results"
           mkdir -p "$DOCS_DIR"
 
-          if [ -d "$RESULTS_DIR" ]; then
-            cp "$RESULTS_DIR"/*.json "$DOCS_DIR/" 2>/dev/null || echo "ℹ️  No JSON results found."
-            echo "✅ Copied JSON results to $DOCS_DIR"
-            ls -la "$DOCS_DIR"
-          else
-            echo "ℹ️  No BenchmarkDotNet.Artifacts/results directory found."
+          if [ ! -d "$RESULTS_DIR" ] || [ -z "$(ls -A "$RESULTS_DIR" 2>/dev/null)" ]; then
+            echo "⚠️  No artifacts at $RESULTS_DIR — skipping copy."
+            exit 0
           fi
 
-      - name: Commit benchmark results
-        if: always()
+          echo "📂 Found artifacts:"
+          ls -la "$RESULTS_DIR"
+
+          # Copy full JSON reports for data analysis
+          cp "$RESULTS_DIR"/*.json "$DOCS_DIR/" 2>/dev/null && echo "✅ JSON files copied." || echo "ℹ️  No JSON files."
+
+          # Extract table-only lines from GitHub Markdown reports
+          # BenchmarkDotNet adds environment headers — awk keeps only '|' rows (the table)
+          for md_file in "$RESULTS_DIR"/*-report.md; do
+            [ -f "$md_file" ] || continue
+            # Strip namespace, keep ClassName: "CaeriusNet.Benchmark.Workshops.Benchs.Mapping.DtoMappingBench" → "DtoMappingBench"
+            classname=$(basename "$md_file" "-report.md" | rev | cut -d'.' -f1 | rev)
+            awk '/^\|/' "$md_file" > "$DOCS_DIR/${classname}.md"
+            echo "  ✅ Extracted table: ${classname}.md ($(wc -l < "$DOCS_DIR/${classname}.md") rows)"
+          done
+
+          echo "📋 Results directory:"
+          ls -la "$DOCS_DIR"
+
+      - name: Commit benchmark results to documentation
+        # Only auto-commit on GitHub Release events (user-triggered) — never on workflow_dispatch
+        if: always() && github.event_name == 'release'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -147,13 +175,14 @@ jobs:
             echo "✅ Benchmark results committed."
           fi
 
-      - name: Upload HTML reports
+      - name: Upload benchmark artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-reports-${{ github.run_number }}
           path: |
-            Benchmark/BenchmarkDotNet.Artifacts/results/*.html
-            Benchmark/BenchmarkDotNet.Artifacts/results/*.csv
+            Benchmark/BenchmarkDotNet.Artifacts/results/*.json
+            Benchmark/BenchmarkDotNet.Artifacts/results/*.md
+            Documentations/docs/benchmarks/results/
           retention-days: 90
           if-no-files-found: warn
