@@ -92,7 +92,7 @@ internal static class CacheHelper
                 break;
 
             default:
-                throw new ArgumentOutOfRangeException();
+                throw new ArgumentOutOfRangeException(nameof(spParameters), spParameters.CacheType.Value, "Unsupported cache type value.");
         }
     }
 }

@@ -113,7 +113,7 @@ internal sealed class RedisCacheManager : IRedisCacheManager
         }
         catch (Exception ex)
         {
-            _logger?.LogWarning(ex, "Redis TryGet failed for key '{CacheKey}'", cacheKey);
+            _logger?.LogRedisTryGetFailed(cacheKey, ex);
             return false;
         }
     }

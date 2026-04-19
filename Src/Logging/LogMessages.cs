@@ -387,6 +387,21 @@ public static partial class LogMessages
         string cacheKey,
         Exception exception);
 
+    /// <summary>
+    ///     Logs when a TryGet operation fails in Redis
+    /// </summary>
+    /// <param name="logger">The logger instance</param>
+    /// <param name="cacheKey">The cache key being accessed</param>
+    /// <param name="exception">The exception that occurred</param>
+    [LoggerMessage(
+        EventId = 3017,
+        Level = LogLevel.Warning,
+        Message = "Redis TryGet failed for key '{cacheKey}'")]
+    public static partial void LogRedisTryGetFailed(
+        this ILogger logger,
+        string cacheKey,
+        Exception exception);
+
     #endregion
 
     #region Database Operations (4xxx)
