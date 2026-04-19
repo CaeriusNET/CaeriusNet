@@ -1,11 +1,11 @@
 name: Benchmarks
 
 on:
-  # Auto-triggered when a GitHub Release is published (merging to main)
+  # Auto-triggered when a GitHub Release is published
   release:
     types: [published]
 
-  # Manual trigger — restricted to 'production' environment (AriusII approval required)
+  # Manual trigger — restricted to 'Developpement' environment (AriusII approval)
   workflow_dispatch:
     inputs:
       category:
@@ -24,13 +24,16 @@ on:
 permissions:
   contents: write  # needed to commit results back to repo
 
+concurrency:
+  group: benchmark
+  cancel-in-progress: false
+
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_NOLOGO: true
   DOTNET_VERSION: '10.0.x'
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-  # SQL Server connection for benchmark service container
   SA_PASSWORD: 'BenchmarkP@ss2026!'
 
 jobs:
@@ -38,9 +41,8 @@ jobs:
     name: Run Benchmarks (${{ github.event.inputs.category || 'all' }})
     runs-on: ubuntu-latest
 
-    # environment: production requires manual approval from AriusII for workflow_dispatch.
-    # For release events, no approval gate is needed — runs automatically.
-    environment: ${{ github.event_name == 'workflow_dispatch' && 'production' || '' }}
+    # Developpement environment for manual dispatch; no gate needed for automated release trigger.
+    environment: ${{ github.event_name == 'workflow_dispatch' && 'Developpement' || '' }}
 
     # SQL Server 2022 service container for SQL benchmarks
     services:
@@ -92,19 +94,22 @@ jobs:
           echo "⏳ Waiting for SQL Server on port 1433..."
           for i in $(seq 1 30); do
             if nc -z -w 3 localhost 1433 2>/dev/null; then
-              echo "✅ Port 1433 open (attempt $i) — waiting 3s for engine init..."
-              sleep 3
+              echo "✅ Port 1433 open (attempt $i) — waiting 5s for engine init..."
+              sleep 5
               exit 0
             fi
             echo "  Attempt $i/30 — waiting 5s..."
             sleep 5
           done
-          echo "❌ SQL Server port 1433 not available after 30 attempts (150s). Aborting."
+          echo "❌ SQL Server port 1433 not available after 30 attempts. Aborting."
           exit 1
 
       - name: Run Benchmarks
         env:
           BENCHMARK_SQL_CONNECTION: "Server=localhost,1433;Database=master;User Id=sa;Password=${{ env.SA_PASSWORD }};TrustServerCertificate=True"
+          # Explicit artifact path — read by BenchmarkConfig.cs via env var.
+          # InProcessEmitToolchain guarantees files are written here (no child process CWD ambiguity).
+          BENCHMARK_ARTIFACTS_PATH: ${{ github.workspace }}/BenchmarkDotNet.Artifacts
           CI: 'true'
         run: |
           CATEGORY="${{ github.event.inputs.category || 'all' }}"
@@ -115,50 +120,54 @@ jobs:
             --no-build \
             -- "${CATEGORY}"
 
-      - name: Diagnose benchmark artifact paths
+      - name: Verify artifact output
         if: always()
         run: |
-          echo "=== CWD ==="
-          pwd
-          echo "=== BenchmarkDotNet.Artifacts (repo root) ==="
-          find . -maxdepth 4 -name "*.json" -path "*/BenchmarkDotNet.Artifacts/*" 2>/dev/null || true
-          find . -maxdepth 4 -name "*.md"   -path "*/BenchmarkDotNet.Artifacts/*" 2>/dev/null || true
-          echo "=== Benchmark/ subdirectory ==="
-          ls -la Benchmark/BenchmarkDotNet.Artifacts/results/ 2>/dev/null || echo "⚠️ Directory not found: Benchmark/BenchmarkDotNet.Artifacts/results/"
+          ARTIFACTS="${{ github.workspace }}/BenchmarkDotNet.Artifacts/results"
+          echo "=== Configured artifact path ==="
+          echo "$ARTIFACTS"
+          echo "=== Directory listing ==="
+          ls -la "$ARTIFACTS" 2>/dev/null || echo "⚠️  Directory not found: $ARTIFACTS"
+          echo "=== GitHub-flavoured Markdown reports (*-report-github.md) ==="
+          find "$ARTIFACTS" -name "*-report-github.md" 2>/dev/null || echo "  (none found)"
+          echo "=== JSON reports (*-report-full.json) ==="
+          find "$ARTIFACTS" -name "*-report-full.json" 2>/dev/null || echo "  (none found)"
 
-      - name: Extract and copy results to documentation
+      - name: Extract results into documentation
         if: always()
         run: |
-          RESULTS_DIR="Benchmark/BenchmarkDotNet.Artifacts/results"
+          ARTIFACTS="${{ github.workspace }}/BenchmarkDotNet.Artifacts/results"
           DOCS_DIR="Documentations/docs/benchmarks/results"
           mkdir -p "$DOCS_DIR"
 
-          if [ ! -d "$RESULTS_DIR" ] || [ -z "$(ls -A "$RESULTS_DIR" 2>/dev/null)" ]; then
-            echo "⚠️  No artifacts at $RESULTS_DIR — skipping copy."
+          if [ ! -d "$ARTIFACTS" ] || [ -z "$(ls -A "$ARTIFACTS" 2>/dev/null)" ]; then
+            echo "⚠️  No artifacts at $ARTIFACTS — skipping extraction."
             exit 0
           fi
 
-          echo "📂 Found artifacts:"
-          ls -la "$RESULTS_DIR"
+          echo "📂 Artifact files:"
+          ls -la "$ARTIFACTS"
 
           # Copy full JSON reports for data analysis
-          cp "$RESULTS_DIR"/*.json "$DOCS_DIR/" 2>/dev/null && echo "✅ JSON files copied." || echo "ℹ️  No JSON files."
+          cp "$ARTIFACTS"/*.json "$DOCS_DIR/" 2>/dev/null && echo "✅ JSON files copied." || echo "ℹ️  No JSON files."
 
-          # Extract table-only lines from GitHub Markdown reports
-          # BenchmarkDotNet adds environment headers — awk keeps only '|' rows (the table)
-          for md_file in "$RESULTS_DIR"/*-report.md; do
+          # MarkdownExporter.GitHub produces *-report-github.md files.
+          # Extract only table rows (lines starting with '|') to strip BDN environment headers.
+          for md_file in "$ARTIFACTS"/*-report-github.md; do
             [ -f "$md_file" ] || continue
-            # Strip namespace, keep ClassName: "CaeriusNet.Benchmark.Workshops.Benchs.Mapping.DtoMappingBench" → "DtoMappingBench"
-            classname=$(basename "$md_file" "-report.md" | rev | cut -d'.' -f1 | rev)
+            # Strip namespace prefix, keep ClassName only:
+            # e.g. "CaeriusNet.Benchmark.Workshops.Benchs.Mapping.DtoMappingBench-report-github.md"
+            #   → "DtoMappingBench"
+            classname=$(basename "$md_file" "-report-github.md" | rev | cut -d'.' -f1 | rev)
             awk '/^\|/' "$md_file" > "$DOCS_DIR/${classname}.md"
-            echo "  ✅ Extracted table: ${classname}.md ($(wc -l < "$DOCS_DIR/${classname}.md") rows)"
+            echo "  ✅ ${classname}.md ($(wc -l < "$DOCS_DIR/${classname}.md") rows)"
           done
 
-          echo "📋 Results directory:"
+          echo "📋 Documentation results directory:"
           ls -la "$DOCS_DIR"
 
       - name: Commit benchmark results to documentation
-        # Only auto-commit on GitHub Release events (user-triggered) — never on workflow_dispatch
+        # Only auto-commit on GitHub Release events — never on manual workflow_dispatch
         if: always() && github.event_name == 'release'
         run: |
           git config user.name "github-actions[bot]"
@@ -181,8 +190,8 @@ jobs:
         with:
           name: benchmark-reports-${{ github.run_number }}
           path: |
-            Benchmark/BenchmarkDotNet.Artifacts/results/*.json
-            Benchmark/BenchmarkDotNet.Artifacts/results/*.md
+            ${{ github.workspace }}/BenchmarkDotNet.Artifacts/results/*-report-github.md
+            ${{ github.workspace }}/BenchmarkDotNet.Artifacts/results/*-report-full.json
             Documentations/docs/benchmarks/results/
           retention-days: 90
           if-no-files-found: warn
