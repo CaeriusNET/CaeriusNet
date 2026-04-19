@@ -1,0 +1,12 @@
+global using Xunit;
+global using System;
+global using System.Collections.Generic;
+global using System.IO;
+global using System.Linq;
+global using Microsoft.CodeAnalysis;
+global using Microsoft.CodeAnalysis.CSharp;
+global using CaeriusNet.Mappers;
+global using CaeriusNet.Generator.Dto;
+global using CaeriusNet.Generator.Tvp;
+global using CaeriusNet.Generator.Helpers;
+global using CaeriusNet.Generator.Tests.Utilities;

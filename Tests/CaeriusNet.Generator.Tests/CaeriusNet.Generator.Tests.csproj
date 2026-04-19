@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <LangVersion>latest</LangVersion>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <IsPackable>false</IsPackable>
+        <IsTestProject>true</IsTestProject>
+        <RootNamespace>CaeriusNet.Generator.Tests</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0"/>
+        <PackageReference Include="xunit" Version="2.9.2"/>
+        <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+        <PackageReference Include="coverlet.collector" Version="6.0.3">
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+            <PrivateAssets>all</PrivateAssets>
+        </PackageReference>
+        <!-- Roslyn APIs for running generators in-process -->
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Reference generator as a plain DLL (not as Analyzer) so we can instantiate generators in tests -->
+        <ProjectReference Include="..\..\SourceGenerators\CaeriusNet.Generator.csproj"/>
+        <!-- Reference main library for ISpMapper, ITvpMapper, attributes -->
+        <ProjectReference Include="..\..\Src\CaeriusNet.csproj"/>
+    </ItemGroup>
+
+</Project>

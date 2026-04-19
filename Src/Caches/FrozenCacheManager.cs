@@ -39,48 +39,92 @@ internal static class FrozenCacheManager
 	///     The cache is immutable and a new frozen dictionary is created when adding new items.
 	/// </remarks>
 	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
-	internal static void Store<T>(string cacheKey, T value)
-	{
-		LockSlim.EnterReadLock();
-		try
-		{
-			if (_frozenCache.ContainsKey(cacheKey))
-				return;
-		}
-		finally
-		{
-			LockSlim.ExitReadLock();
-		}
+    internal static void Store<T>(string cacheKey, T value)
+    {
+        LockSlim.EnterReadLock();
+        try
+        {
+            if (_frozenCache.ContainsKey(cacheKey))
+                return;
+        }
+        finally
+        {
+            LockSlim.ExitReadLock();
+        }
 
-		LockSlim.EnterWriteLock();
-		try
-		{
-			if (_frozenCache.ContainsKey(cacheKey))
-				return;
+        LockSlim.EnterWriteLock();
+        try
+        {
+            if (_frozenCache.ContainsKey(cacheKey))
+                return;
 
-			var currentCache = _frozenCache;
+            var currentCache = _frozenCache;
 
-			var newCapacity = currentCache.Count == 0
-				? 16
-				: (int)BitOperations.RoundUpToPowerOf2((uint)(currentCache.Count + 1));
+            var newCapacity = currentCache.Count == 0
+                ? 16
+                : (int)BitOperations.RoundUpToPowerOf2((uint)(currentCache.Count + 1));
 
-			var builder = new Dictionary<string, object>(newCapacity, StringComparer.Ordinal);
+            var builder = new Dictionary<string, object>(newCapacity, StringComparer.Ordinal);
 
-			foreach (var kvp in currentCache)
-				builder[kvp.Key] = kvp.Value;
+            foreach (var kvp in currentCache)
+                builder[kvp.Key] = kvp.Value;
 
-			builder[cacheKey] = value!;
+            builder[cacheKey] = value!;
 
-			_frozenCache = builder.ToFrozenDictionary(StringComparer.Ordinal);
+            _frozenCache = builder.ToFrozenDictionary(StringComparer.Ordinal);
 
-			if (IsLoggingEnabled)
-				Logger!.LogStoredInFrozenCache(cacheKey);
-		}
-		finally
-		{
-			LockSlim.ExitWriteLock();
-		}
-	}
+            if (IsLoggingEnabled)
+                Logger!.LogStoredInFrozenCache(cacheKey);
+        }
+        finally
+        {
+            LockSlim.ExitWriteLock();
+        }
+    }
+
+	/// <summary>
+	///     Stores multiple values in the frozen dictionary-based cache in a single atomic rebuild.
+	///     Prefer this over calling <see cref="Store{T}" /> in a loop: it freezes the dictionary only once,
+	///     avoiding the O(n²) rebuild cost of sequential single-item inserts.
+	/// </summary>
+	/// <typeparam name="T">The type of the values to be stored.</typeparam>
+	/// <param name="entries">The key-value pairs to add. Keys already present are overwritten.</param>
+	/// <remarks>
+	///     This method is intended for startup warm-up. <see cref="FrozenDictionary{TKey,TValue}" /> is
+	///     designed for "populate once, read many" scenarios; bulk insertion at startup is the ideal usage.
+	/// </remarks>
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    internal static void StoreRange<T>(IEnumerable<KeyValuePair<string, T>> entries)
+    {
+        LockSlim.EnterWriteLock();
+        try
+        {
+            var currentCache = _frozenCache;
+            var newEntries = entries is ICollection<KeyValuePair<string, T>> col
+                ? col
+                : entries.ToList();
+
+            if (newEntries.Count == 0) return;
+
+            var newCapacity = (int)BitOperations.RoundUpToPowerOf2((uint)(currentCache.Count + newEntries.Count));
+            var builder = new Dictionary<string, object>(newCapacity, StringComparer.Ordinal);
+
+            foreach (var kvp in currentCache)
+                builder[kvp.Key] = kvp.Value;
+
+            foreach (var kvp in newEntries)
+                builder[kvp.Key] = kvp.Value!;
+
+            _frozenCache = builder.ToFrozenDictionary(StringComparer.Ordinal);
+
+            if (IsLoggingEnabled)
+                Logger!.LogStoredRangeInFrozenCache(newEntries.Count);
+        }
+        finally
+        {
+            LockSlim.ExitWriteLock();
+        }
+    }
 
 	/// <summary>
 	///     Attempts to retrieve a value from the frozen dictionary-based cache.
@@ -97,29 +141,29 @@ internal static class FrozenCacheManager
 	///     It performs type checking to ensure type safety when retrieving cached values.
 	/// </remarks>
 	[MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
-	internal static bool TryGet<T>(string cacheKey, out T? value)
-	{
-		LockSlim.EnterReadLock();
-		try
-		{
-			var cache = _frozenCache;
+    internal static bool TryGet<T>(string cacheKey, out T? value)
+    {
+        LockSlim.EnterReadLock();
+        try
+        {
+            var cache = _frozenCache;
 
-			if (!cache.TryGetValue(cacheKey, out var cached) || cached is not T typedValue)
-			{
-				value = default;
-				return false;
-			}
+            if (!cache.TryGetValue(cacheKey, out var cached) || cached is not T typedValue)
+            {
+                value = default;
+                return false;
+            }
 
-			value = typedValue;
+            value = typedValue;
 
-			if (IsLoggingEnabled)
-				Logger!.LogRetrievedFromFrozenCache(cacheKey);
+            if (IsLoggingEnabled)
+                Logger!.LogRetrievedFromFrozenCache(cacheKey);
 
-			return true;
-		}
-		finally
-		{
-			LockSlim.ExitReadLock();
-		}
-	}
+            return true;
+        }
+        finally
+        {
+            LockSlim.ExitReadLock();
+        }
+    }
 }

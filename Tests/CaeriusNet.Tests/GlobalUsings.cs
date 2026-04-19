@@ -1,0 +1,10 @@
+global using Xunit;
+global using System;
+global using System.Collections.Generic;
+global using System.Data;
+global using Microsoft.Data.SqlClient;
+global using Microsoft.Data.SqlClient.Server;
+global using CaeriusNet.Builders;
+global using CaeriusNet.Mappers;
+global using CaeriusNet.Helpers;
+global using CaeriusNet.Tests.Helpers;

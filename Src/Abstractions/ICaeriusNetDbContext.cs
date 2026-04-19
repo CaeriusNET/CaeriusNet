@@ -30,5 +30,18 @@ public interface ICaeriusNetDbContext
 	/// 	 } // Connection is automatically disposed
 	/// 	 </code>
 	/// </example>
-	SqlConnection DbConnection();
+	/// <summary>
+	///     Creates and returns a new opened database connection asynchronously.
+	/// </summary>
+	/// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
+	/// <returns>
+	///     A <see cref="ValueTask{SqlConnection}" /> representing the asynchronous operation.
+	///     The result is an opened <see cref="SqlConnection" /> ready for use.
+	/// </returns>
+	/// <example>
+	///     <code>
+	/// 	 await using var connection = await dbContext.DbConnectionAsync(cancellationToken);
+	/// 	 </code>
+	/// </example>
+	ValueTask<SqlConnection> DbConnectionAsync(CancellationToken cancellationToken = default);
 }
