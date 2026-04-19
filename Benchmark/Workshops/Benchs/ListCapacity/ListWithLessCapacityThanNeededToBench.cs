@@ -1,62 +1,52 @@
-﻿using CaeriusNet.Benchmark.Data.Simple;
-using CaeriusNet.Benchmark.Workshops.Benchs.ListCapacity.Setup;
+using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.ListCapacity;
 
+/// <summary>
+///     Measures <see cref="List{T}" /> construction cost when the capacity hint is exactly half the
+///     number of items that will be added — systematic under-allocation by a factor of two.
+/// </summary>
+/// <remarks>
+///     Setting <c>capacity = RowCount / 2</c> while adding <c>RowCount</c> elements forces the list
+///     to resize once: the initial half-sized array is copied into a new array of at least
+///     <c>RowCount</c> slots.  The Ratio column vs <see cref="ListWithCapacityToBench"/> isolates
+///     the cost of that single unnecessary copy at each scale.  At 100 000 rows the difference
+///     becomes non-trivial and visible in both the Mean and Allocated columns.
+/// </remarks>
+[Config(typeof(BenchmarkConfig))]
 [MemoryDiagnoser]
 public class ListWithLessCapacityThanNeededToBench
 {
-    private static readonly ReadOnlyCollection<SimpleDto> Data = ListCapacityBogusSetup.Faking10KItemsDto;
+    private BenchmarkItemDto[] _source = null!;
 
-    private readonly Consumer _consumer = new();
+    /// <summary>Actual item count; capacity hint is RowCount / 2.</summary>
+    [Params(1, 100, 1_000, 10_000, 100_000)]
+    public int RowCount { get; set; }
 
-    private readonly List<SimpleDto> _data10 = Data.Take(10).ToList();
-    private readonly List<SimpleDto> _data100 = Data.Take(100).ToList();
-    private readonly List<SimpleDto> _data10K = Data.ToList();
-    private readonly List<SimpleDto> _data1K = Data.Take(1000).ToList();
-
-    [Benchmark]
-    public List<SimpleDto> Set_Capacity_With_2_Items_But_Add_1_Item()
+    [GlobalSetup]
+    public void Setup()
     {
-        var list = new List<SimpleDto>(2);
-        list.AddRange(_data10.Take(1));
-        _consumer.Consume(list);
-        return list;
+        var rng = new Random(42);
+        _source = new BenchmarkItemDto[RowCount];
+        for (var i = 0; i < RowCount; i++)
+            _source[i] = new BenchmarkItemDto(
+                rng.Next(1, 1_000_000),
+                Guid.NewGuid(),
+                $"item_{i:D6}",
+                Math.Round((decimal)(rng.NextDouble() * 9999.99), 2),
+                i % 2 == 0);
     }
 
-    [Benchmark]
-    public List<SimpleDto> Set_Capacity_With_10_Items_But_Add_5_Item()
+    /// <summary>
+    ///     Under-capacity: hint = max(1, RowCount / 2), add RowCount items.
+    ///     Forces one resize; the initial half-sized backing array is abandoned to GC.
+    /// </summary>
+    [Benchmark(Baseline = true, Description = "new List<T>(RowCount/2) + AddRange(RowCount) — one forced resize")]
+    public List<BenchmarkItemDto> Create_UnderCapacity()
     {
-        var list = new List<SimpleDto>(10);
-        list.AddRange(_data10.Take(5));
-        _consumer.Consume(list);
-        return list;
-    }
-
-    [Benchmark]
-    public List<SimpleDto> Set_Capacity_With_100_Items_But_Add_50_Item()
-    {
-        var list = new List<SimpleDto>(100);
-        list.AddRange(_data100.Take(50));
-        _consumer.Consume(list);
-        return list;
-    }
-
-    [Benchmark]
-    public List<SimpleDto> Set_Capacity_With_1K_Items_But_Add_500_Item()
-    {
-        var list = new List<SimpleDto>(1000);
-        list.AddRange(_data1K.Take(500));
-        _consumer.Consume(list);
-        return list;
-    }
-
-    [Benchmark]
-    public List<SimpleDto> Set_Capacity_With_10K_Items_But_Add_5K_Item()
-    {
-        var list = new List<SimpleDto>(10000);
-        list.AddRange(_data10K.Take(5000));
-        _consumer.Consume(list);
+        var hint = Math.Max(1, RowCount / 2);
+        var list = new List<BenchmarkItemDto>(hint);
+        list.AddRange(_source);
         return list;
     }
 }

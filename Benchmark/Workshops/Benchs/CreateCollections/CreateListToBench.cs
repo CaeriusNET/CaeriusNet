@@ -1,57 +1,62 @@
-﻿using CaeriusNet.Benchmark.Data.Simple;
-using CaeriusNet.Benchmark.Workshops.Benchs.CreateCollections.Setup;
+using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.CreateCollections;
 
+/// <summary>
+///     Measures the cost of materialising a <see cref="List{T}" /> from a pre-existing source array
+///     across five row-count scales (1 → 100 000).
+/// </summary>
+/// <remarks>
+///     Two construction paths are compared:
+///     <list type="bullet">
+///       <item><term>Explicit capacity + AddRange (baseline)</term><description>
+///           Sets capacity to <see cref="RowCount"/> so the internal array is allocated once and
+///           <c>AddRange</c> performs a single memcopy — no resize occurs.
+///       </description></item>
+///       <item><term>LINQ ToList</term><description>
+///           Internally creates a <see cref="List{T}"/> without a hint and fills it via the
+///           <see cref="IEnumerable{T}"/> path, which may trigger one extra reallocation step.
+///       </description></item>
+///     </list>
+///     The Allocated column reveals the memory difference between both strategies at each scale.
+/// </remarks>
+[Config(typeof(BenchmarkConfig))]
 [MemoryDiagnoser]
 public class CreateListToBench
 {
-    private static readonly ReadOnlyCollection<SimpleDto> Data = CreateCollectionBogusSetup.Faking10KItemsDto;
+    private BenchmarkItemDto[] _source = null!;
 
-    private readonly List<SimpleDto> _data1 = Data.Take(1).ToList();
-    private readonly List<SimpleDto> _data10 = Data.Take(10).ToList();
-    private readonly List<SimpleDto> _data100 = Data.Take(100).ToList();
-    private readonly List<SimpleDto> _data10K = Data.ToList();
-    private readonly List<SimpleDto> _data1K = Data.Take(1000).ToList();
+    /// <summary>Number of items to materialise per benchmark call.</summary>
+    [Params(1, 100, 1_000, 10_000, 100_000)]
+    public int RowCount { get; set; }
 
-    [Benchmark]
-    public List<SimpleDto> Set_Capacity_And_Return_1_Item_Collection_As_List()
+    [GlobalSetup]
+    public void Setup()
     {
-        var list = new List<SimpleDto>(1);
-        list.AddRange(_data1);
+        var rng = new Random(42);
+        _source = new BenchmarkItemDto[RowCount];
+        for (var i = 0; i < RowCount; i++)
+            _source[i] = new BenchmarkItemDto(
+                rng.Next(1, 1_000_000),
+                Guid.NewGuid(),
+                $"item_{i:D6}",
+                Math.Round((decimal)(rng.NextDouble() * 9999.99), 2),
+                i % 2 == 0);
+    }
+
+    /// <summary>Exact capacity hint → single array allocation, single memcopy — zero resize overhead.</summary>
+    [Benchmark(Baseline = true, Description = "new List<T>(RowCount) + AddRange — exact capacity")]
+    public List<BenchmarkItemDto> Create_WithCapacity()
+    {
+        var list = new List<BenchmarkItemDto>(RowCount);
+        list.AddRange(_source);
         return list;
     }
 
-    [Benchmark]
-    public List<SimpleDto> Set_Capacity_And_Return_10_Items_Collection_As_List()
+    /// <summary>LINQ ToList — convenient but may trigger an extra reallocation vs the explicit path.</summary>
+    [Benchmark(Description = "source.ToList() — no capacity hint")]
+    public List<BenchmarkItemDto> Create_LinqToList()
     {
-        var list = new List<SimpleDto>(10);
-        list.AddRange(_data10);
-        return list;
-    }
-
-    [Benchmark]
-    public List<SimpleDto> Set_Capacity_And_Return_100_Items_Collection_As_List()
-    {
-        var list = new List<SimpleDto>(100);
-        list.AddRange(_data100);
-
-        return list;
-    }
-
-    [Benchmark]
-    public List<SimpleDto> Set_Capacity_And_Return_1K_Items_Collection_As_List()
-    {
-        var list = new List<SimpleDto>(1000);
-        list.AddRange(_data1K);
-        return list;
-    }
-
-    [Benchmark]
-    public List<SimpleDto> Set_Capacity_And_Return_10K_Items_Collection_As_List()
-    {
-        var list = new List<SimpleDto>(10000);
-        list.AddRange(_data10K);
-        return list;
+        return _source.ToList();
     }
 }

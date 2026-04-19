@@ -34,7 +34,7 @@ public class TvpVsDataTableBench
 
     private List<BenchmarkTvpItem> _items = null!;
 
-    [Params(10, 100, 1_000, 10_000)] public int RowCount { get; set; }
+    [Params(10, 100, 1_000, 10_000, 50_000, 100_000)] public int RowCount { get; set; }
 
     [GlobalSetup]
     public void Setup()

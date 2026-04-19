@@ -28,7 +28,7 @@ public class BenchmarkConfig : ManualConfig
             AddJob(Job.Default
                 .WithToolchain(InProcessEmitToolchain.Instance)
                 .WithWarmupCount(1)
-                .WithIterationCount(3));
+                .WithIterationCount(5));
 
             AddExporter(MarkdownExporter.GitHub); // → *-report-github.md (GitHub-flavoured markdown table)
             AddExporter(JsonExporter.Full);        // → *-report-full.json
@@ -37,6 +37,7 @@ public class BenchmarkConfig : ManualConfig
         {
             AddJob(Job.Default);
             AddExporter(HtmlExporter.Default);
+            AddExporter(MarkdownExporter.GitHub); // → *-report-github.md for offline analysis
             AddExporter(JsonExporter.Full);
         }
 

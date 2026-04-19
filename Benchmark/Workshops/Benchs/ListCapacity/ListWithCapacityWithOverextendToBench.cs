@@ -1,68 +1,53 @@
-﻿using CaeriusNet.Benchmark.Data.Simple;
-using CaeriusNet.Benchmark.Workshops.Benchs.ListCapacity.Setup;
+using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.ListCapacity;
 
+/// <summary>
+///     Measures <see cref="List{T}" /> construction cost when the capacity hint equals
+///     <see cref="RowCount"/> but exactly <c>RowCount × 2</c> items are added — forcing a single
+///     resize beyond the initial hint.
+/// </summary>
+/// <remarks>
+///     This models the scenario where the caller under-estimates the final item count by a factor
+///     of two and the list must double its internal array exactly once.  The additional memcopy of
+///     the initial allocation is visible in the Allocated column vs the exact-capacity baseline
+///     (<see cref="ListWithCapacityToBench"/>).  The Ratio column isolates the cost of carrying one
+///     forced resize at each scale from 1 to 100 000.
+/// </remarks>
+[Config(typeof(BenchmarkConfig))]
 [MemoryDiagnoser]
 public class ListWithCapacityWithOverextendToBench
 {
-    private static readonly ReadOnlyCollection<SimpleDto> Data = ListCapacityBogusSetup.Faking10KItemsDto;
+    private BenchmarkItemDto[] _source = null!;
 
-    private readonly Consumer _consumer = new();
+    /// <summary>Capacity hint; actual items added are RowCount × 2.</summary>
+    [Params(1, 100, 1_000, 10_000, 100_000)]
+    public int RowCount { get; set; }
 
-    private readonly List<SimpleDto> _data1 = Data.Take(1).ToList();
-    private readonly List<SimpleDto> _data10 = Data.Take(10).ToList();
-    private readonly List<SimpleDto> _data100 = Data.Take(100).ToList();
-    private readonly List<SimpleDto> _data10K = Data.ToList();
-    private readonly List<SimpleDto> _data1K = Data.Take(1000).ToList();
-
-    [Benchmark]
-    public List<SimpleDto> Set_Capacity_With_1_Item_But_Add_1_Item_More()
+    [GlobalSetup]
+    public void Setup()
     {
-        var list = new List<SimpleDto>(1);
-        list.AddRange(_data1);
-        list.AddRange(_data10.Take(1));
-        _consumer.Consume(list);
-        return list;
+        var rng = new Random(42);
+        var doubleCount = RowCount * 2;
+        _source = new BenchmarkItemDto[doubleCount];
+        for (var i = 0; i < doubleCount; i++)
+            _source[i] = new BenchmarkItemDto(
+                rng.Next(1, 1_000_000),
+                Guid.NewGuid(),
+                $"item_{i:D6}",
+                Math.Round((decimal)(rng.NextDouble() * 9999.99), 2),
+                i % 2 == 0);
     }
 
-    [Benchmark]
-    public List<SimpleDto> Set_Capacity_With_10_Items_But_Add_10_Items_More()
+    /// <summary>
+    ///     Capacity=RowCount, adds RowCount×2 items — triggers exactly one internal-array doubling.
+    ///     The extra memcopy shows up clearly at RowCount ≥ 10 000.
+    /// </summary>
+    [Benchmark(Baseline = true, Description = "new List<T>(RowCount) + AddRange(2×RowCount) — one forced resize")]
+    public List<BenchmarkItemDto> Create_OverextendCapacity()
     {
-        var list = new List<SimpleDto>(10);
-        list.AddRange(_data10);
-        list.AddRange(_data10);
-        _consumer.Consume(list);
-        return list;
-    }
-
-    [Benchmark]
-    public List<SimpleDto> Set_Capacity_With_100_Items_But_Add_100_Items_More()
-    {
-        var list = new List<SimpleDto>(100);
-        list.AddRange(_data100);
-        list.AddRange(_data100);
-        _consumer.Consume(list);
-        return list;
-    }
-
-    [Benchmark]
-    public List<SimpleDto> Set_Capacity_With_1K_Items_But_Add_1K_Items_More()
-    {
-        var list = new List<SimpleDto>(1000);
-        list.AddRange(_data1K);
-        list.AddRange(_data1K);
-        _consumer.Consume(list);
-        return list;
-    }
-
-    [Benchmark]
-    public List<SimpleDto> Set_Capacity_With_10000_Items_But_Add_10000_Items_More()
-    {
-        var list = new List<SimpleDto>(10000);
-        list.AddRange(_data10K);
-        list.AddRange(_data10K);
-        _consumer.Consume(list);
+        var list = new List<BenchmarkItemDto>(RowCount);
+        list.AddRange(_source);
         return list;
     }
 }

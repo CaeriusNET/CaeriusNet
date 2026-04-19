@@ -35,7 +35,7 @@ export default defineConfig({
           { text: 'Best Practices', link: '/documentation/best-practices' },
         ]
       },
-      { text: 'Performance', link: '/benchmarks/performance' }
+      { text: 'Performance', link: '/benchmarks/' }
     ],
 
     sidebar: [
@@ -80,7 +80,11 @@ export default defineConfig({
         text: 'Performance',
         collapsed: false,
         items: [
-          { text: 'Benchmark Results', link: '/benchmarks/performance' }
+          { text: 'Overview & Methodology', link: '/benchmarks/' },
+          { text: 'In-Memory Benchmarks', link: '/benchmarks/in-memory' },
+          { text: 'Collection Benchmarks', link: '/benchmarks/collections' },
+          { text: 'SQL Server Benchmarks', link: '/benchmarks/sql-server' },
+          { text: 'Cache Benchmarks', link: '/benchmarks/cache' }
         ]
       }
     ],
