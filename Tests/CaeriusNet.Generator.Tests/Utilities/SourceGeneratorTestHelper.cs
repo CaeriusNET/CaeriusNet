@@ -46,7 +46,6 @@ internal static class SourceGeneratorTestHelper
         var references = new List<MetadataReference>();
 
         foreach (var dll in Directory.EnumerateFiles(dotnetDir, "*.dll"))
-        {
             try
             {
                 references.Add(MetadataReference.CreateFromFile(dll));
@@ -55,7 +54,6 @@ internal static class SourceGeneratorTestHelper
             {
                 // Skip DLLs that cannot be loaded as metadata (e.g., native helpers)
             }
-        }
 
         // Add CaeriusNet assembly — required for attribute and interface resolution
         var caeriusNetLocation = typeof(ISpMapper<>).Assembly.Location;

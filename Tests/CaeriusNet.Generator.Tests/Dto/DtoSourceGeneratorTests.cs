@@ -6,11 +6,11 @@ public sealed class DtoSourceGeneratorTests
     public void BasicRecord_Generates_ISpMapper_Implementation()
     {
         const string source = """
-            using CaeriusNet.Attributes.Dto;
-            namespace Test.Models;
-            [GenerateDto]
-            public sealed partial record UserDto(int Id, string Name);
-            """;
+                              using CaeriusNet.Attributes.Dto;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record UserDto(int Id, string Name);
+                              """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
 
@@ -26,12 +26,12 @@ public sealed class DtoSourceGeneratorTests
     public void NullableReferenceType_Generates_IsDBNull_Check()
     {
         const string source = """
-            #nullable enable
-            using CaeriusNet.Attributes.Dto;
-            namespace Test.Models;
-            [GenerateDto]
-            public sealed partial record UserDto(int Id, string? Name);
-            """;
+                              #nullable enable
+                              using CaeriusNet.Attributes.Dto;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record UserDto(int Id, string? Name);
+                              """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
 
@@ -44,11 +44,11 @@ public sealed class DtoSourceGeneratorTests
     public void NullableValueType_Generates_IsDBNull_Check()
     {
         const string source = """
-            using CaeriusNet.Attributes.Dto;
-            namespace Test.Models;
-            [GenerateDto]
-            public sealed partial record ItemDto(int Id, int? Quantity);
-            """;
+                              using CaeriusNet.Attributes.Dto;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record ItemDto(int Id, int? Quantity);
+                              """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
 
@@ -61,11 +61,11 @@ public sealed class DtoSourceGeneratorTests
     public void DateOnly_Generates_FromDateTime_Conversion()
     {
         const string source = """
-            using CaeriusNet.Attributes.Dto;
-            namespace Test.Models;
-            [GenerateDto]
-            public sealed partial record EventDto(int Id, System.DateOnly EventDate);
-            """;
+                              using CaeriusNet.Attributes.Dto;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record EventDto(int Id, System.DateOnly EventDate);
+                              """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
 
@@ -78,11 +78,11 @@ public sealed class DtoSourceGeneratorTests
     public void TimeOnly_Generates_FromDateTime_Conversion()
     {
         const string source = """
-            using CaeriusNet.Attributes.Dto;
-            namespace Test.Models;
-            [GenerateDto]
-            public sealed partial record ScheduleDto(int Id, System.TimeOnly StartTime);
-            """;
+                              using CaeriusNet.Attributes.Dto;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record ScheduleDto(int Id, System.TimeOnly StartTime);
+                              """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
 
@@ -95,11 +95,11 @@ public sealed class DtoSourceGeneratorTests
     public void ByteArray_Generates_GetValue_Cast()
     {
         const string source = """
-            using CaeriusNet.Attributes.Dto;
-            namespace Test.Models;
-            [GenerateDto]
-            public sealed partial record BlobDto(int Id, byte[] Data);
-            """;
+                              using CaeriusNet.Attributes.Dto;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record BlobDto(int Id, byte[] Data);
+                              """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
 
@@ -112,11 +112,11 @@ public sealed class DtoSourceGeneratorTests
     public void GeneratedFile_Is_Named_After_Type()
     {
         const string source = """
-            using CaeriusNet.Attributes.Dto;
-            namespace Test.Models;
-            [GenerateDto]
-            public sealed partial record ProductDto(int Id, string Name);
-            """;
+                              using CaeriusNet.Attributes.Dto;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record ProductDto(int Id, string Name);
+                              """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
 
@@ -128,11 +128,11 @@ public sealed class DtoSourceGeneratorTests
     public void NonSealed_Type_Does_Not_Generate()
     {
         const string source = """
-            using CaeriusNet.Attributes.Dto;
-            namespace Test.Models;
-            [GenerateDto]
-            public partial record UserDto(int Id, string Name);
-            """;
+                              using CaeriusNet.Attributes.Dto;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public partial record UserDto(int Id, string Name);
+                              """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
 
@@ -143,11 +143,11 @@ public sealed class DtoSourceGeneratorTests
     public void NonPartial_Type_Does_Not_Generate()
     {
         const string source = """
-            using CaeriusNet.Attributes.Dto;
-            namespace Test.Models;
-            [GenerateDto]
-            public sealed record UserDto(int Id, string Name);
-            """;
+                              using CaeriusNet.Attributes.Dto;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed record UserDto(int Id, string Name);
+                              """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
 
@@ -158,9 +158,9 @@ public sealed class DtoSourceGeneratorTests
     public void Type_Without_Attribute_Does_Not_Generate()
     {
         const string source = """
-            namespace Test.Models;
-            public sealed partial record UserDto(int Id, string Name);
-            """;
+                              namespace Test.Models;
+                              public sealed partial record UserDto(int Id, string Name);
+                              """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
 
@@ -171,11 +171,11 @@ public sealed class DtoSourceGeneratorTests
     public void Class_With_Attribute_Generates_Class_Keyword()
     {
         const string source = """
-            using CaeriusNet.Attributes.Dto;
-            namespace Test.Models;
-            [GenerateDto]
-            public sealed partial class UserClass(int Id, string Name);
-            """;
+                              using CaeriusNet.Attributes.Dto;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial class UserClass(int Id, string Name);
+                              """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
 
@@ -188,13 +188,13 @@ public sealed class DtoSourceGeneratorTests
     public void Multiple_Types_Generate_Multiple_Files()
     {
         const string source = """
-            using CaeriusNet.Attributes.Dto;
-            namespace Test.Models;
-            [GenerateDto]
-            public sealed partial record UserDto(int Id, string Name);
-            [GenerateDto]
-            public sealed partial record OrderDto(int Id, decimal Total);
-            """;
+                              using CaeriusNet.Attributes.Dto;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record UserDto(int Id, string Name);
+                              [GenerateDto]
+                              public sealed partial record OrderDto(int Id, decimal Total);
+                              """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
 
