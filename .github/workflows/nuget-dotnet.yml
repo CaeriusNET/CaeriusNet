@@ -2,11 +2,7 @@ name: Build and Publish CaeriusNet
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
     inputs:
       version_increment:
@@ -20,13 +16,21 @@ on:
           - minor
           - major
 
+# Minimal default permissions — each job declares only what it needs
+permissions:
+  contents: read
+
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_NOLOGO: true
+  DOTNET_VERSION: '10.0.x'
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
+  # ── 1. Version bump ──────────────────────────────────────────────────────────
+  # Only runs when Dependabot merges a dependency-update PR to main.
+  # Commits an incremented patch version with [skip ci] to avoid retriggering.
   bump-version:
     name: Bump Version (Dependabot)
     runs-on: ubuntu-latest
@@ -36,7 +40,7 @@ jobs:
     outputs:
       new_version: ${{ steps.bump.outputs.new_version }}
     steps:
-      - name: Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -51,6 +55,7 @@ jobs:
           NEW_VERSION=$(echo $VERSION | sed "s/\.[0-9]*$/.$NEW_PATCH/")
           sed -i "s|<Version>$VERSION</Version>|<Version>$NEW_VERSION</Version>|g" Src/CaeriusNet.csproj
           echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "🔖 Bumped version: $VERSION → $NEW_VERSION"
 
       - name: Commit and Push Version Bump
         run: |
@@ -60,34 +65,39 @@ jobs:
           git commit -m "chore: bump version to ${{ steps.bump.outputs.new_version }} [skip ci]"
           git push
 
+  # ── 2. Test & Validate ───────────────────────────────────────────────────────
+  # Uses always() + explicit skipped-result check to break skip-propagation from
+  # bump-version (which is skipped for non-Dependabot pushes).
   test:
     name: Test & Validate
     runs-on: ubuntu-latest
     needs: [bump-version]
     if: always() && (needs.bump-version.result == 'success' || needs.bump-version.result == 'skipped')
+    permissions:
+      contents: read
     steps:
-      - name: Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup .NET
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Cache NuGet packages
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/*.slnx') }}
           restore-keys: nuget-${{ runner.os }}-
 
-      - name: Restore Dependencies
+      - name: Restore
         run: dotnet restore CaeriusNet.slnx
 
       - name: Build
         run: dotnet build CaeriusNet.slnx --configuration Release --no-restore
 
-      - name: Run Tests
+      - name: Test
         run: |
           dotnet test CaeriusNet.slnx \
             --configuration Release \
@@ -97,70 +107,192 @@ jobs:
             --results-directory ./coverage \
             --logger "console;verbosity=normal"
 
+  # ── 3. Build & Pack ──────────────────────────────────────────────────────────
+  # Produces .nupkg + .snupkg and uploads them as a workflow artifact.
+  # always() + explicit skip-check mirrors the pattern above to propagate correctly.
   build:
     name: Build and Pack
     runs-on: ubuntu-latest
-    needs: [test]
-    if: always() && needs.test.result == 'success'
+    needs: [test, bump-version]
+    if: |
+      always() &&
+      needs.test.result == 'success' &&
+      (needs.bump-version.result == 'success' || needs.bump-version.result == 'skipped')
+    permissions:
+      contents: read
     steps:
-      - name: Checkout Repository
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Setup .NET
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Cache NuGet packages
-        uses: actions/cache@v5
+        uses: actions/cache@v4
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/*.slnx') }}
           restore-keys: nuget-${{ runner.os }}-
 
-      - name: Restore Dependencies
+      - name: Restore
         run: dotnet restore Src/CaeriusNet.csproj
 
-      - name: Build CaeriusNet
+      - name: Build
         run: dotnet build Src/CaeriusNet.csproj --configuration Release --no-restore
 
-      - name: Pack CaeriusNet (nupkg + snupkg)
-        run: >
-          dotnet pack Src/CaeriusNet.csproj
-          --configuration Release
-          --no-build
-          --output ./packages
-          -p:IncludeSymbols=true
-          -p:SymbolPackageFormat=snupkg
+      - name: Pack (nupkg + snupkg)
+        run: |
+          dotnet pack Src/CaeriusNet.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./packages \
+            -p:IncludeSymbols=true \
+            -p:SymbolPackageFormat=snupkg
 
-      - name: Upload Package Artifacts
+      - name: Upload package artifacts
         uses: actions/upload-artifact@v4
         with:
           name: caeriusnet-packages
           path: ./packages/
           retention-days: 7
 
-  publish:
-    name: Publish to NuGet
-    needs: build
+  # ── 4a. Publish → NuGet.org ──────────────────────────────────────────────────
+  # always() + explicit needs-result checks override the transitive skip-propagation
+  # from bump-version. Without always() here, this job would be skipped every time
+  # bump-version is skipped (i.e., every non-Dependabot push to main).
+  #
+  # To upgrade to keyless OIDC publishing (recommended):
+  #   1. Create a Trusted Publishing policy on nuget.org for this repo/workflow
+  #   2. Replace the NUGET_API_KEY step with: uses: NuGet/login@v1
+  #   3. Pass ${{ steps.login.outputs.NUGET_API_KEY }} to dotnet nuget push
+  publish-nuget:
+    name: "Publish \u2192 NuGet.org"
     runs-on: ubuntu-latest
-    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch'
+    needs: [build, bump-version]
+    if: |
+      always() &&
+      needs.build.result == 'success' &&
+      (needs.bump-version.result == 'success' || needs.bump-version.result == 'skipped') &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+       github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: read
+      id-token: write   # Reserved for future NuGet OIDC trusted publishing
     steps:
-      - name: Download Package Artifacts
+      - name: Download package artifacts
         uses: actions/download-artifact@v4
         with:
           name: caeriusnet-packages
           path: ./packages
 
-      - name: Publish CaeriusNet to NuGet
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Push .nupkg to NuGet.org
         run: |
           dotnet nuget push ./packages/*.nupkg \
-            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --api-key "${{ secrets.NUGET_API_KEY }}" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
+
+      - name: Push .snupkg to NuGet.org
+        run: |
           dotnet nuget push ./packages/*.snupkg \
-            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --api-key "${{ secrets.NUGET_API_KEY }}" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate || true
+
+  # ── 4b. Publish → GitHub Packages ────────────────────────────────────────────
+  # Parallel to publish-nuget. Uses GITHUB_TOKEN (no extra secret needed).
+  publish-github:
+    name: "Publish \u2192 GitHub Packages"
+    runs-on: ubuntu-latest
+    needs: [build, bump-version]
+    if: |
+      always() &&
+      needs.build.result == 'success' &&
+      (needs.bump-version.result == 'success' || needs.bump-version.result == 'skipped') &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+       github.event_name == 'workflow_dispatch')
+    permissions:
+      packages: write
+      contents: read
+    steps:
+      - name: Download package artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: caeriusnet-packages
+          path: ./packages
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Push to GitHub Packages
+        run: |
+          dotnet nuget push ./packages/*.nupkg \
+            --api-key "${{ secrets.GITHUB_TOKEN }}" \
+            --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+            --skip-duplicate
+          dotnet nuget push ./packages/*.snupkg \
+            --api-key "${{ secrets.GITHUB_TOKEN }}" \
+            --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+            --skip-duplicate || true
+
+  # ── 5. Create GitHub Release ─────────────────────────────────────────────────
+  # Runs after both publish jobs. Creates a versioned release and attaches the
+  # .nupkg/.snupkg files as release assets. Skips gracefully if the release exists.
+  github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [publish-nuget, publish-github, bump-version]
+    if: |
+      always() &&
+      needs.publish-nuget.result == 'success' &&
+      (needs.bump-version.result == 'success' || needs.bump-version.result == 'skipped') &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+       github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: write
+    steps:
+      - name: Download package artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: caeriusnet-packages
+          path: ./packages
+
+      - name: Extract version from package
+        id: version
+        run: |
+          NUPKG=$(ls ./packages/CaeriusNet.*.nupkg | grep -v '\.symbols\.' | head -1)
+          VERSION=$(basename "$NUPKG" .nupkg | sed 's/^CaeriusNet\.//')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=v${VERSION}" >> $GITHUB_OUTPUT
+          echo "📦 Package version: ${VERSION}"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          VERSION="${{ steps.version.outputs.version }}"
+
+          if gh release view "${TAG}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "ℹ️  Release ${TAG} already exists — skipping."
+          else
+            ASSETS=$(ls ./packages/*.nupkg ./packages/*.snupkg 2>/dev/null | tr '\n' ' ')
+            # shellcheck disable=SC2086
+            gh release create "${TAG}" \
+              --title "CaeriusNet ${VERSION}" \
+              --generate-notes \
+              --repo "$GITHUB_REPOSITORY" \
+              ${ASSETS}
+            echo "✅ Release ${TAG} created successfully."
+          fi
