@@ -50,10 +50,10 @@ jobs:
         run: dotnet restore CaeriusNet.slnx
 
       - name: Build for CodeQL
-        run: >
-          dotnet build CaeriusNet.slnx
-          --configuration Release
-          --no-restore
+        run: |
+          dotnet build CaeriusNet.slnx \
+            --configuration Release \
+            --no-restore
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3

@@ -391,4 +391,19 @@ public sealed class DtoSourceGeneratorTests
         Assert.Contains("reader.GetInt32(1)", generated);
         Assert.Contains("(Test.Models.Status)", generated);
     }
+
+    [Fact]
+    public void EmptyParameterRecord_DoesNotGenerate()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Dto;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record EmptyDto();
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Empty(result.GeneratedTrees);
+    }
 }
