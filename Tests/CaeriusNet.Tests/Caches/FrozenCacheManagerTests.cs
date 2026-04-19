@@ -115,7 +115,7 @@ public sealed class FrozenCacheManagerTests
     {
         var entries = new Dictionary<string, int>();
 
-        var exception = Record.Exception(() => FrozenCacheManager.StoreRange<int>(entries));
+        var exception = Record.Exception(() => FrozenCacheManager.StoreRange(entries));
 
         Assert.Null(exception);
     }
@@ -126,7 +126,7 @@ public sealed class FrozenCacheManagerTests
         var key = $"frozen_single_range_{Guid.NewGuid()}";
         var entries = new Dictionary<string, int> { [key] = 777 };
 
-        FrozenCacheManager.StoreRange<int>(entries);
+        FrozenCacheManager.StoreRange(entries);
         FrozenCacheManager.TryGet<int>(key, out var value);
 
         Assert.Equal(777, value);

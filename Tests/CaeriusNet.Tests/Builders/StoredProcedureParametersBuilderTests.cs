@@ -239,7 +239,7 @@ public sealed class StoredProcedureParametersBuilderTests
     [Fact]
     public void Builder_Capacity_Zero_Is_Accepted()
     {
-        var builder = new StoredProcedureParametersBuilder("dbo", "sp_Test", 0, 30);
+        var builder = new StoredProcedureParametersBuilder("dbo", "sp_Test", 0);
 
         var exception = Record.Exception(() => builder.Build());
 
@@ -249,7 +249,7 @@ public sealed class StoredProcedureParametersBuilderTests
     [Fact]
     public void Builder_Capacity_One_Is_Accepted()
     {
-        var sp = new StoredProcedureParametersBuilder("dbo", "sp_Test", 1, 30).Build();
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_Test", 1).Build();
 
         Assert.Equal(1, sp.Capacity);
     }

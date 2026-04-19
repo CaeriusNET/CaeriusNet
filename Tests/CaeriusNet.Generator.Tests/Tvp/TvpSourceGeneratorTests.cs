@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace CaeriusNet.Generator.Tests.Tvp;
 
 public sealed class TvpSourceGeneratorTests
@@ -263,7 +265,7 @@ public sealed class TvpSourceGeneratorTests
 
         var generated = result.GeneratedTrees[0].GetText().ToString();
         // Generator uses C# collection expressions; verify all 4 properties map to SqlMetaData entries
-        var metaDataEntries = System.Text.RegularExpressions.Regex.Matches(generated, @"new SqlMetaData\(").Count;
+        var metaDataEntries = Regex.Matches(generated, @"new SqlMetaData\(").Count;
         Assert.Equal(4, metaDataEntries);
     }
 
