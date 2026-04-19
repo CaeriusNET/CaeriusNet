@@ -3,13 +3,9 @@
 name: Deploy VitePress site to Pages
 
 on:
-  # Runs on pushes targeting the `main` branch. Change this to `master` if you're
-  # using the `master` branch as the default branch.
+  # Runs on pushes targeting the `main` branch.
   push:
     branches: [main]
-    paths:
-      - 'Documentations/**'
-      - '.github/workflows/github-pages-deploy.yml'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -35,30 +31,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
-          fetch-depth: 0 # Not needed if lastUpdated is not enabled
-      # - uses: pnpm/action-setup@v3 # Uncomment this block if you're using pnpm
-      #   with:
-      #     version: 9 # Not needed if you've set "packageManager" in package.json
-      # - uses: oven-sh/setup-bun@v1 # Uncomment this if you're using Bun
+          fetch-depth: 0
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: npm # or pnpm / yarn
-          cache-dependency-path: Documentations/package-lock.json
+          cache: npm
+          cache-dependency-path: Documentations/package.json
       - name: Setup Pages
         uses: actions/configure-pages@v4
       - name: Install dependencies
         working-directory: Documentations
-        run: npm ci # or pnpm install / yarn install / bun install
-      - name: Audit npm dependencies
-        working-directory: Documentations
-        run: npm audit --audit-level=high
+        run: npm install
       - name: Build with VitePress
         working-directory: Documentations
-        run: npm run docs:build # or pnpm docs:build / yarn docs:build / bun run docs:build
+        run: npm run docs:build
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

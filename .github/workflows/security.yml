@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: [main, 'feature/**']
   schedule:
     - cron: '0 4 * * 1'  # Monday 04:00 UTC
 
@@ -85,11 +85,6 @@ jobs:
             $(echo "$RESULT_TESTS" | jq '[.projects[].frameworks[] | ((.topLevelPackages // [])[], (.transitivePackages // [])[]) | select((.vulnerabilities // []) | length > 0)] | length' || echo 0) + \
             $(echo "$RESULT_GEN"   | jq '[.projects[].frameworks[] | ((.topLevelPackages // [])[], (.transitivePackages // [])[]) | select((.vulnerabilities // []) | length > 0)] | length' || echo 0) \
           ))
-          if [ "$VULN_COUNT" -gt 0 ]; then
-            echo "::warning title=Vulnerable Packages::Vulnerable packages found in test projects (non-blocking)."
-          else
-            echo "✅ No vulnerable packages found in test projects."
-          fi
           if [ "$VULN_COUNT" -gt 0 ]; then
             echo "::warning title=Vulnerable Packages::Vulnerable packages found in test projects (non-blocking)."
           else
