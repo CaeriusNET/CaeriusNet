@@ -82,6 +82,56 @@ public static class SqlBenchmarkGlobalSetup
         END
         """;
 
+    // TVP type with 5 columns — decimal precision matches generator output (DECIMAL(18,4))
+    private const string CreateTvpItem5ColTypeSql = """
+        IF NOT EXISTS (SELECT * FROM sys.types WHERE name = 'tvp_BenchmarkItem5Col' AND is_user_defined = 1)
+        EXEC('CREATE TYPE [dbo].[tvp_BenchmarkItem5Col] AS TABLE (
+            [Id]          INT              NULL,
+            [Name]        NVARCHAR(100)    NOT NULL,
+            [Price]       DECIMAL(18,4)    NOT NULL,
+            [IsActive]    BIT              NOT NULL,
+            [CreatedDate] DATETIME2        NOT NULL
+        )');
+        """;
+
+    // SP: TVP batch INSERT returning inserted rows via OUTPUT clause
+    private const string CreateInsertBatchWithOutputSpSql = """
+        IF OBJECT_ID('[dbo].[usp_InsertBenchmarkItemsBatch_WithOutput]', 'P') IS NOT NULL
+            DROP PROCEDURE [dbo].[usp_InsertBenchmarkItemsBatch_WithOutput];
+        """;
+
+    private const string CreateInsertBatchWithOutputSpBodySql = """
+        CREATE PROCEDURE [dbo].[usp_InsertBenchmarkItemsBatch_WithOutput]
+            @Items [dbo].[tvp_BenchmarkItem5Col] READONLY
+        AS
+        BEGIN
+            SET NOCOUNT ON;
+            INSERT INTO [dbo].[BenchmarkItems] ([Name], [Price])
+            OUTPUT INSERTED.[Id], INSERTED.[Name], INSERTED.[Price]
+            SELECT [Name], [Price] FROM @Items;
+        END
+        """;
+
+    // SP: Single row INSERT with OUTPUT parameter using SCOPE_IDENTITY()
+    private const string CreateInsertItemWithOutputSpSql = """
+        IF OBJECT_ID('[dbo].[usp_InsertBenchmarkItemWithOutput]', 'P') IS NOT NULL
+            DROP PROCEDURE [dbo].[usp_InsertBenchmarkItemWithOutput];
+        """;
+
+    private const string CreateInsertItemWithOutputSpBodySql = """
+        CREATE PROCEDURE [dbo].[usp_InsertBenchmarkItemWithOutput]
+            @Name  NVARCHAR(100),
+            @Price DECIMAL(18,2),
+            @NewId INT OUTPUT
+        AS
+        BEGIN
+            SET NOCOUNT ON;
+            INSERT INTO [dbo].[BenchmarkItems] ([Name], [Price])
+            VALUES (@Name, @Price);
+            SET @NewId = SCOPE_IDENTITY();
+        END
+        """;
+
     private const string SeedDataSql = """
         IF NOT EXISTS (SELECT TOP 1 1 FROM [dbo].[BenchmarkItems])
         BEGIN
@@ -109,12 +159,17 @@ public static class SqlBenchmarkGlobalSetup
         {
             CreateTableSql,
             CreateTvpTypeSql,
+            CreateTvpItem5ColTypeSql,
             CreateGetItemsSpSql,
             CreateGetItemsSpBodySql,
             CreateInsertItemSpSql,
             CreateInsertItemSpBodySql,
             CreateInsertBatchSpSql,
             CreateInsertBatchSpBodySql,
+            CreateInsertBatchWithOutputSpSql,
+            CreateInsertBatchWithOutputSpBodySql,
+            CreateInsertItemWithOutputSpSql,
+            CreateInsertItemWithOutputSpBodySql,
             SeedDataSql
         })
         {

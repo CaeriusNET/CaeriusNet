@@ -9,6 +9,9 @@ switch (category)
     case "in-memory":
         RunningBenchmarks.Run_InMemory_Benchmarks();
         break;
+    case "tvp":
+        RunningBenchmarks.Run_Tvp_Benchmarks();
+        break;
     case "sql":
     case "sql-server":
         RunningBenchmarks.Run_SqlServer_Benchmarks();

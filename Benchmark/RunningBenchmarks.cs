@@ -19,16 +19,21 @@ public static class RunningBenchmarks
 {
     private static IConfig GetConfig() => new BenchmarkConfig();
 
-    /// <summary>Runs ALL benchmarks (in-memory + collection + SQL Server).</summary>
+    /// <summary>Runs ALL benchmarks (in-memory + TVP + collection + SQL Server).</summary>
     public static void Run_All_Benchmarks()
     {
         BenchmarkRunner.Run([
             // In-memory: DTO mapping patterns
             typeof(DtoMappingBench),
+            typeof(WideRowDtoMappingBench),
+            typeof(NullableColumnMappingBench),
             // In-memory: StoredProcedureParametersBuilder overhead
             typeof(SpParameterBuilderBench),
-            // In-memory: TVP serialization
+            typeof(AddTvpParameterBench),
+            // In-memory: TVP serialization and comparison
             typeof(TvpSerializationBench),
+            typeof(TvpVsDataTableBench),
+            typeof(TvpColumnScalingBench),
             // Collections: read performance
             typeof(ReadListToBench),
             typeof(ReadReadOnlyCollectionToBench),
@@ -47,7 +52,10 @@ public static class RunningBenchmarks
             // SQL Server (skipped automatically if BENCHMARK_SQL_CONNECTION not set)
             typeof(SpExecutionBench),
             typeof(BatchedVsSingleBench),
-            typeof(MultiResultSetBench)
+            typeof(MultiResultSetBench),
+            typeof(TvpFullRoundtripBench),
+            typeof(SpOutputParameterBench),
+            typeof(ConnectionPoolBench)
         ], GetConfig());
     }
 
@@ -56,8 +64,27 @@ public static class RunningBenchmarks
     {
         BenchmarkRunner.Run([
             typeof(DtoMappingBench),
+            typeof(WideRowDtoMappingBench),
+            typeof(NullableColumnMappingBench),
             typeof(SpParameterBuilderBench),
-            typeof(TvpSerializationBench)
+            typeof(AddTvpParameterBench),
+            typeof(TvpSerializationBench),
+            typeof(TvpVsDataTableBench),
+            typeof(TvpColumnScalingBench)
+        ], GetConfig());
+    }
+
+    /// <summary>
+    ///     Runs TVP-specific benchmarks only (in-memory serialization, scaling, and DataTable comparison).
+    ///     No SQL Server connection required.
+    /// </summary>
+    public static void Run_Tvp_Benchmarks()
+    {
+        BenchmarkRunner.Run([
+            typeof(TvpSerializationBench),
+            typeof(TvpVsDataTableBench),
+            typeof(TvpColumnScalingBench),
+            typeof(AddTvpParameterBench)
         ], GetConfig());
     }
 
@@ -73,7 +100,10 @@ public static class RunningBenchmarks
         BenchmarkRunner.Run([
             typeof(SpExecutionBench),
             typeof(BatchedVsSingleBench),
-            typeof(MultiResultSetBench)
+            typeof(MultiResultSetBench),
+            typeof(TvpFullRoundtripBench),
+            typeof(SpOutputParameterBench),
+            typeof(ConnectionPoolBench)
         ], GetConfig());
     }
 
