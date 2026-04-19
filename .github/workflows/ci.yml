@@ -3,8 +3,15 @@ name: CI
 on:
   push:
     branches: [main, 'feature/**']
+    paths-ignore:
+      - 'Documentations/**'
+      - '*.md'
+      - '.github/dependabot.yml'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - 'Documentations/**'
+      - '*.md'
 
 permissions:
   contents: read
@@ -77,7 +84,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6
-        if: success() && secrets.CODECOV_TOKEN != ''
+        if: success()
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/**/coverage.cobertura.xml
