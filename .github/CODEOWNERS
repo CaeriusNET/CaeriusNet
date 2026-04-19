@@ -1,0 +1,22 @@
+# CODEOWNERS for CaeriusNet
+# AriusII is the sole owner of the entire repository.
+# All pull requests require his review before merging.
+
+# Global: all files
+* @AriusII
+
+# Project files — critical configuration
+*.csproj @AriusII
+*.slnx @AriusII
+*.props @AriusII
+*.targets @AriusII
+
+# CI/CD workflows — extra protection
+.github/workflows/ @AriusII
+.github/dependabot.yml @AriusII
+.github/CODEOWNERS @AriusII
+
+# Source code
+Src/ @AriusII
+SourceGenerators/ @AriusII
+Tests/ @AriusII
