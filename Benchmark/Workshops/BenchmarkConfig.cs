@@ -1,10 +1,4 @@
-﻿using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Diagnosers;
-using BenchmarkDotNet.Exporters;
-using BenchmarkDotNet.Exporters.Json;
-using BenchmarkDotNet.Jobs;
-
-namespace CaeriusNet.Benchmark.Workshops;
+﻿namespace CaeriusNet.Benchmark.Workshops;
 
 /// <summary>
 ///     BenchmarkDotNet configuration.

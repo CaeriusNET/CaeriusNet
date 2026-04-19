@@ -1,7 +1,4 @@
-﻿using BenchmarkDotNet.Attributes;
-using Microsoft.Data.SqlClient;
-
-namespace CaeriusNet.Benchmark.Workshops.Benchs.SqlServer;
+﻿namespace CaeriusNet.Benchmark.Workshops.Benchs.SqlServer;
 
 /// <summary>
 ///     Benchmarks multi-result-set SP (one roundtrip) vs N separate SP calls.
@@ -12,7 +9,10 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.SqlServer;
 public class MultiResultSetBench
 {
     [GlobalSetup]
-    public async Task Setup() => await SqlBenchmarkGlobalSetup.InitialiseAsync();
+    public async Task Setup()
+    {
+        await SqlBenchmarkGlobalSetup.InitialiseAsync();
+    }
 
     [Benchmark(Baseline = true, Description = "2 separate SP calls (2 roundtrips)")]
     public async Task<int> Two_Separate_SP_Calls()
@@ -27,9 +27,9 @@ public class MultiResultSetBench
         {
             await using var cmd = new SqlCommand("[dbo].[usp_GetBenchmarkItems]", connection)
             {
-                CommandType = System.Data.CommandType.StoredProcedure
+                CommandType = CommandType.StoredProcedure
             };
-            cmd.Parameters.Add(new SqlParameter("@Count", System.Data.SqlDbType.Int) { Value = 50 });
+            cmd.Parameters.Add(new SqlParameter("@Count", SqlDbType.Int) { Value = 50 });
             await using var reader = await cmd.ExecuteReaderAsync();
             while (await reader.ReadAsync()) total++;
         }
@@ -47,9 +47,9 @@ public class MultiResultSetBench
 
         // Inline 2 SPs in one batch to demonstrate 1-roundtrip multi-result advantage
         const string multiSql = """
-            EXEC [dbo].[usp_GetBenchmarkItems] @Count = 50;
-            EXEC [dbo].[usp_GetBenchmarkItems] @Count = 50;
-            """;
+                                EXEC [dbo].[usp_GetBenchmarkItems] @Count = 50;
+                                EXEC [dbo].[usp_GetBenchmarkItems] @Count = 50;
+                                """;
 
         await using var cmd = new SqlCommand(multiSql, connection);
         await using var reader = await cmd.ExecuteReaderAsync();

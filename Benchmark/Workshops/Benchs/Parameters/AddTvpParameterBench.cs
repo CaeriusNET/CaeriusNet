@@ -1,7 +1,4 @@
-using BenchmarkDotNet.Attributes;
-using Bogus;
 using CaeriusNet.Benchmark.Data.Generated;
-using CaeriusNet.Builders;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.Parameters;
 
@@ -34,13 +31,12 @@ public class AddTvpParameterBench
             f.Internet.UserName(),
             Math.Round((decimal)f.Random.Double(0.01, 9999.99), 2)));
 
-    private List<BenchmarkTvpItem> _itemList = null!;
-
     // Non-list IEnumerable backed by an array — triggers .ToList() inside AddTvpParameter
     private IEnumerable<BenchmarkTvpItem> _itemEnumerable = null!;
 
-    [Params(10, 100, 1_000)]
-    public int RowCount { get; set; }
+    private List<BenchmarkTvpItem> _itemList = null!;
+
+    [Params(10, 100, 1_000)] public int RowCount { get; set; }
 
     [GlobalSetup]
     public void Setup()

@@ -1,7 +1,4 @@
-﻿using BenchmarkDotNet.Attributes;
-using Microsoft.Data.SqlClient;
-
-namespace CaeriusNet.Benchmark.Workshops.Benchs.SqlServer;
+﻿namespace CaeriusNet.Benchmark.Workshops.Benchs.SqlServer;
 
 /// <summary>
 ///     Benchmarks the full roundtrip time of executing a stored procedure against SQL Server
@@ -12,11 +9,13 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.SqlServer;
 [MemoryDiagnoser]
 public class SpExecutionBench
 {
-    [Params(0, 10, 100, 1_000)]
-    public int RowCount { get; set; }
+    [Params(0, 10, 100, 1_000)] public int RowCount { get; set; }
 
     [GlobalSetup]
-    public async Task Setup() => await SqlBenchmarkGlobalSetup.InitialiseAsync();
+    public async Task Setup()
+    {
+        await SqlBenchmarkGlobalSetup.InitialiseAsync();
+    }
 
     [Benchmark(Description = "SP roundtrip: SELECT TOP @Count → List<T>")]
     public async Task<int> Execute_StoredProcedure_And_Materialise()
@@ -28,9 +27,9 @@ public class SpExecutionBench
 
         await using var cmd = new SqlCommand("[dbo].[usp_GetBenchmarkItems]", connection)
         {
-            CommandType = System.Data.CommandType.StoredProcedure
+            CommandType = CommandType.StoredProcedure
         };
-        cmd.Parameters.Add(new SqlParameter("@Count", System.Data.SqlDbType.Int) { Value = RowCount });
+        cmd.Parameters.Add(new SqlParameter("@Count", SqlDbType.Int) { Value = RowCount });
 
         var count = 0;
         await using var reader = await cmd.ExecuteReaderAsync();

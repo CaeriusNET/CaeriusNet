@@ -1,8 +1,3 @@
-using BenchmarkDotNet.Attributes;
-using CaeriusNet.Benchmark.Workshops.Benchs.SqlServer;
-using CaeriusNet.Builders;
-using Microsoft.Data.SqlClient;
-
 namespace CaeriusNet.Benchmark.Workshops.Benchs.SqlServer;
 
 /// <summary>
@@ -13,7 +8,10 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.SqlServer;
 ///         OUTPUT parameters are a common SQL Server pattern for retrieving identity values after an insert.
 ///         This benchmark compares three approaches:
 ///         <list type="number">
-///             <item>CaeriusNet builder with explicit OUTPUT parameter via <see cref="StoredProcedureParametersBuilder.AddParameter" /></item>
+///             <item>
+///                 CaeriusNet builder with explicit OUTPUT parameter via
+///                 <see cref="StoredProcedureParametersBuilder.AddParameter" />
+///             </item>
 ///             <item>Manual <see cref="SqlParameter" /> with <see cref="System.Data.ParameterDirection.Output" /></item>
 ///             <item>Manual SP call + immediate separate <c>SELECT SCOPE_IDENTITY()</c> (legacy anti-pattern)</item>
 ///         </list>
@@ -40,8 +38,8 @@ public class SpOutputParameterBench
         if (!SqlBenchmarkGlobalSetup.IsSqlAvailable) return -1;
 
         var spParams = new StoredProcedureParametersBuilder("dbo", "usp_InsertBenchmarkItemWithOutput")
-            .AddParameter("@Name", "BenchItem", System.Data.SqlDbType.NVarChar)
-            .AddParameter("@Price", 9.99m, System.Data.SqlDbType.Decimal)
+            .AddParameter("@Name", "BenchItem", SqlDbType.NVarChar)
+            .AddParameter("@Price", 9.99m, SqlDbType.Decimal)
             .Build();
 
         await using var connection = new SqlConnection(SqlBenchmarkGlobalSetup.ConnectionString);
@@ -49,15 +47,15 @@ public class SpOutputParameterBench
 
         await using var cmd = new SqlCommand($"[{spParams.SchemaName}].[{spParams.ProcedureName}]", connection)
         {
-            CommandType = System.Data.CommandType.StoredProcedure,
+            CommandType = CommandType.StoredProcedure,
             CommandTimeout = spParams.CommandTimeout
         };
         cmd.Parameters.AddRange(spParams.GetParametersSpan().ToArray());
 
         // Add OUTPUT parameter separately (builder doesn't yet support ParameterDirection)
-        var outParam = new SqlParameter("@NewId", System.Data.SqlDbType.Int)
+        var outParam = new SqlParameter("@NewId", SqlDbType.Int)
         {
-            Direction = System.Data.ParameterDirection.Output
+            Direction = ParameterDirection.Output
         };
         cmd.Parameters.Add(outParam);
 
@@ -79,12 +77,12 @@ public class SpOutputParameterBench
 
         await using var cmd = new SqlCommand("[dbo].[usp_InsertBenchmarkItemWithOutput]", connection)
         {
-            CommandType = System.Data.CommandType.StoredProcedure
+            CommandType = CommandType.StoredProcedure
         };
-        cmd.Parameters.Add(new SqlParameter("@Name", System.Data.SqlDbType.NVarChar) { Value = "BenchItem" });
-        cmd.Parameters.Add(new SqlParameter("@Price", System.Data.SqlDbType.Decimal) { Value = 9.99m });
-        cmd.Parameters.Add(new SqlParameter("@NewId", System.Data.SqlDbType.Int)
-            { Direction = System.Data.ParameterDirection.Output });
+        cmd.Parameters.Add(new SqlParameter("@Name", SqlDbType.NVarChar) { Value = "BenchItem" });
+        cmd.Parameters.Add(new SqlParameter("@Price", SqlDbType.Decimal) { Value = 9.99m });
+        cmd.Parameters.Add(new SqlParameter("@NewId", SqlDbType.Int)
+            { Direction = ParameterDirection.Output });
 
         await cmd.ExecuteNonQueryAsync();
         return (int)cmd.Parameters["@NewId"].Value;
@@ -105,10 +103,10 @@ public class SpOutputParameterBench
         // Round-trip 1: Execute the SP without OUTPUT param
         await using var insertCmd = new SqlCommand("[dbo].[usp_InsertBenchmarkItem]", connection)
         {
-            CommandType = System.Data.CommandType.StoredProcedure
+            CommandType = CommandType.StoredProcedure
         };
-        insertCmd.Parameters.Add(new SqlParameter("@Name", System.Data.SqlDbType.NVarChar) { Value = "BenchItem" });
-        insertCmd.Parameters.Add(new SqlParameter("@Price", System.Data.SqlDbType.Decimal) { Value = 9.99m });
+        insertCmd.Parameters.Add(new SqlParameter("@Name", SqlDbType.NVarChar) { Value = "BenchItem" });
+        insertCmd.Parameters.Add(new SqlParameter("@Price", SqlDbType.Decimal) { Value = 9.99m });
         await insertCmd.ExecuteNonQueryAsync();
 
         // Round-trip 2: Retrieve the identity separately

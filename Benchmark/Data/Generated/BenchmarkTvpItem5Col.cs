@@ -1,5 +1,3 @@
-using CaeriusNet.Attributes.Tvp;
-
 namespace CaeriusNet.Benchmark.Data.Generated;
 
 /// <summary>

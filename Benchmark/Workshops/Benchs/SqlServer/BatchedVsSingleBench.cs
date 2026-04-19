@@ -1,7 +1,4 @@
-﻿using BenchmarkDotNet.Attributes;
-using Bogus;
-using CaeriusNet.Benchmark.Data.Generated;
-using Microsoft.Data.SqlClient;
+﻿using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.SqlServer;
 
@@ -21,8 +18,7 @@ public class BatchedVsSingleBench
 
     private List<BenchmarkTvpItem> _items = null!;
 
-    [Params(10, 100)]
-    public int ItemCount { get; set; }
+    [Params(10, 100)] public int ItemCount { get; set; }
 
     [GlobalSetup]
     public async Task Setup()
@@ -43,10 +39,10 @@ public class BatchedVsSingleBench
         {
             await using var cmd = new SqlCommand("[dbo].[usp_InsertBenchmarkItem]", connection)
             {
-                CommandType = System.Data.CommandType.StoredProcedure
+                CommandType = CommandType.StoredProcedure
             };
-            cmd.Parameters.Add(new SqlParameter("@Name", System.Data.SqlDbType.NVarChar, 100) { Value = item.Name });
-            cmd.Parameters.Add(new SqlParameter("@Price", System.Data.SqlDbType.Decimal) { Value = item.Price });
+            cmd.Parameters.Add(new SqlParameter("@Name", SqlDbType.NVarChar, 100) { Value = item.Name });
+            cmd.Parameters.Add(new SqlParameter("@Price", SqlDbType.Decimal) { Value = item.Price });
             await cmd.ExecuteNonQueryAsync();
         }
     }
@@ -64,9 +60,9 @@ public class BatchedVsSingleBench
 
         await using var cmd = new SqlCommand("[dbo].[usp_InsertBenchmarkItemsBatch]", connection)
         {
-            CommandType = System.Data.CommandType.StoredProcedure
+            CommandType = CommandType.StoredProcedure
         };
-        var tvpParam = new SqlParameter("@Items", System.Data.SqlDbType.Structured)
+        var tvpParam = new SqlParameter("@Items", SqlDbType.Structured)
         {
             TypeName = "dbo.tvp_BenchmarkItem",
             Value = records

@@ -1,6 +1,4 @@
-﻿using CaeriusNet.Attributes.Tvp;
-
-namespace CaeriusNet.Benchmark.Data.Generated;
+﻿namespace CaeriusNet.Benchmark.Data.Generated;
 
 /// <summary>
 ///     TVP type used by TVP serialization benchmarks. [GenerateTvp] generates ITvpMapper&lt;T&gt;

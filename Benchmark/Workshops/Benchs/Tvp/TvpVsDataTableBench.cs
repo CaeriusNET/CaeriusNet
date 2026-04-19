@@ -1,8 +1,4 @@
-using System.Data;
-using BenchmarkDotNet.Attributes;
-using Bogus;
 using CaeriusNet.Benchmark.Data.Generated;
-using Microsoft.Data.SqlClient.Server;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.Tvp;
 
@@ -33,13 +29,12 @@ public class TvpVsDataTableBench
             f.Internet.UserName(),
             Math.Round((decimal)f.Random.Double(0.01, 9999.99), 2)));
 
-    private List<BenchmarkTvpItem> _items = null!;
-
     // Reusable DataTable schema — avoids per-iteration column-add overhead
     private DataTable _dataTableSchema = null!;
 
-    [Params(10, 100, 1_000, 10_000)]
-    public int RowCount { get; set; }
+    private List<BenchmarkTvpItem> _items = null!;
+
+    [Params(10, 100, 1_000, 10_000)] public int RowCount { get; set; }
 
     [GlobalSetup]
     public void Setup()
@@ -84,6 +79,7 @@ public class TvpVsDataTableBench
             row[2] = item.Price;
             dt.Rows.Add(row);
         }
+
         return dt.Rows.Count;
     }
 
@@ -105,6 +101,7 @@ public class TvpVsDataTableBench
             row[2] = item.Price;
             dt.Rows.Add(row);
         }
+
         dt.EndLoadData();
         return dt.Rows.Count;
     }

@@ -1,9 +1,4 @@
-using BenchmarkDotNet.Attributes;
-using Bogus;
 using CaeriusNet.Benchmark.Data.Generated;
-using CaeriusNet.Benchmark.Workshops.Benchs.SqlServer;
-using CaeriusNet.Builders;
-using Microsoft.Data.SqlClient;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.SqlServer;
 
@@ -38,8 +33,7 @@ public class TvpFullRoundtripBench
 
     private List<BenchmarkTvpItem5Col> _items = null!;
 
-    [Params(10, 100, 1_000)]
-    public int RowCount { get; set; }
+    [Params(10, 100, 1_000)] public int RowCount { get; set; }
 
     [GlobalSetup]
     public async Task Setup()
@@ -53,13 +47,14 @@ public class TvpFullRoundtripBench
     ///     CaeriusNet path: builder + <c>AddTvpParameter&lt;T&gt;</c> + <c>Build()</c> + execute + stream OUTPUT.
     ///     Measures the full end-to-end latency including the source-generated mapper overhead.
     /// </summary>
-    [Benchmark(Baseline = true, Description = "CaeriusNet: builder → AddTvpParameter → Build → execute → stream OUTPUT")]
+    [Benchmark(Baseline = true,
+        Description = "CaeriusNet: builder → AddTvpParameter → Build → execute → stream OUTPUT")]
     public async Task<int> CaeriusNet_TvpFullRoundtrip()
     {
         if (!SqlBenchmarkGlobalSetup.IsSqlAvailable) return -1;
 
         var spParams = new StoredProcedureParametersBuilder("dbo", "usp_InsertBenchmarkItemsBatch_WithOutput",
-                ResultSetCapacity: RowCount)
+                RowCount)
             .AddTvpParameter("@Items", _items)
             .Build();
 
@@ -69,7 +64,7 @@ public class TvpFullRoundtripBench
 
         await using var cmd = new SqlCommand($"[{spParams.SchemaName}].[{spParams.ProcedureName}]", connection)
         {
-            CommandType = System.Data.CommandType.StoredProcedure,
+            CommandType = CommandType.StoredProcedure,
             CommandTimeout = spParams.CommandTimeout
         };
         cmd.Parameters.AddRange(spParams.GetParametersSpan().ToArray());
@@ -82,7 +77,8 @@ public class TvpFullRoundtripBench
     }
 
     /// <summary>
-    ///     Manual path: direct <see cref="SqlParameter" /> + <see cref="Microsoft.Data.SqlClient.Server.SqlDataRecord" /> without the builder.
+    ///     Manual path: direct <see cref="SqlParameter" /> + <see cref="Microsoft.Data.SqlClient.Server.SqlDataRecord" />
+    ///     without the builder.
     ///     Establishes the minimum achievable cost for this operation.
     /// </summary>
     [Benchmark(Description = "Manual: direct SqlParameter(Structured) → execute → stream OUTPUT")]
@@ -96,11 +92,11 @@ public class TvpFullRoundtripBench
 
         await using var cmd = new SqlCommand("[dbo].[usp_InsertBenchmarkItemsBatch_WithOutput]", connection)
         {
-            CommandType = System.Data.CommandType.StoredProcedure
+            CommandType = CommandType.StoredProcedure
         };
 
         var firstItem = _items[0];
-        var tvpParam = new SqlParameter("@Items", System.Data.SqlDbType.Structured)
+        var tvpParam = new SqlParameter("@Items", SqlDbType.Structured)
         {
             TypeName = BenchmarkTvpItem5Col.TvpTypeName,
             Value = firstItem.MapAsSqlDataRecords(_items)

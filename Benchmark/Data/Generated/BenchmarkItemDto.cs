@@ -1,6 +1,4 @@
-﻿using CaeriusNet.Attributes.Dto;
-
-namespace CaeriusNet.Benchmark.Data.Generated;
+﻿namespace CaeriusNet.Benchmark.Data.Generated;
 
 /// <summary>
 ///     DTO used by DTO-mapping benchmarks. [GenerateDto] triggers compile-time generation

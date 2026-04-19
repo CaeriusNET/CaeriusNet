@@ -1,4 +1,3 @@
-using BenchmarkDotNet.Attributes;
 using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.Mapping;
@@ -25,19 +24,18 @@ public class NullableColumnMappingBench
 {
     // Non-nullable source arrays (5-col DTO, no DBNull checks needed)
     private int[] _ids = null!;
-    private Guid[] _traceIds = null!;
-    private string[] _names = null!;
-    private decimal[] _prices = null!;
     private bool[] _isActives = null!;
+    private string[] _names = null!;
+    private DateTime?[] _nullableCreatedAts = null!;
+    private bool?[] _nullableIsActives = null!;
 
     // Nullable source arrays (NullableRowDto)
     private string?[] _nullableNames = null!;
     private decimal?[] _nullablePrices = null!;
-    private bool?[] _nullableIsActives = null!;
-    private DateTime?[] _nullableCreatedAts = null!;
+    private decimal[] _prices = null!;
+    private Guid[] _traceIds = null!;
 
-    [Params(100, 1_000, 10_000)]
-    public int RowCount { get; set; }
+    [Params(100, 1_000, 10_000)] public int RowCount { get; set; }
 
     /// <summary>
     ///     Null density in nullable columns: 0 = no nulls, 50 = ~50% nulls, 100 = all nulls.
@@ -99,10 +97,10 @@ public class NullableColumnMappingBench
         for (var i = 0; i < RowCount; i++)
             result[i] = new NullableRowDto(
                 _ids[i],
-                _nullableNames[i],      // mirrors: reader.IsDBNull(1) ? null : reader.GetString(1)
-                _nullablePrices[i],     // mirrors: reader.IsDBNull(2) ? null : reader.GetDecimal(2)
-                _nullableIsActives[i],  // mirrors: reader.IsDBNull(3) ? null : reader.GetBoolean(3)
-                _nullableCreatedAts[i]  // mirrors: reader.IsDBNull(4) ? null : reader.GetDateTime(4)
+                _nullableNames[i], // mirrors: reader.IsDBNull(1) ? null : reader.GetString(1)
+                _nullablePrices[i], // mirrors: reader.IsDBNull(2) ? null : reader.GetDecimal(2)
+                _nullableIsActives[i], // mirrors: reader.IsDBNull(3) ? null : reader.GetBoolean(3)
+                _nullableCreatedAts[i] // mirrors: reader.IsDBNull(4) ? null : reader.GetDateTime(4)
             );
         return result;
     }
@@ -123,6 +121,7 @@ public class NullableColumnMappingBench
             var createdAt = _nullableCreatedAts[i];
             result[i] = new NullableRowDto(_ids[i], name, price, active, createdAt);
         }
+
         return result;
     }
 }

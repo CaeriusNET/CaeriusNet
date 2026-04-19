@@ -1,6 +1,4 @@
-﻿using BenchmarkDotNet.Attributes;
-using Bogus;
-using CaeriusNet.Benchmark.Data.Generated;
+﻿using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.Tvp;
 
@@ -21,8 +19,7 @@ public class TvpSerializationBench
 
     private List<BenchmarkTvpItem> _items = null!;
 
-    [Params(10, 100, 1_000, 10_000)]
-    public int RowCount { get; set; }
+    [Params(10, 100, 1_000, 10_000)] public int RowCount { get; set; }
 
     [GlobalSetup]
     public void Setup()

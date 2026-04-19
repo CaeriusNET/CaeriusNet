@@ -1,8 +1,3 @@
-using BenchmarkDotNet.Attributes;
-using CaeriusNet.Benchmark.Workshops.Benchs.SqlServer;
-using CaeriusNet.Builders;
-using Microsoft.Data.SqlClient;
-
 namespace CaeriusNet.Benchmark.Workshops.Benchs.SqlServer;
 
 /// <summary>
@@ -18,7 +13,10 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.SqlServer;
 ///         This benchmark measures:
 ///         <list type="number">
 ///             <item><b>Warm pool</b> — <c>OpenAsync</c> on a connection whose pool slot is warm.</item>
-///             <item><b>Pool cold-clear</b> — <c>SqlConnection.ClearPool</c> before <c>OpenAsync</c>; forces new TDS handshake.</item>
+///             <item>
+///                 <b>Pool cold-clear</b> — <c>SqlConnection.ClearPool</c> before <c>OpenAsync</c>; forces new TDS
+///                 handshake.
+///             </item>
 ///             <item><b>Reuse single connection</b> — baseline: no <c>OpenAsync</c> overhead at all.</item>
 ///         </list>
 ///         Note: <c>ClearPool</c> benches are intentionally slow. Their purpose is to show the cost
@@ -65,9 +63,9 @@ public class ConnectionPoolBench
 
         await using var cmd = new SqlCommand("[dbo].[usp_GetBenchmarkItems]", _persistentConnection)
         {
-            CommandType = System.Data.CommandType.StoredProcedure
+            CommandType = CommandType.StoredProcedure
         };
-        cmd.Parameters.Add(new SqlParameter("@Count", System.Data.SqlDbType.Int) { Value = 10 });
+        cmd.Parameters.Add(new SqlParameter("@Count", SqlDbType.Int) { Value = 10 });
 
         var count = 0;
         await using var reader = await cmd.ExecuteReaderAsync();
@@ -90,9 +88,9 @@ public class ConnectionPoolBench
 
         await using var cmd = new SqlCommand("[dbo].[usp_GetBenchmarkItems]", connection)
         {
-            CommandType = System.Data.CommandType.StoredProcedure
+            CommandType = CommandType.StoredProcedure
         };
-        cmd.Parameters.Add(new SqlParameter("@Count", System.Data.SqlDbType.Int) { Value = 10 });
+        cmd.Parameters.Add(new SqlParameter("@Count", SqlDbType.Int) { Value = 10 });
 
         var count = 0;
         await using var reader = await cmd.ExecuteReaderAsync();
@@ -117,9 +115,9 @@ public class ConnectionPoolBench
 
         await using var cmd = new SqlCommand("[dbo].[usp_GetBenchmarkItems]", connection)
         {
-            CommandType = System.Data.CommandType.StoredProcedure
+            CommandType = CommandType.StoredProcedure
         };
-        cmd.Parameters.Add(new SqlParameter("@Count", System.Data.SqlDbType.Int) { Value = 10 });
+        cmd.Parameters.Add(new SqlParameter("@Count", SqlDbType.Int) { Value = 10 });
 
         var count = 0;
         await using var reader = await cmd.ExecuteReaderAsync();

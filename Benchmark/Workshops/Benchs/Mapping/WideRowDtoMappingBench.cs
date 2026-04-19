@@ -1,5 +1,3 @@
-using BenchmarkDotNet.Attributes;
-using Bogus;
 using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.Mapping;
@@ -25,23 +23,23 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.Mapping;
 [HardwareCounters(HardwareCounter.BranchMispredictions, HardwareCounter.CacheMisses)]
 public class WideRowDtoMappingBench
 {
-    // 5-col source arrays (mirrors BenchmarkItemDto fields)
-    private int[] _ids = null!;
-    private Guid[] _traceIds = null!;
-    private string[] _names = null!;
-    private decimal[] _prices = null!;
-    private bool[] _isActives = null!;
+    private int[] _categories = null!;
+    private decimal[] _discountedPrices = null!;
 
     // 10-col extra arrays (mirrors WideRowDto extra fields)
     private DateTime[] _fetchedAts = null!;
-    private int[] _categories = null!;
-    private int[] _quantities = null!;
-    private decimal[] _pricesWithTax = null!;
-    private decimal[] _discountedPrices = null!;
-    private bool[] _inStocks = null!;
 
-    [Params(1, 100, 1_000, 10_000)]
-    public int RowCount { get; set; }
+    // 5-col source arrays (mirrors BenchmarkItemDto fields)
+    private int[] _ids = null!;
+    private bool[] _inStocks = null!;
+    private bool[] _isActives = null!;
+    private string[] _names = null!;
+    private decimal[] _prices = null!;
+    private decimal[] _pricesWithTax = null!;
+    private int[] _quantities = null!;
+    private Guid[] _traceIds = null!;
+
+    [Params(1, 100, 1_000, 10_000)] public int RowCount { get; set; }
 
     [GlobalSetup]
     public void Setup()

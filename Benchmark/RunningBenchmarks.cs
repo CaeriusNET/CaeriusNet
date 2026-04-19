@@ -1,6 +1,4 @@
-﻿using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Running;
-using CaeriusNet.Benchmark.Workshops;
+﻿using CaeriusNet.Benchmark.Workshops;
 using CaeriusNet.Benchmark.Workshops.Benchs.CreateCollections;
 using CaeriusNet.Benchmark.Workshops.Benchs.ListCapacity;
 using CaeriusNet.Benchmark.Workshops.Benchs.Mapping;
@@ -17,7 +15,10 @@ namespace CaeriusNet.Benchmark;
 /// </summary>
 public static class RunningBenchmarks
 {
-    private static IConfig GetConfig() => new BenchmarkConfig();
+    private static IConfig GetConfig()
+    {
+        return new BenchmarkConfig();
+    }
 
     /// <summary>Runs ALL benchmarks (in-memory + TVP + collection + SQL Server).</summary>
     public static void Run_All_Benchmarks()

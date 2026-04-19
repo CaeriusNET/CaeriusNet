@@ -10,7 +10,9 @@ public sealed class SimpleDto
         Name = name;
     }
 
-    public SimpleDto() { }
+    public SimpleDto()
+    {
+    }
 
     public int Id { get; set; }
     public Guid Guid { get; set; }

@@ -1,8 +1,4 @@
-﻿using BenchmarkDotNet.Attributes;
-using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Diagnosers;
-using Bogus;
-using CaeriusNet.Benchmark.Data.Generated;
+﻿using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.Mapping;
 
@@ -25,13 +21,12 @@ public class DtoMappingBench
             f.Random.Bool()));
 
     private int[] _ids = null!;
-    private Guid[] _traceIds = null!;
+    private bool[] _isActives = null!;
     private string[] _names = null!;
     private decimal[] _prices = null!;
-    private bool[] _isActives = null!;
+    private Guid[] _traceIds = null!;
 
-    [Params(1, 100, 1_000, 10_000)]
-    public int RowCount { get; set; }
+    [Params(1, 100, 1_000, 10_000)] public int RowCount { get; set; }
 
     [GlobalSetup]
     public void Setup()

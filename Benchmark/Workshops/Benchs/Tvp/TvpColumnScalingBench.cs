@@ -1,7 +1,4 @@
-using BenchmarkDotNet.Attributes;
-using Bogus;
 using CaeriusNet.Benchmark.Data.Generated;
-using Microsoft.Data.SqlClient.Server;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.Tvp;
 
@@ -44,12 +41,12 @@ public class TvpColumnScalingBench
             Math.Round((decimal)f.Random.Double(0.0, 100.0), 4),
             f.Lorem.Sentence(), f.Random.Guid()));
 
-    private List<BenchmarkTvpItem> _items3 = null!;
-    private List<BenchmarkTvpItem5Col> _items5 = null!;
     private List<BenchmarkTvpItem10Col> _items10 = null!;
 
-    [Params(10, 100, 1_000, 10_000)]
-    public int RowCount { get; set; }
+    private List<BenchmarkTvpItem> _items3 = null!;
+    private List<BenchmarkTvpItem5Col> _items5 = null!;
+
+    [Params(10, 100, 1_000, 10_000)] public int RowCount { get; set; }
 
     [GlobalSetup]
     public void Setup()
@@ -80,7 +77,10 @@ public class TvpColumnScalingBench
         return count;
     }
 
-    /// <summary>10-column TVP: full mixed-type schema (int, nvarchar, decimal, bool, datetime2, nvarchar, int, decimal, nvarchar, uniqueidentifier).</summary>
+    /// <summary>
+    ///     10-column TVP: full mixed-type schema (int, nvarchar, decimal, bool, datetime2, nvarchar, int, decimal,
+    ///     nvarchar, uniqueidentifier).
+    /// </summary>
     [Benchmark(Description = "10-col TVP: full mixed-type schema")]
     public int Tvp_10_Columns()
     {
