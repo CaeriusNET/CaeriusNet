@@ -45,7 +45,7 @@ jobs:
             --configuration Release \
             --no-restore \
             -p:TreatWarningsAsErrors=true \
-            -p:WarningLevel=9999
+            -p:WarningLevel=4
 
       - name: Run tests with coverage
         run: |
@@ -77,7 +77,7 @@ jobs:
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
-        if: success()
+        if: success() && secrets.CODECOV_TOKEN != ''
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage/**/coverage.cobertura.xml

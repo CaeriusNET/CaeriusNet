@@ -47,12 +47,11 @@ public sealed class CaeriusNetSqlExceptionTests
     }
 
     [Fact]
-    public void CaeriusNetSqlException_BaseException_AcceptsSqlException_As_InnerException()
+    public void CaeriusNetSqlException_SecondParameterType_IsAssignableTo_Exception()
     {
-        var baseConstructor = typeof(Exception).GetConstructor([typeof(string), typeof(Exception)]);
+        var secondParamType = typeof(CaeriusNetSqlException).GetConstructors()[0].GetParameters()[1].ParameterType;
 
-        // SqlException derives from Exception — verifies the constructor chain is well-typed
-        Assert.True(typeof(SqlException).IsSubclassOf(typeof(Exception)));
-        Assert.NotNull(baseConstructor);
+        // Verifies the constructor contract: SqlException satisfies base Exception(string, Exception)
+        Assert.True(typeof(Exception).IsAssignableFrom(secondParamType));
     }
 }

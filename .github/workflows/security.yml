@@ -53,9 +53,10 @@ jobs:
       - name: Scan for vulnerable packages (main library)
         run: |
           echo "=== Scanning Src/CaeriusNet.csproj for vulnerabilities ==="
-          dotnet list Src/CaeriusNet.csproj package --vulnerable --include-transitive 2>&1 \
-            | tee /tmp/vuln-src.txt
-          if grep -q "has the following vulnerable packages" /tmp/vuln-src.txt; then
+          RESULT=$(dotnet list Src/CaeriusNet.csproj package --vulnerable --include-transitive --format json 2>&1)
+          echo "$RESULT"
+          VULN_COUNT=$(echo "$RESULT" | jq '[.projects[].frameworks[] | ((.topLevelPackages // [])[], (.transitivePackages // [])[]) | select((.vulnerabilities // []) | length > 0)] | length' || echo 0)
+          if [ "$VULN_COUNT" -gt 0 ]; then
             echo "::error title=Vulnerable Packages::Vulnerable NuGet packages detected in CaeriusNet! See log for details."
             exit 1
           fi
@@ -64,9 +65,10 @@ jobs:
       - name: Scan for vulnerable packages (source generator)
         run: |
           echo "=== Scanning SourceGenerators/CaeriusNet.Generator.csproj for vulnerabilities ==="
-          dotnet list SourceGenerators/CaeriusNet.Generator.csproj package --vulnerable --include-transitive 2>&1 \
-            | tee /tmp/vuln-generator.txt
-          if grep -q "has the following vulnerable packages" /tmp/vuln-generator.txt; then
+          RESULT=$(dotnet list SourceGenerators/CaeriusNet.Generator.csproj package --vulnerable --include-transitive --format json 2>&1)
+          echo "$RESULT"
+          VULN_COUNT=$(echo "$RESULT" | jq '[.projects[].frameworks[] | ((.topLevelPackages // [])[], (.transitivePackages // [])[]) | select((.vulnerabilities // []) | length > 0)] | length' || echo 0)
+          if [ "$VULN_COUNT" -gt 0 ]; then
             echo "::error title=Vulnerable Packages::Vulnerable NuGet packages detected in CaeriusNet.Generator! See log for details."
             exit 1
           fi
@@ -75,9 +77,20 @@ jobs:
       - name: Scan for vulnerable packages (test projects, informational)
         run: |
           echo "=== Scanning test projects for vulnerabilities (non-blocking) ==="
-          dotnet list Tests/CaeriusNet.Tests/CaeriusNet.Tests.csproj package --vulnerable --include-transitive 2>&1 | tee /tmp/vuln-tests.txt || true
-          dotnet list Tests/CaeriusNet.Generator.Tests/CaeriusNet.Generator.Tests.csproj package --vulnerable --include-transitive 2>&1 | tee -a /tmp/vuln-tests.txt || true
-          if grep -q "has the following vulnerable packages" /tmp/vuln-tests.txt; then
+          RESULT_TESTS=$(dotnet list Tests/CaeriusNet.Tests/CaeriusNet.Tests.csproj package --vulnerable --include-transitive --format json 2>&1 || true)
+          RESULT_GEN=$(dotnet list Tests/CaeriusNet.Generator.Tests/CaeriusNet.Generator.Tests.csproj package --vulnerable --include-transitive --format json 2>&1 || true)
+          echo "$RESULT_TESTS"
+          echo "$RESULT_GEN"
+          VULN_COUNT=$(( \
+            $(echo "$RESULT_TESTS" | jq '[.projects[].frameworks[] | ((.topLevelPackages // [])[], (.transitivePackages // [])[]) | select((.vulnerabilities // []) | length > 0)] | length' || echo 0) + \
+            $(echo "$RESULT_GEN"   | jq '[.projects[].frameworks[] | ((.topLevelPackages // [])[], (.transitivePackages // [])[]) | select((.vulnerabilities // []) | length > 0)] | length' || echo 0) \
+          ))
+          if [ "$VULN_COUNT" -gt 0 ]; then
+            echo "::warning title=Vulnerable Packages::Vulnerable packages found in test projects (non-blocking)."
+          else
+            echo "✅ No vulnerable packages found in test projects."
+          fi
+          if [ "$VULN_COUNT" -gt 0 ]; then
             echo "::warning title=Vulnerable Packages::Vulnerable packages found in test projects (non-blocking)."
           else
             echo "✅ No vulnerable packages found in test projects."

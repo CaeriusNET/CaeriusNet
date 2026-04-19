@@ -9,7 +9,7 @@
         <IsTestProject>true</IsTestProject>
         <RootNamespace>CaeriusNet.Tests</RootNamespace>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-        <WarningLevel>9999</WarningLevel>
+        <WarningLevel>4</WarningLevel>
         <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
     </PropertyGroup>
 

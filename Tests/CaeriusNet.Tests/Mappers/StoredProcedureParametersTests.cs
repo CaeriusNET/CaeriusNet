@@ -101,14 +101,15 @@ public sealed class StoredProcedureParametersTests
     }
 
     [Fact]
-    public void Two_Distinct_Instances_With_Same_Values_Are_Not_ReferenceEqual()
+    public void Two_Distinct_Instances_HaveIndependent_ParameterSpans()
     {
         var params1 = new SqlParameter[] { new("@Id", SqlDbType.Int) };
-        var params2 = new SqlParameter[] { new("@Id", SqlDbType.Int) };
+        var params2 = new SqlParameter[] { new("@Name", SqlDbType.NVarChar) };
 
         var sp1 = new StoredProcedureParameters("dbo", "sp_Test", 16, params1, null, null, null);
         var sp2 = new StoredProcedureParameters("dbo", "sp_Test", 16, params2, null, null, null);
 
-        Assert.False(ReferenceEquals(sp1, sp2));
+        Assert.Equal("@Id", sp1.GetParametersSpan()[0].ParameterName);
+        Assert.Equal("@Name", sp2.GetParametersSpan()[0].ParameterName);
     }
 }
