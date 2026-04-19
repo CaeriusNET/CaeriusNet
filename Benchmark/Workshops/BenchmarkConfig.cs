@@ -9,7 +9,7 @@ public class BenchmarkConfig : ManualConfig
 {
     public BenchmarkConfig()
     {
-        var isCI = string.Equals(
+        var isCi = string.Equals(
             Environment.GetEnvironmentVariable("CI"),
             "true",
             StringComparison.OrdinalIgnoreCase);
@@ -20,7 +20,7 @@ public class BenchmarkConfig : ManualConfig
                             ?? Path.Combine(Directory.GetCurrentDirectory(), "BenchmarkDotNet.Artifacts");
         WithArtifactsPath(artifactsPath);
 
-        if (isCI)
+        if (isCi)
         {
             // InProcessEmitToolchain: runs benchmarks in the host process (no child process spawning).
             // This guarantees artifacts are always written to the configured path above.
