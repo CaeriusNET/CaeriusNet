@@ -1,8 +1,8 @@
 # Best Practices and Guidelines
 
-This guide distills practical recommendations for building reliable, secure, and high‑performance applications with Caerius.NET. It complements the Quickstart, Usage, and Advanced Usage chapters.
+This guide distills practical recommendations for building reliable, secure, and high‑performance applications with CaeriusNet. It complements the Get Started, Usage, and Advanced Usage pages.
 
-Applies to: C# 13 / .NET 10, SQL Server 2019+, Microsoft.Data.SqlClient.
+Applies to: C# 14 / .NET 10, SQL Server 2019+, Microsoft.Data.SqlClient.
 
 ## Architecture and Patterns
 
@@ -45,7 +45,7 @@ public sealed record UserDto(int Id, string Name, byte? Age)
 ## TVP (Table‑Valued Parameter) Guidance
 
 - Create SQL types with the minimal necessary columns and indexes where relevant.
-- Use [GenerateTvp] when possible. It generates TvpTypeName and mapping boilerplate for you.
+- Use `[GenerateTvp]` for zero-boilerplate TVP mapping. The generator uses `IEnumerable<SqlDataRecord>` internally for efficient streaming.
 - Ensure the .NET TVP columns (constructor parameters) match the SQL TVP type definition exactly.
 - Keep TVP payload sizes reasonable. Extremely large TVPs can increase CPU and memory usage on both ends.
 - Pass TVPs read‑only (as required by SQL Server) and consider batching if sets are very large.
@@ -149,4 +149,4 @@ var users = await dbContext.QueryAsIEnumerableAsync<UserDto>(sp, cancellationTok
 
 ---
 
-Use this page as a checklist when designing new queries or optimizing existing ones. For detailed APIs and examples, see Usage, Advanced Usage, Caching, and API Reference.
+Use this page as a checklist when designing new queries or optimizing existing ones. For detailed APIs and examples, see [Reading Data](/documentation/reading-data), [Writing Data](/documentation/writing-data), [Caching](/documentation/cache), and [API Reference](/documentation/api).

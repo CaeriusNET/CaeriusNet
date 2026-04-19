@@ -1,6 +1,6 @@
 # What is Caerius.NET?
 
-Caerius.NET is a focused, high‑performance Micro‑ORM for C# 13 / .NET 10 that turns SQL Server Stored Procedure results into strongly typed C# DTOs — in microseconds. It is built for teams who favor SQL Server and Stored Procedures for data access and want compile‑time safety, predictable performance, and a minimal API surface.
+Caerius.NET is a focused, high‑performance Micro‑ORM for C# 14 / .NET 10 that turns SQL Server Stored Procedure results into strongly typed C# DTOs — in microseconds. It is built for teams who favor SQL Server and Stored Procedures for data access and want compile‑time safety, predictable performance, and a minimal API surface.
 
 We are unapologetically specialized: Caerius.NET targets C# and Microsoft SQL Server. This clarity lets us optimize deeply for T/SQL, `SqlDataReader`, and SQL Server features such as Table‑Valued Parameters (TVP) and multi‑result sets.
 
@@ -21,7 +21,7 @@ In short: no runtime reflection for mapping, no dynamic expression compilation o
 
 ### 2. Source‑generated DTO and TVP mappers
 - `[GenerateDto]` emits a compile‑time `ISpMapper<T>` for your sealed partial records/classes. You get static, ordinal mapping with correct nullability and types.
-- `[GenerateTvp]` emits an `ITvpMapper<T>` so you can pass large sets as TVPs without writing boilerplate `DataTable` code.
+- `[GenerateTvp]` emits an `ITvpMapper<T>` so you can pass large sets as TVPs without writing boilerplate mapping code.
 
 Prefer manual control? You can still implement `ISpMapper<T>` / `ITvpMapper<T>` yourself.
 

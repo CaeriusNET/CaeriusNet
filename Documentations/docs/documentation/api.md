@@ -1,6 +1,6 @@
 # API Reference
 
-This section provides a practical reference for the main public APIs exposed by the CaeriusNet package. All examples use C# 13/.NET 10 and Microsoft.Data.SqlClient.
+This section provides a practical reference for the main public APIs exposed by the CaeriusNet package. All examples use C# 14/.NET 10 and Microsoft.Data.SqlClient.
 
 - Namespaces shown below are abbreviated; use your project’s using directives accordingly.
 - Code examples assume Dependency Injection is configured via CaeriusNetBuilder.
@@ -108,10 +108,10 @@ public sealed record UserDto(int Id, string Name) : ISpMapper<UserDto>
 ```
 
 ### CaeriusNet.Mappers.ITvpMapper
-Defines how to convert items to a DataTable for TVP.
+Defines how to convert items to an `IEnumerable<SqlDataRecord>` for TVP.
 ```csharp
 static abstract string TvpTypeName { get; }
-DataTable MapAsDataTable(IEnumerable<T> items)
+IEnumerable<SqlDataRecord> MapAsSqlDataRecords(IEnumerable<T> items)
 ```
 
 Usage (manual):
@@ -119,12 +119,15 @@ Usage (manual):
 public sealed record UsersIdsTvp(int Id) : ITvpMapper<UsersIdsTvp>
 {
     public static string TvpTypeName => "dbo.tvp_int";
-    public DataTable MapAsDataTable(IEnumerable<UsersIdsTvp> items)
+    public IEnumerable<SqlDataRecord> MapAsSqlDataRecords(IEnumerable<UsersIdsTvp> items)
     {
-        var table = new DataTable("dbo.tvp_int");
-        table.Columns.Add("Id", typeof(int));
-        foreach (var it in items) table.Rows.Add(it.Id);
-        return table;
+        var metaData = new[] { new SqlMetaData("Id", SqlDbType.Int) };
+        var record = new SqlDataRecord(metaData);
+        foreach (var item in items)
+        {
+            record.SetInt32(0, item.Id);
+            yield return record;
+        }
     }
 }
 ```

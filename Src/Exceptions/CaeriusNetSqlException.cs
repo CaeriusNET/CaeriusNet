@@ -11,5 +11,5 @@
 /// <param name="message">The message that describes the error.</param>
 /// <param name="innerException">The <see cref="SqlException" /> that is the cause of the current exception.</param>
 /// <exception cref="SqlException">Represents the original SQL exception encountered during the operation.</exception>
-internal sealed class CaeriusNetSqlException(string message, SqlException innerException)
-	: Exception(message, innerException);
+public sealed class CaeriusNetSqlException(string message, SqlException innerException)
+    : Exception(message, innerException);

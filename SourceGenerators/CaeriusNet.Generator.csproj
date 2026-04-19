@@ -1,35 +1,26 @@
 <Project Sdk="Microsoft.NET.Sdk">
-	
-	<PropertyGroup>
-		<TargetFramework>netstandard2.0</TargetFramework>
-		<IsPackable>true</IsPackable>
-		<Nullable>enable</Nullable>
-		<LangVersion>latest</LangVersion>
-		
-		<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
-		<EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
-		<IsRoslynComponent>true</IsRoslynComponent>
-		<RootNamespace>CaeriusNet.Generator</RootNamespace>
-		<PackageId>CaeriusNet.Generator</PackageId>
-		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-		
-		<Title>CaeriusNet Source Generator</Title>
-		<Authors>CaeriusNet</Authors>
-		<Description>Source generators for CaeriusNet. Automatically generates DTO mappers and TVP converters.</Description>
-		<Copyright>2026</Copyright>
-		<PackageProjectUrl>https://caerius.net</PackageProjectUrl>
-		<PackageTags>source-generators;roslyn;mapping;tvp;dto</PackageTags>
-		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<Version>10.1.3</Version>
-	</PropertyGroup>
-	
-	<ItemGroup>
-		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.11.0" PrivateAssets="all"/>
-		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" PrivateAssets="all"/>
-	</ItemGroup>
-	
-	<ItemGroup>
-		<None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false"/>
-	</ItemGroup>
+
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <IsPackable>false</IsPackable>
+        <Nullable>enable</Nullable>
+        <LangVersion>latest</LangVersion>
+
+        <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+        <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+        <IsRoslynComponent>true</IsRoslynComponent>
+        <RootNamespace>CaeriusNet.Generator</RootNamespace>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="5.3.0" PrivateAssets="all"/>
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" PrivateAssets="all"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+            <_Parameter1>CaeriusNet.Generator.Tests</_Parameter1>
+        </AssemblyAttribute>
+    </ItemGroup>
 
 </Project>

@@ -3,13 +3,13 @@
 builder.AddServiceDefaults();
 
 CaeriusNetBuilder.Create(builder)
-	.WithAspireSqlServer("CaeriusNet")
-	.WithAspireRedis()
-	.Build();
+    .WithAspireSqlServer("CaeriusNet")
+    .WithAspireRedis()
+    .Build();
 
 builder.Services
-	.AddDependenciesInjections()
-	.AddLogging(loggingBuilder => loggingBuilder.AddConsole().SetMinimumLevel(LogLevel.Debug));
+    .AddDependenciesInjections()
+    .AddLogging(loggingBuilder => loggingBuilder.AddConsole().SetMinimumLevel(LogLevel.Debug));
 
 var app = builder.Build();
 
