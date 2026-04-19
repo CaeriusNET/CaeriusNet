@@ -33,7 +33,8 @@ public class TvpFullRoundtripBench
 
     private List<BenchmarkTvpItem5Col> _items = null!;
 
-    [Params(10, 100, 1_000)] public int RowCount { get; set; }
+    [Params(10, 100, 1_000, 5_000, 10_000)]
+    public int RowCount { get; set; }
 
     [GlobalSetup]
     public async Task Setup()

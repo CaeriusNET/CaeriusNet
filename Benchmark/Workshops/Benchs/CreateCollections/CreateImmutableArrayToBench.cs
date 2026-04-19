@@ -1,56 +1,74 @@
-﻿using CaeriusNet.Benchmark.Data.Simple;
-using CaeriusNet.Benchmark.Workshops.Benchs.CreateCollections.Setup;
+﻿using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.CreateCollections;
 
+/// <summary>
+///     Measures the cost of constructing an <see cref="ImmutableArray{T}" /> from a pre-existing
+///     source array across five row-count scales (1 → 100 000).
+/// </summary>
+/// <remarks>
+///     Two construction paths are compared:
+///     <list type="bullet">
+///         <item>
+///             <term>CreateBuilder (baseline)</term>
+///             <description>
+///                 Pre-allocates a typed builder, fills it via <c>AddRange</c>, then seals it with
+///                 <c>MoveToImmutable()</c>.  When the capacity matches exactly, MoveToImmutable performs
+///                 a zero-copy move of the internal array — no second allocation occurs.
+///             </description>
+///         </item>
+///         <item>
+///             <term>ImmutableArray.Create(Span)</term>
+///             <description>
+///                 Constructs the immutable array directly from a <see cref="ReadOnlySpan{T}" />:
+///                 a single internal memcopy with no builder overhead.  Fastest path for array-sourced data.
+///             </description>
+///         </item>
+///     </list>
+/// </remarks>
+[Config(typeof(BenchmarkConfig))]
 [MemoryDiagnoser]
 public class CreateImmutableArrayToBench
 {
-    private static readonly ReadOnlyCollection<SimpleDto> Data = CreateCollectionBogusSetup.Faking10KItemsDto;
+    private BenchmarkItemDto[] _source = null!;
 
-    private readonly List<SimpleDto> _data1 = Data.Take(1).ToList();
-    private readonly List<SimpleDto> _data10 = Data.Take(10).ToList();
-    private readonly List<SimpleDto> _data100 = Data.Take(100).ToList();
-    private readonly List<SimpleDto> _data10K = Data.ToList();
-    private readonly List<SimpleDto> _data1K = Data.Take(1000).ToList();
+    /// <summary>Number of items to materialise per benchmark call.</summary>
+    [Params(1, 100, 1_000, 10_000, 100_000)]
+    public int RowCount { get; set; }
 
-    [Benchmark]
-    public ImmutableArray<SimpleDto> Set_Capacity_And_Return_1_Item_Collection_As_ImmutableArray()
+    [GlobalSetup]
+    public void Setup()
     {
-        var list = ImmutableArray.CreateBuilder<SimpleDto>(1);
-        foreach (var item in _data1) list.Add(item);
-        return list.ToImmutable();
+        var rng = new Random(42);
+        _source = new BenchmarkItemDto[RowCount];
+        for (var i = 0; i < RowCount; i++)
+            _source[i] = new BenchmarkItemDto(
+                rng.Next(1, 1_000_000),
+                Guid.NewGuid(),
+                $"item_{i:D6}",
+                Math.Round((decimal)(rng.NextDouble() * 9999.99), 2),
+                i % 2 == 0);
     }
 
-    [Benchmark]
-    public ImmutableArray<SimpleDto> Set_Capacity_And_Return_10_Items_Collection_As_ImmutableArray()
+    /// <summary>
+    ///     Builder path: pre-allocated capacity → AddRange → MoveToImmutable.
+    ///     Zero-copy move when capacity is exact — one internal array allocation in total.
+    /// </summary>
+    [Benchmark(Baseline = true, Description = "CreateBuilder(N) + AddRange + MoveToImmutable()")]
+    public ImmutableArray<BenchmarkItemDto> Create_Builder_MoveToImmutable()
     {
-        var list = ImmutableArray.CreateBuilder<SimpleDto>(10);
-        foreach (var item in _data10) list.Add(item);
-        return list.ToImmutable();
+        var builder = ImmutableArray.CreateBuilder<BenchmarkItemDto>(RowCount);
+        builder.AddRange(_source);
+        return builder.MoveToImmutable();
     }
 
-    [Benchmark]
-    public ImmutableArray<SimpleDto> Set_Capacity_And_Return_100_Items_Collection_As_ImmutableArray()
+    /// <summary>
+    ///     Direct span construction: single internal memcopy from source span — no builder overhead.
+    ///     Fastest path for array-sourced data; preferred when source is already an array or Span.
+    /// </summary>
+    [Benchmark(Description = "ImmutableArray.Create(ReadOnlySpan<T>) — single memcopy")]
+    public ImmutableArray<BenchmarkItemDto> Create_FromSpan()
     {
-        var list = ImmutableArray.CreateBuilder<SimpleDto>(100);
-        foreach (var item in _data100) list.Add(item);
-        return list.ToImmutable();
-    }
-
-    [Benchmark]
-    public ImmutableArray<SimpleDto> Set_Capacity_And_Return_1K_Items_Collection_As_ImmutableArray()
-    {
-        var list = ImmutableArray.CreateBuilder<SimpleDto>(1000);
-        foreach (var item in _data1K) list.Add(item);
-        return list.ToImmutable();
-    }
-
-    [Benchmark]
-    public ImmutableArray<SimpleDto> Set_Capacity_And_Return_10K_Items_Collection_As_ImmutableArray()
-    {
-        var list = ImmutableArray.CreateBuilder<SimpleDto>(10000);
-        foreach (var item in _data10K) list.Add(item);
-        return list.ToImmutable();
+        return ImmutableArray.Create<BenchmarkItemDto>(_source.AsSpan());
     }
 }

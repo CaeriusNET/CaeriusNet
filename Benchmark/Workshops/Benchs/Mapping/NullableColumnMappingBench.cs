@@ -35,7 +35,7 @@ public class NullableColumnMappingBench
     private decimal[] _prices = null!;
     private Guid[] _traceIds = null!;
 
-    [Params(100, 1_000, 10_000)] public int RowCount { get; set; }
+    [Params(100, 1_000, 10_000, 100_000)] public int RowCount { get; set; }
 
     /// <summary>
     ///     Null density in nullable columns: 0 = no nulls, 50 = ~50% nulls, 100 = all nulls.

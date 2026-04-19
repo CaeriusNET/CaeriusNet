@@ -19,6 +19,9 @@ switch (category)
     case "collections":
         RunningBenchmarks.Run_Collections_Benchmarks();
         break;
+    case "cache":
+        RunningBenchmarks.Run_Cache_Benchmarks();
+        break;
     default:
         RunningBenchmarks.Run_All_Benchmarks();
         break;

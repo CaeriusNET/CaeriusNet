@@ -19,6 +19,7 @@ on:
           - tvp
           - sql-server
           - collections
+          - cache
 
 # Minimal default permissions
 permissions:
@@ -91,17 +92,28 @@ jobs:
 
       - name: Wait for SQL Server to be ready
         run: |
-          echo "⏳ Waiting for SQL Server on port 1433..."
-          for i in $(seq 1 30); do
-            if nc -z -w 3 localhost 1433 2>/dev/null; then
-              echo "✅ Port 1433 open (attempt $i) — waiting 5s for engine init..."
-              sleep 5
+          # The service container health check already ensures SQL Server is up before
+          # steps start, but we add an explicit engine-level verification here as a
+          # belt-and-suspenders check and to produce a clear diagnostic in the log.
+          #
+          # 'sqlcmd' is in PATH on GitHub-hosted ubuntu-latest runners.
+          # The full path /opt/mssql-tools18/bin/sqlcmd is only valid INSIDE the container.
+          echo "⏳ Verifying SQL Server engine on localhost:1433..."
+          for i in $(seq 1 12); do
+            if sqlcmd \
+                -S localhost,1433 \
+                -U sa \
+                -P "$SA_PASSWORD" \
+                -Q "SELECT 1" \
+                -C -b -l 5 \
+                > /dev/null 2>&1; then
+              echo "✅ SQL Server engine verified (attempt $i)."
               exit 0
             fi
-            echo "  Attempt $i/30 — waiting 5s..."
+            echo "  Attempt $i/12 — not ready yet, retrying in 5s..."
             sleep 5
           done
-          echo "❌ SQL Server port 1433 not available after 30 attempts. Aborting."
+          echo "❌ SQL Server engine did not respond after 12 attempts. Aborting."
           exit 1
 
       - name: Run Benchmarks
@@ -153,15 +165,27 @@ jobs:
 
           # MarkdownExporter.GitHub produces *-report-github.md files.
           # Extract only table rows (lines starting with '|') to strip BDN environment headers.
+          extracted=0
+          skipped=0
           for md_file in "$ARTIFACTS"/*-report-github.md; do
             [ -f "$md_file" ] || continue
             # Strip namespace prefix, keep ClassName only:
             # e.g. "CaeriusNet.Benchmark.Workshops.Benchs.Mapping.DtoMappingBench-report-github.md"
             #   → "DtoMappingBench"
             classname=$(basename "$md_file" "-report-github.md" | rev | cut -d'.' -f1 | rev)
-            awk '/^\|/' "$md_file" > "$DOCS_DIR/${classname}.md"
-            echo "  ✅ ${classname}.md ($(wc -l < "$DOCS_DIR/${classname}.md") rows)"
+            out_file="$DOCS_DIR/${classname}.md"
+            awk '/^\|/' "$md_file" > "$out_file"
+            line_count=$(wc -l < "$out_file")
+            if [ "$line_count" -lt 3 ]; then
+              echo "  ⚠️  ${classname}.md has only ${line_count} line(s) — skipping (expected header + separator + ≥1 data row)."
+              rm -f "$out_file"
+              skipped=$((skipped + 1))
+            else
+              echo "  ✅ ${classname}.md (${line_count} lines)"
+              extracted=$((extracted + 1))
+            fi
           done
+          echo "📊 Extraction summary: ${extracted} file(s) written, ${skipped} skipped."
 
           echo "📋 Documentation results directory:"
           ls -la "$DOCS_DIR"
@@ -179,7 +203,9 @@ jobs:
           else
             CATEGORY="${{ github.event.inputs.category || 'all' }}"
             VERSION=$(grep -oP '(?<=<Version>)\d+\.\d+\.\d+(?=</Version>)' Src/CaeriusNet.csproj || echo "unknown")
-            git commit -m "chore(bench): update benchmark results v${VERSION} [category:${CATEGORY}] [skip ci]"
+            COMMIT_SHA="${{ github.sha }}"
+            SHORT_SHA="${COMMIT_SHA:0:7}"
+            git commit -m "chore(bench): update benchmark results v${VERSION} [category:${CATEGORY}] [run:${SHORT_SHA}] [skip ci]"
             git push
             echo "✅ Benchmark results committed."
           fi

@@ -26,7 +26,8 @@ public class DtoMappingBench
     private decimal[] _prices = null!;
     private Guid[] _traceIds = null!;
 
-    [Params(1, 100, 1_000, 10_000)] public int RowCount { get; set; }
+    [Params(1, 100, 1_000, 10_000, 100_000)]
+    public int RowCount { get; set; }
 
     [GlobalSetup]
     public void Setup()

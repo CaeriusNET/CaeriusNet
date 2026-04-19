@@ -1,67 +1,56 @@
-﻿using CaeriusNet.Benchmark.Data.Simple;
-using CaeriusNet.Benchmark.Workshops.Benchs.ReadCollections.Setup;
+﻿using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.ReadCollections;
 
+/// <summary>
+///     Measures sequential-read throughput of <see cref="ReadOnlyCollection{T}" /> across five
+///     row-count scales (1 → 100 000).
+/// </summary>
+/// <remarks>
+///     <see cref="ReadOnlyCollection{T}" /> is a thin reference wrapper over an <see cref="IList{T}" />.
+///     Iteration goes through the <c>IList</c> virtual interface, which prevents JIT devirtualisation.
+///     Comparing its Ratio against <see cref="ReadListToBench" /> quantifies the overhead introduced
+///     by the read-only wrapper in tight iteration loops.
+/// </remarks>
+[Config(typeof(BenchmarkConfig))]
 [MemoryDiagnoser]
 public class ReadReadOnlyCollectionToBench
 {
-    private static readonly ReadOnlyCollection<SimpleDto> ReadOnlyCollection =
-        ReadCollectionBogusSetup.FakingReadOnlyCollectionOf10KItemsDto;
+    private ReadOnlyCollection<BenchmarkItemDto> _data = null!;
 
-    private readonly Consumer _consumer = new();
+    /// <summary>Number of elements in the collection under test.</summary>
+    [Params(1, 100, 1_000, 10_000, 100_000)]
+    public int RowCount { get; set; }
 
-    private readonly ReadOnlyCollection<SimpleDto> _readOnlyCollectionOf100Items =
-        ReadOnlyCollection.Take(100).ToList().AsReadOnly();
-
-    private readonly ReadOnlyCollection<SimpleDto> _readOnlyCollectionOf10Items =
-        ReadOnlyCollection.Take(10).ToList().AsReadOnly();
-
-    private readonly ReadOnlyCollection<SimpleDto> _readOnlyCollectionOf10KItems = ReadOnlyCollection;
-
-    private readonly ReadOnlyCollection<SimpleDto> _readOnlyCollectionOf1Item =
-        ReadOnlyCollection.Take(1).ToList().AsReadOnly();
-
-    private readonly ReadOnlyCollection<SimpleDto> _readOnlyCollectionOf1KItems =
-        ReadOnlyCollection.Take(1000).ToList().AsReadOnly();
-
-    [Benchmark]
-    public void Read_ReadOnlyCollection_Of_1_Item()
+    [GlobalSetup]
+    public void Setup()
     {
-        var sum = _readOnlyCollectionOf1Item.Sum(item => item.Id);
-        _consumer.Consume(sum);
-        _ = sum;
+        var rng = new Random(42);
+        var list = new List<BenchmarkItemDto>(RowCount);
+        for (var i = 0; i < RowCount; i++)
+            list.Add(new BenchmarkItemDto(
+                rng.Next(1, 1_000_000),
+                Guid.NewGuid(),
+                $"item_{i:D6}",
+                Math.Round((decimal)(rng.NextDouble() * 9999.99), 2),
+                i % 2 == 0));
+        _data = list.AsReadOnly();
     }
 
-    [Benchmark]
-    public void Read_ReadOnlyCollection_Of_10_Items()
+    /// <summary>Direct foreach — enumerator obtained via IList virtual call; no boxing.</summary>
+    [Benchmark(Baseline = true, Description = "foreach — accumulate Sum(Id)")]
+    public int Read_ForEach()
     {
-        var sum = _readOnlyCollectionOf10Items.Sum(item => item.Id);
-        _consumer.Consume(sum);
-        _ = sum;
+        var sum = 0;
+        foreach (var item in _data)
+            sum += item.Id;
+        return sum;
     }
 
-    [Benchmark]
-    public void Read_ReadOnlyCollection_Of_100_Items()
+    /// <summary>LINQ Sum — stacks a delegate on top of the virtual enumerator.</summary>
+    [Benchmark(Description = "LINQ .Sum(item => item.Id)")]
+    public int Read_LinqSum()
     {
-        var sum = _readOnlyCollectionOf100Items.Sum(item => item.Id);
-        _consumer.Consume(sum);
-        _ = sum;
-    }
-
-    [Benchmark]
-    public void Read_ReadOnlyCollection_Of_1K_Items()
-    {
-        var sum = _readOnlyCollectionOf1KItems.Sum(item => item.Id);
-        _consumer.Consume(sum);
-        _ = sum;
-    }
-
-    [Benchmark]
-    public void Read_ReadOnlyCollection_Of_10K_Items()
-    {
-        var sum = _readOnlyCollectionOf10KItems.Sum(item => item.Id);
-        _consumer.Consume(sum);
-        _ = sum;
+        return _data.Sum(item => item.Id);
     }
 }

@@ -129,7 +129,7 @@ public static class SqlBenchmarkGlobalSetup
                                        IF NOT EXISTS (SELECT TOP 1 1 FROM [dbo].[BenchmarkItems])
                                        BEGIN
                                            INSERT INTO [dbo].[BenchmarkItems] ([Name], [Price], [IsActive])
-                                           SELECT TOP 10000
+                                           SELECT TOP 100000
                                                CONCAT('Item_', ROW_NUMBER() OVER (ORDER BY (SELECT NULL))),
                                                CAST(ABS(CHECKSUM(NEWID())) % 9999 + 1 AS DECIMAL(18,2)),
                                                1

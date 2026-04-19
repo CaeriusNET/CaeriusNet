@@ -18,7 +18,7 @@ public class BatchedVsSingleBench
 
     private List<BenchmarkTvpItem> _items = null!;
 
-    [Params(10, 100)] public int ItemCount { get; set; }
+    [Params(10, 100, 500, 1_000, 5_000)] public int ItemCount { get; set; }
 
     [GlobalSetup]
     public async Task Setup()

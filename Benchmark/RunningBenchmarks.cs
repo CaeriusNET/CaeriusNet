@@ -1,4 +1,5 @@
 ﻿using CaeriusNet.Benchmark.Workshops;
+using CaeriusNet.Benchmark.Workshops.Benchs.Cache;
 using CaeriusNet.Benchmark.Workshops.Benchs.CreateCollections;
 using CaeriusNet.Benchmark.Workshops.Benchs.ListCapacity;
 using CaeriusNet.Benchmark.Workshops.Benchs.Mapping;
@@ -20,7 +21,7 @@ public static class RunningBenchmarks
         return new BenchmarkConfig();
     }
 
-    /// <summary>Runs ALL benchmarks (in-memory + TVP + collection + SQL Server).</summary>
+    /// <summary>Runs ALL benchmarks (in-memory + TVP + collection + cache + SQL Server).</summary>
     public static void Run_All_Benchmarks()
     {
         BenchmarkRunner.Run([
@@ -50,6 +51,9 @@ public static class RunningBenchmarks
             typeof(ListWithCapacityToBench),
             typeof(ListWithCapacityWithOverextendToBench),
             typeof(ListWithLessCapacityThanNeededToBench),
+            // Cache layer: FrozenDictionary and IMemoryCache throughput
+            typeof(FrozenCacheBench),
+            typeof(InMemoryCacheBench),
             // SQL Server (skipped automatically if BENCHMARK_SQL_CONNECTION not set)
             typeof(SpExecutionBench),
             typeof(BatchedVsSingleBench),
@@ -124,6 +128,15 @@ public static class RunningBenchmarks
             typeof(ListWithCapacityToBench),
             typeof(ListWithCapacityWithOverextendToBench),
             typeof(ListWithLessCapacityThanNeededToBench)
+        ], GetConfig());
+    }
+
+    /// <summary>Runs cache-layer benchmarks (FrozenDictionary and IMemoryCache throughput).</summary>
+    public static void Run_Cache_Benchmarks()
+    {
+        BenchmarkRunner.Run([
+            typeof(FrozenCacheBench),
+            typeof(InMemoryCacheBench)
         ], GetConfig());
     }
 }

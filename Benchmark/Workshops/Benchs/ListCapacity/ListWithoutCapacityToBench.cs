@@ -1,58 +1,51 @@
-﻿using CaeriusNet.Benchmark.Data.Simple;
-using CaeriusNet.Benchmark.Workshops.Benchs.ListCapacity.Setup;
+﻿using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.ListCapacity;
 
+/// <summary>
+///     Measures <see cref="List{T}" /> construction cost with no capacity hint (default constructor).
+/// </summary>
+/// <remarks>
+///     Without a hint, <see cref="List{T}" /> starts with capacity 0 and doubles on each overflow:
+///     0 → 4 → 8 → 16 → … → N.  For large N this triggers O(log₂ N) reallocations, each of which
+///     copies the existing elements into a new, larger array.  The overhead is visible both in the
+///     Mean column (extra copy work) and the Gen0/Allocated columns (wasted intermediate arrays).
+///     Compare against <see cref="ListWithCapacityToBench" /> to quantify the exact cost of omitting
+///     the capacity hint at each scale.
+/// </remarks>
+[Config(typeof(BenchmarkConfig))]
 [MemoryDiagnoser]
 public class ListWithoutCapacityToBench
 {
-    private static readonly ReadOnlyCollection<SimpleDto> Data = ListCapacityBogusSetup.Faking10KItemsDto;
+    private BenchmarkItemDto[] _source = null!;
 
-    private readonly Consumer _consumer = new();
+    /// <summary>Number of items to add; no capacity hint is provided to the List constructor.</summary>
+    [Params(1, 100, 1_000, 10_000, 100_000)]
+    public int RowCount { get; set; }
 
-    private readonly List<SimpleDto> _data1 = Data.Take(1).ToList();
-    private readonly List<SimpleDto> _data10 = Data.Take(10).ToList();
-    private readonly List<SimpleDto> _data100 = Data.Take(100).ToList();
-    private readonly List<SimpleDto> _data10K = Data.ToList();
-    private readonly List<SimpleDto> _data1K = Data.Take(1000).ToList();
-
-    [Benchmark]
-    public List<SimpleDto> Set_No_Capacity_With_1_Item_To_Add()
+    [GlobalSetup]
+    public void Setup()
     {
-        var list = _data1.ToList();
-        _consumer.Consume(list);
-        return list;
+        var rng = new Random(42);
+        _source = new BenchmarkItemDto[RowCount];
+        for (var i = 0; i < RowCount; i++)
+            _source[i] = new BenchmarkItemDto(
+                rng.Next(1, 1_000_000),
+                Guid.NewGuid(),
+                $"item_{i:D6}",
+                Math.Round((decimal)(rng.NextDouble() * 9999.99), 2),
+                i % 2 == 0);
     }
 
-    [Benchmark]
-    public List<SimpleDto> Set_No_Capacity_With_10_Items_To_Add()
+    /// <summary>
+    ///     No capacity hint — internal array starts at 0 and doubles on every overflow.
+    ///     At RowCount=100 000 this triggers ~17 doubling steps, wasting ~50 % of the final array.
+    /// </summary>
+    [Benchmark(Baseline = true, Description = "new List<T>() + AddRange — no hint, O(log N) doublings")]
+    public List<BenchmarkItemDto> Create_NoCapacity()
     {
-        var list = _data10.ToList();
-        _consumer.Consume(list);
-        return list;
-    }
-
-    [Benchmark]
-    public List<SimpleDto> Set_No_Capacity_With_100_Items_To_Add()
-    {
-        var list = _data100.ToList();
-        _consumer.Consume(list);
-        return list;
-    }
-
-    [Benchmark]
-    public List<SimpleDto> Set_No_Capacity_With_1K_Items_To_Add()
-    {
-        var list = _data1K.ToList();
-        _consumer.Consume(list);
-        return list;
-    }
-
-    [Benchmark]
-    public List<SimpleDto> Set_No_Capacity_With_10K_Items_To_Add()
-    {
-        var list = _data10K.ToList();
-        _consumer.Consume(list);
+        var list = new List<BenchmarkItemDto>();
+        list.AddRange(_source);
         return list;
     }
 }

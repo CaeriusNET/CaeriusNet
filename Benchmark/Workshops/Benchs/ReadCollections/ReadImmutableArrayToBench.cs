@@ -1,68 +1,57 @@
-﻿using CaeriusNet.Benchmark.Data.Simple;
-using CaeriusNet.Benchmark.Workshops.Benchs.ReadCollections.Setup;
+﻿using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.ReadCollections;
 
+/// <summary>
+///     Measures sequential-read throughput of <see cref="ImmutableArray{T}" /> across five
+///     row-count scales (1 → 100 000).
+/// </summary>
+/// <remarks>
+///     <see cref="ImmutableArray{T}" /> stores elements in a contiguous array, enabling the JIT to
+///     generate optimal vector-load instructions.  Its enumerator is a value-type (<c>struct</c>),
+///     so BDN's foreach path avoids boxing and virtual dispatch entirely.
+///     Comparing this class against <see cref="ReadListToBench" /> reveals whether the immutability
+///     guarantee and contiguous layout actually yield measurable throughput improvements.
+/// </remarks>
+[Config(typeof(BenchmarkConfig))]
 [MemoryDiagnoser]
 public class ReadImmutableArrayToBench
 {
-    private static readonly ImmutableArray<SimpleDto> ImmutableArray =
-        ReadCollectionBogusSetup.FakingImmutableArrayOf10KItemsDto;
+    private ImmutableArray<BenchmarkItemDto> _data;
 
-    private readonly Consumer _consumer = new();
+    /// <summary>Number of elements in the immutable array under test.</summary>
+    [Params(1, 100, 1_000, 10_000, 100_000)]
+    public int RowCount { get; set; }
 
-    private readonly ImmutableArray<SimpleDto> _immutableArrayOf100Items = [..ImmutableArray.Take(100)];
-    private readonly ImmutableArray<SimpleDto> _immutableArrayOf100KItems = ImmutableArray;
-    private readonly ImmutableArray<SimpleDto> _immutableArrayOf10Items = [..ImmutableArray.Take(10)];
-    private readonly ImmutableArray<SimpleDto> _immutableArrayOf10KItems = [..ImmutableArray.Take(1000)];
-    private readonly ImmutableArray<SimpleDto> _immutableArrayOf1Item = [..ImmutableArray.Take(1)];
-    private readonly ImmutableArray<SimpleDto> _immutableArrayOf1KItems = [..ImmutableArray.Take(1000)];
-
-    [Benchmark]
-    public void Read_ImmutableArray_Of_1_Item()
+    [GlobalSetup]
+    public void Setup()
     {
-        var sum = _immutableArrayOf1Item.Sum(item => item.Id);
-        _consumer.Consume(sum);
-        _ = sum;
+        var rng = new Random(42);
+        var builder = ImmutableArray.CreateBuilder<BenchmarkItemDto>(RowCount);
+        for (var i = 0; i < RowCount; i++)
+            builder.Add(new BenchmarkItemDto(
+                rng.Next(1, 1_000_000),
+                Guid.NewGuid(),
+                $"item_{i:D6}",
+                Math.Round((decimal)(rng.NextDouble() * 9999.99), 2),
+                i % 2 == 0));
+        _data = builder.MoveToImmutable();
     }
 
-    [Benchmark]
-    public void Read_ImmutableArray_Of_10_Items()
+    /// <summary>Struct enumerator — zero boxing, no virtual dispatch, JIT-vectorisable inner loop.</summary>
+    [Benchmark(Baseline = true, Description = "foreach — struct enumerator, accumulate Sum(Id)")]
+    public int Read_ForEach()
     {
-        var sum = _immutableArrayOf10Items.Sum(item => item.Id);
-        _consumer.Consume(sum);
-        _ = sum;
+        var sum = 0;
+        foreach (var item in _data)
+            sum += item.Id;
+        return sum;
     }
 
-    [Benchmark]
-    public void Read_ImmutableArray_Of_100_Items()
+    /// <summary>LINQ Sum — forces IEnumerable interface; loses the struct-enumerator advantage.</summary>
+    [Benchmark(Description = "LINQ .Sum(item => item.Id)")]
+    public int Read_LinqSum()
     {
-        var sum = _immutableArrayOf100Items.Sum(item => item.Id);
-        _consumer.Consume(sum);
-        _ = sum;
-    }
-
-    [Benchmark]
-    public void Read_ImmutableArray_Of_1K_Items()
-    {
-        var sum = _immutableArrayOf1KItems.Sum(item => item.Id);
-        _consumer.Consume(sum);
-        _ = sum;
-    }
-
-    [Benchmark]
-    public void Read_ImmutableArray_Of_10K_Items()
-    {
-        var sum = _immutableArrayOf10KItems.Sum(item => item.Id);
-        _consumer.Consume(sum);
-        _ = sum;
-    }
-
-    [Benchmark]
-    public void Read_ImmutableArray_Of_100K_Items()
-    {
-        var sum = _immutableArrayOf100KItems.Sum(item => item.Id);
-        _consumer.Consume(sum);
-        _ = sum;
+        return _data.Sum(item => item.Id);
     }
 }

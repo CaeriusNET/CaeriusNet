@@ -9,7 +9,7 @@ public class BenchmarkConfig : ManualConfig
 {
     public BenchmarkConfig()
     {
-        var isCI = string.Equals(
+        var isCi = string.Equals(
             Environment.GetEnvironmentVariable("CI"),
             "true",
             StringComparison.OrdinalIgnoreCase);
@@ -20,7 +20,7 @@ public class BenchmarkConfig : ManualConfig
                             ?? Path.Combine(Directory.GetCurrentDirectory(), "BenchmarkDotNet.Artifacts");
         WithArtifactsPath(artifactsPath);
 
-        if (isCI)
+        if (isCi)
         {
             // InProcessEmitToolchain: runs benchmarks in the host process (no child process spawning).
             // This guarantees artifacts are always written to the configured path above.
@@ -28,15 +28,16 @@ public class BenchmarkConfig : ManualConfig
             AddJob(Job.Default
                 .WithToolchain(InProcessEmitToolchain.Instance)
                 .WithWarmupCount(1)
-                .WithIterationCount(3));
+                .WithIterationCount(5));
 
             AddExporter(MarkdownExporter.GitHub); // → *-report-github.md (GitHub-flavoured markdown table)
-            AddExporter(JsonExporter.Full);        // → *-report-full.json
+            AddExporter(JsonExporter.Full); // → *-report-full.json
         }
         else
         {
             AddJob(Job.Default);
             AddExporter(HtmlExporter.Default);
+            AddExporter(MarkdownExporter.GitHub); // → *-report-github.md for offline analysis
             AddExporter(JsonExporter.Full);
         }
 

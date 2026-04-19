@@ -46,7 +46,8 @@ public class TvpColumnScalingBench
     private List<BenchmarkTvpItem> _items3 = null!;
     private List<BenchmarkTvpItem5Col> _items5 = null!;
 
-    [Params(10, 100, 1_000, 10_000)] public int RowCount { get; set; }
+    [Params(10, 100, 1_000, 10_000, 50_000, 100_000)]
+    public int RowCount { get; set; }
 
     [GlobalSetup]
     public void Setup()

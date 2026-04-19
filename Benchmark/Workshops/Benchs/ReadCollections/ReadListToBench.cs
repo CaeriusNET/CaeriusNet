@@ -1,58 +1,70 @@
-﻿using CaeriusNet.Benchmark.Data.Simple;
-using CaeriusNet.Benchmark.Workshops.Benchs.ReadCollections.Setup;
+﻿using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.ReadCollections;
 
+/// <summary>
+///     Measures sequential-read throughput of <see cref="List{T}" /> across five row-count scales
+///     (1 → 100 000), using a realistic 5-field DTO to approximate production result-set payloads.
+/// </summary>
+/// <remarks>
+///     Two traversal strategies are contrasted:
+///     <list type="bullet">
+///         <item>
+///             <term>foreach (baseline)</term>
+///             <description>
+///                 Direct iteration; no delegate allocation; mirrors the inner loop emitted by the
+///                 CaeriusNet source generator for <c>MapFromDataReader()</c>.
+///             </description>
+///         </item>
+///         <item>
+///             <term>LINQ Sum</term>
+///             <description>
+///                 Delegate-based path that goes through <see cref="IEnumerable{T}" /> virtual dispatch;
+///                 the Ratio column quantifies the real overhead vs raw foreach.
+///             </description>
+///         </item>
+///     </list>
+///     Data is generated once per <see cref="RowCount" /> value with a fixed seed (42) to guarantee
+///     reproducibility across runs and CI environments.
+/// </remarks>
+[Config(typeof(BenchmarkConfig))]
 [MemoryDiagnoser]
 public class ReadListToBench
 {
-    private static readonly List<SimpleDto> List = ReadCollectionBogusSetup.FakingListOf10KItemsDto;
+    private List<BenchmarkItemDto> _data = null!;
 
-    private readonly Consumer _consumer = new();
-    private readonly List<SimpleDto> _listOf100Items = List.Take(100).ToList();
-    private readonly List<SimpleDto> _listOf10Items = List.Take(10).ToList();
-    private readonly List<SimpleDto> _listOf10KItems = List;
+    /// <summary>Number of elements in the collection under test.</summary>
+    [Params(1, 100, 1_000, 10_000, 100_000)]
+    public int RowCount { get; set; }
 
-    private readonly List<SimpleDto> _listOf1Item = List.Take(1).ToList();
-    private readonly List<SimpleDto> _listOf1KItems = List.Take(1000).ToList();
-
-    [Benchmark]
-    public void Read_List_Of_1_Item()
+    [GlobalSetup]
+    public void Setup()
     {
-        var sum = _listOf1Item.Sum(item => item.Id);
-        _consumer.Consume(sum);
-        _ = sum;
+        var rng = new Random(42);
+        _data = new List<BenchmarkItemDto>(RowCount);
+        for (var i = 0; i < RowCount; i++)
+            _data.Add(new BenchmarkItemDto(
+                rng.Next(1, 1_000_000),
+                Guid.NewGuid(),
+                $"item_{i:D6}",
+                Math.Round((decimal)(rng.NextDouble() * 9999.99), 2),
+                i % 2 == 0));
     }
 
-    [Benchmark]
-    public void Read_List_Of_10_Items()
+    /// <summary>Direct foreach — zero delegate overhead; mirrors generated reader-loop pattern.</summary>
+    [Benchmark(Baseline = true, Description = "foreach — accumulate Sum(Id)")]
+    public int Read_ForEach()
     {
-        var sum = _listOf10Items.Sum(item => item.Id);
-        _consumer.Consume(sum);
-        _ = sum;
+        var sum = 0;
+        foreach (var item in _data)
+            sum += item.Id;
+        return sum;
     }
 
-    [Benchmark]
-    public void Read_List_Of_100_Items()
+    /// <summary>LINQ Sum — adds a delegate + IEnumerable virtual dispatch per element.</summary>
+    [Benchmark(Description = "LINQ .Sum(item => item.Id)")]
+    public int Read_LinqSum()
     {
-        var sum = _listOf100Items.Sum(item => item.Id);
-        _consumer.Consume(sum);
-        _ = sum;
-    }
-
-    [Benchmark]
-    public void Read_List_Of_1K_Items()
-    {
-        var sum = _listOf1KItems.Sum(item => item.Id);
-        _consumer.Consume(sum);
-        _ = sum;
-    }
-
-    [Benchmark]
-    public void Read_List_Of_10K_Items()
-    {
-        var sum = _listOf10KItems.Sum(item => item.Id);
-        _consumer.Consume(sum);
-        _ = sum;
+        return _data.Sum(item => item.Id);
     }
 }
