@@ -1,4 +1,4 @@
-using CaeriusNet.Benchmark.Data.Generated;
+﻿using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.CreateCollections;
 
@@ -9,15 +9,21 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.CreateCollections;
 /// <remarks>
 ///     Two construction paths are compared:
 ///     <list type="bullet">
-///       <item><term>CreateBuilder (baseline)</term><description>
-///           Pre-allocates a typed builder, fills it via <c>AddRange</c>, then seals it with
-///           <c>MoveToImmutable()</c>.  When the capacity matches exactly, MoveToImmutable performs
-///           a zero-copy move of the internal array — no second allocation occurs.
-///       </description></item>
-///       <item><term>ImmutableArray.Create(Span)</term><description>
-///           Constructs the immutable array directly from a <see cref="ReadOnlySpan{T}"/>:
-///           a single internal memcopy with no builder overhead.  Fastest path for array-sourced data.
-///       </description></item>
+///         <item>
+///             <term>CreateBuilder (baseline)</term>
+///             <description>
+///                 Pre-allocates a typed builder, fills it via <c>AddRange</c>, then seals it with
+///                 <c>MoveToImmutable()</c>.  When the capacity matches exactly, MoveToImmutable performs
+///                 a zero-copy move of the internal array — no second allocation occurs.
+///             </description>
+///         </item>
+///         <item>
+///             <term>ImmutableArray.Create(Span)</term>
+///             <description>
+///                 Constructs the immutable array directly from a <see cref="ReadOnlySpan{T}" />:
+///                 a single internal memcopy with no builder overhead.  Fastest path for array-sourced data.
+///             </description>
+///         </item>
 ///     </list>
 /// </remarks>
 [Config(typeof(BenchmarkConfig))]

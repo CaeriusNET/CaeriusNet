@@ -1,17 +1,17 @@
-using CaeriusNet.Benchmark.Data.Generated;
+﻿using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.ListCapacity;
 
 /// <summary>
 ///     Measures <see cref="List{T}" /> construction cost when the capacity hint equals
-///     <see cref="RowCount"/> but exactly <c>RowCount × 2</c> items are added — forcing a single
+///     <see cref="RowCount" /> but exactly <c>RowCount × 2</c> items are added — forcing a single
 ///     resize beyond the initial hint.
 /// </summary>
 /// <remarks>
 ///     This models the scenario where the caller under-estimates the final item count by a factor
 ///     of two and the list must double its internal array exactly once.  The additional memcopy of
 ///     the initial allocation is visible in the Allocated column vs the exact-capacity baseline
-///     (<see cref="ListWithCapacityToBench"/>).  The Ratio column isolates the cost of carrying one
+///     (<see cref="ListWithCapacityToBench" />).  The Ratio column isolates the cost of carrying one
 ///     forced resize at each scale from 1 to 100 000.
 /// </remarks>
 [Config(typeof(BenchmarkConfig))]

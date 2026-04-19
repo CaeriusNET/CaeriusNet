@@ -4,35 +4,47 @@ using Microsoft.Extensions.Caching.Memory;
 namespace CaeriusNet.Benchmark.Workshops.Benchs.Cache;
 
 /// <summary>
-///     Benchmarks read, write, and miss-handling performance of <see cref="IMemoryCache"/> at
+///     Benchmarks read, write, and miss-handling performance of <see cref="IMemoryCache" /> at
 ///     varying cache sizes — the data structure underpinning CaeriusNet's in-memory cache layer.
 /// </summary>
 /// <remarks>
 ///     <para>
-///         <see cref="IMemoryCache"/> is a concurrent, key-expiring cache backed by a
-///         <see cref="System.Collections.Concurrent.ConcurrentDictionary{TKey,TValue}"/>.
-///         Unlike <see cref="System.Collections.Frozen.FrozenDictionary{TKey,TValue}"/>, it supports
+///         <see cref="IMemoryCache" /> is a concurrent, key-expiring cache backed by a
+///         <see cref="System.Collections.Concurrent.ConcurrentDictionary{TKey,TValue}" />.
+///         Unlike <see cref="System.Collections.Frozen.FrozenDictionary{TKey,TValue}" />, it supports
 ///         TTL-based expiration, making it suitable for mutable, time-bound cache populations.
 ///     </para>
 ///     <list type="bullet">
-///       <item><term>Cache hit — TryGetValue</term><description>
-///           All entries are pre-populated in GlobalSetup; every TryGetValue call succeeds.
-///           Measures the hot-path cost of the ConcurrentDictionary lookup + entry validation.
-///       </description></item>
-///       <item><term>Cache miss — TryGetValue</term><description>
-///           Looks up keys that were never stored.  Measures the cost of the miss path
-///           (hash lookup + no-entry branch), which determines GetOrCreate performance when the
-///           cache is cold.
-///       </description></item>
-///       <item><term>Cache write — Set with TTL</term><description>
-///           Stores a single entry with a 5-minute absolute expiration, mirroring CaeriusNet's
-///           default TTL.  Measures allocation cost of MemoryCacheEntry + ConcurrentDictionary insert.
-///       </description></item>
-///       <item><term>GetOrCreate round-trip</term><description>
-///           The idiomatic MemoryCache usage pattern: atomically check + populate if missing.
-///           On a warm cache every call short-circuits to the hit path.  Ratio vs the pure hit
-///           benchmark shows the overhead of the GetOrCreate wrapper vs a raw TryGetValue.
-///       </description></item>
+///         <item>
+///             <term>Cache hit — TryGetValue</term>
+///             <description>
+///                 All entries are pre-populated in GlobalSetup; every TryGetValue call succeeds.
+///                 Measures the hot-path cost of the ConcurrentDictionary lookup + entry validation.
+///             </description>
+///         </item>
+///         <item>
+///             <term>Cache miss — TryGetValue</term>
+///             <description>
+///                 Looks up keys that were never stored.  Measures the cost of the miss path
+///                 (hash lookup + no-entry branch), which determines GetOrCreate performance when the
+///                 cache is cold.
+///             </description>
+///         </item>
+///         <item>
+///             <term>Cache write — Set with TTL</term>
+///             <description>
+///                 Stores a single entry with a 5-minute absolute expiration, mirroring CaeriusNet's
+///                 default TTL.  Measures allocation cost of MemoryCacheEntry + ConcurrentDictionary insert.
+///             </description>
+///         </item>
+///         <item>
+///             <term>GetOrCreate round-trip</term>
+///             <description>
+///                 The idiomatic MemoryCache usage pattern: atomically check + populate if missing.
+///                 On a warm cache every call short-circuits to the hit path.  Ratio vs the pure hit
+///                 benchmark shows the overhead of the GetOrCreate wrapper vs a raw TryGetValue.
+///             </description>
+///         </item>
 ///     </list>
 ///     <para>
 ///         Data is generated with a fixed seed (42) so results are reproducible across runs.

@@ -1,4 +1,4 @@
-using CaeriusNet.Benchmark.Data.Generated;
+﻿using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.CreateCollections;
 
@@ -7,7 +7,7 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.CreateCollections;
 ///     source array across five row-count scales (1 → 100 000).
 /// </summary>
 /// <remarks>
-///     <see cref="ReadOnlyCollection{T}"/> wraps an <see cref="IList{T}"/> by reference — no deep
+///     <see cref="ReadOnlyCollection{T}" /> wraps an <see cref="IList{T}" /> by reference — no deep
 ///     copy of the elements occurs during the wrap itself.  The dominant cost is therefore the
 ///     <c>new List → AddRange → AsReadOnly()</c> pipeline, not the wrapper object overhead.
 ///     The LINQ variant adds an extra iteration step before the wrap.

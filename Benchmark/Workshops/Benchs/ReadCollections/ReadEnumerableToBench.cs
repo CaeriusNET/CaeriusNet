@@ -1,4 +1,4 @@
-using CaeriusNet.Benchmark.Data.Generated;
+﻿using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.ReadCollections;
 
@@ -7,11 +7,11 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.ReadCollections;
 ///     row-count scales (1 → 100 000).
 /// </summary>
 /// <remarks>
-///     The underlying storage is a <see cref="List{T}"/> exposed as <see cref="IEnumerable{T}"/>.
+///     The underlying storage is a <see cref="List{T}" /> exposed as <see cref="IEnumerable{T}" />.
 ///     This models the most common public API shape: a query method returning a lazy sequence.
 ///     Typed as an interface, the JIT cannot devirtualise the enumerator, adding measurable overhead
-///     compared with direct <see cref="List{T}"/> access — visible in the Ratio column when cross-
-///     referenced against <see cref="ReadListToBench"/>.
+///     compared with direct <see cref="List{T}" /> access — visible in the Ratio column when cross-
+///     referenced against <see cref="ReadListToBench" />.
 /// </remarks>
 [Config(typeof(BenchmarkConfig))]
 [MemoryDiagnoser]

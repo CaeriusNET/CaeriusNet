@@ -1,4 +1,4 @@
-using CaeriusNet.Benchmark.Data.Generated;
+﻿using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.ListCapacity;
 
@@ -9,7 +9,7 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.ListCapacity;
 /// <remarks>
 ///     Setting <c>capacity = RowCount / 2</c> while adding <c>RowCount</c> elements forces the list
 ///     to resize once: the initial half-sized array is copied into a new array of at least
-///     <c>RowCount</c> slots.  The Ratio column vs <see cref="ListWithCapacityToBench"/> isolates
+///     <c>RowCount</c> slots.  The Ratio column vs <see cref="ListWithCapacityToBench" /> isolates
 ///     the cost of that single unnecessary copy at each scale.  At 100 000 rows the difference
 ///     becomes non-trivial and visible in both the Mean and Allocated columns.
 /// </remarks>

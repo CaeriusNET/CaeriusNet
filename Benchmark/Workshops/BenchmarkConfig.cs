@@ -31,7 +31,7 @@ public class BenchmarkConfig : ManualConfig
                 .WithIterationCount(5));
 
             AddExporter(MarkdownExporter.GitHub); // → *-report-github.md (GitHub-flavoured markdown table)
-            AddExporter(JsonExporter.Full);        // → *-report-full.json
+            AddExporter(JsonExporter.Full); // → *-report-full.json
         }
         else
         {

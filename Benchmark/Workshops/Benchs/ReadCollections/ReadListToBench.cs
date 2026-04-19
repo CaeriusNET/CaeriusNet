@@ -1,4 +1,4 @@
-using CaeriusNet.Benchmark.Data.Generated;
+﻿using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.ReadCollections;
 
@@ -9,16 +9,22 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.ReadCollections;
 /// <remarks>
 ///     Two traversal strategies are contrasted:
 ///     <list type="bullet">
-///       <item><term>foreach (baseline)</term><description>
-///           Direct iteration; no delegate allocation; mirrors the inner loop emitted by the
-///           CaeriusNet source generator for <c>MapFromDataReader()</c>.
-///       </description></item>
-///       <item><term>LINQ Sum</term><description>
-///           Delegate-based path that goes through <see cref="IEnumerable{T}"/> virtual dispatch;
-///           the Ratio column quantifies the real overhead vs raw foreach.
-///       </description></item>
+///         <item>
+///             <term>foreach (baseline)</term>
+///             <description>
+///                 Direct iteration; no delegate allocation; mirrors the inner loop emitted by the
+///                 CaeriusNet source generator for <c>MapFromDataReader()</c>.
+///             </description>
+///         </item>
+///         <item>
+///             <term>LINQ Sum</term>
+///             <description>
+///                 Delegate-based path that goes through <see cref="IEnumerable{T}" /> virtual dispatch;
+///                 the Ratio column quantifies the real overhead vs raw foreach.
+///             </description>
+///         </item>
 ///     </list>
-///     Data is generated once per <see cref="RowCount"/> value with a fixed seed (42) to guarantee
+///     Data is generated once per <see cref="RowCount" /> value with a fixed seed (42) to guarantee
 ///     reproducibility across runs and CI environments.
 /// </remarks>
 [Config(typeof(BenchmarkConfig))]

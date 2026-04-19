@@ -1,4 +1,4 @@
-using CaeriusNet.Benchmark.Data.Generated;
+﻿using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.ReadCollections;
 
@@ -7,9 +7,9 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.ReadCollections;
 ///     row-count scales (1 → 100 000).
 /// </summary>
 /// <remarks>
-///     <see cref="ReadOnlyCollection{T}"/> is a thin reference wrapper over an <see cref="IList{T}"/>.
+///     <see cref="ReadOnlyCollection{T}" /> is a thin reference wrapper over an <see cref="IList{T}" />.
 ///     Iteration goes through the <c>IList</c> virtual interface, which prevents JIT devirtualisation.
-///     Comparing its Ratio against <see cref="ReadListToBench"/> quantifies the overhead introduced
+///     Comparing its Ratio against <see cref="ReadListToBench" /> quantifies the overhead introduced
 ///     by the read-only wrapper in tight iteration loops.
 /// </remarks>
 [Config(typeof(BenchmarkConfig))]

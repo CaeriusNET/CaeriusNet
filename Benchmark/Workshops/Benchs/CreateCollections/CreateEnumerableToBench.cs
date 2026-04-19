@@ -1,4 +1,4 @@
-using CaeriusNet.Benchmark.Data.Generated;
+﻿using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.CreateCollections;
 
@@ -9,16 +9,22 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.CreateCollections;
 /// <remarks>
 ///     Two paths are contrasted:
 ///     <list type="bullet">
-///       <item><term>Materialise then wrap (baseline)</term><description>
-///           Fills a pre-allocated <see cref="List{T}"/> and wraps it with
-///           <see cref="Enumerable.AsEnumerable{TSource}"/> — a zero-allocation identity cast.
-///           Dominant cost is the List construction itself.
-///       </description></item>
-///       <item><term>Zero-copy array wrap</term><description>
-///           Calls <c>AsEnumerable()</c> directly on the source array — no intermediate List is
-///           created.  Near-zero allocation at all scales; demonstrates why skipping materialisation
-///           matters for read-only enumeration paths.
-///       </description></item>
+///         <item>
+///             <term>Materialise then wrap (baseline)</term>
+///             <description>
+///                 Fills a pre-allocated <see cref="List{T}" /> and wraps it with
+///                 <see cref="Enumerable.AsEnumerable{TSource}" /> — a zero-allocation identity cast.
+///                 Dominant cost is the List construction itself.
+///             </description>
+///         </item>
+///         <item>
+///             <term>Zero-copy array wrap</term>
+///             <description>
+///                 Calls <c>AsEnumerable()</c> directly on the source array — no intermediate List is
+///                 created.  Near-zero allocation at all scales; demonstrates why skipping materialisation
+///                 matters for read-only enumeration paths.
+///             </description>
+///         </item>
 ///     </list>
 /// </remarks>
 [Config(typeof(BenchmarkConfig))]

@@ -9,7 +9,8 @@
 [MemoryDiagnoser]
 public class SpExecutionBench
 {
-    [Params(0, 10, 100, 1_000, 5_000, 10_000, 50_000)] public int RowCount { get; set; }
+    [Params(0, 10, 100, 1_000, 5_000, 10_000, 50_000)]
+    public int RowCount { get; set; }
 
     [GlobalSetup]
     public async Task Setup()

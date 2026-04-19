@@ -1,4 +1,4 @@
-using CaeriusNet.Benchmark.Data.Generated;
+﻿using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.ReadCollections;
 
@@ -7,10 +7,10 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.ReadCollections;
 ///     row-count scales (1 → 100 000).
 /// </summary>
 /// <remarks>
-///     <see cref="ImmutableArray{T}"/> stores elements in a contiguous array, enabling the JIT to
+///     <see cref="ImmutableArray{T}" /> stores elements in a contiguous array, enabling the JIT to
 ///     generate optimal vector-load instructions.  Its enumerator is a value-type (<c>struct</c>),
 ///     so BDN's foreach path avoids boxing and virtual dispatch entirely.
-///     Comparing this class against <see cref="ReadListToBench"/> reveals whether the immutability
+///     Comparing this class against <see cref="ReadListToBench" /> reveals whether the immutability
 ///     guarantee and contiguous layout actually yield measurable throughput improvements.
 /// </remarks>
 [Config(typeof(BenchmarkConfig))]

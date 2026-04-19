@@ -1,4 +1,4 @@
-using CaeriusNet.Benchmark.Data.Generated;
+﻿using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.CreateCollections;
 
@@ -9,14 +9,20 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.CreateCollections;
 /// <remarks>
 ///     Two construction paths are compared:
 ///     <list type="bullet">
-///       <item><term>Explicit capacity + AddRange (baseline)</term><description>
-///           Sets capacity to <see cref="RowCount"/> so the internal array is allocated once and
-///           <c>AddRange</c> performs a single memcopy — no resize occurs.
-///       </description></item>
-///       <item><term>LINQ ToList</term><description>
-///           Internally creates a <see cref="List{T}"/> without a hint and fills it via the
-///           <see cref="IEnumerable{T}"/> path, which may trigger one extra reallocation step.
-///       </description></item>
+///         <item>
+///             <term>Explicit capacity + AddRange (baseline)</term>
+///             <description>
+///                 Sets capacity to <see cref="RowCount" /> so the internal array is allocated once and
+///                 <c>AddRange</c> performs a single memcopy — no resize occurs.
+///             </description>
+///         </item>
+///         <item>
+///             <term>LINQ ToList</term>
+///             <description>
+///                 Internally creates a <see cref="List{T}" /> without a hint and fills it via the
+///                 <see cref="IEnumerable{T}" /> path, which may trigger one extra reallocation step.
+///             </description>
+///         </item>
 ///     </list>
 ///     The Allocated column reveals the memory difference between both strategies at each scale.
 /// </remarks>

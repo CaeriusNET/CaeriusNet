@@ -1,4 +1,4 @@
-using CaeriusNet.Benchmark.Data.Generated;
+﻿using CaeriusNet.Benchmark.Data.Generated;
 
 namespace CaeriusNet.Benchmark.Workshops.Benchs.ListCapacity;
 
@@ -6,11 +6,11 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.ListCapacity;
 ///     Measures <see cref="List{T}" /> construction cost with no capacity hint (default constructor).
 /// </summary>
 /// <remarks>
-///     Without a hint, <see cref="List{T}"/> starts with capacity 0 and doubles on each overflow:
+///     Without a hint, <see cref="List{T}" /> starts with capacity 0 and doubles on each overflow:
 ///     0 → 4 → 8 → 16 → … → N.  For large N this triggers O(log₂ N) reallocations, each of which
 ///     copies the existing elements into a new, larger array.  The overhead is visible both in the
 ///     Mean column (extra copy work) and the Gen0/Allocated columns (wasted intermediate arrays).
-///     Compare against <see cref="ListWithCapacityToBench"/> to quantify the exact cost of omitting
+///     Compare against <see cref="ListWithCapacityToBench" /> to quantify the exact cost of omitting
 ///     the capacity hint at each scale.
 /// </remarks>
 [Config(typeof(BenchmarkConfig))]
