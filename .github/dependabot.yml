@@ -17,6 +17,16 @@ updates:
         patterns:
           - "Aspire.*"
 
+  - package-ecosystem: "npm"
+    directory: "/Documentations"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "documentation"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

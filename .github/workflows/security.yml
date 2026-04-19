@@ -1,0 +1,78 @@
+name: Security Audit
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 4 * * 1'  # Monday 04:00 UTC
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_NOLOGO: true
+
+jobs:
+  dependency-review:
+    name: Dependency Review (PR only)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          deny-licenses: GPL-2.0, GPL-3.0, AGPL-3.0
+          comment-summary-in-pr: always
+
+  vulnerability-scan:
+    name: Vulnerable Package Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore CaeriusNet.slnx
+
+      - name: Scan for vulnerable packages (main library)
+        run: |
+          echo "=== Scanning Src/CaeriusNet.csproj for vulnerabilities ==="
+          dotnet list Src/CaeriusNet.csproj package --vulnerable --include-transitive 2>&1 \
+            | tee /tmp/vuln-src.txt
+          if grep -q "has the following vulnerable packages" /tmp/vuln-src.txt; then
+            echo "::error title=Vulnerable Packages::Vulnerable NuGet packages detected in CaeriusNet! See log for details."
+            exit 1
+          fi
+          echo "✅ No vulnerable packages found in main library."
+
+      - name: Scan for vulnerable packages (solution-wide)
+        run: |
+          echo "=== Scanning full solution for vulnerabilities ==="
+          dotnet list package --vulnerable --include-transitive 2>&1 \
+            | tee /tmp/vuln-solution.txt
+          if grep -q "has the following vulnerable packages" /tmp/vuln-solution.txt; then
+            echo "::warning title=Vulnerable Packages::Vulnerable packages found in solution (non-blocking for dev projects)."
+          else
+            echo "✅ No vulnerable packages found solution-wide."
+          fi
+
+      - name: Report outdated packages (informational)
+        run: |
+          echo "=== Outdated packages (informational, non-blocking) ==="
+          dotnet list Src/CaeriusNet.csproj package --outdated || true
+        continue-on-error: true
