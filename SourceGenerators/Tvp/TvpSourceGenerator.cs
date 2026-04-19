@@ -9,11 +9,12 @@
 ///         This incremental source generator automatically creates implementations of the <see cref="ITvpMapper{T}" />
 ///         interface,
 ///         which converts C# objects into SQL Server Table-Valued Parameters (TVPs) via
-///         <see cref="System.Data.DataTable" />.
+///         <see cref="System.Data.SqlTypes.SqlDataRecord" /> streaming — no <c>DataTable</c> allocation required.
 ///     </para>
 ///     <para>
-///         The generator processes sealed partial records/classes and generates the <c>MapAsDataTable</c> method,
-///         which creates a properly structured DataTable with columns matching the TVP schema and populates it with data.
+///         The generator processes sealed partial records/classes and generates the <c>MapAsSqlDataRecords</c> method,
+///         which streams rows using a single reused <c>SqlDataRecord</c> instance with a static <c>_tvpMetaData</c>
+///         array, enabling zero-allocation TVP construction.
 ///     </para>
 ///     <para>
 ///         Performance characteristics:
@@ -52,20 +53,20 @@ public sealed partial class TvpSourceGenerator : IIncrementalGenerator
 	///     </list>
 	/// </remarks>
 	public void Initialize(IncrementalGeneratorInitializationContext context)
-	{
-		// Create the pipeline for detecting and generating TVP mappers
-		var tvpCandidates = context.SyntaxProvider
-			.ForAttributeWithMetadataName(
-				"CaeriusNet.Attributes.Tvp.GenerateTvpAttribute",
-				static (syntaxNode, cancellationToken) => IsTvpCandidate(syntaxNode, cancellationToken),
-				static (context, cancellationToken) => ExtractTvpMetadata(context, cancellationToken))
-			.Where(static metadata => metadata is not null);
+    {
+        // Create the pipeline for detecting and generating TVP mappers
+        var tvpCandidates = context.SyntaxProvider
+            .ForAttributeWithMetadataName(
+                "CaeriusNet.Attributes.Tvp.GenerateTvpAttribute",
+                static (syntaxNode, cancellationToken) => IsTvpCandidate(syntaxNode, cancellationToken),
+                static (context, cancellationToken) => ExtractTvpMetadata(context, cancellationToken))
+            .Where(static metadata => metadata is not null);
 
-		// Register the code generation action
-		context.RegisterSourceOutput(tvpCandidates, static (context, tvpMetadata) =>
-		{
-			if (tvpMetadata is not null)
-				GenerateTvpMapper(context, tvpMetadata);
-		});
-	}
+        // Register the code generation action
+        context.RegisterSourceOutput(tvpCandidates, static (context, tvpMetadata) =>
+        {
+            if (tvpMetadata is not null)
+                GenerateTvpMapper(context, tvpMetadata);
+        });
+    }
 }
