@@ -92,22 +92,28 @@ jobs:
 
       - name: Wait for SQL Server to be ready
         run: |
-          echo "⏳ Waiting for SQL Server on localhost:1433..."
-          for i in $(seq 1 30); do
-            if /opt/mssql-tools18/bin/sqlcmd \
+          # The service container health check already ensures SQL Server is up before
+          # steps start, but we add an explicit engine-level verification here as a
+          # belt-and-suspenders check and to produce a clear diagnostic in the log.
+          #
+          # 'sqlcmd' is in PATH on GitHub-hosted ubuntu-latest runners.
+          # The full path /opt/mssql-tools18/bin/sqlcmd is only valid INSIDE the container.
+          echo "⏳ Verifying SQL Server engine on localhost:1433..."
+          for i in $(seq 1 12); do
+            if sqlcmd \
                 -S localhost,1433 \
                 -U sa \
                 -P "$SA_PASSWORD" \
                 -Q "SELECT 1" \
                 -C -b -l 5 \
                 > /dev/null 2>&1; then
-              echo "✅ SQL Server is ready (attempt $i)."
+              echo "✅ SQL Server engine verified (attempt $i)."
               exit 0
             fi
-            echo "  Attempt $i/30 — SQL Server not ready yet, waiting 5s..."
+            echo "  Attempt $i/12 — not ready yet, retrying in 5s..."
             sleep 5
           done
-          echo "❌ SQL Server did not become available after 30 attempts. Aborting."
+          echo "❌ SQL Server engine did not respond after 12 attempts. Aborting."
           exit 1
 
       - name: Run Benchmarks
