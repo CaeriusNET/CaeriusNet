@@ -53,7 +53,7 @@ jobs:
         ports:
           - 1433:1433
         options: >-
-          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'BenchmarkP@ss2026!' -Q 'SELECT 1' -C -l 10"
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost,1433 -U sa -P 'BenchmarkP@ss2026!' -Q 'SELECT 1' -C -l 10"
           --health-interval 15s
           --health-timeout 10s
           --health-retries 12
@@ -89,16 +89,17 @@ jobs:
 
       - name: Wait for SQL Server to be ready
         run: |
-          echo "⏳ Waiting for SQL Server..."
+          echo "⏳ Waiting for SQL Server on port 1433..."
           for i in $(seq 1 30); do
-            if /opt/mssql-tools18/bin/sqlcmd -S localhost,1433 -U sa -P "${{ env.SA_PASSWORD }}" -Q "SELECT 1" -C -l 5 >/dev/null 2>&1; then
-              echo "✅ SQL Server is ready (attempt $i)."
+            if nc -z -w 3 localhost 1433 2>/dev/null; then
+              echo "✅ Port 1433 open (attempt $i) — waiting 3s for engine init..."
+              sleep 3
               exit 0
             fi
             echo "  Attempt $i/30 — waiting 5s..."
             sleep 5
           done
-          echo "❌ SQL Server not ready after 30 attempts (150s). Aborting."
+          echo "❌ SQL Server port 1433 not available after 30 attempts (150s). Aborting."
           exit 1
 
       - name: Run Benchmarks
