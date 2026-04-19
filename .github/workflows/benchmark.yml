@@ -56,11 +56,11 @@ jobs:
         ports:
           - 1433:1433
         options: >-
-          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost,1433 -U sa -P 'BenchmarkP@ss2026!' -Q 'SELECT 1' -C -l 10"
-          --health-interval 15s
-          --health-timeout 10s
-          --health-retries 12
-          --health-start-period 60s
+          --health-cmd "/bin/bash -c 'echo > /dev/tcp/127.0.0.1/1433'"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 24
+          --health-start-period 20s
 
     steps:
       - name: Checkout
@@ -92,28 +92,18 @@ jobs:
 
       - name: Wait for SQL Server to be ready
         run: |
-          # The service container health check already ensures SQL Server is up before
-          # steps start, but we add an explicit engine-level verification here as a
-          # belt-and-suspenders check and to produce a clear diagnostic in the log.
-          #
-          # 'sqlcmd' is in PATH on GitHub-hosted ubuntu-latest runners.
-          # The full path /opt/mssql-tools18/bin/sqlcmd is only valid INSIDE the container.
-          echo "⏳ Verifying SQL Server engine on localhost:1433..."
+          # The service container health check (TCP /dev/tcp) guarantees port 1433 is
+          # open before steps begin. This step adds explicit diagnostic output.
+          echo "⏳ Verifying SQL Server port 1433 is reachable on localhost..."
           for i in $(seq 1 12); do
-            if sqlcmd \
-                -S localhost,1433 \
-                -U sa \
-                -P "$SA_PASSWORD" \
-                -Q "SELECT 1" \
-                -C -b -l 5 \
-                > /dev/null 2>&1; then
-              echo "✅ SQL Server engine verified (attempt $i)."
+            if bash -c '(echo > /dev/tcp/localhost/1433) 2>/dev/null'; then
+              echo "✅ SQL Server port 1433 is open (attempt $i)."
               exit 0
             fi
-            echo "  Attempt $i/12 — not ready yet, retrying in 5s..."
+            echo "  Attempt $i/12 — port not open yet, retrying in 5s..."
             sleep 5
           done
-          echo "❌ SQL Server engine did not respond after 12 attempts. Aborting."
+          echo "❌ SQL Server port 1433 did not open after 12 attempts. Aborting."
           exit 1
 
       - name: Run Benchmarks
