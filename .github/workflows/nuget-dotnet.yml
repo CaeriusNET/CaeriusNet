@@ -184,7 +184,7 @@ jobs:
       id-token: write   # Reserved for future NuGet OIDC trusted publishing
     steps:
       - name: Download package artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: caeriusnet-packages
           path: ./packages
@@ -225,7 +225,7 @@ jobs:
       contents: read
     steps:
       - name: Download package artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: caeriusnet-packages
           path: ./packages
@@ -263,7 +263,7 @@ jobs:
       contents: write
     steps:
       - name: Download package artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: caeriusnet-packages
           path: ./packages
