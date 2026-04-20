@@ -45,6 +45,46 @@ public sealed class CaeriusNetTransactionTests
         Assert.Equal(1, dbContext.ConnectionsCreated);
     }
 
+    [Fact]
+    public async Task FailToOpenDbContext_WrapsAsCaeriusNetSqlException()
+    {
+        var dbContext = new FailToOpenDbContext();
+
+        var ex = await Assert.ThrowsAsync<CaeriusNetSqlException>(() =>
+            dbContext.BeginTransactionAsync().AsTask());
+
+        Assert.IsType<CaeriusNetSqlException>(ex);
+    }
+
+    [Fact]
+    public void FakeTransaction_IsActive_ReturnsTrue()
+    {
+        var fakeTx = new FakeTransaction();
+
+        Assert.True(fakeTx.IsActive);
+    }
+
+    [Fact]
+    public async Task FakeTransaction_CommitAsync_DoesNotThrow()
+    {
+        var fakeTx = new FakeTransaction();
+
+        var ex = await Record.ExceptionAsync(() => fakeTx.CommitAsync().AsTask());
+
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public async Task BeginTransactionAsync_NullReference_Throws_ArgumentNullException()
+    {
+        ICaeriusNetDbContext dbContext = null!;
+
+        var ex = await Assert.ThrowsAsync<ArgumentNullException>(() =>
+            dbContext.BeginTransactionAsync().AsTask());
+
+        Assert.Equal("dbContext", ex.ParamName);
+    }
+
     private sealed class FakeTransaction : ICaeriusNetTransaction
     {
         public bool IsActive => true;

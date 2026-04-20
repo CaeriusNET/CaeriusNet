@@ -1,10 +1,9 @@
 using System.Collections.ObjectModel;
-using System.Reflection;
 
 namespace CaeriusNet.Tests.Helpers;
 
 /// <summary>
-///     <see cref="CaeriusNet.Helpers.EmptyCollections"/> is internal — these tests reach it via reflection
+///     <see cref="CaeriusNet.Helpers.EmptyCollections" /> is internal — these tests reach it via reflection
 ///     to verify the singleton contract. Doing this once here documents the intent for future readers.
 /// </summary>
 public sealed class EmptyCollectionsTests
@@ -12,7 +11,7 @@ public sealed class EmptyCollectionsTests
     private static MethodInfo GetGenericMethod()
     {
         var type = typeof(StoredProcedureParameters).Assembly
-            .GetType("CaeriusNet.Helpers.EmptyCollections", throwOnError: true)!;
+            .GetType("CaeriusNet.Helpers.EmptyCollections", true)!;
         return type.GetMethod("ReadOnlyCollection", BindingFlags.Public | BindingFlags.Static)!;
     }
 
@@ -40,7 +39,7 @@ public sealed class EmptyCollectionsTests
 
         Assert.Empty(ints);
         Assert.Empty(strings);
-        Assert.NotSame((object)ints, strings);
+        Assert.NotSame(ints, strings);
     }
 
     [Fact]

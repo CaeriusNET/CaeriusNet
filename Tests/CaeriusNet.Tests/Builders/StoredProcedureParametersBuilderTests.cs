@@ -308,4 +308,46 @@ public sealed class StoredProcedureParametersBuilderTests
 
         Assert.Equal(50, sp.GetParametersSpan().Length);
     }
+
+    [Fact]
+    public void Constructor_InvalidSchemaName_WithSpecialChars_Throws()
+    {
+        var builder = new StoredProcedureParametersBuilder("dbo$", "sp_Test");
+
+        Assert.Throws<ArgumentException>(() => builder.Build());
+    }
+
+    [Fact]
+    public void Constructor_InvalidProcedureName_WithSpaces_Throws()
+    {
+        var builder = new StoredProcedureParametersBuilder("dbo", "my proc");
+
+        Assert.Throws<ArgumentException>(() => builder.Build());
+    }
+
+    [Fact]
+    public void Constructor_ValidIdentifiers_WithUnderscores_Succeeds()
+    {
+        var builder = new StoredProcedureParametersBuilder("my_schema", "my_proc");
+
+        var ex = Record.Exception(() => builder.Build());
+
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public void Constructor_EmptySchemaName_Throws()
+    {
+        var builder = new StoredProcedureParametersBuilder("", "sp_Test");
+
+        Assert.Throws<ArgumentException>(() => builder.Build());
+    }
+
+    [Fact]
+    public void Constructor_EmptyProcedureName_Throws()
+    {
+        var builder = new StoredProcedureParametersBuilder("dbo", "");
+
+        Assert.Throws<ArgumentException>(() => builder.Build());
+    }
 }
