@@ -1,22 +1,19 @@
 ﻿namespace CaeriusNet.Commands.Reads;
 
 /// <summary>
-///     Provides asynchronous methods for executing database queries that return multiple result sets,
-///     each mapped to an ImmutableArray of strongly typed objects.
+///     Execute stored procedures that return multiple result sets as immutable arrays.
 /// </summary>
 public static class MultiImmutableArrayReadSqlAsyncCommands
 {
-    /// <param name="context">The database context for executing the query.</param>
+    /// <param name="context">Database context used to open the connection.</param>
     extension(ICaeriusNetDbContext context)
     {
         /// <summary>
-        ///     Executes a stored procedure and maps the results into two immutable arrays of specified result types.
+        ///     Execute a stored procedure and materialize up to two result sets as immutable arrays.
         /// </summary>
-        /// <typeparam name="TResultSet1">The type of the first result set.</typeparam>
-        /// <typeparam name="TResultSet2">The type of the second result set.</typeparam>
-        /// <param name="spParameters">The parameters required to execute the stored procedure.</param>
-        /// <param name="cancellationToken">Cancellation token.</param>
-        /// <returns>A tuple containing two immutable arrays, one for each result set.</returns>
+        /// <param name="spParameters">Stored procedure metadata and parameters.</param>
+        /// <param name="cancellationToken">Token to cancel the operation.</param>
+        /// <returns>A tuple containing the materialized result sets. Missing trailing result sets are empty.</returns>
         public async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>)>
             QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2>(StoredProcedureParameters spParameters,
                 CancellationToken cancellationToken = default)
@@ -42,8 +39,11 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
         }
 
         /// <summary>
-        ///     Executes a stored procedure and maps the results into three immutable arrays.
+        ///     Execute a stored procedure and materialize up to three result sets as immutable arrays.
         /// </summary>
+        /// <param name="spParameters">Stored procedure metadata and parameters.</param>
+        /// <param name="cancellationToken">Token to cancel the operation.</param>
+        /// <returns>A tuple containing the materialized result sets. Missing trailing result sets are empty.</returns>
         public async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>, ImmutableArray<TResultSet3>)>
             QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2, TResultSet3>(
                 StoredProcedureParameters spParameters,
@@ -77,8 +77,11 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
         }
 
         /// <summary>
-        ///     Executes a stored procedure and maps the results into four immutable arrays.
+        ///     Execute a stored procedure and materialize up to four result sets as immutable arrays.
         /// </summary>
+        /// <param name="spParameters">Stored procedure metadata and parameters.</param>
+        /// <param name="cancellationToken">Token to cancel the operation.</param>
+        /// <returns>A tuple containing the materialized result sets. Missing trailing result sets are empty.</returns>
         public async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>, ImmutableArray<TResultSet3>,
                 ImmutableArray<TResultSet4>)>
             QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4>(
@@ -121,8 +124,11 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
         }
 
         /// <summary>
-        ///     Executes a stored procedure and maps the results into five immutable arrays.
+        ///     Execute a stored procedure and materialize up to five result sets as immutable arrays.
         /// </summary>
+        /// <param name="spParameters">Stored procedure metadata and parameters.</param>
+        /// <param name="cancellationToken">Token to cancel the operation.</param>
+        /// <returns>A tuple containing the materialized result sets. Missing trailing result sets are empty.</returns>
         public async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>, ImmutableArray<TResultSet3>,
                 ImmutableArray<TResultSet4>, ImmutableArray<TResultSet5>)>
             QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4, TResultSet5>(

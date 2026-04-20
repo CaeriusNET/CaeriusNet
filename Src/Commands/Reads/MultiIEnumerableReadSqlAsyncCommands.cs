@@ -1,16 +1,18 @@
 ﻿namespace CaeriusNet.Commands.Reads;
 
 /// <summary>
-///     Provides methods for asynchronously querying multiple result sets from a database and mapping them to IEnumerable
-///     collections for efficient processing.
+///     Execute stored procedures that return multiple result sets as enumerable sequences.
 /// </summary>
 public static class MultiIEnumerableReadSqlAsyncCommands
 {
     extension(ICaeriusNetDbContext context)
     {
         /// <summary>
-        ///     Executes a stored procedure and returns multiple result sets as enumerable collections.
+        ///     Execute a stored procedure and materialize up to two result sets as enumerable sequences.
         /// </summary>
+        /// <param name="spParameters">Stored procedure metadata and parameters.</param>
+        /// <param name="cancellationToken">Token to cancel the operation.</param>
+        /// <returns>A tuple containing the materialized result sets. Missing trailing result sets are empty.</returns>
         public async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>)>
             QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2>(StoredProcedureParameters spParameters,
                 CancellationToken cancellationToken = default)
@@ -36,8 +38,11 @@ public static class MultiIEnumerableReadSqlAsyncCommands
         }
 
         /// <summary>
-        ///     Executes a stored procedure and returns three result sets as enumerable collections.
+        ///     Execute a stored procedure and materialize up to three result sets as enumerable sequences.
         /// </summary>
+        /// <param name="spParameters">Stored procedure metadata and parameters.</param>
+        /// <param name="cancellationToken">Token to cancel the operation.</param>
+        /// <returns>A tuple containing the materialized result sets. Missing trailing result sets are empty.</returns>
         public async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>)>
             QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3>(StoredProcedureParameters spParameters,
                 CancellationToken cancellationToken = default)
@@ -70,8 +75,11 @@ public static class MultiIEnumerableReadSqlAsyncCommands
         }
 
         /// <summary>
-        ///     Executes a stored procedure and returns multiple result sets as enumerable collections (4 sets).
+        ///     Execute a stored procedure and materialize up to four result sets as enumerable sequences.
         /// </summary>
+        /// <param name="spParameters">Stored procedure metadata and parameters.</param>
+        /// <param name="cancellationToken">Token to cancel the operation.</param>
+        /// <returns>A tuple containing the materialized result sets. Missing trailing result sets are empty.</returns>
         public async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>,
                 IEnumerable<TResultSet4>)>
             QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4>(
@@ -113,8 +121,11 @@ public static class MultiIEnumerableReadSqlAsyncCommands
         }
 
         /// <summary>
-        ///     Executes a stored procedure and retrieves five result sets as enumerable collections.
+        ///     Execute a stored procedure and materialize up to five result sets as enumerable sequences.
         /// </summary>
+        /// <param name="spParameters">Stored procedure metadata and parameters.</param>
+        /// <param name="cancellationToken">Token to cancel the operation.</param>
+        /// <returns>A tuple containing the materialized result sets. Missing trailing result sets are empty.</returns>
         public async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>,
                 IEnumerable<TResultSet4>, IEnumerable<TResultSet5>)>
             QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4, TResultSet5>(

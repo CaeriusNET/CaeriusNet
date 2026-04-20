@@ -14,7 +14,8 @@ internal static class SqlCommandHelperTx
         SqlConnection connection,
         SqlTransaction transaction)
     {
-        var command = new SqlCommand($"{spParameters.SchemaName}.{spParameters.ProcedureName}", connection)
+        var command = new SqlCommand(string.Concat(spParameters.SchemaName, ".", spParameters.ProcedureName),
+            connection)
         {
             CommandType = CommandType.StoredProcedure,
             CommandTimeout = spParameters.CommandTimeout,
