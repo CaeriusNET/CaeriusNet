@@ -90,18 +90,3 @@ internal readonly struct EquatableArray<T> : IEquatable<EquatableArray<T>>, IRea
         return !left.Equals(right);
     }
 }
-
-internal static class EquatableArrayExtensions
-{
-    public static EquatableArray<T> ToEquatableArray<T>(this ImmutableArray<T> array)
-        where T : IEquatable<T>
-    {
-        return new EquatableArray<T>(array);
-    }
-
-    public static EquatableArray<T> ToEquatableArray<T>(this IEnumerable<T> source)
-        where T : IEquatable<T>
-    {
-        return new EquatableArray<T>(source.ToImmutableArray());
-    }
-}

@@ -82,6 +82,7 @@ internal static class ColumnExtractor
         {
             "System.DateOnly" => ColumnKind.DateOnly,
             "System.TimeOnly" => ColumnKind.TimeOnly,
+            "System.Half" => ColumnKind.Half,
             _ => ColumnKind.Standard
         };
     }

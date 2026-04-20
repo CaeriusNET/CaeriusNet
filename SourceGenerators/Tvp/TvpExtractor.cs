@@ -63,9 +63,11 @@ internal static class TvpExtractor
         if (columns.Count == 0)
             return new ExtractionResult<TvpModel>(null, new EquatableArray<DiagnosticInfo>(diagnostics.ToImmutable()));
 
+        var typeKindKeyword = primaryCtorDecl.Kind() == SyntaxKind.ClassDeclaration ? "class" : "record";
         var model = new TvpModel(
             NamespaceHelper.GetNamespace(typeSymbol),
             typeSymbol.Name,
+            typeKindKeyword,
             schema,
             tvpName,
             columns);

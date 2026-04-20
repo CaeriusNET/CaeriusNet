@@ -26,5 +26,8 @@ internal enum ColumnKind
     ByteArray = 4,
 
     /// <summary>An <see cref="System.Enum" /> — cast to/from its underlying integral type.</summary>
-    Enum = 5
+    Enum = 5,
+
+    /// <summary><c>System.Half</c> — read via <c>(Half)GetFloat(i)</c>, written via <c>SetFloat(i, (float)value)</c>.</summary>
+    Half = 6
 }
