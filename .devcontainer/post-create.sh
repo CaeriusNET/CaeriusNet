@@ -17,9 +17,12 @@ docker pull mcr.microsoft.com/mssql/server:2022-latest || \
 # invocations inside the same workspace. Ryuk is left enabled (recommended in 2026) so
 # leaked containers are still reaped when the docker daemon restarts.
 PROPS="$HOME/.testcontainers.properties"
-if [ ! -f "$PROPS" ] || ! grep -q '^testcontainers.reuse.enable=true' "$PROPS"; then
+if [ ! -f "$PROPS" ]; then
   echo "[devcontainer] Enabling Testcontainers reuse → $PROPS"
   printf 'testcontainers.reuse.enable=true\n' > "$PROPS"
+elif ! grep -q '^testcontainers.reuse.enable=true' "$PROPS"; then
+  echo "[devcontainer] Enabling Testcontainers reuse → $PROPS"
+  printf '\ntestcontainers.reuse.enable=true\n' >> "$PROPS"
 fi
 
 echo "[devcontainer] Ready."
