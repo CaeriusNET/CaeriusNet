@@ -1,4 +1,6 @@
-﻿namespace CaeriusNet.Benchmark.Workshops;
+﻿using BenchmarkDotNet.Loggers;
+
+namespace CaeriusNet.Benchmark.Workshops;
 
 /// <summary>
 ///     BenchmarkDotNet configuration.
@@ -29,18 +31,16 @@ public class BenchmarkConfig : ManualConfig
                 .WithToolchain(InProcessEmitToolchain.Instance)
                 .WithWarmupCount(1)
                 .WithIterationCount(5));
-
-            AddExporter(MarkdownExporter.GitHub); // → *-report-github.md (GitHub-flavoured markdown table)
-            AddExporter(JsonExporter.Full); // → *-report-full.json
         }
         else
         {
             AddJob(Job.Default);
             AddExporter(HtmlExporter.Default);
-            AddExporter(MarkdownExporter.GitHub); // → *-report-github.md for offline analysis
-            AddExporter(JsonExporter.Full);
         }
 
+        AddExporter(MarkdownExporter.GitHub); // → *-report-github.md (GitHub-flavoured markdown table)
+        AddExporter(JsonExporter.Full); // → *-report-full.json
+        AddLogger(ConsoleLogger.Default);
         AddDiagnoser(MemoryDiagnoser.Default);
         WithOptions(ConfigOptions.DisableOptimizationsValidator);
     }

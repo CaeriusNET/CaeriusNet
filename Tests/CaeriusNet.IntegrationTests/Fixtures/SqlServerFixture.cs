@@ -10,8 +10,7 @@ public sealed class SqlServerFixture : IAsyncLifetime
 	private const string TestDatabaseName = "caerius_tests";
 
 	// Image is pinned to 2022 LTS so test results stay deterministic across runners.
-	private readonly MsSqlContainer _container = new MsSqlBuilder()
-		.WithImage("mcr.microsoft.com/mssql/server:2022-latest")
+	private readonly MsSqlContainer _container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
 		.WithPassword("Caerius!Test_2026")
 		.Build();
 
