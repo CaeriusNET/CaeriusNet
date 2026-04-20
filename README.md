@@ -15,6 +15,19 @@
 
 ---
 
+## Project Structure
+
+| Directory | Description |
+|-----------|-------------|
+| `Src/` | Core library — CaeriusNet NuGet package source |
+| `SourceGenerators/` | Roslyn incremental source generators (`[GenerateDto]`, `[GenerateTvp]`) |
+| `Tests/` | Unit tests, generator tests, integration tests |
+| `Benchmark/` | BenchmarkDotNet performance benchmarks |
+| `Exemples/` | Example projects (Aspire + Console) |
+| `Documentations/` | VitePress documentation site |
+
+---
+
 ## Why CaeriusNet?
 
 - **Zero reflection at runtime** — DTO and TVP mappers are generated at compile time via Roslyn source generators.
@@ -189,6 +202,37 @@ CaeriusNetBuilder
 
 ---
 
+## Transactions
+
+Execute multiple stored procedures atomically within a single transaction scope.
+
+```csharp
+await using var tx = await dbContext.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+
+var sp1 = new StoredProcedureParametersBuilder("dbo", "sp_DebitAccount")
+    .AddParameter("AccountId", fromId, SqlDbType.Int)
+    .AddParameter("Amount", amount, SqlDbType.Decimal)
+    .Build();
+
+var sp2 = new StoredProcedureParametersBuilder("dbo", "sp_CreditAccount")
+    .AddParameter("AccountId", toId, SqlDbType.Int)
+    .AddParameter("Amount", amount, SqlDbType.Decimal)
+    .Build();
+
+await tx.ExecuteNonQueryAsync(sp1, ct);
+await tx.ExecuteNonQueryAsync(sp2, ct);
+await tx.CommitAsync(ct);
+```
+
+Key design points:
+
+- **State machine** — Active → Committed / RolledBack / Poisoned.
+- **Single in-flight command** — concurrent commands on the same transaction throw `InvalidOperationException`.
+- **Cache bypass** — no reads from cache, no writes to cache inside a transaction.
+- **Auto-rollback on dispose** — if `CommitAsync` is never called, the transaction rolls back.
+
+---
+
 ## Write Operations
 
 Use the execute methods for INSERT, UPDATE, DELETE, and scalar return values.
@@ -244,6 +288,16 @@ CaeriusNetBuilder.Create(builder)
 | .NET | 10 |
 | C# | 14 |
 | SQL Server | 2019 |
+
+---
+
+## Documentation & Resources
+
+- 📖 **[Full Documentation](https://caerius.net)** — VitePress docs with guides, API reference, benchmarks
+- 🚀 **[Getting Started](https://caerius.net/quickstart/getting-started)** — Installation and first query
+- 📊 **[Benchmarks](https://caerius.net/benchmarks/)** — Performance measurements with BenchmarkDotNet
+- 🔧 **[Source Generators](https://caerius.net/documentation/source-generators)** — `[GenerateDto]` and `[GenerateTvp]`
+- 🏗️ **[.NET Aspire](https://caerius.net/documentation/aspire)** — Cloud-native integration
 
 ---
 
