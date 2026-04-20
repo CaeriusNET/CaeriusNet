@@ -59,14 +59,16 @@ public sealed partial class TvpSourceGenerator : IIncrementalGenerator
             .ForAttributeWithMetadataName(
                 "CaeriusNet.Attributes.Tvp.GenerateTvpAttribute",
                 static (syntaxNode, cancellationToken) => IsTvpCandidate(syntaxNode, cancellationToken),
-                static (context, cancellationToken) => ExtractTvpMetadata(context, cancellationToken))
-            .Where(static metadata => metadata is not null);
+                static (context, cancellationToken) => ExtractTvpMetadata(context, cancellationToken));
 
-        // Register the code generation action
-        context.RegisterSourceOutput(tvpCandidates, static (context, tvpMetadata) =>
+        // Register the code generation action: emit any diagnostics first, then generate when valid.
+        context.RegisterSourceOutput(tvpCandidates, static (context, extraction) =>
         {
-            if (tvpMetadata is not null)
-                GenerateTvpMapper(context, tvpMetadata);
+            foreach (var diagnostic in extraction.Diagnostics)
+                context.ReportDiagnostic(diagnostic);
+
+            if (!extraction.HasErrors && extraction.Metadata is not null && extraction.Metadata.Parameters.Count > 0)
+                GenerateTvpMapper(context, extraction.Metadata);
         });
     }
 }

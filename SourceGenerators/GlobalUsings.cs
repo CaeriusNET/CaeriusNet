@@ -1,4 +1,5 @@
-﻿global using CaeriusNet.Generator.Helpers;
+﻿global using CaeriusNet.Generator.Diagnostics;
+global using CaeriusNet.Generator.Helpers;
 global using CaeriusNet.Generator.Models;
 global using Microsoft.CodeAnalysis;
 global using Microsoft.CodeAnalysis.CSharp;
