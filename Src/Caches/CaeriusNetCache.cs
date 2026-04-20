@@ -4,15 +4,8 @@ namespace CaeriusNet.Caches;
 ///     Default implementation of <see cref="ICaeriusNetCache" />. Delegates each operation to the
 ///     appropriate internal cache manager. Registered as a singleton by <see cref="Builders.CaeriusNetBuilder" />.
 /// </summary>
-internal sealed class CaeriusNetCache : ICaeriusNetCache
+internal sealed class CaeriusNetCache(IRedisCacheManager? redisCacheManager = null) : ICaeriusNetCache
 {
-    private readonly IRedisCacheManager? _redisCacheManager;
-
-    public CaeriusNetCache(IRedisCacheManager? redisCacheManager = null)
-    {
-        _redisCacheManager = redisCacheManager;
-    }
-
     public ValueTask RemoveAsync(string cacheKey, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrEmpty(cacheKey);
@@ -20,7 +13,7 @@ internal sealed class CaeriusNetCache : ICaeriusNetCache
 
         FrozenCacheManager.Remove(cacheKey);
         InMemoryCacheManager.Remove(cacheKey);
-        _redisCacheManager?.Remove(cacheKey);
+        redisCacheManager?.Remove(cacheKey);
 
         return ValueTask.CompletedTask;
     }
@@ -39,7 +32,7 @@ internal sealed class CaeriusNetCache : ICaeriusNetCache
                 InMemoryCacheManager.Remove(cacheKey);
                 break;
             case Redis:
-                _redisCacheManager?.Remove(cacheKey);
+                redisCacheManager?.Remove(cacheKey);
                 break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(cacheType), cacheType, "Unsupported cache type.");
