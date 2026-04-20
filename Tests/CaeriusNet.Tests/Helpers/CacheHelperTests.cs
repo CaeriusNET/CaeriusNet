@@ -6,7 +6,10 @@ namespace CaeriusNet.Tests.Helpers;
 ///     Validates the internal <c>CacheHelper</c> via reflection. This is the central dispatcher used by
 ///     every read-side command, so even though the surface is internal we want explicit coverage of:
 ///     no cache configured → no-op, Frozen/InMemory store-then-retrieve, missing key returns false.
+///     Placed in <see cref="FrozenCacheStateCollection" /> to serialise execution against other tests
+///     that call <c>FrozenCacheManager.Clear()</c> and would otherwise race with frozen-cache round-trips.
 /// </summary>
+[Collection(FrozenCacheStateCollection.Name)]
 public sealed class CacheHelperTests
 {
     private static (MethodInfo TryRetrieve, MethodInfo Store) Methods()

@@ -3,7 +3,10 @@ namespace CaeriusNet.Tests.Caches;
 /// <summary>
 ///     Unit tests for <see cref="FrozenCacheManager" />.
 ///     Each test uses a GUID-based key to avoid interference from the shared static cache state.
+///     Placed in <see cref="FrozenCacheStateCollection" /> to serialise execution against other
+///     test classes that call <c>FrozenCacheManager.Clear()</c>.
 /// </summary>
+[Collection(FrozenCacheStateCollection.Name)]
 public sealed class FrozenCacheManagerTests
 {
     [Fact]
