@@ -11,6 +11,8 @@
         <IsRoslynComponent>true</IsRoslynComponent>
         <RootNamespace>CaeriusNet.Generator</RootNamespace>
         <Deterministic>true</Deterministic>
+        <!-- RS2008 enforces analyzer release-tracking files; not necessary for an internal source generator. -->
+        <NoWarn>$(NoWarn);RS2008</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>

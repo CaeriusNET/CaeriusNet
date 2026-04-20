@@ -135,11 +135,8 @@ public sealed partial class DtoSourceGenerator : IIncrementalGenerator
             return;
 
         // Process each DTO candidate and generate mapper implementations
-        foreach (var dtoMetadata in GetDtoTypes(compilation, declarations, context.CancellationToken))
+        foreach (var dtoMetadata in GetDtoTypes(compilation, declarations, context))
         {
-            if (dtoMetadata is null)
-                continue;
-
             // Generate and add the source code
             var source = GenerateMapperSource(dtoMetadata);
             context.AddSource($"{dtoMetadata.RecordName}.g.cs", source);
