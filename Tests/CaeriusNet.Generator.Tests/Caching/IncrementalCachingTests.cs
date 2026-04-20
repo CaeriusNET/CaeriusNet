@@ -23,12 +23,16 @@ public sealed class IncrementalCachingTests
         """;
 
     [Fact]
-    public void Dto_RerunWithSameSource_Returns_Cached_Result() =>
+    public void Dto_RerunWithSameSource_Returns_Cached_Result()
+    {
         AssertExtractionCached<DtoSourceGenerator>(DtoSource);
+    }
 
     [Fact]
-    public void Tvp_RerunWithSameSource_Returns_Cached_Result() =>
+    public void Tvp_RerunWithSameSource_Returns_Cached_Result()
+    {
         AssertExtractionCached<TvpSourceGenerator>(TvpSource);
+    }
 
     private static void AssertExtractionCached<TGenerator>(string source)
         where TGenerator : IIncrementalGenerator, new()
@@ -39,11 +43,11 @@ public sealed class IncrementalCachingTests
 
         var generator = new TGenerator().AsSourceGenerator();
         var driver = CSharpGeneratorDriver.Create(
-            generators: [generator],
-            additionalTexts: default,
-            parseOptions: parseOptions,
-            optionsProvider: null,
-            driverOptions: new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None, trackIncrementalGeneratorSteps: true));
+            [generator],
+            default,
+            parseOptions,
+            null,
+            new GeneratorDriverOptions(IncrementalGeneratorOutputKind.None, true));
 
         driver = (CSharpGeneratorDriver)driver.RunGenerators(compilation);
         // Second run on a clone of the same compilation: every step must hit the cache.

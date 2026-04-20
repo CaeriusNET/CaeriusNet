@@ -32,13 +32,13 @@ internal sealed class CaeriusNetCache : ICaeriusNetCache
 
         switch (cacheType)
         {
-            case CacheType.Frozen:
+            case Frozen:
                 FrozenCacheManager.Remove(cacheKey);
                 break;
-            case CacheType.InMemory:
+            case InMemory:
                 InMemoryCacheManager.Remove(cacheKey);
                 break;
-            case CacheType.Redis:
+            case Redis:
                 _redisCacheManager?.Remove(cacheKey);
                 break;
             default:
@@ -54,13 +54,13 @@ internal sealed class CaeriusNetCache : ICaeriusNetCache
 
         switch (cacheType)
         {
-            case CacheType.Frozen:
+            case Frozen:
                 FrozenCacheManager.Clear();
                 break;
-            case CacheType.InMemory:
+            case InMemory:
                 InMemoryCacheManager.Clear();
                 break;
-            case CacheType.Redis:
+            case Redis:
                 throw new NotSupportedException(
                     "Clearing Redis is not supported. Use RemoveAsync(key, CacheType.Redis) for targeted invalidation.");
             default:

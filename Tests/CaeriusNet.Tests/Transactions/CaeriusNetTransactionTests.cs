@@ -48,9 +48,21 @@ public sealed class CaeriusNetTransactionTests
     private sealed class FakeTransaction : ICaeriusNetTransaction
     {
         public bool IsActive => true;
-        public ValueTask CommitAsync(CancellationToken cancellationToken = default) => default;
-        public ValueTask RollbackAsync(CancellationToken cancellationToken = default) => default;
-        public ValueTask DisposeAsync() => default;
+
+        public ValueTask CommitAsync(CancellationToken cancellationToken = default)
+        {
+            return default;
+        }
+
+        public ValueTask RollbackAsync(CancellationToken cancellationToken = default)
+        {
+            return default;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return default;
+        }
     }
 
     private sealed class ThrowingDbContext : ICaeriusNetDbContext

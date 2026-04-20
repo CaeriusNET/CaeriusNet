@@ -30,7 +30,10 @@ public interface ICaeriusNetCache
     ///     Removes the specified key from a single cache tier.
     /// </summary>
     /// <exception cref="ArgumentOutOfRangeException">When <paramref name="cacheType" /> is not a known value.</exception>
-    /// <exception cref="NotSupportedException">When attempting to clear Redis (use <see cref="RemoveAsync(string,CancellationToken)" /> instead).</exception>
+    /// <exception cref="NotSupportedException">
+    ///     When attempting to clear Redis (use
+    ///     <see cref="RemoveAsync(string,CancellationToken)" /> instead).
+    /// </exception>
     ValueTask RemoveAsync(string cacheKey, CacheType cacheType, CancellationToken cancellationToken = default);
 
     /// <summary>

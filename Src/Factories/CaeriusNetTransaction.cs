@@ -7,19 +7,18 @@ namespace CaeriusNet.Factories;
 /// </summary>
 internal sealed class CaeriusNetTransaction : ICaeriusNetTransactionInternal
 {
-    private readonly ILogger? _logger;
-    private readonly bool _isLoggingEnabled;
-
-    private SqlConnection? _connection;
-    private SqlTransaction? _transaction;
-    private int _commandInFlight;        // 0 = none, 1 = busy
-    private int _state;                  // 0 = active, 1 = committed, 2 = rolledback, 3 = poisoned, 4 = disposed
-
     private const int StateActive = 0;
     private const int StateCommitted = 1;
     private const int StateRolledBack = 2;
     private const int StatePoisoned = 3;
     private const int StateDisposed = 4;
+    private readonly bool _isLoggingEnabled;
+    private readonly ILogger? _logger;
+    private int _commandInFlight; // 0 = none, 1 = busy
+
+    private SqlConnection? _connection;
+    private int _state; // 0 = active, 1 = committed, 2 = rolledback, 3 = poisoned, 4 = disposed
+    private SqlTransaction? _transaction;
 
     private CaeriusNetTransaction(SqlConnection connection, SqlTransaction transaction)
     {
@@ -36,48 +35,6 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransactionInternal
 
     public SqlTransaction Transaction =>
         _transaction ?? throw new InvalidOperationException("Transaction has been disposed.");
-
-    /// <summary>
-    ///     Opens a connection through <paramref name="dbContext" /> and begins a SQL Server transaction at the
-    ///     requested isolation level. Cleans everything up if any step throws so we never leak a pooled
-    ///     connection or a half-started transaction.
-    /// </summary>
-    internal static async ValueTask<ICaeriusNetTransaction> BeginAsync(
-        ICaeriusNetDbContext dbContext,
-        IsolationLevel isolationLevel,
-        CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(dbContext);
-
-        SqlConnection? connection = null;
-        SqlTransaction? transaction = null;
-        try
-        {
-            connection = await dbContext.DbConnectionAsync(cancellationToken).ConfigureAwait(false);
-            if (connection.State == ConnectionState.Closed)
-                await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-
-            transaction = (SqlTransaction)await connection
-                .BeginTransactionAsync(isolationLevel, cancellationToken)
-                .ConfigureAwait(false);
-
-            var tx = new CaeriusNetTransaction(connection, transaction);
-            if (tx._isLoggingEnabled) tx._logger!.LogTransactionStarted(isolationLevel);
-            return tx;
-        }
-        catch (SqlException ex)
-        {
-            if (transaction is not null) await transaction.DisposeAsync().ConfigureAwait(false);
-            if (connection is not null) await connection.DisposeAsync().ConfigureAwait(false);
-            throw new CaeriusNetSqlException("Failed to open SQL Server transaction.", ex);
-        }
-        catch
-        {
-            if (transaction is not null) await transaction.DisposeAsync().ConfigureAwait(false);
-            if (connection is not null) await connection.DisposeAsync().ConfigureAwait(false);
-            throw;
-        }
-    }
 
     public async ValueTask CommitAsync(CancellationToken cancellationToken = default)
     {
@@ -147,7 +104,6 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransactionInternal
         if (prev == StateDisposed) return;
 
         if (prev is StateActive or StatePoisoned && _transaction is not null)
-        {
             try
             {
                 await _transaction.RollbackAsync().ConfigureAwait(false);
@@ -157,7 +113,6 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransactionInternal
             {
                 // Best-effort rollback during disposal; surface no exception to callers.
             }
-        }
 
         if (_transaction is not null)
         {
@@ -172,13 +127,58 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransactionInternal
         }
     }
 
-    private static string StateName(int state) => state switch
+    /// <summary>
+    ///     Opens a connection through <paramref name="dbContext" /> and begins a SQL Server transaction at the
+    ///     requested isolation level. Cleans everything up if any step throws so we never leak a pooled
+    ///     connection or a half-started transaction.
+    /// </summary>
+    internal static async ValueTask<ICaeriusNetTransaction> BeginAsync(
+        ICaeriusNetDbContext dbContext,
+        IsolationLevel isolationLevel,
+        CancellationToken cancellationToken)
     {
-        StateActive => "Active",
-        StateCommitted => "Committed",
-        StateRolledBack => "RolledBack",
-        StatePoisoned => "Poisoned",
-        StateDisposed => "Disposed",
-        _ => "Unknown"
-    };
+        ArgumentNullException.ThrowIfNull(dbContext);
+
+        SqlConnection? connection = null;
+        SqlTransaction? transaction = null;
+        try
+        {
+            connection = await dbContext.DbConnectionAsync(cancellationToken).ConfigureAwait(false);
+            if (connection.State == ConnectionState.Closed)
+                await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+
+            transaction = (SqlTransaction)await connection
+                .BeginTransactionAsync(isolationLevel, cancellationToken)
+                .ConfigureAwait(false);
+
+            var tx = new CaeriusNetTransaction(connection, transaction);
+            if (tx._isLoggingEnabled) tx._logger!.LogTransactionStarted(isolationLevel);
+            return tx;
+        }
+        catch (SqlException ex)
+        {
+            if (transaction is not null) await transaction.DisposeAsync().ConfigureAwait(false);
+            if (connection is not null) await connection.DisposeAsync().ConfigureAwait(false);
+            throw new CaeriusNetSqlException("Failed to open SQL Server transaction.", ex);
+        }
+        catch
+        {
+            if (transaction is not null) await transaction.DisposeAsync().ConfigureAwait(false);
+            if (connection is not null) await connection.DisposeAsync().ConfigureAwait(false);
+            throw;
+        }
+    }
+
+    private static string StateName(int state)
+    {
+        return state switch
+        {
+            StateActive => "Active",
+            StateCommitted => "Committed",
+            StateRolledBack => "RolledBack",
+            StatePoisoned => "Poisoned",
+            StateDisposed => "Disposed",
+            _ => "Unknown"
+        };
+    }
 }

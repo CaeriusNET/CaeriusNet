@@ -26,7 +26,10 @@ internal static class SourceGeneratorTestHelper
     ///     Builds a test compilation seeded with the same references as <see cref="RunGenerator{TGenerator}" />.
     ///     Exposed so caching tests can drive the generator across multiple runs on the same compilation.
     /// </summary>
-    internal static CSharpCompilation CreateTestCompilation(SyntaxTree syntaxTree) => CreateCompilation(syntaxTree);
+    internal static CSharpCompilation CreateTestCompilation(SyntaxTree syntaxTree)
+    {
+        return CreateCompilation(syntaxTree);
+    }
 
     private static CSharpCompilation CreateCompilation(SyntaxTree syntaxTree)
     {

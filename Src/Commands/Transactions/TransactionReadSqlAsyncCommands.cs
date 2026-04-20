@@ -8,6 +8,14 @@ namespace CaeriusNet.Commands.Transactions;
 /// </summary>
 public static class TransactionReadSqlAsyncCommands
 {
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static ICaeriusNetTransactionInternal AsInternal(ICaeriusNetTransaction transaction)
+    {
+        return transaction as ICaeriusNetTransactionInternal
+               ?? throw new InvalidOperationException(
+                   "ICaeriusNetTransaction implementations must derive from the framework's CaeriusNetTransaction.");
+    }
+
     /// <param name="transaction">The transaction whose connection / scope is reused.</param>
     extension(ICaeriusNetTransaction transaction)
     {
@@ -103,13 +111,5 @@ public static class TransactionReadSqlAsyncCommands
                 tx.ReleaseCommandSlot();
             }
         }
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static ICaeriusNetTransactionInternal AsInternal(ICaeriusNetTransaction transaction)
-    {
-        return transaction as ICaeriusNetTransactionInternal
-               ?? throw new InvalidOperationException(
-                   "ICaeriusNetTransaction implementations must derive from the framework's CaeriusNetTransaction.");
     }
 }

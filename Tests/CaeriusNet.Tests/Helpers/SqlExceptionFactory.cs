@@ -9,7 +9,10 @@ internal static class SqlExceptionFactory
 {
     private static readonly Func<string, SqlException> Factory = BuildFactory();
 
-    public static SqlException Create(string message) => Factory(message);
+    public static SqlException Create(string message)
+    {
+        return Factory(message);
+    }
 
     private static Func<string, SqlException> BuildFactory()
     {
@@ -23,7 +26,10 @@ internal static class SqlExceptionFactory
         //         string procedure, int lineNumber, Exception? exception = null)
         var sqlErrorCtor = typeof(SqlError).GetConstructor(
             BindingFlags.Instance | BindingFlags.NonPublic, null,
-            [typeof(int), typeof(byte), typeof(byte), typeof(string), typeof(string), typeof(string), typeof(int), typeof(Exception)],
+            [
+                typeof(int), typeof(byte), typeof(byte), typeof(string), typeof(string), typeof(string), typeof(int),
+                typeof(Exception)
+            ],
             null);
 
         var exceptionCreate = typeof(SqlException).GetMethod("CreateException",
