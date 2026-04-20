@@ -95,7 +95,9 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransactionInternal
 
     public void Poison()
     {
-        Interlocked.CompareExchange(ref _state, StatePoisoned, StateActive);
+        if (Interlocked.CompareExchange(ref _state, StatePoisoned, StateActive) == StateActive
+            && _isLoggingEnabled)
+            _logger!.LogTransactionPoisoned();
     }
 
     public async ValueTask DisposeAsync()
