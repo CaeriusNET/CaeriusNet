@@ -54,4 +54,63 @@ public sealed class TvpRoundtripTests(SqlServerFixture fixture) : IAsyncLifetime
 
         await Task.CompletedTask;
     }
+
+    [Fact]
+    public async Task BulkInsert_Via_Tvp_In_Transaction_Commits()
+    {
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
+        var items = new[]
+        {
+            new WidgetTvp("Committed-1", 100),
+            new WidgetTvp("Committed-2", 200)
+        };
+
+        await using (var tx = await db.BeginTransactionAsync())
+        {
+            var parameters = new StoredProcedureParametersBuilder("dbo", "usp_BulkInsertWidgets")
+                .AddTvpParameter("@Items", items)
+                .Build();
+
+            var inserted = await tx.ExecuteScalarAsync<int>(parameters);
+            Assert.Equal(items.Length, inserted);
+
+            await tx.CommitAsync();
+        }
+
+        var listParams = new StoredProcedureParametersBuilder("dbo", "usp_ListWidgets").Build();
+        var widgets = await db.QueryAsImmutableArrayAsync<WidgetDto>(listParams);
+
+        Assert.Equal(items.Length, widgets.Length);
+        Assert.Equal(items.Select(item => item.Name).ToArray(), widgets.Select(widget => widget.Name).ToArray());
+    }
+
+    [Fact]
+    public async Task BulkInsert_Via_Tvp_In_Transaction_Rollback_Discards()
+    {
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
+        var items = new[]
+        {
+            new WidgetTvp("RolledBack-1", 100),
+            new WidgetTvp("RolledBack-2", 200)
+        };
+
+        await using (var tx = await db.BeginTransactionAsync())
+        {
+            var parameters = new StoredProcedureParametersBuilder("dbo", "usp_BulkInsertWidgets")
+                .AddTvpParameter("@Items", items)
+                .Build();
+
+            var inserted = await tx.ExecuteScalarAsync<int>(parameters);
+            Assert.Equal(items.Length, inserted);
+
+            await tx.RollbackAsync();
+        }
+
+        var listParams = new StoredProcedureParametersBuilder("dbo", "usp_ListWidgets").Build();
+        var widgets = await db.QueryAsImmutableArrayAsync<WidgetDto>(listParams);
+
+        Assert.Empty(widgets);
+    }
 }

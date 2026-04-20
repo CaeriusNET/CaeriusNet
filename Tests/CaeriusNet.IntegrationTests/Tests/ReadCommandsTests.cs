@@ -1,7 +1,7 @@
 namespace CaeriusNet.IntegrationTests.Tests;
 
 /// <summary>
-///     Exhaustive coverage of <see cref="SimpleReadSqlAsyncCommands"/> on a real SQL Server. Each
+///     Exhaustive coverage of <see cref="SimpleReadSqlAsyncCommands" /> on a real SQL Server. Each
 ///     read flavour (immutable array, read-only collection, IEnumerable, FirstQuery) is exercised
 ///     against both populated and empty result sets. Capacity tuning is also validated to ensure
 ///     the value flows through to <c>StoredProcedureParameters.Capacity</c> without truncating rows.
@@ -85,7 +85,7 @@ public sealed class ReadCommandsTests(SqlServerFixture fixture) : IAsyncLifetime
         // ResultSetCapacity hint flows into StoredProcedureParameters.Capacity, which the immutable
         // array helper uses to pre-size the builder. We don't observe the capacity directly, but a
         // mismatched hint would either OOM small or truncate large — either way row count diverges.
-        var p = new StoredProcedureParametersBuilder("dbo", "usp_ListWidgets", ResultSetCapacity: 64).Build();
+        var p = new StoredProcedureParametersBuilder("dbo", "usp_ListWidgets", 64).Build();
         var widgets = await db.QueryAsImmutableArrayAsync<WidgetDto>(p);
 
         Assert.Equal(50, widgets.Length);
@@ -120,5 +120,28 @@ public sealed class ReadCommandsTests(SqlServerFixture fixture) : IAsyncLifetime
         var count = await db.ExecuteScalarAsync<long>(
             new StoredProcedureParametersBuilder("dbo", "usp_CountWidgets").Build());
         Assert.Equal(1L, count);
+    }
+
+    [Fact]
+    public async Task ConcurrentReads_AllSucceed()
+    {
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
+        await SeedAsync(db, 8);
+
+        var tasks = Enumerable.Range(0, 10)
+            .Select(_ => db.QueryAsImmutableArrayAsync<WidgetDto>(
+                    new StoredProcedureParametersBuilder("dbo", "usp_ListWidgets").Build())
+                .AsTask())
+            .ToArray();
+
+        var results = await Task.WhenAll(tasks);
+
+        Assert.All(results, widgets =>
+        {
+            Assert.Equal(8, widgets.Length);
+            Assert.Equal("W001", widgets[0].Name);
+            Assert.Equal("W008", widgets[^1].Name);
+        });
     }
 }

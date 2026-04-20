@@ -3,7 +3,7 @@ namespace CaeriusNet.IntegrationTests.Tests;
 /// <summary>
 ///     Live SQL exercises of the InMemory and Frozen cache pipelines wired through
 ///     <c>StoredProcedureParametersBuilder.AddInMemoryCache</c> / <c>AddFrozenCache</c> and the
-///     <see cref="ICaeriusNetCache"/> invalidation façade. Each test uses a unique cache key so that
+///     <see cref="ICaeriusNetCache" /> invalidation façade. Each test uses a unique cache key so that
 ///     parallel test execution can't cross-pollute the static cache managers.
 /// </summary>
 [Collection(SqlServerCollection.Name)]
