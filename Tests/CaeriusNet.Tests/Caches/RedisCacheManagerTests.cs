@@ -17,8 +17,8 @@ public sealed class RedisCacheManagerTests
 
         manager.Store("key1", new TestPayload("hello", 42), null);
 
-        Assert.True(fake.Storage.ContainsKey("key1"));
-        Assert.True(fake.Storage["key1"].Length > 0);
+        Assert.True(fake.Storage.TryGetValue("key1", out var cachedValue));
+        Assert.True(cachedValue.Length > 0);
     }
 
     [Fact]
