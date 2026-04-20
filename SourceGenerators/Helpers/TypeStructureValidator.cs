@@ -8,15 +8,6 @@
 internal static class TypeStructureValidator
 {
     /// <summary>
-    ///     Result of <see cref="Validate" />. <see cref="PrimaryConstructorDeclaration" /> is non-null when
-    ///     any partial declaration of the type carries a primary constructor with at least one parameter.
-    /// </summary>
-    internal readonly record struct ValidationResult(
-        bool IsSealed,
-        bool IsPartial,
-        TypeDeclarationSyntax? PrimaryConstructorDeclaration);
-
-    /// <summary>
     ///     Validates the structural requirements expected of every CaeriusNet generator target type:
     ///     declared <c>sealed</c>, <c>partial</c>, with a primary constructor exposing at least one parameter.
     /// </summary>
@@ -70,4 +61,13 @@ internal static class TypeStructureValidator
 
         return Location.None;
     }
+
+    /// <summary>
+    ///     Result of <see cref="Validate" />. <see cref="PrimaryConstructorDeclaration" /> is non-null when
+    ///     any partial declaration of the type carries a primary constructor with at least one parameter.
+    /// </summary>
+    internal readonly record struct ValidationResult(
+        bool IsSealed,
+        bool IsPartial,
+        TypeDeclarationSyntax? PrimaryConstructorDeclaration);
 }
