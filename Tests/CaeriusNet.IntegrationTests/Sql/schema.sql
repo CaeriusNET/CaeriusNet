@@ -10,6 +10,7 @@ IF OBJECT_ID(N'dbo.usp_ListWidgets', N'P') IS NOT NULL DROP PROCEDURE dbo.usp_Li
 IF OBJECT_ID(N'dbo.usp_CountWidgets', N'P') IS NOT NULL DROP PROCEDURE dbo.usp_CountWidgets;
 IF OBJECT_ID(N'dbo.usp_DeleteWidget', N'P') IS NOT NULL DROP PROCEDURE dbo.usp_DeleteWidget;
 IF OBJECT_ID(N'dbo.usp_LongRunning', N'P') IS NOT NULL DROP PROCEDURE dbo.usp_LongRunning;
+IF OBJECT_ID(N'dbo.usp_GetSessionIsolationLevel', N'P') IS NOT NULL DROP PROCEDURE dbo.usp_GetSessionIsolationLevel;
 IF OBJECT_ID(N'dbo.Widgets', N'U') IS NOT NULL DROP TABLE dbo.Widgets;
 
 CREATE TABLE dbo.Widgets
@@ -91,5 +92,15 @@ BEGIN
     DECLARE @delay CHAR(8) = CONVERT(CHAR(8), DATEADD(SECOND, @Seconds, 0), 108);
     WAITFOR DELAY @delay;
     SELECT 1;
+END;
+GO
+
+CREATE PROCEDURE dbo.usp_GetSessionIsolationLevel
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT CAST(transaction_isolation_level AS SMALLINT)
+    FROM sys.dm_exec_sessions
+    WHERE session_id = @@SPID;
 END;
 GO

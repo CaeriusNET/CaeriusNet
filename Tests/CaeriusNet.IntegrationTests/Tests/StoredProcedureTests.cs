@@ -97,10 +97,17 @@ public sealed class StoredProcedureTests(SqlServerFixture fixture) : IAsyncLifet
 			.AddParameter("@Seconds", 10, SqlDbType.Int)
 			.Build();
 
-		// Microsoft.Data.SqlClient surfaces cancellation as either OperationCanceledException
-		// (preferred) or a wrapped SqlException; both are valid contracts to validate here.
-		await Assert.ThrowsAnyAsync<Exception>(async () =>
+		// Microsoft.Data.SqlClient may surface a cancelled query either as a raw
+		// OperationCanceledException (token observed before/during ADO.NET I/O) or wrap a
+		// SqlException, which CaeriusNet then re-wraps as CaeriusNetSqlException. Both are
+		// valid contracts for "the request was cancelled".
+		var exception = await Record.ExceptionAsync(async () =>
 			await db.ExecuteScalarAsync<int>(p, cts.Token));
+
+		Assert.NotNull(exception);
+		Assert.True(
+			exception is OperationCanceledException or CaeriusNetSqlException,
+			$"Expected OperationCanceledException or CaeriusNetSqlException, got {exception!.GetType().FullName}: {exception.Message}");
 	}
 
 	[Fact]
