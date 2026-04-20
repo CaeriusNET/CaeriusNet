@@ -65,6 +65,7 @@ jobs:
             --configuration Release \
             --no-restore \
             --no-build \
+            --filter "FullyQualifiedName!~CaeriusNet.IntegrationTests" \
             --collect:"XPlat Code Coverage" \
             --results-directory ./coverage \
             --logger "trx;LogFileName=test-results.trx" \
