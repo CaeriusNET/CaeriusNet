@@ -22,6 +22,12 @@ internal static class SourceGeneratorTestHelper
         return driver.RunGenerators(compilation).GetRunResult();
     }
 
+    /// <summary>
+    ///     Builds a test compilation seeded with the same references as <see cref="RunGenerator{TGenerator}" />.
+    ///     Exposed so caching tests can drive the generator across multiple runs on the same compilation.
+    /// </summary>
+    internal static CSharpCompilation CreateTestCompilation(SyntaxTree syntaxTree) => CreateCompilation(syntaxTree);
+
     private static CSharpCompilation CreateCompilation(SyntaxTree syntaxTree)
     {
         var references = BuildMetadataReferences();

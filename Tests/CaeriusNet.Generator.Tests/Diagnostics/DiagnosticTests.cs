@@ -184,4 +184,38 @@ public sealed class DiagnosticTests
 		Assert.DoesNotContain(diagnostics, d => d.Id.StartsWith("CAERIUS", StringComparison.Ordinal));
 		Assert.NotEmpty(RunTvpFull(source).GeneratedTrees);
 	}
+
+	[Fact]
+	public void Dto_UnsupportedType_Reports_CAERIUS005_Warning()
+	{
+		// System.Uri has no native SQL Server mapping → falls back to sql_variant.
+		const string source = """
+		                      using CaeriusNet.Attributes.Dto;
+		                      namespace TestNs;
+		                      [GenerateDto]
+		                      public sealed partial record FooDto(int Id, System.Uri Endpoint);
+		                      """;
+
+		var diagnostics = RunDto(source).ToList();
+
+		Assert.Contains(diagnostics, d => d.Id == "CAERIUS005" && d.Severity == DiagnosticSeverity.Warning);
+		// Warning, not error: generator must still emit the partial.
+		Assert.NotEmpty(RunDtoFull(source).GeneratedTrees);
+	}
+
+	[Fact]
+	public void Tvp_UnsupportedType_Reports_CAERIUS005_Warning()
+	{
+		const string source = """
+		                      using CaeriusNet.Attributes.Tvp;
+		                      namespace TestNs;
+		                      [GenerateTvp(TvpName = "tvp_Foo")]
+		                      public sealed partial record FooTvp(int Id, System.Uri Endpoint);
+		                      """;
+
+		var diagnostics = RunTvp(source).ToList();
+
+		Assert.Contains(diagnostics, d => d.Id == "CAERIUS005" && d.Severity == DiagnosticSeverity.Warning);
+		Assert.NotEmpty(RunTvpFull(source).GeneratedTrees);
+	}
 }
