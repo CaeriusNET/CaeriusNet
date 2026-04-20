@@ -516,5 +516,34 @@ public static partial class LogMessages
         string procedureName,
         int rowCount);
 
+    /// <summary>
+    ///     Logs when a SQL Server transaction is started.
+    /// </summary>
+    [LoggerMessage(
+        EventId = 4009,
+        Level = LogLevel.Debug,
+        Message = "SQL transaction started with isolation level '{isolationLevel}'")]
+    public static partial void LogTransactionStarted(
+        this ILogger logger,
+        IsolationLevel isolationLevel);
+
+    /// <summary>
+    ///     Logs when a SQL Server transaction is committed.
+    /// </summary>
+    [LoggerMessage(
+        EventId = 4010,
+        Level = LogLevel.Information,
+        Message = "SQL transaction committed")]
+    public static partial void LogTransactionCommitted(this ILogger logger);
+
+    /// <summary>
+    ///     Logs when a SQL Server transaction is rolled back (explicit or auto on dispose).
+    /// </summary>
+    [LoggerMessage(
+        EventId = 4011,
+        Level = LogLevel.Information,
+        Message = "SQL transaction rolled back")]
+    public static partial void LogTransactionRolledBack(this ILogger logger);
+
     #endregion
 }
