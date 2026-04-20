@@ -226,4 +226,43 @@ public sealed class DiagnosticTests
         Assert.Contains(diagnostics, d => d.Id == "CAERIUS005" && d.Severity == DiagnosticSeverity.Warning);
         Assert.NotEmpty(RunTvpFull(source).GeneratedTrees);
     }
+
+    /// <summary>
+    ///     CAERIUS006 (UnsupportedTypeWarning) is defined in DiagnosticDescriptors but is not currently
+    ///     emitted by either generator. Both DtoExtractor and TvpExtractor emit CAERIUS005 for types that
+    ///     fall back to sql_variant. This test verifies that Int128 triggers CAERIUS005 (not CAERIUS006).
+    /// </summary>
+    [Fact]
+    public void Dto_Int128_Property_Reports_CAERIUS005_Not_CAERIUS006()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Dto;
+                              namespace TestNs;
+                              [GenerateDto]
+                              public sealed partial record BigNumDto(int Id, System.Int128 BigValue);
+                              """;
+
+        var diagnostics = RunDto(source).ToList();
+
+        Assert.Contains(diagnostics, d => d.Id == "CAERIUS005" && d.Severity == DiagnosticSeverity.Warning);
+        Assert.DoesNotContain(diagnostics, d => d.Id == "CAERIUS006");
+        Assert.NotEmpty(RunDtoFull(source).GeneratedTrees);
+    }
+
+    [Fact]
+    public void Tvp_Int128_Property_Reports_CAERIUS005_Not_CAERIUS006()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Tvp;
+                              namespace TestNs;
+                              [GenerateTvp(TvpName = "tvp_BigNum")]
+                              public sealed partial record BigNumTvp(int Id, System.Int128 BigValue);
+                              """;
+
+        var diagnostics = RunTvp(source).ToList();
+
+        Assert.Contains(diagnostics, d => d.Id == "CAERIUS005" && d.Severity == DiagnosticSeverity.Warning);
+        Assert.DoesNotContain(diagnostics, d => d.Id == "CAERIUS006");
+        Assert.NotEmpty(RunTvpFull(source).GeneratedTrees);
+    }
 }

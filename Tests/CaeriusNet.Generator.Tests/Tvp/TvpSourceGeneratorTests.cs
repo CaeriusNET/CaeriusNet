@@ -298,4 +298,108 @@ public sealed class TvpSourceGeneratorTests
 
         Assert.Empty(result.GeneratedTrees);
     }
+
+    [Fact]
+    public void Half_Field_Generates_SqlDbType_Real()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Tvp;
+                              namespace Test.Models;
+                              [GenerateTvp(Schema = "dbo", TvpName = "tvp_sensor")]
+                              public sealed partial record SensorTvp(int Id, System.Half Temperature);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText().ToString();
+        Assert.Contains("SqlDbType.Real", generated);
+        Assert.Contains("SetFloat", generated);
+        Assert.Contains("(float)", generated);
+    }
+
+    [Fact]
+    public void Nullable_Half_Field_Generates_SetDBNull_Guard()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Tvp;
+                              namespace Test.Models;
+                              [GenerateTvp(Schema = "dbo", TvpName = "tvp_sensor")]
+                              public sealed partial record SensorTvp(int Id, System.Half? Temperature);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText().ToString();
+        Assert.Contains("SetDBNull", generated);
+        Assert.Contains("SetFloat", generated);
+        Assert.Contains("(float)", generated);
+    }
+
+    [Fact]
+    public void Tvp_Generated_Code_Contains_GeneratedCodeAttribute()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Tvp;
+                              namespace Test.Models;
+                              [GenerateTvp(Schema = "dbo", TvpName = "tvp_test")]
+                              public sealed partial record TestTvp(int Id, string Name);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
+
+        var generated = result.GeneratedTrees[0].GetText().ToString();
+        Assert.Contains("[GeneratedCode(\"CaeriusNet.Generator\"", generated);
+    }
+
+    [Fact]
+    public void Tvp_Generated_Code_Contains_PragmaWarningDisable()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Tvp;
+                              namespace Test.Models;
+                              [GenerateTvp(Schema = "dbo", TvpName = "tvp_test")]
+                              public sealed partial record TestTvp(int Id, string Name);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
+
+        var generated = result.GeneratedTrees[0].GetText().ToString();
+        Assert.Contains("#pragma warning disable CS1591", generated);
+    }
+
+    [Fact]
+    public void Tvp_Generated_Code_Contains_XmlDocComments()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Tvp;
+                              namespace Test.Models;
+                              [GenerateTvp(Schema = "dbo", TvpName = "tvp_test")]
+                              public sealed partial record TestTvp(int Id, string Name);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
+
+        var generated = result.GeneratedTrees[0].GetText().ToString();
+        Assert.Contains("/// <summary>", generated);
+    }
+
+    [Fact]
+    public void Class_With_Attribute_Generates_Class_Keyword()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Tvp;
+                              namespace Test.Models;
+                              [GenerateTvp(Schema = "dbo", TvpName = "tvp_cls")]
+                              public sealed partial class ClassTvp(int Id, string Name);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText().ToString();
+        Assert.Contains("partial class ClassTvp", generated);
+        Assert.DoesNotContain("partial record ClassTvp", generated);
+    }
 }

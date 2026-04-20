@@ -1,9 +1,9 @@
 namespace CaeriusNet.Generator.Tests.Helpers;
 
 /// <summary>
-///     Direct unit tests for <see cref="NamespaceHelper"/>. The generator project exposes its
+///     Direct unit tests for <see cref="NamespaceHelper" />. The generator project exposes its
 ///     internals to this test assembly via <c>InternalsVisibleTo</c>, so we call <c>GetNamespace</c>
-///     directly on real <see cref="INamedTypeSymbol"/> instances built from a tiny in-memory
+///     directly on real <see cref="INamedTypeSymbol" /> instances built from a tiny in-memory
 ///     compilation. Catches regressions without spinning up a full generator.
 /// </summary>
 public sealed class NamespaceHelperTests
