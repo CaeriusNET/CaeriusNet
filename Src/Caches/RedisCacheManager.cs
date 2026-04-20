@@ -117,4 +117,23 @@ internal sealed class RedisCacheManager : IRedisCacheManager
             return false;
         }
     }
+
+	/// <summary>
+	///     Removes the entry associated with the specified key. Failures are logged and swallowed
+	///     to keep the call site oblivious to transient distributed-cache errors.
+	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    public void Remove(string cacheKey)
+    {
+        if (_distributedCache == null) return;
+
+        try
+        {
+            _distributedCache.Remove(cacheKey);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogRedisStoreError(cacheKey, ex);
+        }
+    }
 }

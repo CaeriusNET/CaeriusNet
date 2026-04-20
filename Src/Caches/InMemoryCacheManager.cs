@@ -11,15 +11,22 @@
 internal static class InMemoryCacheManager
 {
 	/// <summary>
-	///     The memory cache instance used for storing cached items.
+	///     The memory cache instance used for storing cached items. Replaceable via <see cref="Configure" />
+	///     before any Store/TryGet call (typically from the DI builder at startup).
 	/// </summary>
-	private static readonly MemoryCache MemoryCache = new(new MemoryCacheOptions
+	private static MemoryCache _memoryCache = new(new MemoryCacheOptions
     {
         SizeLimit = null,
         CompactionPercentage = 0.05,
         ExpirationScanFrequency = TimeSpan.FromMinutes(2),
         TrackLinkedCacheEntries = false
     });
+
+	/// <summary>
+	///     When non-null, every cache entry is sized as 1 so that <see cref="MemoryCacheOptions.SizeLimit" />
+	///     effectively caps the maximum number of resident entries. Null preserves legacy unbounded behavior.
+	/// </summary>
+	private static long? _entrySize;
 
 	/// <summary>
 	///     The logger instance used for recording cache operations.
@@ -32,16 +39,22 @@ internal static class InMemoryCacheManager
 	private static readonly bool IsLoggingEnabled = Logger != null;
 
 	/// <summary>
+	///     Replaces the underlying <see cref="MemoryCache" /> with a freshly configured instance. Any items already
+	///     stored in the previous cache are released. When <see cref="MemoryCacheOptions.SizeLimit" /> is set,
+	///     entries are sized as 1 so the limit acts as a maximum entry count.
+	/// </summary>
+	/// <param name="options">The new memory cache options. Must not be null.</param>
+	internal static void Configure(MemoryCacheOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        var previous = Interlocked.Exchange(ref _memoryCache, new MemoryCache(options));
+        _entrySize = options.SizeLimit;
+        previous.Dispose();
+    }
+
+	/// <summary>
 	///     Stores the specified value in the in-memory cache with the given cache key and expiration time.
 	/// </summary>
-	/// <typeparam name="T">The type of the value to be stored in the cache.</typeparam>
-	/// <param name="cacheKey">The unique key used to store and retrieve the value from the cache.</param>
-	/// <param name="value">The value to be stored in the cache.</param>
-	/// <param name="expiration">The duration for which the cached value is valid before it expires.</param>
-	/// <remarks>
-	///     This method will log the caching operation if logging is enabled.
-	///     The value is stored in the memory cache with the specified expiration duration.
-	/// </remarks>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static void Store<T>(string cacheKey, T value, TimeSpan expiration)
     {
@@ -54,31 +67,19 @@ internal static class InMemoryCacheManager
             Priority = CacheItemPriority.Normal
         };
 
-        MemoryCache.Set(cacheKey, value!, options);
+        if (_entrySize.HasValue)
+            options.Size = 1;
+
+        _memoryCache.Set(cacheKey, value!, options);
     }
 
 	/// <summary>
 	///     Attempts to retrieve a cached value from the in-memory cache based on the specified cache key.
 	/// </summary>
-	/// <typeparam name="T">The type of value expected to be retrieved from the cache.</typeparam>
-	/// <param name="cacheKey">The unique identifier for the cached item.</param>
-	/// <param name="value">
-	///     When this method returns, contains the retrieved value if the key is found and the value is of type
-	///     <typeparamref name="T" />;
-	///     otherwise, the default value for type <typeparamref name="T" />.
-	/// </param>
-	/// <returns>
-	///     <see langword="true" /> if the cache contains an item with the specified key and the value is of type
-	///     <typeparamref name="T" />;
-	///     otherwise, <see langword="false" />.
-	/// </returns>
-	/// <remarks>
-	///     This method will log the retrieval operation if logging is enabled and the value is successfully retrieved.
-	/// </remarks>
 	[MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static bool TryGet<T>(string cacheKey, out T? value)
     {
-        if (!MemoryCache.TryGetValue(cacheKey, out var cached) || cached is not T typedValue)
+        if (!_memoryCache.TryGetValue(cacheKey, out var cached) || cached is not T typedValue)
         {
             value = default;
             return false;
@@ -90,5 +91,22 @@ internal static class InMemoryCacheManager
             Logger!.LogRetrievedFromMemoryCache(cacheKey);
 
         return true;
+    }
+
+	/// <summary>
+	///     Removes the entry associated with the specified key, if present. No-op if the key is unknown.
+	/// </summary>
+	[MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal static void Remove(string cacheKey)
+    {
+        _memoryCache.Remove(cacheKey);
+    }
+
+	/// <summary>
+	///     Evicts every entry currently in the cache. Subsequent reads will miss until repopulated.
+	/// </summary>
+	internal static void Clear()
+    {
+        _memoryCache.Clear();
     }
 }

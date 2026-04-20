@@ -9,6 +9,7 @@ public sealed class CaeriusNetBuilder
     private IHostApplicationBuilder? _aspireBuilder;
     private string? _aspireRedisConnectionName;
     private string? _aspireSqlServerConnectionName;
+    private MemoryCacheOptions? _inMemoryCacheOptions;
     private string? _redisConnectionString;
     private string? _sqlServerConnectionString;
 
@@ -48,6 +49,19 @@ public sealed class CaeriusNetBuilder
         return this;
     }
 
+    /// <summary>
+    ///     Configures the underlying <see cref="MemoryCache" /> used by the InMemory cache tier.
+    ///     Call this BEFORE the first cached read; later calls replace the underlying cache instance and
+    ///     drop any items it already held. Set <see cref="MemoryCacheOptions.SizeLimit" /> to bound the
+    ///     maximum number of resident entries (each entry is sized as 1).
+    /// </summary>
+    public CaeriusNetBuilder WithInMemoryCacheOptions(MemoryCacheOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        _inMemoryCacheOptions = options;
+        return this;
+    }
+
     public CaeriusNetBuilder WithAspireSqlServer(string connectionName = "sqlserver")
     {
         if (_aspireBuilder == null)
@@ -81,8 +95,14 @@ public sealed class CaeriusNetBuilder
             throw new InvalidOperationException(
                 "SQL Server connection must be configured using WithSqlServer() or WithAspireSqlServer().");
 
+        if (_inMemoryCacheOptions is not null)
+            InMemoryCacheManager.Configure(_inMemoryCacheOptions);
+
         ConfigureRedis();
         ConfigureSqlServer();
+
+        _services.AddSingleton<ICaeriusNetCache>(sp =>
+            new CaeriusNetCache(sp.GetService<IRedisCacheManager>()));
 
         return _services;
     }
