@@ -14,4 +14,10 @@ public interface IRedisCacheManager
     ///     Stores a value in the cache.
     /// </summary>
     void Store<T>(string cacheKey, T value, TimeSpan? expiration) where T : notnull;
+
+    /// <summary>
+    ///     Removes the entry associated with the specified key. No-op if Redis is not configured
+    ///     or the key does not exist.
+    /// </summary>
+    void Remove(string cacheKey);
 }

@@ -113,6 +113,71 @@ var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetProducts", capacity:
     .Build();
 ```
 
+### Cache invalidation
+
+Inject the `ICaeriusNetCache` façade to invalidate entries from any service:
+
+```csharp
+public sealed class ProductsService(ICaeriusNetCache cache)
+{
+    public async ValueTask InvalidateProductAsync(int id, CancellationToken ct)
+    {
+        await cache.RemoveAsync($"products:{id}", ct);              // all tiers
+        await cache.RemoveAsync("products:all", CacheType.Frozen, ct);
+        // await cache.ClearAsync(CacheType.InMemory, ct);          // dangerous; use sparingly
+    }
+}
+```
+
+`ClearAsync(CacheType.Redis)` intentionally throws `NotSupportedException` — clearing a shared
+distributed cache from a single service is almost never what you want.
+
+To bound the in-memory tier, configure it explicitly at startup:
+
+```csharp
+services.AddCaeriusNet(b => b
+    .WithSqlServerConnection(connectionString)
+    .WithInMemoryCacheOptions(new MemoryCacheOptions { SizeLimit = 50_000 }));
+```
+
+When `SizeLimit` is set, every cached entry is sized as `1` so the limit acts as a **maximum entry
+count**.
+
+## Transactions
+
+Stored-procedure transactions reuse a single `SqlConnection` for the whole scope and attach the
+underlying `SqlTransaction` to every command. Caching is bypassed inside a transaction.
+
+```csharp
+await using var tx = await dbContext.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+
+var debit = new StoredProcedureParametersBuilder("dbo", "sp_DebitAccount", capacity: 2)
+    .AddParameter("AccountId", fromId, SqlDbType.Int)
+    .AddParameter("Amount", amount, SqlDbType.Decimal)
+    .Build();
+
+var credit = new StoredProcedureParametersBuilder("dbo", "sp_CreditAccount", capacity: 2)
+    .AddParameter("AccountId", toId, SqlDbType.Int)
+    .AddParameter("Amount", amount, SqlDbType.Decimal)
+    .Build();
+
+await tx.ExecuteNonQueryAsync(debit, ct);
+await tx.ExecuteNonQueryAsync(credit, ct);
+
+await tx.CommitAsync(ct);   // omit -> auto-rollback on dispose
+```
+
+Constraints (deliberate, enforced at runtime):
+
+- **Single in-flight command per scope.** `SqlConnection` is not thread-safe; concurrent commands
+  on the same transaction throw `InvalidOperationException` rather than corrupting state.
+- **No nested transactions.** Calling `BeginTransactionAsync` on a transaction throws
+  `NotSupportedException` — use SAVEPOINTs in stored procedures for partial rollback.
+- **Cache is bypassed.** No reads come from cache and no rows are stored — eliminates dirty-read
+  publication and stale-read risk if the transaction rolls back.
+- **Failures poison the scope.** A failing command marks the transaction as poisoned: subsequent
+  commands and `CommitAsync` throw, only `RollbackAsync` / `DisposeAsync` remain valid.
+
 ## Write Operations
 
 ```csharp

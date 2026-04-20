@@ -166,4 +166,49 @@ internal static class FrozenCacheManager
             LockSlim.ExitReadLock();
         }
     }
+
+	/// <summary>
+	///     Removes the entry associated with the specified key, if present.
+	///     Rebuilds a new <see cref="FrozenDictionary{TKey,TValue}" /> from the surviving entries.
+	///     This is intentionally O(N) — frozen caches are designed for "populate once, read many".
+	/// </summary>
+	internal static void Remove(string cacheKey)
+    {
+        LockSlim.EnterWriteLock();
+        try
+        {
+            if (!_frozenCache.ContainsKey(cacheKey))
+                return;
+
+            var builder = new Dictionary<string, object>(_frozenCache.Count, StringComparer.Ordinal);
+            foreach (var kvp in _frozenCache)
+                if (!string.Equals(kvp.Key, cacheKey, StringComparison.Ordinal))
+                    builder[kvp.Key] = kvp.Value;
+
+            _frozenCache = builder.Count == 0
+                ? FrozenDictionary<string, object>.Empty
+                : builder.ToFrozenDictionary(StringComparer.Ordinal);
+        }
+        finally
+        {
+            LockSlim.ExitWriteLock();
+        }
+    }
+
+	/// <summary>
+	///     Resets the cache to its empty state. Primarily intended for tests and explicit cold restarts;
+	///     in production the frozen cache is meant to live for the lifetime of the process.
+	/// </summary>
+	internal static void Clear()
+    {
+        LockSlim.EnterWriteLock();
+        try
+        {
+            _frozenCache = FrozenDictionary<string, object>.Empty;
+        }
+        finally
+        {
+            LockSlim.ExitWriteLock();
+        }
+    }
 }
