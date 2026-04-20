@@ -109,6 +109,28 @@ public sealed class TransactionTests(SqlServerFixture fixture) : IAsyncLifetime
 		await tx.RollbackAsync();
 	}
 
+	[Theory]
+	[InlineData(IsolationLevel.ReadCommitted, 2)]
+	[InlineData(IsolationLevel.RepeatableRead, 3)]
+	[InlineData(IsolationLevel.Serializable, 4)]
+	public async Task BeginTransactionAsync_Honors_Requested_IsolationLevel(IsolationLevel requested, short expectedSqlServerLevel)
+	{
+		using var scope = fixture.CreateScope();
+		var db = scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
+
+		await using var tx = await db.BeginTransactionAsync(requested);
+
+		// Ask the server itself which isolation level the current session is running under.
+		// sys.dm_exec_sessions.transaction_isolation_level: 1=ReadUncommitted, 2=ReadCommitted,
+		// 3=RepeatableRead, 4=Serializable, 5=Snapshot.
+		var probe = new StoredProcedureParametersBuilder("dbo", "usp_GetSessionIsolationLevel").Build();
+		var actual = await tx.ExecuteScalarAsync<short>(probe);
+
+		Assert.Equal(expectedSqlServerLevel, actual);
+
+		await tx.RollbackAsync();
+	}
+
 	private async Task<T> ScalarAsync<T>(string sql)
 	{
 		await using var connection = new SqlConnection(fixture.ConnectionString);
