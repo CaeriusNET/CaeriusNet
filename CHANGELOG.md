@@ -26,6 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   TVPs, transactions, isolation-level pass-through). Gated behind a dedicated GitHub
   Actions workflow (`workflow_dispatch` + targeted PR paths) so the default CI stays
   Docker-free. Now uses `.WithReuse(true)` for fast inner-loop runs in devcontainers.
+- **Integration coverage expansion** — additional fixtures for the simple-read flavours
+  (`QueryAsReadOnlyCollectionAsync`, `QueryAsIEnumerableAsync`, `QueryAsImmutableArrayAsync`
+  capacity hint, empty-singleton invariant, `ExecuteAsync` fire-and-forget), the
+  multi-result-set helpers (2- and 3-tuple across all three collection families),
+  the `ICaeriusNetCache` invalidation façade (InMemory staleness, Frozen idempotency,
+  per-tier targeted removal, `ClearAsync(Frozen)`, `Redis NotSupported`) and the
+  `CaeriusNetSqlException` wrapping contract (RAISERROR, missing sproc, transaction
+  poisoning).
 - **Devcontainer** (`.devcontainer/`) — Testcontainers reuse env vars
   (`TESTCONTAINERS_REUSE_ENABLE`, `TESTCONTAINERS_RYUK_DISABLED=false`), persistent
   NuGet volume, expanded VS Code extensions, dedicated `README.md`.
