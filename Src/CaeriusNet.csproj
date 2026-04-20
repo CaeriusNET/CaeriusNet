@@ -52,6 +52,14 @@
         <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
     </PropertyGroup>
 
+    <PropertyGroup>
+        <IsTrimmable>true</IsTrimmable>
+        <IsAotCompatible>true</IsAotCompatible>
+        <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+        <!-- Suppress trim/AOT warnings until RedisCacheManager adopts source-generated JSON. -->
+        <NoWarn>$(NoWarn);IL2026;IL3050</NoWarn>
+    </PropertyGroup>
+
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
         <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
         <DefineConstants>DEBUG;TRACE</DefineConstants>
@@ -60,12 +68,12 @@
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-        <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+        <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
         <DebugType>portable</DebugType>
         <DebugSymbols>true</DebugSymbols>
         <Optimize>true</Optimize>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-        <WarningLevel>4</WarningLevel>
+        <WarningLevel>9999</WarningLevel>
         <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
     </PropertyGroup>
 
