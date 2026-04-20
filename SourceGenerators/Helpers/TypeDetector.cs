@@ -119,6 +119,7 @@ internal static class TypeDetector
                 "System.TimeSpan" => "time",
                 "System.DateOnly" => "date",
                 "System.TimeOnly" => "time",
+                "System.Half" => "real",
                 "byte[]" or "System.Byte[]" => "varbinary",
                 _ => "sql_variant"
             }
@@ -242,6 +243,7 @@ internal static class TypeDetector
         {
             "System.DateOnly" or "DateOnly" => true,
             "System.TimeOnly" or "TimeOnly" => true,
+            "System.Half" or "Half" => true,
             "byte[]" or "System.Byte[]" => true,
             _ => false
         };

@@ -78,6 +78,24 @@ public sealed class MultiResultSetTests(SqlServerFixture fixture) : IAsyncLifeti
     }
 
     [Fact]
+    public async Task QueryMultipleReadOnlyCollection_Returns_Three_Result_Sets()
+    {
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
+        await SeedAsync(db, 4);
+
+        var p = new StoredProcedureParametersBuilder("dbo", "usp_GetWidgetsCountAndFirst").Build();
+        var (all, count, first) =
+            await db.QueryMultipleReadOnlyCollectionAsync<WidgetDto, WidgetCountDto, WidgetDto>(p);
+
+        Assert.Equal(4, all.Count);
+        Assert.Single(count);
+        Assert.Equal(4L, count[0].Total);
+        Assert.Single(first);
+        Assert.Equal("M001", first[0].Name);
+    }
+
+    [Fact]
     public async Task QueryMultipleIEnumerable_Returns_Two_Result_Sets()
     {
         using var scope = fixture.CreateScope();
@@ -92,6 +110,48 @@ public sealed class MultiResultSetTests(SqlServerFixture fixture) : IAsyncLifeti
         var counts = countsRaw.ToArray();
         Assert.Equal(5, widgets.Length);
         Assert.Equal(5L, counts[0].Total);
+    }
+
+    [Fact]
+    public async Task QueryMultipleIEnumerable_Returns_Three_Result_Sets()
+    {
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
+        await SeedAsync(db, 3);
+
+        var p = new StoredProcedureParametersBuilder("dbo", "usp_GetWidgetsCountAndFirst").Build();
+        var (allRaw, countRaw, firstRaw) =
+            await db.QueryMultipleIEnumerableAsync<WidgetDto, WidgetCountDto, WidgetDto>(p);
+
+        var all = allRaw.ToArray();
+        var count = countRaw.ToArray();
+        var first = firstRaw.ToArray();
+
+        Assert.Equal(3, all.Length);
+        Assert.Single(count);
+        Assert.Equal(3L, count[0].Total);
+        Assert.Single(first);
+        Assert.Equal("M001", first[0].Name);
+    }
+
+    [Fact]
+    public async Task QueryMultipleImmutableArray_Returns_Four_Result_Sets()
+    {
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
+        await SeedAsync(db, 4);
+
+        var p = new StoredProcedureParametersBuilder("dbo", "usp_GetWidgetsFourSets").Build();
+        var (all, count, first, last) =
+            await db.QueryMultipleImmutableArrayAsync<WidgetDto, WidgetCountDto, WidgetDto, WidgetDto>(p);
+
+        Assert.Equal(4, all.Length);
+        Assert.Single(count);
+        Assert.Equal(4L, count[0].Total);
+        Assert.Single(first);
+        Assert.Equal("M001", first[0].Name);
+        Assert.Single(last);
+        Assert.Equal("M004", last[0].Name);
     }
 
     [Fact]

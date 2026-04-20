@@ -39,6 +39,9 @@ IF
 OBJECT_ID(N'dbo.usp_GetWidgetsCountAndFirst', N'P') IS NOT NULL
 DROP PROCEDURE dbo.usp_GetWidgetsCountAndFirst;
 IF
+OBJECT_ID(N'dbo.usp_GetWidgetsFourSets', N'P') IS NOT NULL
+DROP PROCEDURE dbo.usp_GetWidgetsFourSets;
+IF
 OBJECT_ID(N'dbo.Widgets', N'U') IS NOT NULL
 DROP TABLE dbo.Widgets;
 
@@ -154,8 +157,10 @@ GO
 CREATE PROCEDURE dbo.usp_RaiseTestError
     AS
 BEGIN
-    SET NOCOUNT ON;
-    RAISERROR (N'Caerius integration test forced error.', 16, 1);
+    SET
+NOCOUNT ON;
+    RAISERROR
+(N'Caerius integration test forced error.', 16, 1);
 END;
 GO
 
@@ -163,9 +168,13 @@ GO
 CREATE PROCEDURE dbo.usp_GetWidgetsAndCount
     AS
 BEGIN
-    SET NOCOUNT ON;
-    SELECT Id, Name, Quantity, CreatedAt FROM dbo.Widgets ORDER BY Id;
-    SELECT COUNT_BIG(*) AS Total FROM dbo.Widgets;
+    SET
+NOCOUNT ON;
+SELECT Id, Name, Quantity, CreatedAt
+FROM dbo.Widgets
+ORDER BY Id;
+SELECT COUNT_BIG(*) AS Total
+FROM dbo.Widgets;
 END;
 GO
 
@@ -173,9 +182,35 @@ GO
 CREATE PROCEDURE dbo.usp_GetWidgetsCountAndFirst
     AS
 BEGIN
-    SET NOCOUNT ON;
-    SELECT Id, Name, Quantity, CreatedAt FROM dbo.Widgets ORDER BY Id;
-    SELECT COUNT_BIG(*) AS Total FROM dbo.Widgets;
-    SELECT TOP (1) Id, Name, Quantity, CreatedAt FROM dbo.Widgets ORDER BY Id;
+    SET
+NOCOUNT ON;
+SELECT Id, Name, Quantity, CreatedAt
+FROM dbo.Widgets
+ORDER BY Id;
+SELECT COUNT_BIG(*) AS Total
+FROM dbo.Widgets;
+SELECT TOP(1) Id, Name, Quantity, CreatedAt
+FROM dbo.Widgets
+ORDER BY Id;
+END;
+GO
+
+-- Four-result-set sproc: list, count, first row, last row.
+CREATE PROCEDURE dbo.usp_GetWidgetsFourSets
+    AS
+BEGIN
+    SET
+NOCOUNT ON;
+SELECT Id, Name, Quantity, CreatedAt
+FROM dbo.Widgets
+ORDER BY Id;
+SELECT COUNT_BIG(*) AS Total
+FROM dbo.Widgets;
+SELECT TOP(1) Id, Name, Quantity, CreatedAt
+FROM dbo.Widgets
+ORDER BY Id;
+SELECT TOP(1) Id, Name, Quantity, CreatedAt
+FROM dbo.Widgets
+ORDER BY Id DESC;
 END;
 GO

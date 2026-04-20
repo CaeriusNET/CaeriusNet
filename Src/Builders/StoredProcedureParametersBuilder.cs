@@ -24,6 +24,15 @@ public sealed record StoredProcedureParametersBuilder(
     int ResultSetCapacity = 16,
     int CommandTimeout = 30)
 {
+    /// <summary>
+    ///     SIMD-accelerated character sets for SQL identifier validation.
+    /// </summary>
+    private static readonly SearchValues<char> ValidIdentifierChars =
+        SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_");
+
+    private static readonly SearchValues<char> ValidIdentifierStartChars =
+        SearchValues.Create("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_");
+
     private TimeSpan? _cacheExpiration;
     private string? _cacheKey;
     private CacheType? _cacheType;
@@ -65,7 +74,7 @@ public sealed record StoredProcedureParametersBuilder(
         where T : class, ITvpMapper<T>
     {
         ArgumentException.ThrowIfNullOrEmpty(parameter);
-        var tvpList = items is IList<T> list ? list : items.ToList();
+        var tvpList = items as IList<T> ?? items.ToList();
         if (tvpList.Count == 0)
             throw new ArgumentException("No items found in the collection to map to a Table-Valued Parameter.");
 
@@ -168,17 +177,13 @@ public sealed record StoredProcedureParametersBuilder(
     }
 
     /// <summary>
-    ///     Validates that the given identifier is a safe SQL identifier:
-    ///     starts with a letter or underscore, and contains only letters, digits, or underscores.
+    ///     Validates that the given identifier is a safe SQL identifier using SIMD-accelerated search.
     /// </summary>
     private static bool IsValidSqlIdentifier(string identifier)
     {
         if (string.IsNullOrEmpty(identifier)) return false;
         var span = identifier.AsSpan();
-        if (!char.IsLetter(span[0]) && span[0] != '_') return false;
-        foreach (var c in span[1..])
-            if (!char.IsLetterOrDigit(c) && c != '_')
-                return false;
-        return true;
+        return ValidIdentifierStartChars.Contains(span[0])
+               && !span[1..].ContainsAnyExcept(ValidIdentifierChars);
     }
 }

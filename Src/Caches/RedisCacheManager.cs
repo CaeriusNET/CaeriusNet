@@ -80,7 +80,9 @@ internal sealed class RedisCacheManager : IRedisCacheManager
                 options.AbsoluteExpirationRelativeToNow = expiration.Value;
 
             var written = bufferWriter.WrittenSpan;
-            _distributedCache.Set(cacheKey, written.ToArray(), options);
+            var bytes = GC.AllocateUninitializedArray<byte>(written.Length);
+            written.CopyTo(bytes);
+            _distributedCache.Set(cacheKey, bytes, options);
         }
         catch (Exception ex)
         {

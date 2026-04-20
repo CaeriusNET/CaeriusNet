@@ -334,7 +334,8 @@ internal static class SqlCommandHelper
         if (sqlConnection.State != ConnectionState.Open)
             await sqlConnection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        var command = new SqlCommand($"{spParameters.SchemaName}.{spParameters.ProcedureName}", sqlConnection)
+        var command = new SqlCommand(string.Concat(spParameters.SchemaName, ".", spParameters.ProcedureName),
+            sqlConnection)
         {
             CommandType = CommandType.StoredProcedure,
             CommandTimeout = spParameters.CommandTimeout

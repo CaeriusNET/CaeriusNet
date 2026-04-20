@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace CaeriusNet.Commands.Transactions;
 
 /// <summary>
@@ -14,7 +16,7 @@ public static class TransactionWriteSqlAsyncCommands
                    "ICaeriusNetTransaction implementations must derive from the framework's CaeriusNetTransaction.");
     }
 
-    /// <param name="transaction">The transaction whose connection / scope is reused.</param>
+    /// <param name="transaction">Transaction whose connection and scope are reused.</param>
     extension(ICaeriusNetTransaction transaction)
     {
         /// <inheritdoc cref="WriteSqlAsyncCommands" />
@@ -24,16 +26,32 @@ public static class TransactionWriteSqlAsyncCommands
             CancellationToken cancellationToken = default)
         {
             var tx = AsInternal(transaction);
+            var logger = LoggerProvider.GetLogger();
             tx.AcquireCommandSlot();
+            var startTimestamp = Stopwatch.GetTimestamp();
+            if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                logger.LogExecutingProcedure(
+                    spParameters.SchemaName,
+                    spParameters.ProcedureName,
+                    spParameters.GetParametersSpan().Length);
+
             try
             {
-                return await SqlCommandHelperTx.ExecuteCommandTxAsync(
+                var result = await SqlCommandHelperTx.ExecuteCommandTxAsync(
                     spParameters, tx.Connection, tx.Transaction,
                     async command =>
                     {
                         var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
                         return result is DBNull ? default : (T?)result;
                     }, cancellationToken).ConfigureAwait(false);
+
+                if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                    logger.LogProcedureScalarCompleted(
+                        spParameters.SchemaName,
+                        spParameters.ProcedureName,
+                        (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds);
+
+                return result;
             }
             catch (CaeriusNetSqlException)
             {
@@ -53,13 +71,30 @@ public static class TransactionWriteSqlAsyncCommands
             CancellationToken cancellationToken = default)
         {
             var tx = AsInternal(transaction);
+            var logger = LoggerProvider.GetLogger();
             tx.AcquireCommandSlot();
+            var startTimestamp = Stopwatch.GetTimestamp();
+            if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                logger.LogExecutingProcedure(
+                    spParameters.SchemaName,
+                    spParameters.ProcedureName,
+                    spParameters.GetParametersSpan().Length);
+
             try
             {
-                return await SqlCommandHelperTx.ExecuteCommandTxAsync(
+                var rowsAffected = await SqlCommandHelperTx.ExecuteCommandTxAsync(
                     spParameters, tx.Connection, tx.Transaction,
                     command => new ValueTask<int>(command.ExecuteNonQueryAsync(cancellationToken)),
                     cancellationToken).ConfigureAwait(false);
+
+                if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                    logger.LogProcedureNonQueryCompleted(
+                        spParameters.SchemaName,
+                        spParameters.ProcedureName,
+                        (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds,
+                        rowsAffected);
+
+                return rowsAffected;
             }
             catch (CaeriusNetSqlException)
             {
@@ -79,16 +114,28 @@ public static class TransactionWriteSqlAsyncCommands
             CancellationToken cancellationToken = default)
         {
             var tx = AsInternal(transaction);
+            var logger = LoggerProvider.GetLogger();
             tx.AcquireCommandSlot();
+            var startTimestamp = Stopwatch.GetTimestamp();
+            if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                logger.LogExecutingProcedure(
+                    spParameters.SchemaName,
+                    spParameters.ProcedureName,
+                    spParameters.GetParametersSpan().Length);
+
             try
             {
-                await SqlCommandHelperTx.ExecuteCommandTxAsync<object?>(
+                var rowsAffected = await SqlCommandHelperTx.ExecuteCommandTxAsync(
                     spParameters, tx.Connection, tx.Transaction,
-                    async command =>
-                    {
-                        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-                        return null;
-                    }, cancellationToken).ConfigureAwait(false);
+                    command => new ValueTask<int>(command.ExecuteNonQueryAsync(cancellationToken)),
+                    cancellationToken).ConfigureAwait(false);
+
+                if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                    logger.LogProcedureNonQueryCompleted(
+                        spParameters.SchemaName,
+                        spParameters.ProcedureName,
+                        (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds,
+                        rowsAffected);
             }
             catch (CaeriusNetSqlException)
             {

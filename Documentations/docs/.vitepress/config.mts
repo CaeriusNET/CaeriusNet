@@ -25,6 +25,8 @@ export default defineConfig({
           { text: 'Table-Valued Parameters', link: '/documentation/tvp' },
           { text: 'Multiple Result Sets', link: '/documentation/multi-results' },
           { text: 'Caching', link: '/documentation/cache' },
+          { text: 'Transactions', link: '/documentation/transactions' },
+          { text: 'Logging & Observability', link: '/documentation/logging' },
           { text: 'Aspire Integration', link: '/documentation/aspire' },
         ]
       },
@@ -33,6 +35,7 @@ export default defineConfig({
         items: [
           { text: 'API Reference', link: '/documentation/api' },
           { text: 'Best Practices', link: '/documentation/best-practices' },
+          { text: 'Diagnostics', link: '/documentation/diagnostics' },
         ]
       },
       { text: 'Performance', link: '/benchmarks/' }
@@ -64,6 +67,8 @@ export default defineConfig({
           { text: 'Writing Data', link: '/documentation/writing-data' },
           { text: 'Multiple Result Sets', link: '/documentation/multi-results' },
           { text: 'Caching', link: '/documentation/cache' },
+          { text: 'Transactions', link: '/documentation/transactions' },
+          { text: 'Logging & Observability', link: '/documentation/logging' },
           { text: 'Aspire Integration', link: '/documentation/aspire' },
           { text: 'Advanced Usage', link: '/documentation/advanced-usage' }
         ]
@@ -73,7 +78,8 @@ export default defineConfig({
         collapsed: true,
         items: [
           { text: 'API Reference', link: '/documentation/api' },
-          { text: 'Best Practices', link: '/documentation/best-practices' }
+          { text: 'Best Practices', link: '/documentation/best-practices' },
+          { text: 'Diagnostics', link: '/documentation/diagnostics' }
         ]
       },
       {

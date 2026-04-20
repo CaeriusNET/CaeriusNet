@@ -16,11 +16,6 @@ internal sealed record LocationInfo(string FilePath, TextSpan TextSpan, LinePosi
         return Location.Create(FilePath, TextSpan, LineSpan);
     }
 
-    public static LocationInfo? CreateFrom(SyntaxNode node)
-    {
-        return CreateFrom(node.GetLocation());
-    }
-
     public static LocationInfo? CreateFrom(Location location)
     {
         if (location.SourceTree is null) return null;

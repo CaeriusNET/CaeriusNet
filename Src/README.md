@@ -1,5 +1,13 @@
 # CaeriusNet
 
+<p align="center">
+  <a href="https://www.nuget.org/packages/CaeriusNet"><img src="https://img.shields.io/nuget/v/CaeriusNet?style=flat&logo=nuget" alt="NuGet version"></a>
+  <a href="https://www.nuget.org/packages/CaeriusNet"><img src="https://img.shields.io/nuget/dt/CaeriusNet?style=flat" alt="NuGet downloads"></a>
+  <img src="https://img.shields.io/badge/.NET%2010-512BD4.svg?style=flat&logo=dotnet&logoColor=white" alt=".NET 10">
+  <img src="https://img.shields.io/badge/C%23%2014-%23239120.svg?style=flat&logo=csharp&logoColor=white" alt="C# 14">
+  <img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat" alt="MIT License">
+</p>
+
 High-performance micro-ORM for C# 14 / .NET 10 that executes SQL Server Stored Procedures, maps DTOs at compile-time,
 passes Table-Valued Parameters, and caches results — all in a single package, zero reflection at runtime.
 
@@ -58,7 +66,7 @@ var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetProducts", capacity:
     .AddParameter("CategoryId", categoryId, SqlDbType.Int)
     .Build();
 
-IReadOnlyCollection<ProductDto> products =
+ReadOnlyCollection<ProductDto> products =
     await dbContext.QueryAsReadOnlyCollectionAsync<ProductDto>(sp, ct);
 ```
 
@@ -167,16 +175,16 @@ await tx.ExecuteNonQueryAsync(credit, ct);
 await tx.CommitAsync(ct);   // omit -> auto-rollback on dispose
 ```
 
-Constraints (deliberate, enforced at runtime):
+**Design constraints (enforced at runtime):**
 
-- **Single in-flight command per scope.** `SqlConnection` is not thread-safe; concurrent commands
-  on the same transaction throw `InvalidOperationException` rather than corrupting state.
-- **No nested transactions.** Calling `BeginTransactionAsync` on a transaction throws
-  `NotSupportedException` — use SAVEPOINTs in stored procedures for partial rollback.
-- **Cache is bypassed.** No reads come from cache and no rows are stored — eliminates dirty-read
-  publication and stale-read risk if the transaction rolls back.
-- **Failures poison the scope.** A failing command marks the transaction as poisoned: subsequent
-  commands and `CommitAsync` throw, only `RollbackAsync` / `DisposeAsync` remain valid.
+| Rule                         | Behavior                                                                               |
+|------------------------------|----------------------------------------------------------------------------------------|
+| **State machine**            | Active → Committed / RolledBack / Poisoned                                             |
+| **Single in-flight command** | Concurrent commands throw `InvalidOperationException`                                  |
+| **Cache bypass**             | No reads from cache, no writes to cache inside a transaction                           |
+| **Poison state**             | A failing command poisons the scope — only `RollbackAsync`/`DisposeAsync` remain valid |
+| **Auto-rollback**            | If `CommitAsync` is never called, the transaction rolls back on dispose                |
+| **No nesting**               | `BeginTransactionAsync` on an active transaction throws `NotSupportedException`        |
 
 ## Write Operations
 
@@ -208,13 +216,56 @@ Supported up to 5 result sets: `QueryMultipleIEnumerableAsync<T1,T2>` through
 
 | Method                              | Returns                  |
 |-------------------------------------|--------------------------|
-| `QueryAsReadOnlyCollectionAsync<T>` | `IReadOnlyCollection<T>` |
+| `FirstQueryAsync<T>`                | `T?` (first row or null) |
+| `QueryAsReadOnlyCollectionAsync<T>` | `ReadOnlyCollection<T>`  |
 | `QueryAsIEnumerableAsync<T>`        | `IEnumerable<T>`         |
 | `QueryAsImmutableArrayAsync<T>`     | `ImmutableArray<T>`      |
-| `FirstQueryAsync<T>`                | `T` (first row)          |
 | `ExecuteNonQueryAsync`              | `void`                   |
 | `ExecuteAsync`                      | `void`                   |
 | `ExecuteScalarAsync<T>`             | `T`                      |
+
+## Supported DTO Types
+
+The source generator maps C# types to SQL Server types and generates the correct `SqlDataReader` calls.
+
+| C# Type          | SQL Server Type    | Reader Method           |
+|------------------|--------------------|-------------------------|
+| `bool`           | `bit`              | `GetBoolean`            |
+| `byte`           | `tinyint`          | `GetByte`               |
+| `short`          | `smallint`         | `GetInt16`              |
+| `int`            | `int`              | `GetInt32`              |
+| `long`           | `bigint`           | `GetInt64`              |
+| `decimal`        | `decimal`          | `GetDecimal`            |
+| `float`          | `real`             | `GetFloat`              |
+| `Half`           | `real`             | `GetFloat` (cast)       |
+| `double`         | `float`            | `GetDouble`             |
+| `string`         | `nvarchar`         | `GetString`             |
+| `char`           | `nchar`            | `GetString` (cast)      |
+| `DateTime`       | `datetime2`        | `GetDateTime`           |
+| `DateOnly`       | `date`             | `DateOnly.FromDateTime` |
+| `TimeOnly`       | `time`             | `TimeOnly.FromTimeSpan` |
+| `DateTimeOffset` | `datetimeoffset`   | `GetDateTimeOffset`     |
+| `TimeSpan`       | `time`             | `GetTimeSpan`           |
+| `Guid`           | `uniqueidentifier` | `GetGuid`               |
+| `byte[]`         | `varbinary`        | `GetFieldValue<byte[]>` |
+| Enums            | (underlying type)  | (underlying reader)     |
+
+Types without a native mapping fall back to `sql_variant` with a compile-time warning (CAERIUS005/006).
+
+## Observability
+
+CaeriusNet uses `[LoggerMessage]` source-generated structured logging with zero-allocation event methods.
+
+| Event Range | Category                              |
+|-------------|---------------------------------------|
+| 1xxx        | In-Memory cache operations            |
+| 2xxx        | Frozen cache operations               |
+| 3xxx        | Redis cache operations                |
+| 4xxx        | Database / stored procedure execution |
+| 5xxx        | Command execution lifecycle           |
+
+All events include structured properties (cache key, schema, procedure name, elapsed time, row count) for integration
+with OpenTelemetry, Seq, Application Insights, or any `ILogger` sink.
 
 ## Documentation
 

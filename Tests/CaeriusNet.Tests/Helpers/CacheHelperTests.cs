@@ -1,5 +1,3 @@
-using System.Reflection;
-
 namespace CaeriusNet.Tests.Helpers;
 
 /// <summary>
@@ -15,7 +13,7 @@ public sealed class CacheHelperTests
     private static (MethodInfo TryRetrieve, MethodInfo Store) Methods()
     {
         var asm = typeof(StoredProcedureParameters).Assembly;
-        var helper = asm.GetType("CaeriusNet.Helpers.CacheHelper", throwOnError: true)!;
+        var helper = asm.GetType("CaeriusNet.Helpers.CacheHelper", true)!;
         var tryRetrieve = helper.GetMethod("TryRetrieveFromCache",
             BindingFlags.NonPublic | BindingFlags.Static)!;
         var store = helper.GetMethod("StoreInCache",
@@ -26,13 +24,13 @@ public sealed class CacheHelperTests
     private static StoredProcedureParameters MakeSp(string? key, CacheType? type, TimeSpan? ttl = null)
     {
         return new StoredProcedureParameters(
-            schemaName: "dbo",
-            procedureName: "sp_test",
-            capacity: 0,
-            parameters: Array.Empty<SqlParameter>(),
-            cacheKey: key,
-            cacheExpiration: ttl,
-            cacheType: type);
+            "dbo",
+            "sp_test",
+            0,
+            Array.Empty<SqlParameter>(),
+            key,
+            ttl,
+            type);
     }
 
     private static bool TryRetrieve<T>(StoredProcedureParameters sp, out T? value)
@@ -56,7 +54,7 @@ public sealed class CacheHelperTests
     [Fact]
     public void TryRetrieve_Returns_False_When_CacheType_Is_Null()
     {
-        var sp = MakeSp(key: "k1", type: null);
+        var sp = MakeSp("k1", null);
         Assert.False(TryRetrieve<string>(sp, out var value));
         Assert.Null(value);
     }
@@ -64,7 +62,7 @@ public sealed class CacheHelperTests
     [Fact]
     public void TryRetrieve_Returns_False_When_CacheKey_Is_Empty()
     {
-        var sp = MakeSp(key: string.Empty, type: CacheType.InMemory);
+        var sp = MakeSp(string.Empty, CacheType.InMemory);
         Assert.False(TryRetrieve<string>(sp, out var value));
         Assert.Null(value);
     }
@@ -73,9 +71,9 @@ public sealed class CacheHelperTests
     public void Store_Then_Retrieve_RoundTrips_For_InMemory()
     {
         var sp = MakeSp(
-            key: $"caeriushelper-inmem-{Guid.NewGuid():N}",
-            type: CacheType.InMemory,
-            ttl: TimeSpan.FromMinutes(5));
+            $"caeriushelper-inmem-{Guid.NewGuid():N}",
+            CacheType.InMemory,
+            TimeSpan.FromMinutes(5));
 
         Store(sp, "hello");
 
@@ -87,8 +85,8 @@ public sealed class CacheHelperTests
     public void Store_Then_Retrieve_RoundTrips_For_Frozen()
     {
         var sp = MakeSp(
-            key: $"caeriushelper-frozen-{Guid.NewGuid():N}",
-            type: CacheType.Frozen);
+            $"caeriushelper-frozen-{Guid.NewGuid():N}",
+            CacheType.Frozen);
 
         Store(sp, 42);
 
@@ -99,7 +97,7 @@ public sealed class CacheHelperTests
     [Fact]
     public void Store_Is_NoOp_When_Cache_Not_Configured()
     {
-        var sp = MakeSp(key: null, type: null);
+        var sp = MakeSp(null, null);
         // Should not throw and should not allocate / mutate state.
         Store(sp, "ignored");
         Assert.False(TryRetrieve<string>(sp, out _));

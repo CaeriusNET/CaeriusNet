@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace CaeriusNet.Commands.Transactions;
 
 /// <summary>
@@ -16,7 +18,7 @@ public static class TransactionReadSqlAsyncCommands
                    "ICaeriusNetTransaction implementations must derive from the framework's CaeriusNetTransaction.");
     }
 
-    /// <param name="transaction">The transaction whose connection / scope is reused.</param>
+    /// <param name="transaction">Transaction whose connection and scope are reused.</param>
     extension(ICaeriusNetTransaction transaction)
     {
         /// <inheritdoc cref="SimpleReadSqlAsyncCommands" />
@@ -27,11 +29,28 @@ public static class TransactionReadSqlAsyncCommands
             where TResultSet : class, ISpMapper<TResultSet>
         {
             var tx = AsInternal(transaction);
+            var logger = LoggerProvider.GetLogger();
             tx.AcquireCommandSlot();
+            var startTimestamp = Stopwatch.GetTimestamp();
+            if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                logger.LogExecutingProcedure(
+                    spParameters.SchemaName,
+                    spParameters.ProcedureName,
+                    spParameters.GetParametersSpan().Length);
+
             try
             {
-                return await SqlCommandHelperTx.ScalarQueryTxAsync<TResultSet>(
+                var result = await SqlCommandHelperTx.ScalarQueryTxAsync<TResultSet>(
                     spParameters, tx.Connection, tx.Transaction, cancellationToken).ConfigureAwait(false);
+
+                if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                    logger.LogProcedureCompleted(
+                        spParameters.SchemaName,
+                        spParameters.ProcedureName,
+                        (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds,
+                        result is null ? 0 : 1);
+
+                return result;
             }
             catch (SqlException ex)
             {
@@ -53,15 +72,32 @@ public static class TransactionReadSqlAsyncCommands
             where TResultSet : class, ISpMapper<TResultSet>
         {
             var tx = AsInternal(transaction);
+            var logger = LoggerProvider.GetLogger();
             tx.AcquireCommandSlot();
+            var startTimestamp = Stopwatch.GetTimestamp();
+            if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                logger.LogExecutingProcedure(
+                    spParameters.SchemaName,
+                    spParameters.ProcedureName,
+                    spParameters.GetParametersSpan().Length);
+
             try
             {
                 var results = await SqlCommandHelperTx.ResultSetAsReadOnlyCollectionTxAsync<TResultSet>(
                     spParameters, tx.Connection, tx.Transaction, cancellationToken).ConfigureAwait(false);
 
-                return results.Count == 0
+                results = results.Count == 0
                     ? EmptyCollections.ReadOnlyCollection<TResultSet>()
                     : results;
+
+                if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                    logger.LogProcedureCompleted(
+                        spParameters.SchemaName,
+                        spParameters.ProcedureName,
+                        (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds,
+                        results.Count);
+
+                return results;
             }
             catch (SqlException ex)
             {
@@ -94,11 +130,28 @@ public static class TransactionReadSqlAsyncCommands
             where TResultSet : class, ISpMapper<TResultSet>
         {
             var tx = AsInternal(transaction);
+            var logger = LoggerProvider.GetLogger();
             tx.AcquireCommandSlot();
+            var startTimestamp = Stopwatch.GetTimestamp();
+            if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                logger.LogExecutingProcedure(
+                    spParameters.SchemaName,
+                    spParameters.ProcedureName,
+                    spParameters.GetParametersSpan().Length);
+
             try
             {
-                return await SqlCommandHelperTx.ResultSetAsImmutableArrayTxAsync<TResultSet>(
+                var results = await SqlCommandHelperTx.ResultSetAsImmutableArrayTxAsync<TResultSet>(
                     spParameters, tx.Connection, tx.Transaction, cancellationToken).ConfigureAwait(false);
+
+                if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                    logger.LogProcedureCompleted(
+                        spParameters.SchemaName,
+                        spParameters.ProcedureName,
+                        (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds,
+                        results.Length);
+
+                return results;
             }
             catch (SqlException ex)
             {

@@ -1,80 +1,115 @@
+using System.Diagnostics;
+
 namespace CaeriusNet.Commands.Writes;
 
 /// <summary>
-///     Provides a set of extension methods for asynchronous execution of SQL commands related to data writes,
-///     enabling scalar queries and non-query commands through <see cref="ICaeriusNetDbContext" />.
+///     Execute asynchronous stored procedure writes for <see cref="ICaeriusNetDbContext" />.
 /// </summary>
 public static class WriteSqlAsyncCommands
 {
-    /// <param name="dbContext">The database context used to execute the command.</param>
+    /// <param name="dbContext">Database context used to open the connection.</param>
     extension(ICaeriusNetDbContext dbContext)
     {
-	    /// <summary>
-	    ///     Executes a scalar SQL command asynchronously and returns the result as the specified type.
-	    /// </summary>
-	    /// <typeparam name="T">The expected type of the scalar result.</typeparam>
-	    /// <param name="spParameters">The stored procedure name and parameters.</param>
-	    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
-	    /// <returns>
-	    ///     A <see cref="ValueTask{T}" /> representing the asynchronous operation. The task result contains
-	    ///     the scalar value converted to type <typeparamref name="T" />, or default(T) if the result is DBNull.
-	    /// </returns>
-	    /// <remarks>
-	    ///     This method executes a SQL command that returns a single value. The value is converted to the specified
-	    ///     type T. If the database returns DBNull, the method returns the default value for type T.
-	    /// </remarks>
-	    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        public async ValueTask<T?> ExecuteScalarAsync<T>(StoredProcedureParameters spParameters,
+        /// <summary>
+        ///     Execute a stored procedure and return its scalar result.
+        /// </summary>
+        /// <typeparam name="T">Scalar result type.</typeparam>
+        /// <param name="spParameters">Stored procedure metadata and parameters.</param>
+        /// <param name="cancellationToken">Token to cancel the operation.</param>
+        /// <returns>The converted scalar value, or the default value when the result is <see cref="DBNull" />.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public async ValueTask<T?> ExecuteScalarAsync<T>(
+            StoredProcedureParameters spParameters,
             CancellationToken cancellationToken = default)
         {
-            return await SqlCommandHelper.ExecuteCommandAsync(dbContext, spParameters, async command =>
+            var logger = LoggerProvider.GetLogger();
+            var startTimestamp = Stopwatch.GetTimestamp();
+
+            if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                logger.LogExecutingProcedure(
+                    spParameters.SchemaName,
+                    spParameters.ProcedureName,
+                    spParameters.GetParametersSpan().Length);
+
+            var result = await SqlCommandHelper.ExecuteCommandAsync(dbContext, spParameters, async command =>
             {
-                var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-                return result is DBNull ? default : (T?)result;
+                var scalar = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                return scalar is DBNull ? default : (T?)scalar;
             }, cancellationToken).ConfigureAwait(false);
+
+            if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                logger.LogProcedureScalarCompleted(
+                    spParameters.SchemaName,
+                    spParameters.ProcedureName,
+                    (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds);
+
+            return result;
         }
 
-	    /// <summary>
-	    ///     Executes a non-query SQL command asynchronously and returns the number of rows affected.
-	    /// </summary>
-	    /// <param name="spParameters">The stored procedure name and parameters.</param>
-	    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
-	    /// <returns>
-	    ///     A <see cref="ValueTask{T}" /> representing the asynchronous operation. The task result contains
-	    ///     the number of rows affected by the command.
-	    /// </returns>
-	    /// <remarks>
-	    ///     This method is typically used for INSERT, UPDATE, DELETE, or other SQL commands that modify data
-	    ///     but don't return results. The return value indicates how many rows were affected.
-	    /// </remarks>
-	    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        public async ValueTask<int> ExecuteNonQueryAsync(StoredProcedureParameters spParameters,
+        /// <summary>
+        ///     Execute a stored procedure and return the number of affected rows.
+        /// </summary>
+        /// <param name="spParameters">Stored procedure metadata and parameters.</param>
+        /// <param name="cancellationToken">Token to cancel the operation.</param>
+        /// <returns>The number of affected rows.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public async ValueTask<int> ExecuteNonQueryAsync(
+            StoredProcedureParameters spParameters,
             CancellationToken cancellationToken = default)
         {
-            return await SqlCommandHelper.ExecuteCommandAsync(dbContext, spParameters,
+            var logger = LoggerProvider.GetLogger();
+            var startTimestamp = Stopwatch.GetTimestamp();
+
+            if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                logger.LogExecutingProcedure(
+                    spParameters.SchemaName,
+                    spParameters.ProcedureName,
+                    spParameters.GetParametersSpan().Length);
+
+            var rowsAffected = await SqlCommandHelper.ExecuteCommandAsync(dbContext, spParameters,
                 command => new ValueTask<int>(command.ExecuteNonQueryAsync(cancellationToken)),
                 cancellationToken).ConfigureAwait(false);
+
+            if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                logger.LogProcedureNonQueryCompleted(
+                    spParameters.SchemaName,
+                    spParameters.ProcedureName,
+                    (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds,
+                    rowsAffected);
+
+            return rowsAffected;
         }
 
-	    /// <summary>
-	    ///     Executes a non-query SQL command asynchronously without returning any results.
-	    /// </summary>
-	    /// <param name="spParameters">The stored procedure name and parameters.</param>
-	    /// <param name="cancellationToken">A token to cancel the asynchronous operation.</param>
-	    /// <returns>A <see cref="ValueTask" /> representing the asynchronous operation.</returns>
-	    /// <remarks>
-	    ///     This method executes a SQL command without processing any return value or affected rows count.
-	    ///     Use this for fire-and-forget style writes where only completion — not outcome — matters.
-	    /// </remarks>
-	    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        public async ValueTask ExecuteAsync(StoredProcedureParameters spParameters,
+        /// <summary>
+        ///     Execute a stored procedure without returning its result.
+        /// </summary>
+        /// <param name="spParameters">Stored procedure metadata and parameters.</param>
+        /// <param name="cancellationToken">Token to cancel the operation.</param>
+        /// <returns>A task that completes when the command finishes.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public async ValueTask ExecuteAsync(
+            StoredProcedureParameters spParameters,
             CancellationToken cancellationToken = default)
         {
-            await SqlCommandHelper.ExecuteCommandAsync<object?>(dbContext, spParameters, async command =>
-            {
-                await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-                return null;
-            }, cancellationToken).ConfigureAwait(false);
+            var logger = LoggerProvider.GetLogger();
+            var startTimestamp = Stopwatch.GetTimestamp();
+
+            if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                logger.LogExecutingProcedure(
+                    spParameters.SchemaName,
+                    spParameters.ProcedureName,
+                    spParameters.GetParametersSpan().Length);
+
+            var rowsAffected = await SqlCommandHelper.ExecuteCommandAsync(dbContext, spParameters,
+                command => new ValueTask<int>(command.ExecuteNonQueryAsync(cancellationToken)),
+                cancellationToken).ConfigureAwait(false);
+
+            if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                logger.LogProcedureNonQueryCompleted(
+                    spParameters.SchemaName,
+                    spParameters.ProcedureName,
+                    (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds,
+                    rowsAffected);
         }
     }
 }

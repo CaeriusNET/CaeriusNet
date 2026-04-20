@@ -16,6 +16,4 @@ internal sealed record ExtractionResult<TModel>(TModel? Model, EquatableArray<Di
 {
     public static ExtractionResult<TModel> None { get; } =
         new(null, EquatableArray<DiagnosticInfo>.Empty);
-
-    public bool HasModel => Model is not null;
 }

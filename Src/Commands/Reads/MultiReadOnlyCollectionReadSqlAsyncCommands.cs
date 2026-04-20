@@ -1,13 +1,18 @@
 ﻿namespace CaeriusNet.Commands.Reads;
 
+/// <summary>
+///     Execute stored procedures that return multiple result sets as read-only collections.
+/// </summary>
 public static class MultiReadOnlyCollectionReadSqlAsyncCommands
 {
     extension(ICaeriusNetDbContext context)
     {
         /// <summary>
-        ///     Executes a stored procedure to retrieve two result sets, mapping each into a read-only collection of the specified
-        ///     types, with zero delegate indirections and minimal allocations.
+        ///     Execute a stored procedure and materialize up to two result sets as read-only collections.
         /// </summary>
+        /// <param name="spParameters">Stored procedure metadata and parameters.</param>
+        /// <param name="cancellationToken">Token to cancel the operation.</param>
+        /// <returns>A tuple containing the materialized result sets. Missing trailing result sets are empty.</returns>
         public async Task<(ReadOnlyCollection<TResultSet1>, ReadOnlyCollection<TResultSet2>)>
             QueryMultipleReadOnlyCollectionAsync<TResultSet1, TResultSet2>(StoredProcedureParameters spParameters,
                 CancellationToken cancellationToken = default)
@@ -35,8 +40,11 @@ public static class MultiReadOnlyCollectionReadSqlAsyncCommands
         }
 
         /// <summary>
-        ///     Executes a stored procedure to retrieve three result sets, mapping each into a read-only collection.
+        ///     Execute a stored procedure and materialize up to three result sets as read-only collections.
         /// </summary>
+        /// <param name="spParameters">Stored procedure metadata and parameters.</param>
+        /// <param name="cancellationToken">Token to cancel the operation.</param>
+        /// <returns>A tuple containing the materialized result sets. Missing trailing result sets are empty.</returns>
         public async Task<(ReadOnlyCollection<TResultSet1>, ReadOnlyCollection<TResultSet2>,
                 ReadOnlyCollection<TResultSet3>)>
             QueryMultipleReadOnlyCollectionAsync<TResultSet1, TResultSet2, TResultSet3>(
@@ -74,8 +82,11 @@ public static class MultiReadOnlyCollectionReadSqlAsyncCommands
         }
 
         /// <summary>
-        ///     Executes a stored procedure to retrieve four result sets, mapping each into a read-only collection.
+        ///     Execute a stored procedure and materialize up to four result sets as read-only collections.
         /// </summary>
+        /// <param name="spParameters">Stored procedure metadata and parameters.</param>
+        /// <param name="cancellationToken">Token to cancel the operation.</param>
+        /// <returns>A tuple containing the materialized result sets. Missing trailing result sets are empty.</returns>
         public async Task<(ReadOnlyCollection<TResultSet1>, ReadOnlyCollection<TResultSet2>,
                 ReadOnlyCollection<TResultSet3>, ReadOnlyCollection<TResultSet4>)>
             QueryMultipleReadOnlyCollectionAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4>(
@@ -121,8 +132,11 @@ public static class MultiReadOnlyCollectionReadSqlAsyncCommands
         }
 
         /// <summary>
-        ///     Executes a stored procedure to retrieve five result sets, mapping each into a read-only collection.
+        ///     Execute a stored procedure and materialize up to five result sets as read-only collections.
         /// </summary>
+        /// <param name="spParameters">Stored procedure metadata and parameters.</param>
+        /// <param name="cancellationToken">Token to cancel the operation.</param>
+        /// <returns>A tuple containing the materialized result sets. Missing trailing result sets are empty.</returns>
         public async Task<(ReadOnlyCollection<TResultSet1>, ReadOnlyCollection<TResultSet2>,
                 ReadOnlyCollection<TResultSet3>, ReadOnlyCollection<TResultSet4>, ReadOnlyCollection<TResultSet5>)>
             QueryMultipleReadOnlyCollectionAsync<TResultSet1, TResultSet2, TResultSet3, TResultSet4, TResultSet5>(

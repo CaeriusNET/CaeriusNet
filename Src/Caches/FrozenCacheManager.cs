@@ -41,20 +41,14 @@ internal static class FrozenCacheManager
 	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
     internal static void Store<T>(string cacheKey, T value)
     {
-        LockSlim.EnterReadLock();
-        try
-        {
-            if (_frozenCache.ContainsKey(cacheKey))
-                return;
-        }
-        finally
-        {
-            LockSlim.ExitReadLock();
-        }
+        // Fast path: lock-free check avoids write lock when key already exists.
+        if (Volatile.Read(ref _frozenCache).ContainsKey(cacheKey))
+            return;
 
         LockSlim.EnterWriteLock();
         try
         {
+            // Double-check under write lock.
             if (_frozenCache.ContainsKey(cacheKey))
                 return;
 
@@ -71,7 +65,7 @@ internal static class FrozenCacheManager
 
             builder[cacheKey] = value!;
 
-            _frozenCache = builder.ToFrozenDictionary(StringComparer.Ordinal);
+            Volatile.Write(ref _frozenCache, builder.ToFrozenDictionary(StringComparer.Ordinal));
 
             if (IsLoggingEnabled)
                 Logger!.LogStoredInFrozenCache(cacheKey);
@@ -115,7 +109,7 @@ internal static class FrozenCacheManager
             foreach (var kvp in newEntries)
                 builder[kvp.Key] = kvp.Value!;
 
-            _frozenCache = builder.ToFrozenDictionary(StringComparer.Ordinal);
+            Volatile.Write(ref _frozenCache, builder.ToFrozenDictionary(StringComparer.Ordinal));
 
             if (IsLoggingEnabled)
                 Logger!.LogStoredRangeInFrozenCache(newEntries.Count);
@@ -143,28 +137,21 @@ internal static class FrozenCacheManager
 	[MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     internal static bool TryGet<T>(string cacheKey, out T? value)
     {
-        LockSlim.EnterReadLock();
-        try
+        // Lock-free read: FrozenDictionary is immutable and inherently thread-safe.
+        var cache = Volatile.Read(ref _frozenCache);
+
+        if (!cache.TryGetValue(cacheKey, out var cached) || cached is not T typedValue)
         {
-            var cache = _frozenCache;
-
-            if (!cache.TryGetValue(cacheKey, out var cached) || cached is not T typedValue)
-            {
-                value = default;
-                return false;
-            }
-
-            value = typedValue;
-
-            if (IsLoggingEnabled)
-                Logger!.LogRetrievedFromFrozenCache(cacheKey);
-
-            return true;
+            value = default;
+            return false;
         }
-        finally
-        {
-            LockSlim.ExitReadLock();
-        }
+
+        value = typedValue;
+
+        if (IsLoggingEnabled)
+            Logger!.LogRetrievedFromFrozenCache(cacheKey);
+
+        return true;
     }
 
 	/// <summary>
@@ -174,6 +161,10 @@ internal static class FrozenCacheManager
 	/// </summary>
 	internal static void Remove(string cacheKey)
     {
+        // Fast path: lock-free check avoids write lock when key does not exist.
+        if (!Volatile.Read(ref _frozenCache).ContainsKey(cacheKey))
+            return;
+
         LockSlim.EnterWriteLock();
         try
         {
@@ -185,9 +176,10 @@ internal static class FrozenCacheManager
                 if (!string.Equals(kvp.Key, cacheKey, StringComparison.Ordinal))
                     builder[kvp.Key] = kvp.Value;
 
-            _frozenCache = builder.Count == 0
-                ? FrozenDictionary<string, object>.Empty
-                : builder.ToFrozenDictionary(StringComparer.Ordinal);
+            Volatile.Write(ref _frozenCache,
+                builder.Count == 0
+                    ? FrozenDictionary<string, object>.Empty
+                    : builder.ToFrozenDictionary(StringComparer.Ordinal));
         }
         finally
         {
@@ -204,7 +196,7 @@ internal static class FrozenCacheManager
         LockSlim.EnterWriteLock();
         try
         {
-            _frozenCache = FrozenDictionary<string, object>.Empty;
+            Volatile.Write(ref _frozenCache, FrozenDictionary<string, object>.Empty);
         }
         finally
         {

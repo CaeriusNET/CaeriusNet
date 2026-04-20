@@ -7,6 +7,7 @@
 ///     - 2xxx: Frozen Cache
 ///     - 3xxx: Redis Cache
 ///     - 4xxx: Database Operations
+///     - 5xxx: Command Execution
 /// </summary>
 [GeneratedCode("Microsoft.Extensions.Logging.Generators", "8.0.0.0")]
 public static partial class LogMessages
@@ -544,6 +545,85 @@ public static partial class LogMessages
         Level = LogLevel.Information,
         Message = "SQL transaction rolled back")]
     public static partial void LogTransactionRolledBack(this ILogger logger);
+
+    /// <summary>
+    ///     Logs when a transaction is poisoned after a command failure.
+    /// </summary>
+    [LoggerMessage(
+        EventId = 4012,
+        Level = LogLevel.Warning,
+        Message = "Transaction poisoned due to command failure")]
+    public static partial void LogTransactionPoisoned(this ILogger logger);
+
+    #endregion
+
+    #region Command Execution (5xxx)
+
+    /// <summary>
+    ///     Logs before executing a stored procedure.
+    /// </summary>
+    [LoggerMessage(
+        EventId = 5001,
+        Level = LogLevel.Debug,
+        Message = "Executing stored procedure {SchemaName}.{ProcedureName} with {ParameterCount} parameters")]
+    public static partial void LogExecutingProcedure(
+        this ILogger logger,
+        string schemaName,
+        string procedureName,
+        int parameterCount);
+
+    /// <summary>
+    ///     Logs after a stored procedure completes and returns rows.
+    /// </summary>
+    [LoggerMessage(
+        EventId = 5002,
+        Level = LogLevel.Debug,
+        Message = "Stored procedure {SchemaName}.{ProcedureName} completed in {ElapsedMs}ms, returned {RowCount} rows")]
+    public static partial void LogProcedureCompleted(
+        this ILogger logger,
+        string schemaName,
+        string procedureName,
+        long elapsedMs,
+        int rowCount);
+
+    /// <summary>
+    ///     Logs after a stored procedure completes and returns a scalar.
+    /// </summary>
+    [LoggerMessage(
+        EventId = 5003,
+        Level = LogLevel.Debug,
+        Message = "Stored procedure {SchemaName}.{ProcedureName} completed in {ElapsedMs}ms (scalar)")]
+    public static partial void LogProcedureScalarCompleted(
+        this ILogger logger,
+        string schemaName,
+        string procedureName,
+        long elapsedMs);
+
+    /// <summary>
+    ///     Logs after a stored procedure completes without returning a result set.
+    /// </summary>
+    [LoggerMessage(
+        EventId = 5004,
+        Level = LogLevel.Debug,
+        Message =
+            "Stored procedure {SchemaName}.{ProcedureName} completed in {ElapsedMs}ms (non-query, {RowsAffected} rows affected)")]
+    public static partial void LogProcedureNonQueryCompleted(
+        this ILogger logger,
+        string schemaName,
+        string procedureName,
+        long elapsedMs,
+        int rowsAffected);
+
+    /// <summary>
+    ///     Logs when a cache hit skips stored procedure execution.
+    /// </summary>
+    [LoggerMessage(
+        EventId = 5005,
+        Level = LogLevel.Debug,
+        Message = "Cache hit for key {CacheKey}, skipping stored procedure execution")]
+    public static partial void LogCacheHitSkippingExecution(
+        this ILogger logger,
+        string cacheKey);
 
     #endregion
 }

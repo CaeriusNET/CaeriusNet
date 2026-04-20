@@ -2,7 +2,7 @@ namespace CaeriusNet.IntegrationTests.Tests;
 
 /// <summary>
 ///     Verifies SQL-side errors (RAISERROR, missing object, primary-key violation) are surfaced
-///     end-to-end as <see cref="CaeriusNetSqlException"/> with the original <see cref="SqlException"/>
+///     end-to-end as <see cref="CaeriusNetSqlException" /> with the original <see cref="SqlException" />
 ///     preserved as the inner exception. This is the contract the Src/ catch sites all uphold.
 /// </summary>
 [Collection(SqlServerCollection.Name)]

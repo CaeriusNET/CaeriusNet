@@ -103,4 +103,20 @@ internal static class DiagnosticDescriptors
         true,
         "CaeriusNet maps CLR types to native SQL Server types where possible. Falling back to sql_variant works but disables indexing, computed-column participation, and several optimisations. Consider using a supported type or providing a custom mapping.",
         HelpLinkBase + "CAERIUS005.md");
+
+    /// <summary>
+    ///     CAERIUS006 — a property type has no direct SQL Server equivalent (e.g. <c>Int128</c>, <c>UInt128</c>).
+    /// </summary>
+    /// <remarks>
+    ///     Message format args: <c>{0}</c> = type name.
+    /// </remarks>
+    internal static readonly DiagnosticDescriptor UnsupportedTypeWarning = new(
+        "CAERIUS006",
+        "Unsupported type for SQL Server mapping",
+        "Property type '{0}' has no direct SQL Server equivalent and will use sql_variant fallback",
+        Category,
+        DiagnosticSeverity.Warning,
+        true,
+        "Types like Int128 and UInt128 have no native SQL Server equivalent. The generator falls back to sql_variant, which disables indexing and type-safety guarantees. Consider using a natively supported type.",
+        HelpLinkBase + "CAERIUS006.md");
 }

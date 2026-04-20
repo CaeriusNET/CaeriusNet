@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace CaeriusNet.Tests.Logging;
 
 /// <summary>
-///     Smoke-tests every <see cref="LogMessages"/> partial method against a NullLogger to ensure the
+///     Smoke-tests every <see cref="LogMessages" /> partial method against a NullLogger to ensure the
 ///     <c>LoggerMessageGenerator</c>-emitted code does not throw on call. We deliberately don't assert
 ///     content — these methods are pure delegating wrappers around the generator output, and the format
 ///     strings are themselves validated at compile time.
@@ -16,42 +16,58 @@ public sealed class LogMessagesSmokeTests
     [Fact]
     public void Cache_Methods_DoNotThrow()
     {
-        LogMessages.LogStoringInMemoryCache(Logger, "k");
-        LogMessages.LogStoredInMemoryCache(Logger, "k", TimeSpan.FromSeconds(30));
-        LogMessages.LogRetrievingFromMemoryCache(Logger, "k");
-        LogMessages.LogRetrievedFromMemoryCache(Logger, "k");
-        LogMessages.LogNotFoundInMemoryCache(Logger, "k");
+        Logger.LogStoringInMemoryCache("k");
+        Logger.LogStoredInMemoryCache("k", TimeSpan.FromSeconds(30));
+        Logger.LogRetrievingFromMemoryCache("k");
+        Logger.LogRetrievedFromMemoryCache("k");
+        Logger.LogNotFoundInMemoryCache("k");
 
-        LogMessages.LogStoringInFrozenCache(Logger, "k");
-        LogMessages.LogFrozenCacheKeyExists(Logger, "k");
-        LogMessages.LogStoredInFrozenCache(Logger, "k");
-        LogMessages.LogRetrievingFromFrozenCache(Logger, "k");
-        LogMessages.LogRetrievedFromFrozenCache(Logger, "k");
-        LogMessages.LogNotFoundInFrozenCache(Logger, "k");
-        LogMessages.LogStoredRangeInFrozenCache(Logger, 5);
+        Logger.LogStoringInFrozenCache("k");
+        Logger.LogFrozenCacheKeyExists("k");
+        Logger.LogStoredInFrozenCache("k");
+        Logger.LogRetrievingFromFrozenCache("k");
+        Logger.LogRetrievedFromFrozenCache("k");
+        Logger.LogNotFoundInFrozenCache("k");
+        Logger.LogStoredRangeInFrozenCache(5);
     }
 
     [Fact]
     public void Database_And_Sproc_Methods_DoNotThrow()
     {
-        LogMessages.LogDatabaseConnecting(Logger);
-        LogMessages.LogDatabaseConnected(Logger);
-        LogMessages.LogDatabaseConnectionFailed(Logger, new InvalidOperationException("nope"));
+        Logger.LogDatabaseConnecting();
+        Logger.LogDatabaseConnected();
+        Logger.LogDatabaseConnectionFailed(new InvalidOperationException("nope"));
 
-        LogMessages.LogExecutingStoredProcedure(Logger, "dbo.sp_x", 3);
-        LogMessages.LogStoredProcedureExecuted(Logger, "dbo.sp_x", 12L);
-        LogMessages.LogStoredProcedureExecutionFailed(Logger, "dbo.sp_x",
+        Logger.LogExecutingStoredProcedure("dbo.sp_x", 3);
+        Logger.LogStoredProcedureExecuted("dbo.sp_x", 12L);
+        Logger.LogStoredProcedureExecutionFailed("dbo.sp_x",
             new InvalidOperationException("boom"));
 
-        LogMessages.LogReadingResultSets(Logger, "dbo.sp_x", 2);
-        LogMessages.LogResultSetRead(Logger, "dbo.sp_x", 7);
+        Logger.LogReadingResultSets("dbo.sp_x", 2);
+        Logger.LogResultSetRead("dbo.sp_x", 7);
     }
 
     [Fact]
     public void Transaction_Methods_DoNotThrow()
     {
-        LogMessages.LogTransactionStarted(Logger, System.Data.IsolationLevel.ReadCommitted);
-        LogMessages.LogTransactionCommitted(Logger);
-        LogMessages.LogTransactionRolledBack(Logger);
+        Logger.LogTransactionStarted(IsolationLevel.ReadCommitted);
+        Logger.LogTransactionCommitted();
+        Logger.LogTransactionRolledBack();
+    }
+
+    [Fact]
+    public void Transaction_Poison_Method_DoesNotThrow()
+    {
+        Logger.LogTransactionPoisoned();
+    }
+
+    [Fact]
+    public void Command_Execution_Methods_DoNotThrow()
+    {
+        Logger.LogExecutingProcedure("dbo", "sp_Test", 3);
+        Logger.LogProcedureCompleted("dbo", "sp_Test", 42L, 10);
+        Logger.LogProcedureScalarCompleted("dbo", "sp_Test", 5L);
+        Logger.LogProcedureNonQueryCompleted("dbo", "sp_Test", 8L, 3);
+        Logger.LogCacheHitSkippingExecution("test_cache_key");
     }
 }

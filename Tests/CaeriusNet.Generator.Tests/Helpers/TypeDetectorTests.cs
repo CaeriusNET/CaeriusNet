@@ -43,6 +43,8 @@ public sealed class TypeDetectorTests
     [InlineData("System.Nullable<System.DateOnly>", true)]
     [InlineData("System.Nullable<System.TimeOnly>", true)]
     [InlineData("System.Nullable<System.Byte[]>", true)]
+    [InlineData("System.Half", true)]
+    [InlineData("Half", true)]
     [InlineData("System.Int32", false)]
     [InlineData("System.String", false)]
     [InlineData("System.Guid", false)]
