@@ -15,6 +15,7 @@ global using CaeriusNet.Exceptions;
 global using CaeriusNet.Factories;
 global using CaeriusNet.Mappers;
 global using CaeriusNet.Helpers;
+global using CaeriusNet.Tests.Caches;
 global using CaeriusNet.Tests.Helpers;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Hosting;

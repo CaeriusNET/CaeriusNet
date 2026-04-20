@@ -3,7 +3,11 @@ namespace CaeriusNet.Tests.Caches;
 /// <summary>
 ///     Unit tests for the public <see cref="ICaeriusNetCache" /> invalidation façade and the
 ///     newly-added Remove/Clear surface on each underlying cache manager.
+///     Placed in <see cref="FrozenCacheStateCollection" /> because <c>ClearAsync(CacheType.Frozen)</c>
+///     resets the process-wide static <see cref="FrozenCacheManager" /> and must not run in
+///     parallel with other tests that store/retrieve from it.
 /// </summary>
+[Collection(FrozenCacheStateCollection.Name)]
 public sealed class CaeriusNetCacheInvalidationTests
 {
     private static readonly TimeSpan LongExpiry = TimeSpan.FromHours(1);

@@ -20,6 +20,7 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: write   # for sticky coverage comment
 
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -73,7 +74,7 @@ jobs:
             -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
 
       - name: Upload coverage reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: coverage-reports
@@ -81,12 +82,48 @@ jobs:
           retention-days: 14
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: test-results
           path: ./coverage/**/*.trx
           retention-days: 14
+
+      - name: Generate coverage summary (markdown)
+        if: always()
+        run: |
+          dotnet tool install --global dotnet-reportgenerator-globaltool --version 5.* >/dev/null 2>&1 || \
+            dotnet tool update  --global dotnet-reportgenerator-globaltool --version 5.* >/dev/null 2>&1 || true
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          reportgenerator \
+            -reports:"./coverage/**/coverage.cobertura.xml" \
+            -targetdir:./coverage/report \
+            -reporttypes:"MarkdownSummaryGithub;HtmlInline_AzurePipelines;Cobertura" \
+            -filefilters:"-**/obj/**;-**/bin/**" \
+            -classfilters:"-CaeriusNet.Generator*;-*Tests*"
+          if [ -f ./coverage/report/SummaryGithub.md ]; then
+            {
+              echo "## 📊 Coverage summary"
+              echo
+              cat ./coverage/report/SummaryGithub.md
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload HTML coverage report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: coverage-html
+          path: ./coverage/report/**
+          retention-days: 14
+
+      - name: Sticky PR coverage comment
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: caeriusnet-coverage
+          path: ./coverage/report/SummaryGithub.md
+          recreate: true
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6

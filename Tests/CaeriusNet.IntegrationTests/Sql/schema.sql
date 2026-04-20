@@ -30,6 +30,15 @@ IF
 OBJECT_ID(N'dbo.usp_GetSessionIsolationLevel', N'P') IS NOT NULL
 DROP PROCEDURE dbo.usp_GetSessionIsolationLevel;
 IF
+OBJECT_ID(N'dbo.usp_RaiseTestError', N'P') IS NOT NULL
+DROP PROCEDURE dbo.usp_RaiseTestError;
+IF
+OBJECT_ID(N'dbo.usp_GetWidgetsAndCount', N'P') IS NOT NULL
+DROP PROCEDURE dbo.usp_GetWidgetsAndCount;
+IF
+OBJECT_ID(N'dbo.usp_GetWidgetsCountAndFirst', N'P') IS NOT NULL
+DROP PROCEDURE dbo.usp_GetWidgetsCountAndFirst;
+IF
 OBJECT_ID(N'dbo.Widgets', N'U') IS NOT NULL
 DROP TABLE dbo.Widgets;
 
@@ -137,5 +146,36 @@ NOCOUNT ON;
 SELECT CAST(transaction_isolation_level AS SMALLINT)
 FROM sys.dm_exec_sessions
 WHERE session_id = @@SPID;
+END;
+GO
+
+-- Surfaces a server-side error (severity 16) so that exception-wrapping behaviour
+-- can be exercised end-to-end without depending on connectivity / timing failures.
+CREATE PROCEDURE dbo.usp_RaiseTestError
+    AS
+BEGIN
+    SET NOCOUNT ON;
+    RAISERROR (N'Caerius integration test forced error.', 16, 1);
+END;
+GO
+
+-- Two-result-set sproc used to validate the multi-result-set query helpers.
+CREATE PROCEDURE dbo.usp_GetWidgetsAndCount
+    AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT Id, Name, Quantity, CreatedAt FROM dbo.Widgets ORDER BY Id;
+    SELECT COUNT_BIG(*) AS Total FROM dbo.Widgets;
+END;
+GO
+
+-- Three-result-set sproc: list, count, first row.
+CREATE PROCEDURE dbo.usp_GetWidgetsCountAndFirst
+    AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT Id, Name, Quantity, CreatedAt FROM dbo.Widgets ORDER BY Id;
+    SELECT COUNT_BIG(*) AS Total FROM dbo.Widgets;
+    SELECT TOP (1) Id, Name, Quantity, CreatedAt FROM dbo.Widgets ORDER BY Id;
 END;
 GO

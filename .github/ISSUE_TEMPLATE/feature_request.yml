@@ -1,0 +1,55 @@
+name: 💡 Feature request
+description: Suggest a new capability for CaeriusNet.
+title: "feat: <short description>"
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        CaeriusNet is intentionally narrow (C# ↔ SQL Server, stored procedures + transactions only).
+        Please confirm your idea fits that scope before opening a request.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem statement
+      description: What pain point or workflow are you trying to solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: |
+        Describe the API shape you have in mind (interfaces, methods, attributes, generated code…).
+        Bonus: provide a code sketch.
+      render: csharp
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Existing workarounds, third-party libraries, or APIs you tried.
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Surface area
+      options:
+        - Runtime API (Src/)
+        - Source generator (SourceGenerators/)
+        - Diagnostics
+        - Tooling / CI / docs
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: I agree to follow the project's [Code of Conduct](../../CODE_OF_CONDUCT.md).
+          required: true

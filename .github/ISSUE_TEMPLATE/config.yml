@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🛡️ Security advisory
+    url: https://github.com/CaeriusNET/CaeriusNet/security/advisories/new
+    about: Report a vulnerability privately. See SECURITY.md for the full process.
+  - name: 💬 Discussions
+    url: https://github.com/CaeriusNET/CaeriusNet/discussions
+    about: Ask usage questions or share ideas before opening a formal feature request.
+  - name: 📚 Documentation
+    url: https://caeriusnet.github.io/CaeriusNet/
+    about: Check the docs first — many "bugs" are documented behaviours.

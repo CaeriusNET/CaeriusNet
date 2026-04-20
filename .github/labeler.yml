@@ -1,0 +1,64 @@
+# Pull-request labeler (https://github.com/actions/labeler).
+# Labels are inferred from changed file paths.
+
+src:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'Src/**'
+
+source-generator:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'SourceGenerators/**'
+
+tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'Tests/**'
+
+integration-tests:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'Tests/CaeriusNet.IntegrationTests/**'
+
+benchmarks:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'Benchmark/**'
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'Documentations/**'
+          - '*.md'
+          - 'docs/**'
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/workflows/**'
+          - '.github/dependabot.yml'
+          - '.github/labeler.yml'
+
+devcontainer:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.devcontainer/**'
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.csproj'
+          - '**/Directory.*.props'
+          - '**/Directory.*.targets'
+          - '.config/dotnet-tools.json'
+
+governance:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'CODE_OF_CONDUCT.md'
+          - 'CONTRIBUTING.md'
+          - 'SECURITY.md'
+          - 'SUPPORT.md'
+          - '.github/PULL_REQUEST_TEMPLATE.md'
+          - '.github/ISSUE_TEMPLATE/**'
