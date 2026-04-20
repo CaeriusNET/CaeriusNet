@@ -1,0 +1,79 @@
+name: Integration Tests
+
+# Heavy SQL Server-backed tests are gated on manual dispatch (and on PRs touching their code)
+# so the default CI stays fast and free of Docker dependencies.
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Src/**'
+      - 'Tests/CaeriusNet.IntegrationTests/**'
+      - 'SourceGenerators/**'
+      - '.github/workflows/integration-tests.yml'
+
+concurrency:
+  group: integration-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_NOLOGO: true
+  DOTNET_VERSION: '10.0.x'
+  TESTCONTAINERS_RYUK_DISABLED: 'true'
+
+jobs:
+  integration:
+    name: SQL Server (Testcontainers)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v5
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/*.slnx') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Pre-pull SQL Server image
+        run: docker pull mcr.microsoft.com/mssql/server:2022-latest
+
+      - name: Restore
+        run: dotnet restore Tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj
+
+      - name: Build (Release)
+        run: |
+          dotnet build Tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj \
+            --configuration Release \
+            --no-restore
+
+      - name: Run integration tests
+        run: |
+          dotnet test Tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj \
+            --configuration Release \
+            --no-restore \
+            --no-build \
+            --logger "trx;LogFileName=integration-results.trx" \
+            --logger "console;verbosity=normal" \
+            --results-directory ./integration-results
+
+      - name: Upload integration test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-results
+          path: ./integration-results/**/*.trx
+          retention-days: 14
