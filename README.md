@@ -249,7 +249,14 @@ CaeriusNetBuilder.Create(builder)
 
 ## Contributing
 
-Contributions are welcome. To get started:
+Contributions are welcome. Read these first:
+
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — coding standards, branch model, conventional commits, build/test commands.
+- [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) — Contributor Covenant 2.1.
+- [`SECURITY.md`](SECURITY.md) — how to responsibly report vulnerabilities (private GitHub advisory).
+- [`SUPPORT.md`](SUPPORT.md) — where to ask questions and get help.
+
+Quick path:
 
 1. Open an [issue](https://github.com/CaeriusNET/CaeriusNet/issues) to report a bug or propose a feature.
 2. Fork the repository and create a branch from `main`.

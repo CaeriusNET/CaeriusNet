@@ -1,0 +1,93 @@
+name: 🐛 Bug report
+description: Report a defect in CaeriusNet (runtime, source generator, diagnostics, NuGet packaging…).
+title: "bug: <short description>"
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug report!
+        Please fill in as much as you can — issues without a reproducer are very hard to triage.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: A clear and concise description of the bug.
+      placeholder: "Calling MultiQueryAsync with two TVPs throws InvalidCastException."
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: |
+        A standalone snippet (or repo link) that demonstrates the bug.
+        Include the SQL Server stored-procedure definition if relevant.
+      render: csharp
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: Include stack traces, logs, generated source, etc.
+      render: shell
+    validations:
+      required: true
+  - type: input
+    id: caeriusnet-version
+    attributes:
+      label: CaeriusNet version
+      placeholder: "10.3.0"
+    validations:
+      required: true
+  - type: input
+    id: dotnet-version
+    attributes:
+      label: .NET SDK version
+      placeholder: "dotnet --version"
+    validations:
+      required: true
+  - type: input
+    id: sqlclient-version
+    attributes:
+      label: Microsoft.Data.SqlClient version
+      placeholder: "7.0.0"
+    validations:
+      required: false
+  - type: input
+    id: sql-server
+    attributes:
+      label: SQL Server edition / version
+      placeholder: "SQL Server 2022 Developer (16.0.x)"
+    validations:
+      required: false
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - Linux
+        - macOS
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: Additional context
+      description: Connection-string hardening flags, isolation level, MARS/AsyncFlow, devcontainer usage, etc.
+  - type: checkboxes
+    id: terms
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: I agree to follow the project's [Code of Conduct](../../CODE_OF_CONDUCT.md).
+          required: true

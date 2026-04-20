@@ -12,8 +12,13 @@ public sealed class SqlServerFixture : IAsyncLifetime
     private const string TestDatabaseName = "caerius_tests";
 
     // Image is pinned to 2022 LTS so test results stay deterministic across runners.
+    // `WithReuse(true)` keeps the container warm between local `dotnet test` runs when the
+    // host has `testcontainers.reuse.enable=true` in `~/.testcontainers.properties` (the
+    // devcontainer wires this up automatically). On CI the env var is absent, so each job
+    // starts with a fresh container — no behaviour change there.
     private readonly MsSqlContainer _container = new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest")
         .WithPassword("Caerius!Test_2026")
+        .WithReuse(true)
         .Build();
 
     private IServiceProvider? _serviceProvider;

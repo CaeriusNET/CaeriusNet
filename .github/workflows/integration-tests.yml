@@ -24,7 +24,9 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_NOLOGO: true
   DOTNET_VERSION: '10.0.x'
-  TESTCONTAINERS_RYUK_DISABLED: 'true'
+  # Testcontainers' Ryuk reaper must remain enabled in CI to guarantee container cleanup
+  # if the runner is killed (job timeout, cancellation, OOM). Reuse is not used in CI.
+  TESTCONTAINERS_RYUK_DISABLED: 'false'
 
 jobs:
   integration:
@@ -71,7 +73,7 @@ jobs:
             --results-directory ./integration-results
 
       - name: Upload integration test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: integration-results

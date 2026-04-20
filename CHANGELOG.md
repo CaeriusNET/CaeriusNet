@@ -11,18 +11,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Project governance** — `CONTRIBUTING.md`, `SECURITY.md`, `SUPPORT.md`,
+  `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1), `.github/PULL_REQUEST_TEMPLATE.md`
+  and structured issue templates (`bug_report.yml`, `feature_request.yml`).
+- **Repo automation** — path-based labeller (`.github/labeler.yml` + workflow), stale issue
+  reaper (`.github/workflows/stale.yml`) and OSSF Scorecard supply-chain audit
+  (`.github/workflows/scorecard.yml`, SARIF upload to GitHub code-scanning).
+- **Unit tests** — `EmptyCollectionsTests`, `CacheHelperTests`, `LoggerProviderTests`,
+  `LogMessagesSmokeTests`, `NamespaceHelperTests`, `SqlMetaDataExpressionBuilderTests`.
+  +30 assertions covering previously untested internal helpers and the
+  `LoggerMessageGenerator` surface.
 - **Integration tests** (`Tests/CaeriusNet.IntegrationTests`) — real SQL Server 2022 backed
   by `Testcontainers.MsSql`, exercising the public surface end-to-end (stored procedures,
   TVPs, transactions, isolation-level pass-through). Gated behind a dedicated GitHub
   Actions workflow (`workflow_dispatch` + targeted PR paths) so the default CI stays
-  Docker-free.
-- **Devcontainer** (`.devcontainer/`) based on the official .NET 10 Bookworm image with
-  `docker-outside-of-docker`, GitHub CLI and Node features. The post-create hook restores
-  the solution and pre-pulls the SQL Server image to shorten the first run.
+  Docker-free. Now uses `.WithReuse(true)` for fast inner-loop runs in devcontainers.
+- **Devcontainer** (`.devcontainer/`) — Testcontainers reuse env vars
+  (`TESTCONTAINERS_REUSE_ENABLE`, `TESTCONTAINERS_RYUK_DISABLED=false`), persistent
+  NuGet volume, expanded VS Code extensions, dedicated `README.md`.
 
 ### Changed
-- `ci.yml` now filters out the integration project (`FullyQualifiedName!~CaeriusNet.IntegrationTests`)
-  to keep PR feedback fast.
+- **`ci.yml`** — modernised coverage pipeline: `actions/upload-artifact@v5`, ReportGenerator
+  (`MarkdownSummaryGithub` + `HtmlInline_AzurePipelines` + `Cobertura`), `$GITHUB_STEP_SUMMARY`
+  integration, sticky PR comment via `marocchino/sticky-pull-request-comment@v2`, HTML coverage
+  artefact, `pull-requests: write` permission scope.
+- **`integration-tests.yml`** — fixed Ryuk anti-pattern (`TESTCONTAINERS_RYUK_DISABLED`
+  forced to `'false'` in CI to ensure orphaned containers are reaped on cancel/timeout);
+  bumped `actions/upload-artifact@v4` → `@v5`.
+- **`benchmark.yml`** — bumped `actions/upload-artifact@v4` → `@v5`.
 
 ## [10.3.0] — Audit follow-up wave
 

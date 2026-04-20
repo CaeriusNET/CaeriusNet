@@ -1,0 +1,48 @@
+name: Stale issues / PRs
+
+on:
+  schedule:
+    - cron: '0 5 * * *'  # daily at 05:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: stale
+  cancel-in-progress: false
+
+jobs:
+  stale:
+    name: Triage stale items
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v9
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          # ── Issues ──────────────────────────────────────────────────────────
+          days-before-issue-stale: 60
+          days-before-issue-close: 14
+          stale-issue-label: 'stale'
+          exempt-issue-labels: 'pinned,security,help-wanted,good-first-issue,roadmap'
+          stale-issue-message: |
+            This issue has been automatically marked as **stale** because it had no activity for 60 days.
+            It will be closed in 14 days unless an update is provided.
+            Drop a comment, link a PR, or remove the `stale` label to keep it open.
+          close-issue-message: |
+            Closing as stale. If this is still relevant please re-open with fresh context — thanks!
+          # ── Pull requests ───────────────────────────────────────────────────
+          days-before-pr-stale: 30
+          days-before-pr-close: 14
+          stale-pr-label: 'stale'
+          exempt-pr-labels: 'pinned,security,blocked,wip,draft'
+          stale-pr-message: |
+            This pull request has been automatically marked as **stale** because it had no activity for 30 days.
+            It will be closed in 14 days unless updated. Rebase, push a commit, or comment to keep it alive.
+          close-pr-message: |
+            Closing as stale. Feel free to re-open once you can pick it back up.
+          # ── Behaviour ───────────────────────────────────────────────────────
+          remove-stale-when-updated: true
+          operations-per-run: 100
+          ascending: true
