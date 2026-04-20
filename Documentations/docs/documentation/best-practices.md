@@ -81,6 +81,43 @@ Invalidation:
 - Avoid unnecessary allocations in hot paths; use ReadOnlyCollection/ImmutableArray variants where appropriate.
 - Benchmark critical flows. Keep an eye on memory pressure for Frozen and In‑Memory caches.
 - For very large multi‑result queries, use the MultiIEnumerable APIs to stream sets efficiently.
+- `SearchValues<char>` SIMD validation: CaeriusNet uses `SearchValues<char>` for parameter name validation — near-zero cost character scanning on modern CPUs.
+- Lock-free `FrozenCache` reads: The Frozen cache uses `FrozenDictionary<TKey, TValue>` for zero-contention concurrent reads without locks.
+- `GC.AllocateUninitializedArray`: Large result arrays use uninitialized allocation to skip zero-fill overhead when the array will be fully populated.
+
+## Transaction Best Practices
+
+- Keep transactions as short as possible — hold locks only for the duration of the actual database work.
+- Always use `await using` to guarantee `DisposeAsync` runs on all code paths.
+- Pass `CancellationToken` to all transactional methods — this cancels in-flight SQL commands if the request is aborted.
+- Use the lowest isolation level that meets your consistency requirements (`ReadCommitted` is the default).
+- Avoid performing non-database I/O (HTTP calls, file writes) inside a transaction scope.
+- Retry the entire transaction at the caller level if a poison state occurs — do not attempt partial recovery.
+
+```csharp
+// ✅ Short, focused transaction with cancellation
+await using var tx = await dbContext.BeginTransactionAsync(
+    IsolationLevel.ReadCommitted, cancellationToken);
+
+await tx.ExecuteNonQueryAsync(spDebit, cancellationToken);
+await tx.ExecuteNonQueryAsync(spCredit, cancellationToken);
+await tx.CommitAsync(cancellationToken);
+```
+
+## Logging Best Practices
+
+- Configure `LoggerProvider.SetLogger(...)` early in application startup — before any database calls.
+- Filter by event ID range to reduce noise: suppress cache events (1xxx–3xxx) in production; keep command execution (5xxx) at `Information`.
+- Use structured logging sinks (Seq, Elasticsearch, OTLP) to leverage CaeriusNet's named parameters (`{ProcedureName}`, `{Duration}`, `{RowCount}`).
+- Set up alerts on event ID 5003 (slow execution threshold) and 5004 (command failure) for production monitoring.
+
+```csharp
+builder.Services.AddLogging(logging =>
+{
+    logging.AddFilter("CaeriusNet.Cache", LogLevel.Warning);   // quiet in prod
+    logging.AddFilter("CaeriusNet.Commands", LogLevel.Information); // keep timing
+});
+```
 
 ## Async, Cancellation, and Reliability
 
