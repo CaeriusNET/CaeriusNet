@@ -66,7 +66,17 @@ internal static class AnalyzerTestHelper
             {
                 references.Add(MetadataReference.CreateFromFile(dll));
             }
-            catch
+            // Test metadata discovery is best-effort: some runtime DLLs cannot be loaded as Roslyn metadata references.
+            catch (BadImageFormatException)
+            {
+            }
+            catch (FileLoadException)
+            {
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
             {
             }
 
