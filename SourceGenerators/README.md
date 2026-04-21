@@ -21,9 +21,6 @@ Each generator follows the same three-stage pipeline:
 Generated files use stable, generator-specific hint names so outputs remain distinct when type names repeat across
 namespaces or generator kinds.
 
-Generated files use stable, generator-specific hint names so outputs remain distinct when type names repeat across
-namespaces or generator kinds.
-
 ### Key Design Decisions
 
 | Decision                                    | Rationale                                                           |
@@ -98,7 +95,7 @@ diagnostics use category `CaeriusNet.Generator` and link to
 
 ## Generated Code Features
 
-- `[GeneratedCode("CaeriusNet.Generator", "10.3.0")]` attribute on generated types
+- `[GeneratedCode("CaeriusNet.Generator", "11.0.0")]` attribute on generated types
 - `[MethodImpl(MethodImplOptions.AggressiveInlining)]` on `MapFromDataReader`
 - `[MethodImpl(MethodImplOptions.AggressiveOptimization)]` on `MapAsSqlDataRecords`
 - `#pragma warning disable CS1591` (suppresses missing XML docs warning)

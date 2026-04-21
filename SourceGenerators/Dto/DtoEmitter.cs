@@ -45,7 +45,8 @@ internal static class DtoEmitter
         sb.AppendLine(
             "    /// <summary>Maps a single row from the <see cref=\"SqlDataReader\"/> into a new instance.</summary>");
         sb.AppendLine("    [MethodImpl(MethodImplOptions.AggressiveInlining)]");
-        sb.AppendLine("    [GeneratedCode(\"CaeriusNet.Generator\", \"10.3.0\")]");
+        sb.AppendLine(
+            $"    [GeneratedCode(\"{GeneratedCodeInfo.ToolName}\", \"{GeneratedCodeInfo.Version}\")]");
         sb.Append("    public static ").Append(model.TypeName).AppendLine(" MapFromDataReader(SqlDataReader reader)");
         sb.AppendLine("    {");
         sb.Append("        return new ").Append(model.TypeName).AppendLine("(");

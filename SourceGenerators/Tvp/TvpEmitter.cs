@@ -83,7 +83,8 @@ internal static class TvpEmitter
         sb.AppendLine(
             "    /// <summary>Maps a collection of items into SQL data records for table-valued parameter usage.</summary>");
         sb.AppendLine("    [MethodImpl(MethodImplOptions.AggressiveOptimization)]");
-        sb.AppendLine("    [GeneratedCode(\"CaeriusNet.Generator\", \"11.0.0\")]");
+        sb.AppendLine(
+            $"    [GeneratedCode(\"{GeneratedCodeInfo.ToolName}\", \"{GeneratedCodeInfo.Version}\")]");
         sb.Append("    public IEnumerable<SqlDataRecord> MapAsSqlDataRecords(IEnumerable<")
             .Append(model.TypeName).AppendLine("> items)");
         sb.AppendLine("    {");
