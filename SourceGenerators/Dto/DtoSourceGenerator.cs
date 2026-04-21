@@ -19,13 +19,13 @@
 ///         <item>
 ///             <description>
 ///                 <see cref="DtoExtractor.Extract" /> projects a candidate onto a value-equatable
-///                 <see cref="ExtractionResult{TModel}" /> — no Roslyn types leak through the pipeline.
+///                 <see cref="DtoModel" /> when the target shape is supported.
 ///             </description>
 ///         </item>
 ///         <item>
 ///             <description>
 ///                 <see cref="IncrementalGeneratorInitializationContext.RegisterImplementationSourceOutput" />
-///                 emits diagnostics and source: the work re-runs only when the model changes.
+///                 emits source only; user-facing diagnostics live in the companion analyzer.
 ///             </description>
 ///         </item>
 ///     </list>
@@ -41,7 +41,7 @@ public sealed class DtoSourceGenerator : IIncrementalGenerator
     ///     The fully qualified metadata name of the marker attribute. Kept in one place so refactoring
     ///     in the consuming library cannot silently break the generator.
     /// </summary>
-    internal const string AttributeMetadataName = "CaeriusNet.Attributes.Dto.GenerateDtoAttribute";
+    private const string AttributeMetadataName = "CaeriusNet.Attributes.Dto.GenerateDtoAttribute";
 
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -52,13 +52,10 @@ public sealed class DtoSourceGenerator : IIncrementalGenerator
                 static (node, _) => node is ClassDeclarationSyntax or RecordDeclarationSyntax,
                 static (ctx, ct) => DtoExtractor.Extract(ctx, ct));
 
-        context.RegisterImplementationSourceOutput(dtoCandidates, static (spc, extraction) =>
+        context.RegisterImplementationSourceOutput(dtoCandidates, static (spc, model) =>
         {
-            foreach (var diag in extraction.Diagnostics)
-                spc.ReportDiagnostic(diag.ToDiagnostic());
-
-            if (extraction.Model is { Columns.Count: > 0 } model)
-                spc.AddSource($"{model.TypeName}.g.cs", DtoEmitter.Emit(model));
+            if (model is { Columns.Count: > 0 })
+                spc.AddSource(HintNameBuilder.Build(model.Namespace, model.TypeName, "Dto"), DtoEmitter.Emit(model));
         });
     }
 }

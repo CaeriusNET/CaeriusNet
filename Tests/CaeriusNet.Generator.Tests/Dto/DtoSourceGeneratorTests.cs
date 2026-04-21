@@ -109,7 +109,7 @@ public sealed class DtoSourceGeneratorTests
     }
 
     [Fact]
-    public void GeneratedFile_Is_Named_After_Type()
+    public void GeneratedFile_Uses_Stable_Unique_HintName()
     {
         const string source = """
                               using CaeriusNet.Attributes.Dto;
@@ -121,7 +121,36 @@ public sealed class DtoSourceGeneratorTests
         var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
 
         Assert.Single(result.GeneratedTrees);
-        Assert.Contains("ProductDto.g.cs", result.GeneratedTrees[0].FilePath);
+        Assert.Contains("Test.Models.ProductDto.Dto.g.cs", result.GeneratedTrees[0].FilePath);
+    }
+
+    [Fact]
+    public void Duplicate_Type_Names_In_Different_Namespaces_Generate_Distinct_HintNames()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Dto;
+                              namespace Alpha.Models
+                              {
+                                  [GenerateDto]
+                                  public sealed partial record UserDto(int Id);
+                              }
+                              namespace Beta.Models
+                              {
+                                  [GenerateDto]
+                                  public sealed partial record UserDto(int Id);
+                              }
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        var filePaths = result.GeneratedTrees
+            .Select(static tree => tree.FilePath)
+            .OrderBy(static path => path)
+            .ToArray();
+
+        Assert.Equal(2, filePaths.Length);
+        Assert.Contains(filePaths, path => path.Contains("Alpha.Models.UserDto.Dto.g.cs", StringComparison.Ordinal));
+        Assert.Contains(filePaths, path => path.Contains("Beta.Models.UserDto.Dto.g.cs", StringComparison.Ordinal));
     }
 
     [Fact]

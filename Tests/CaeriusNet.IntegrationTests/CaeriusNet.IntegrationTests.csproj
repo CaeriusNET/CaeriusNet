@@ -30,6 +30,10 @@
                           ReferenceOutputAssembly="false"
                           OutputItemType="Analyzer"
                           PrivateAssets="all"/>
+        <ProjectReference Include="..\..\Analyzer\CaeriusNet.Analyzer.csproj"
+                          ReferenceOutputAssembly="false"
+                          OutputItemType="Analyzer"
+                          PrivateAssets="all"/>
     </ItemGroup>
 
     <ItemGroup>

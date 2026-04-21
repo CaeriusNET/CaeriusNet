@@ -6,7 +6,7 @@
 /// <remarks>
 ///     <see cref="Namespace" /> is empty for the global namespace. <see cref="Schema" /> falls back to
 ///     <c>"dbo"</c> at extract time when not supplied. <see cref="TvpName" /> is guaranteed non-empty
-///     (otherwise CAERIUS004 is raised and no model is produced).
+///     before emission.
 /// </remarks>
 internal sealed record TvpModel(
     string Namespace,

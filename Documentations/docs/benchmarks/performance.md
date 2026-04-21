@@ -1,16 +1,15 @@
----
-title: Performance & Benchmarks
-description: CaeriusNet benchmark results — redirected to the new structured documentation.
----
-
-# Performance & Benchmarks
-
-This page has been reorganised into dedicated sections for better navigation.
-
-Please use the sidebar or the links below:
-
-- [Overview & Methodology](./index) — BDN configuration, how to read tables, CI/CD integration
-- [In-Memory Benchmarks](./in-memory) — DTO mapping, TVP serialization, parameter builder
-- [Collection Benchmarks](./collections) — Read / create performance, capacity pre-allocation
-- [SQL Server Benchmarks](./sql-server) — Stored procedure execution, batched inserts, TVP full roundtrip
-- [Cache Benchmarks](./cache) — FrozenDictionary and IMemoryCache throughput
+---
+title: Performance & Benchmarks
+description: CaeriusNet benchmark results - redirected to the new structured documentation.
+---
+
+# Performance & Benchmarks
+
+This page has been reorganised into dedicated sections for better navigation.
+Please use the sidebar or the links below:
+
+- [Overview & Methodology](./index) - BDN configuration, how to read tables, CI/CD integration
+- [In-Memory Benchmarks](./in-memory) - DTO mapping, TVP serialization, parameter builder
+- [Collection Benchmarks](./collections) - Read / create performance, capacity pre-allocation
+- [SQL Server Benchmarks](./sql-server) - Stored procedure execution, batched inserts, TVP full roundtrip
+- [Cache Benchmarks](./cache) - FrozenDictionary and IMemoryCache throughput

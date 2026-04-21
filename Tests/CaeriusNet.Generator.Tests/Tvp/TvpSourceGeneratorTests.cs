@@ -137,7 +137,7 @@ public sealed class TvpSourceGeneratorTests
     }
 
     [Fact]
-    public void GeneratedFile_Is_Named_After_Type()
+    public void GeneratedFile_Uses_Stable_Unique_HintName()
     {
         const string source = """
                               using CaeriusNet.Attributes.Tvp;
@@ -149,7 +149,36 @@ public sealed class TvpSourceGeneratorTests
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
 
         Assert.Single(result.GeneratedTrees);
-        Assert.Contains("ItemTvp.g.cs", result.GeneratedTrees[0].FilePath);
+        Assert.Contains("Test.Models.ItemTvp.Tvp.g.cs", result.GeneratedTrees[0].FilePath);
+    }
+
+    [Fact]
+    public void Duplicate_Type_Names_In_Different_Namespaces_Generate_Distinct_HintNames()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Tvp;
+                              namespace Alpha.Models
+                              {
+                                  [GenerateTvp(Schema = "dbo", TvpName = "tvp_user")]
+                                  public sealed partial record UserTvp(int Id);
+                              }
+                              namespace Beta.Models
+                              {
+                                  [GenerateTvp(Schema = "dbo", TvpName = "tvp_user")]
+                                  public sealed partial record UserTvp(int Id);
+                              }
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
+
+        var filePaths = result.GeneratedTrees
+            .Select(static tree => tree.FilePath)
+            .OrderBy(static path => path)
+            .ToArray();
+
+        Assert.Equal(2, filePaths.Length);
+        Assert.Contains(filePaths, path => path.Contains("Alpha.Models.UserTvp.Tvp.g.cs", StringComparison.Ordinal));
+        Assert.Contains(filePaths, path => path.Contains("Beta.Models.UserTvp.Tvp.g.cs", StringComparison.Ordinal));
     }
 
     [Fact]

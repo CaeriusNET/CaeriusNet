@@ -40,7 +40,7 @@ public sealed partial record UserDto(int Id, string Username, byte Age);
 using System.CodeDom.Compiler;
 using System.Runtime.CompilerServices;
 
-[GeneratedCode("CaeriusNet.Generator", "10.3.0")]
+[GeneratedCode("CaeriusNet.Generator", "11.0.0")]
 partial record UserDto : ISpMapper<UserDto>
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -123,7 +123,7 @@ public sealed partial record UserIdTvp(int Id);
 using System.CodeDom.Compiler;
 using System.Runtime.CompilerServices;
 
-[GeneratedCode("CaeriusNet.Generator", "10.3.0")]
+[GeneratedCode("CaeriusNet.Generator", "11.0.0")]
 partial record UserIdTvp : ITvpMapper<UserIdTvp>
 {
     public static string TvpTypeName => "dbo.tvp_int";

@@ -18,13 +18,15 @@ Each generator follows the same three-stage pipeline:
    types flow past this stage.
 3. **Emit** — Pure function that converts the model into generated C# source via `StringBuilder`.
 
+Generated files use stable, generator-specific hint names so outputs remain distinct when type names repeat across
+namespaces or generator kinds.
+
 ### Key Design Decisions
 
 | Decision                                    | Rationale                                                           |
 |---------------------------------------------|---------------------------------------------------------------------|
 | Value-equatable models                      | Enables Roslyn incremental caching — unchanged inputs skip emission |
 | `EquatableArray<T>` wrapper                 | Provides element-by-element equality for `ImmutableArray<T>`        |
-| `DiagnosticInfo` / `LocationInfo`           | Avoids pinning Roslyn syntax trees across pipeline stages           |
 | `StringBuilder` with pre-allocated capacity | Minimizes allocations during code emission                          |
 | `netstandard2.0` target                     | Required by Roslyn analyzer hosting — runs in any .NET SDK          |
 
@@ -40,6 +42,7 @@ Each generator follows the same three-stage pipeline:
 | `Tvp/TvpEmitter.cs`                       | Emits `MapAsSqlDataRecords` + `TvpTypeName` source code             |
 | `Helpers/TypeDetector.cs`                 | C# type → SQL type mapping and reader method resolution             |
 | `Helpers/ColumnExtractor.cs`              | Shared column extraction from primary constructor parameters        |
+| `Helpers/HintNameBuilder.cs`              | Stable unique hint names for generated source files                 |
 | `Helpers/NamespaceHelper.cs`              | Namespace resolution for generated files                            |
 | `Helpers/TypeStructureValidator.cs`       | Validates sealed, partial, primary constructor constraints          |
 | `Helpers/SqlMetaDataExpressionBuilder.cs` | Builds `SqlMetaData` constructor expressions for TVPs               |
@@ -47,11 +50,7 @@ Each generator follows the same three-stage pipeline:
 | `Models/TvpModel.cs`                      | Value-equatable TVP pipeline model                                  |
 | `Models/ColumnModel.cs`                   | Describes a single primary constructor parameter                    |
 | `Models/ColumnKind.cs`                    | Enum classifying parameter mapping behavior                         |
-| `Models/ExtractionResult.cs`              | Generic result wrapper with diagnostics                             |
-| `Models/DiagnosticInfo.cs`                | Serializable diagnostic payload (no live Roslyn refs)               |
-| `Models/LocationInfo.cs`                  | Serializable source location                                        |
 | `Models/EquatableArray.cs`                | `ImmutableArray<T>` wrapper with element equality                   |
-| `Diagnostics/DiagnosticDescriptors.cs`    | CAERIUS001–006 diagnostic definitions                               |
 
 ## Supported Type Mappings
 
@@ -77,25 +76,26 @@ Each generator follows the same three-stage pipeline:
 | `byte[]`         | `varbinary`        | `GetFieldValue<byte[]>` | `SqlDbType.VarBinary`        |
 | Enums            | (underlying type)  | (underlying reader)     | (underlying SqlDbType)       |
 
-Types without a native mapping emit a CAERIUS005/006 warning and fall back to `sql_variant`.
+Types without a native mapping still generate code but fall back to `sql_variant`. The companion analyzer reports
+CAERIUS005 on those parameters.
 
 ## Diagnostics
 
-| ID         | Severity | Description                                              |
-|------------|----------|----------------------------------------------------------|
-| CAERIUS001 | Error    | Type must be `sealed`                                    |
-| CAERIUS002 | Error    | Type must be `partial`                                   |
-| CAERIUS003 | Error    | Must have primary constructor with parameters            |
-| CAERIUS004 | Error    | `[GenerateTvp]` requires non-empty `TvpName`             |
-| CAERIUS005 | Warning  | No native SQL mapping → `sql_variant` fallback           |
-| CAERIUS006 | Warning  | Unsupported type (Int128, UInt128, etc.) → `sql_variant` |
+| ID         | Severity | Description                                    |
+|------------|----------|------------------------------------------------|
+| CAERIUS001 | Error    | Type must be `sealed`                          |
+| CAERIUS002 | Error    | Type must be `partial`                         |
+| CAERIUS003 | Error    | Must have primary constructor with parameters  |
+| CAERIUS004 | Error    | `[GenerateTvp]` requires non-empty `TvpName`   |
+| CAERIUS005 | Warning  | No native SQL mapping → `sql_variant` fallback |
 
-All diagnostics use category `CaeriusNet.Generator` and link to
+User-facing diagnostics are emitted by `CaeriusNet.Analyzer`, not by the incremental generators themselves. All
+diagnostics use category `CaeriusNet.Generator` and link to
 `https://github.com/CaeriusNET/CaeriusNet/blob/main/Documentations/diagnostics/`.
 
 ## Generated Code Features
 
-- `[GeneratedCode("CaeriusNet.Generator", "10.3.0")]` attribute on generated types
+- `[GeneratedCode("CaeriusNet.Generator", "11.0.0")]` attribute on generated types
 - `[MethodImpl(MethodImplOptions.AggressiveInlining)]` on `MapFromDataReader`
 - `[MethodImpl(MethodImplOptions.AggressiveOptimization)]` on `MapAsSqlDataRecords`
 - `#pragma warning disable CS1591` (suppresses missing XML docs warning)
@@ -116,7 +116,8 @@ dotnet build SourceGenerators/CaeriusNet.Generator.csproj
 dotnet test Tests/CaeriusNet.Generator.Tests
 ```
 
-Tests cover DTO generation, TVP generation, diagnostics, type detection, and edge cases.
+Generator tests cover DTO generation, TVP generation, silent skip behavior, type detection, and edge cases. Analyzer
+diagnostics are covered in `CaeriusNet.Analyzer.Tests`.
 
 ## Prerequisites
 
