@@ -9,7 +9,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\..\SourceGenerators\CaeriusNet.Generator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
-        <ProjectReference Include="..\..\..\CaeriusNet.Analyzer\CaeriusNet.Analyzer\CaeriusNet.Analyzer.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
+        <ProjectReference Include="..\..\..\Analyzer\CaeriusNet.Analyzer.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
         <ProjectReference Include="..\..\..\Src\CaeriusNet.csproj"/>
     </ItemGroup>
 

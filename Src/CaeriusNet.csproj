@@ -102,7 +102,7 @@
                           ReferenceOutputAssembly="false"
                           OutputItemType="Analyzer"
                           PrivateAssets="all"/>
-        <ProjectReference Include="..\CaeriusNet.Analyzer\CaeriusNet.Analyzer\CaeriusNet.Analyzer.csproj"
+        <ProjectReference Include="..\Analyzer\CaeriusNet.Analyzer.csproj"
                           ReferenceOutputAssembly="false"
                           OutputItemType="Analyzer"
                           PrivateAssets="all"/>
