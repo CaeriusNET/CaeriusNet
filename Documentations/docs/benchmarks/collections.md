@@ -53,8 +53,6 @@ and **what the enumerator does at each step**:
 Iterates a `List<BenchmarkItemDto>` using `foreach` and via `LINQ Sum`.
 `List<T>` uses a struct enumerator internally — `foreach` compiles to a direct index-loop with no virtual dispatch.
 
-<!--@include: ./results/ReadListToBench.md-->
-
 ---
 
 ### ReadReadOnlyCollectionToBench
@@ -64,8 +62,6 @@ Iterates a `List<BenchmarkItemDto>` using `foreach` and via `LINQ Sum`.
 Iterates a `ReadOnlyCollection<BenchmarkItemDto>` (returned by `.AsReadOnly()` on a `List<T>`).
 `ReadOnlyCollection<T>` implements `IEnumerable<T>` via explicit interface — `foreach` on the concrete type
 still dispatches through the virtual `IEnumerator<T>` interface, adding one virtual call per element vs `List<T>`.
-
-<!--@include: ./results/ReadReadOnlyCollectionToBench.md-->
 
 ---
 
@@ -77,8 +73,6 @@ Iterates an `IEnumerable<BenchmarkItemDto>` backed by a `List<T>` cast to the in
 Every `MoveNext` and `Current` access goes through virtual dispatch.
 At large row counts the overhead accumulates into a measurable Ratio vs the `List<T>` baseline.
 
-<!--@include: ./results/ReadEnumerableToBench.md-->
-
 ---
 
 ### ReadImmutableArrayToBench
@@ -88,8 +82,6 @@ At large row counts the overhead accumulates into a measurable Ratio vs the `Lis
 Iterates an `ImmutableArray<BenchmarkItemDto>`. The `foreach` over `ImmutableArray<T>` uses its own
 **value-type struct enumerator**, which the JIT inlines directly — no virtual call, no heap allocation.
 For sequential full-traversal workloads, this is the most cache-friendly option.
-
-<!--@include: ./results/ReadImmutableArrayToBench.md-->
 
 ---
 
@@ -116,8 +108,6 @@ Compares `new List<T>(capacity) { AddRange(source) }` vs `source.ToList()`.
 - `source.ToList()`: LINQ internally creates a `List<T>` without a capacity hint, triggering logarithmic
   resize steps (×2 growth) until the source is exhausted.
 
-<!--@include: ./results/CreateListToBench.md-->
-
 ---
 
 ### CreateReadOnlyCollectionToBench
@@ -129,8 +119,6 @@ Compares `new List<T>(capacity) { AddRange } .AsReadOnly()` vs `source.ToList().
 `.AsReadOnly()` is a zero-copy wrapper — it allocates one `ReadOnlyCollection<T>` object that references the
 existing `List<T>` internal array. The creation cost difference is therefore identical to `CreateListToBench`,
 plus a fixed O(1) wrapper allocation.
-
-<!--@include: ./results/CreateReadOnlyCollectionToBench.md-->
 
 ---
 
@@ -145,8 +133,6 @@ Compares two lazy strategies for producing `IEnumerable<T>`:
 - **Array + cast** (`source.ToArray().AsEnumerable()`): uses `Array.Copy` for a compact, read-only backing store.
   Useful when the element count is known and the consumer only ever iterates (never indexes).
 
-<!--@include: ./results/CreateEnumerableToBench.md-->
-
 ---
 
 ### CreateImmutableArrayToBench
@@ -160,8 +146,6 @@ Compares two `ImmutableArray<T>` construction paths:
   `MoveToImmutable()` is valid only when `builder.Capacity == builder.Count` (exact capacity).
 - **`ImmutableArray.Create(ReadOnlySpan<T>)`**: copies from a `Span<T>` (e.g., a stack-allocated or array slice).
   Ideal when the source data is already in a contiguous buffer.
-
-<!--@include: ./results/CreateImmutableArrayToBench.md-->
 
 ---
 
@@ -197,8 +181,6 @@ is reallocated ~17 times and the total number of element copies is ~2N.
 
 Exact capacity — no resize. This is the **ideal baseline** for all capacity comparisons.
 
-<!--@include: ./results/ListWithCapacityToBench.md-->
-
 ---
 
 ### ListWithoutCapacityToBench
@@ -207,8 +189,6 @@ Exact capacity — no resize. This is the **ideal baseline** for all capacity co
 
 No capacity hint — `List<T>()` default. Triggers O(log N) resize steps.
 At large RowCount values, the time and allocation overhead vs the exact-capacity case becomes significant.
-
-<!--@include: ./results/ListWithoutCapacityToBench.md-->
 
 ---
 
@@ -219,8 +199,6 @@ At large RowCount values, the time and allocation overhead vs the exact-capacity
 Capacity is set to N, but 2N items are added — forces exactly one resize at the N boundary.
 This models the scenario where the estimated row count from SQL is correct but additional items are appended later.
 
-<!--@include: ./results/ListWithCapacityWithOverextendToBench.md-->
-
 ---
 
 ### ListWithLessCapacityThanNeededToBench
@@ -229,8 +207,6 @@ This models the scenario where the estimated row count from SQL is correct but a
 
 Capacity is set to N/2, but N items are added — forces one resize at the N/2 boundary.
 This models an underestimated capacity hint (e.g., using the previous page's row count for the current page).
-
-<!--@include: ./results/ListWithLessCapacityThanNeededToBench.md-->
 
 ---
 

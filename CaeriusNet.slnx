@@ -1,38 +1,36 @@
 ﻿<Solution>
     <Folder Name="/Benchmark/">
-        <Project Path="Benchmark\CaeriusNet.Benchmark.csproj" Type="C#"/>
+        <Project Path="Benchmark\CaeriusNet.Benchmark.csproj"/>
     </Folder>
     <Folder Name="/Documentations/"/>
     <Folder Name="/Exemples/">
         <File Path="Exemples/README.md"/>
     </Folder>
     <Folder Name="/Exemples/Aspire/">
-        <Project Path="Exemples\Aspire\CaeriusNet.Exemples.Aspire.AppHost\CaeriusNet.Exemples.Aspire.AppHost.csproj"
-                 Type="C#"/>
+        <Project Path="Exemples\Aspire\CaeriusNet.Exemples.Aspire.AppHost\CaeriusNet.Exemples.Aspire.AppHost.csproj"/>
         <Project
-                Path="Exemples\Aspire\CaeriusNet.Exemples.Aspire.ServiceDefaults\CaeriusNet.Exemples.Aspire.ServiceDefaults.csproj"
-                Type="C#"/>
-        <Project Path="Exemples\Aspire\CaeriusNet.Exemples.Aspire.Console\CaeriusNet.Exemples.Aspire.Console.csproj"
-                 Type="C#"/>
+                Path="Exemples\Aspire\CaeriusNet.Exemples.Aspire.ServiceDefaults\CaeriusNet.Exemples.Aspire.ServiceDefaults.csproj"/>
+        <Project Path="Exemples\Aspire\CaeriusNet.Exemples.Aspire.Console\CaeriusNet.Exemples.Aspire.Console.csproj"/>
     </Folder>
     <Folder Name="/Exemples/Default/">
-        <Project Path="Exemples\Default\CaeriusNet.Exemples.Default.Console\CaeriusNet.Exemples.Default.Console.csproj"
-                 Type="C#"/>
+        <Project
+                Path="Exemples\Default\CaeriusNet.Exemples.Default.Console\CaeriusNet.Exemples.Default.Console.csproj"/>
     </Folder>
     <Folder Name="/Exemples/Libs/">
-        <Project Path="Exemples\Libs\CaeriusNet.Exemples.Libs.Commons\CaeriusNet.Exemples.Libs.Commons.csproj"
-                 Type="C#"/>
+        <Project Path="Exemples\Libs\CaeriusNet.Exemples.Libs.Commons\CaeriusNet.Exemples.Libs.Commons.csproj"/>
     </Folder>
     <Folder Name="/SourceGenerators/">
-        <Project Path="SourceGenerators\CaeriusNet.Generator.csproj" Type="C#"/>
+        <Project Path="Analyzer\CaeriusNet.Analyzer.csproj"/>
+        <Project Path="SourceGenerators\CaeriusNet.Generator.csproj"/>
     </Folder>
     <Folder Name="/Src/">
-        <Project Path="Src\CaeriusNet.csproj" Type="C#"/>
+        <Project Path="Src\CaeriusNet.csproj"/>
     </Folder>
     <Folder Name="/Tests/">
-        <Project Path="Tests\CaeriusNet.Tests\CaeriusNet.Tests.csproj" Type="C#"/>
+        <Project Path="Tests\CaeriusNet.Tests\CaeriusNet.Tests.csproj"/>
         <File Path="Tests/README.md"/>
-        <Project Path="Tests\CaeriusNet.Generator.Tests\CaeriusNet.Generator.Tests.csproj" Type="C#"/>
-        <Project Path="Tests\CaeriusNet.IntegrationTests\CaeriusNet.IntegrationTests.csproj" Type="C#"/>
+        <Project Path="Tests\CaeriusNet.Analyzer.Tests\CaeriusNet.Analyzer.Tests.csproj"/>
+        <Project Path="Tests\CaeriusNet.Generator.Tests\CaeriusNet.Generator.Tests.csproj"/>
+        <Project Path="Tests\CaeriusNet.IntegrationTests\CaeriusNet.IntegrationTests.csproj"/>
     </Folder>
 </Solution>

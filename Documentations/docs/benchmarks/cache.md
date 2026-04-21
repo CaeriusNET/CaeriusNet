@@ -71,8 +71,6 @@ configuration caches, static lookup tables, and reference data loaded at startup
 - **Practical guidance:** Use the frozen cache for data that changes at most once per deployment or on
   a scheduled refresh cycle (e.g., every 5–60 minutes). For data that changes per-request, use `IMemoryCache`.
 
-<!--@include: ./results/FrozenCacheBench.md-->
-
 ---
 
 ## InMemoryCache — IMemoryCache Throughput
@@ -135,5 +133,3 @@ These features come with a cost:
 - For data that is updated regularly (per-minute or per-request), `IMemoryCache` is the correct choice:
   its ConcurrentDictionary backing allows lock-free writes from multiple threads simultaneously.
 - The benchmark results on this page make the read-throughput gap between the two explicit at each cache size.
-
-<!--@include: ./results/InMemoryCacheBench.md-->

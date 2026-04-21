@@ -48,8 +48,6 @@ scales from 0 rows (no data, pure call overhead) to 50 000 rows (large result se
 - The **Ratio** column between `RowCount = 0` and large row counts quantifies how much of the measured time
   is pure SQL Server work vs .NET deserialization overhead.
 
-<!--@include: ./results/SpExecutionBench.md-->
-
 ---
 
 ## Batched vs Single Inserts — The TVP Advantage
@@ -85,8 +83,6 @@ Two insertion strategies are compared at `[Params(10, 100, 500, 1_000, 5_000)]` 
   the numbers on this page represent a local Docker loop with sub-millisecond latency.
   Real-world latency multiplies every row's overhead for the single-call strategy.
 
-<!--@include: ./results/BatchedVsSingleBench.md-->
-
 ---
 
 ## Multi-Result Set vs Separate Calls
@@ -112,8 +108,6 @@ This benchmark compares:
   since data transfer time dominates over fixed overhead.
 - Multi-result-set SPs also reduce connection pool contention under concurrent load by shortening total
   connection hold time.
-
-<!--@include: ./results/MultiResultSetBench.md-->
 
 ---
 
@@ -146,8 +140,6 @@ Compared against a **manual ADO.NET TVP setup** without the builder — raw `Sql
 - The `OUTPUT INSERTED.*` pattern (streaming back inserted rows) proves that CaeriusNet's round-trip
   cost is dominated by the server-side work, not the client-side builder or serializer.
 
-<!--@include: ./results/TvpFullRoundtripBench.md-->
-
 ---
 
 ## OUTPUT Parameter vs SCOPE_IDENTITY()
@@ -175,8 +167,6 @@ Two common patterns for retrieving a newly-inserted identity value:
   per-roundtrip fixed overhead twice, plus it is unsafe under concurrent inserts.
 - **CaeriusNet best practice:** use `OUTPUT INSERTED.Id` (for multi-row TVP inserts) or `@NewId INT OUTPUT`
   (for single-row inserts). Never use a separate `SCOPE_IDENTITY()` query or `SELECT MAX(Id)`.
-
-<!--@include: ./results/SpOutputParameterBench.md-->
 
 ---
 
@@ -207,5 +197,3 @@ logical `Open/Close` calls. This benchmark quantifies the performance difference
 - The Ratio between Warm Pool and Cold Start quantifies the value of the connection pool.
   In a typical Docker environment (sub-ms loopback), the cold-start cost is dominated by the TDS
   handshake. Over a real network, cold-start latency is 10–100× higher.
-
-<!--@include: ./results/ConnectionPoolBench.md-->

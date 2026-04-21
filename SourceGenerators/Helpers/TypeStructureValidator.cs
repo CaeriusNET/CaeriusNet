@@ -5,6 +5,10 @@
 ///     <see cref="ISymbol.DeclaringSyntaxReferences" /> so partial declarations split across files do not
 ///     produce false-positive diagnostics.
 /// </summary>
+/// <remarks>
+///     The analyzer project carries its own copy of this logic so validation rules can evolve in lockstep
+///     without creating a runtime dependency from the analyzer onto the generator assembly.
+/// </remarks>
 internal static class TypeStructureValidator
 {
     /// <summary>
@@ -32,34 +36,19 @@ internal static class TypeStructureValidator
                         break;
                     }
 
-            if (primaryCtorDeclaration is null)
+            if (primaryCtorDeclaration is not null) continue;
+            var paramList = decl switch
             {
-                var paramList = decl switch
-                {
-                    RecordDeclarationSyntax r => r.ParameterList,
-                    ClassDeclarationSyntax c => c.ParameterList,
-                    _ => null
-                };
+                RecordDeclarationSyntax r => r.ParameterList,
+                ClassDeclarationSyntax c => c.ParameterList,
+                _ => null
+            };
 
-                if (paramList is { Parameters.Count: > 0 })
-                    primaryCtorDeclaration = decl;
-            }
+            if (paramList is { Parameters.Count: > 0 })
+                primaryCtorDeclaration = decl;
         }
 
         return new ValidationResult(isSealed, isPartial, primaryCtorDeclaration);
-    }
-
-    /// <summary>
-    ///     Returns the most useful <see cref="Location" /> for diagnostics: the identifier of the first
-    ///     declaration when available, otherwise <see cref="Location.None" />.
-    /// </summary>
-    internal static Location GetIdentifierLocation(INamedTypeSymbol typeSymbol)
-    {
-        foreach (var declRef in typeSymbol.DeclaringSyntaxReferences)
-            if (declRef.GetSyntax() is TypeDeclarationSyntax decl)
-                return decl.Identifier.GetLocation();
-
-        return Location.None;
     }
 
     /// <summary>

@@ -1,8 +1,7 @@
 namespace CaeriusNet.Generator.Tests.Diagnostics;
 
 /// <summary>
-///     Validates that the source generators surface user-friendly compile-time diagnostics
-///     (CAERIUS001-004) instead of silently skipping invalid candidates.
+///     Validates that generators stay silent and only decide whether source can be emitted.
 /// </summary>
 public sealed class DiagnosticTests
 {
@@ -27,7 +26,7 @@ public sealed class DiagnosticTests
     }
 
     [Fact]
-    public void Dto_NonSealed_Reports_CAERIUS001()
+    public void Dto_NonSealed_Reports_NoCaeriusDiagnostic()
     {
         const string source = """
                               using CaeriusNet.Attributes.Dto;
@@ -38,12 +37,12 @@ public sealed class DiagnosticTests
 
         var diagnostics = RunDto(source).ToList();
 
-        Assert.Contains(diagnostics, d => d.Id == "CAERIUS001" && d.Severity == DiagnosticSeverity.Error);
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id.StartsWith("CAERIUS", StringComparison.Ordinal));
         Assert.Empty(RunDtoFull(source).GeneratedTrees);
     }
 
     [Fact]
-    public void Dto_NonPartial_Reports_CAERIUS002()
+    public void Dto_NonPartial_Reports_NoCaeriusDiagnostic()
     {
         const string source = """
                               using CaeriusNet.Attributes.Dto;
@@ -54,11 +53,11 @@ public sealed class DiagnosticTests
 
         var diagnostics = RunDto(source).ToList();
 
-        Assert.Contains(diagnostics, d => d.Id == "CAERIUS002" && d.Severity == DiagnosticSeverity.Error);
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id.StartsWith("CAERIUS", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void Dto_NoPrimaryConstructor_Reports_CAERIUS003()
+    public void Dto_NoPrimaryConstructor_Reports_NoCaeriusDiagnostic()
     {
         const string source = """
                               using CaeriusNet.Attributes.Dto;
@@ -72,7 +71,7 @@ public sealed class DiagnosticTests
 
         var diagnostics = RunDto(source).ToList();
 
-        Assert.Contains(diagnostics, d => d.Id == "CAERIUS003" && d.Severity == DiagnosticSeverity.Error);
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id.StartsWith("CAERIUS", StringComparison.Ordinal));
         Assert.Empty(RunDtoFull(source).GeneratedTrees);
     }
 
@@ -88,15 +87,13 @@ public sealed class DiagnosticTests
 
         var diagnostics = RunDto(source).ToList();
 
-        Assert.DoesNotContain(diagnostics, d => d.Id.StartsWith("CAERIUS", StringComparison.Ordinal));
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id.StartsWith("CAERIUS", StringComparison.Ordinal));
         Assert.NotEmpty(RunDtoFull(source).GeneratedTrees);
     }
 
     [Fact]
     public void Dto_SplitPartial_AttributeOnOneSide_Reports_NoCaeriusDiagnostic()
     {
-        // The attribute is carried by the declaration that does not include the primary constructor;
-        // the validator must walk all DeclaringSyntaxReferences to confirm the type is well-formed.
         const string source = """
                               using CaeriusNet.Attributes.Dto;
                               namespace TestNs;
@@ -107,12 +104,12 @@ public sealed class DiagnosticTests
 
         var diagnostics = RunDto(source).ToList();
 
-        Assert.DoesNotContain(diagnostics, d => d.Id.StartsWith("CAERIUS", StringComparison.Ordinal));
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id.StartsWith("CAERIUS", StringComparison.Ordinal));
         Assert.NotEmpty(RunDtoFull(source).GeneratedTrees);
     }
 
     [Fact]
-    public void Tvp_NonSealed_Reports_CAERIUS001()
+    public void Tvp_NonSealed_Reports_NoCaeriusDiagnostic()
     {
         const string source = """
                               using CaeriusNet.Attributes.Tvp;
@@ -123,12 +120,12 @@ public sealed class DiagnosticTests
 
         var diagnostics = RunTvp(source).ToList();
 
-        Assert.Contains(diagnostics, d => d.Id == "CAERIUS001" && d.Severity == DiagnosticSeverity.Error);
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id.StartsWith("CAERIUS", StringComparison.Ordinal));
         Assert.Empty(RunTvpFull(source).GeneratedTrees);
     }
 
     [Fact]
-    public void Tvp_NonPartial_Reports_CAERIUS002()
+    public void Tvp_NonPartial_Reports_NoCaeriusDiagnostic()
     {
         const string source = """
                               using CaeriusNet.Attributes.Tvp;
@@ -139,11 +136,11 @@ public sealed class DiagnosticTests
 
         var diagnostics = RunTvp(source).ToList();
 
-        Assert.Contains(diagnostics, d => d.Id == "CAERIUS002" && d.Severity == DiagnosticSeverity.Error);
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id.StartsWith("CAERIUS", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void Tvp_NoPrimaryConstructor_Reports_CAERIUS003()
+    public void Tvp_NoPrimaryConstructor_Reports_NoCaeriusDiagnostic()
     {
         const string source = """
                               using CaeriusNet.Attributes.Tvp;
@@ -157,12 +154,12 @@ public sealed class DiagnosticTests
 
         var diagnostics = RunTvp(source).ToList();
 
-        Assert.Contains(diagnostics, d => d.Id == "CAERIUS003" && d.Severity == DiagnosticSeverity.Error);
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id.StartsWith("CAERIUS", StringComparison.Ordinal));
         Assert.Empty(RunTvpFull(source).GeneratedTrees);
     }
 
     [Fact]
-    public void Tvp_EmptyTvpName_Reports_CAERIUS004()
+    public void Tvp_EmptyTvpName_Reports_NoCaeriusDiagnostic()
     {
         const string source = """
                               using CaeriusNet.Attributes.Tvp;
@@ -173,7 +170,7 @@ public sealed class DiagnosticTests
 
         var diagnostics = RunTvp(source).ToList();
 
-        Assert.Contains(diagnostics, d => d.Id == "CAERIUS004" && d.Severity == DiagnosticSeverity.Error);
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id.StartsWith("CAERIUS", StringComparison.Ordinal));
         Assert.Empty(RunTvpFull(source).GeneratedTrees);
     }
 
@@ -189,14 +186,13 @@ public sealed class DiagnosticTests
 
         var diagnostics = RunTvp(source).ToList();
 
-        Assert.DoesNotContain(diagnostics, d => d.Id.StartsWith("CAERIUS", StringComparison.Ordinal));
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id.StartsWith("CAERIUS", StringComparison.Ordinal));
         Assert.NotEmpty(RunTvpFull(source).GeneratedTrees);
     }
 
     [Fact]
-    public void Dto_UnsupportedType_Reports_CAERIUS005_Warning()
+    public void Dto_UnsupportedType_Reports_NoCaeriusDiagnostic()
     {
-        // System.Uri has no native SQL Server mapping → falls back to sql_variant.
         const string source = """
                               using CaeriusNet.Attributes.Dto;
                               namespace TestNs;
@@ -206,13 +202,12 @@ public sealed class DiagnosticTests
 
         var diagnostics = RunDto(source).ToList();
 
-        Assert.Contains(diagnostics, d => d.Id == "CAERIUS005" && d.Severity == DiagnosticSeverity.Warning);
-        // Warning, not error: generator must still emit the partial.
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id.StartsWith("CAERIUS", StringComparison.Ordinal));
         Assert.NotEmpty(RunDtoFull(source).GeneratedTrees);
     }
 
     [Fact]
-    public void Tvp_UnsupportedType_Reports_CAERIUS005_Warning()
+    public void Tvp_UnsupportedType_Reports_NoCaeriusDiagnostic()
     {
         const string source = """
                               using CaeriusNet.Attributes.Tvp;
@@ -223,17 +218,12 @@ public sealed class DiagnosticTests
 
         var diagnostics = RunTvp(source).ToList();
 
-        Assert.Contains(diagnostics, d => d.Id == "CAERIUS005" && d.Severity == DiagnosticSeverity.Warning);
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id.StartsWith("CAERIUS", StringComparison.Ordinal));
         Assert.NotEmpty(RunTvpFull(source).GeneratedTrees);
     }
 
-    /// <summary>
-    ///     CAERIUS006 (UnsupportedTypeWarning) is defined in DiagnosticDescriptors but is not currently
-    ///     emitted by either generator. Both DtoExtractor and TvpExtractor emit CAERIUS005 for types that
-    ///     fall back to sql_variant. This test verifies that Int128 triggers CAERIUS005 (not CAERIUS006).
-    /// </summary>
     [Fact]
-    public void Dto_Int128_Property_Reports_CAERIUS005_Not_CAERIUS006()
+    public void Dto_Int128_Property_Reports_NoCaeriusDiagnostic()
     {
         const string source = """
                               using CaeriusNet.Attributes.Dto;
@@ -244,13 +234,12 @@ public sealed class DiagnosticTests
 
         var diagnostics = RunDto(source).ToList();
 
-        Assert.Contains(diagnostics, d => d.Id == "CAERIUS005" && d.Severity == DiagnosticSeverity.Warning);
-        Assert.DoesNotContain(diagnostics, d => d.Id == "CAERIUS006");
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id.StartsWith("CAERIUS", StringComparison.Ordinal));
         Assert.NotEmpty(RunDtoFull(source).GeneratedTrees);
     }
 
     [Fact]
-    public void Tvp_Int128_Property_Reports_CAERIUS005_Not_CAERIUS006()
+    public void Tvp_Int128_Property_Reports_NoCaeriusDiagnostic()
     {
         const string source = """
                               using CaeriusNet.Attributes.Tvp;
@@ -261,8 +250,7 @@ public sealed class DiagnosticTests
 
         var diagnostics = RunTvp(source).ToList();
 
-        Assert.Contains(diagnostics, d => d.Id == "CAERIUS005" && d.Severity == DiagnosticSeverity.Warning);
-        Assert.DoesNotContain(diagnostics, d => d.Id == "CAERIUS006");
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id.StartsWith("CAERIUS", StringComparison.Ordinal));
         Assert.NotEmpty(RunTvpFull(source).GeneratedTrees);
     }
 }

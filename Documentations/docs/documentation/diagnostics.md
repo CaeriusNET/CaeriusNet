@@ -1,6 +1,6 @@
-﻿# Compiler Diagnostics
+# Compiler Diagnostics
 
-CaeriusNet's Roslyn source generators emit compile-time diagnostics to catch configuration and mapping errors before runtime. Each diagnostic has a unique ID, severity, and actionable guidance.
+CaeriusNet's Roslyn analyzer emits compile-time diagnostics for `[GenerateDto]` and `[GenerateTvp]` usage so configuration and mapping problems show up before runtime.
 
 ## Diagnostic reference
 
@@ -9,9 +9,8 @@ CaeriusNet's Roslyn source generators emit compile-time diagnostics to catch con
 | [CAERIUS001](https://github.com/CaeriusNET/CaeriusNet/blob/main/Documentations/diagnostics/CAERIUS001.md) | Error | Type must be `sealed` | A `[GenerateDto]` or `[GenerateTvp]` type is missing the `sealed` modifier |
 | [CAERIUS002](https://github.com/CaeriusNET/CaeriusNet/blob/main/Documentations/diagnostics/CAERIUS002.md) | Error | Type must be `partial` | A `[GenerateDto]` or `[GenerateTvp]` type is missing the `partial` modifier |
 | [CAERIUS003](https://github.com/CaeriusNET/CaeriusNet/blob/main/Documentations/diagnostics/CAERIUS003.md) | Error | Primary constructor required | The type does not use a primary constructor for its parameters |
-| [CAERIUS004](https://github.com/CaeriusNET/CaeriusNet/blob/main/Documentations/diagnostics/CAERIUS004.md) | Error | Empty primary constructor | The primary constructor has no parameters (no columns to map) |
-| [CAERIUS005](https://github.com/CaeriusNET/CaeriusNet/blob/main/Documentations/diagnostics/CAERIUS005.md) | Warning | Unmapped CLR type falls back to `sql_variant` | A property type has no native SQL Server mapping |
-| [CAERIUS006](https://github.com/CaeriusNET/CaeriusNet/blob/main/Documentations/diagnostics/CAERIUS006.md) | Warning | Unsupported type for SQL Server mapping | A property type uses `sql_variant` fallback with performance implications |
+| [CAERIUS004](https://github.com/CaeriusNET/CaeriusNet/blob/main/Documentations/diagnostics/CAERIUS004.md) | Error | `[GenerateTvp]` requires a non-empty `TvpName` | The attribute explicitly sets `TvpName` to an empty or whitespace string |
+| [CAERIUS005](https://github.com/CaeriusNET/CaeriusNet/blob/main/Documentations/diagnostics/CAERIUS005.md) | Warning | Unmapped CLR type falls back to `sql_variant` | A constructor parameter has no native SQL Server mapping |
 
 ## Severity levels
 
@@ -39,14 +38,14 @@ public sealed partial record FlexibleDto(int Id, object DynamicValue);
 dotnet_diagnostic.CAERIUS005.severity = none
 
 # Downgrade to suggestion
-dotnet_diagnostic.CAERIUS006.severity = suggestion
+dotnet_diagnostic.CAERIUS005.severity = suggestion
 ```
 
 ### Via `<NoWarn>` in `.csproj`
 
 ```xml
 <PropertyGroup>
-    <NoWarn>$(NoWarn);CAERIUS005;CAERIUS006</NoWarn>
+    <NoWarn>$(NoWarn);CAERIUS005</NoWarn>
 </PropertyGroup>
 ```
 
@@ -60,26 +59,25 @@ Promote warnings to errors to enforce stricter rules in CI:
 [*.cs]
 # Treat sql_variant fallback as a build error
 dotnet_diagnostic.CAERIUS005.severity = error
-dotnet_diagnostic.CAERIUS006.severity = error
 ```
 
 ### Via `<WarningsAsErrors>` in `.csproj`
 
 ```xml
 <PropertyGroup>
-    <WarningsAsErrors>$(WarningsAsErrors);CAERIUS005;CAERIUS006</WarningsAsErrors>
+    <WarningsAsErrors>$(WarningsAsErrors);CAERIUS005</WarningsAsErrors>
 </PropertyGroup>
 ```
 
 ::: tip CI enforcement
-Escalating CAERIUS005 and CAERIUS006 to errors in your CI `.editorconfig` prevents accidental `sql_variant` usage from reaching production.
+Escalating CAERIUS005 to an error in your CI `.editorconfig` prevents accidental `sql_variant` usage from reaching production.
 :::
 
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| No diagnostics emitted | Generator not running | Ensure `CaeriusNet` package is referenced and IDE recognizes analyzers |
+| No diagnostics emitted | Analyzer not referenced | Ensure the `CaeriusNet.Analyzer` project or packaged analyzer is referenced as an analyzer |
 | Diagnostics not appearing in IDE | IDE cache stale | Restart IDE or run `dotnet build` from CLI |
 | Suppression not working | Wrong scope | Ensure `#pragma` wraps the type declaration, not just the file |
 

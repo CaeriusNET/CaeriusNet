@@ -17,7 +17,7 @@
 [Generator(LanguageNames.CSharp)]
 public sealed class TvpSourceGenerator : IIncrementalGenerator
 {
-    internal const string AttributeMetadataName = "CaeriusNet.Attributes.Tvp.GenerateTvpAttribute";
+    private const string AttributeMetadataName = "CaeriusNet.Attributes.Tvp.GenerateTvpAttribute";
 
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -28,13 +28,10 @@ public sealed class TvpSourceGenerator : IIncrementalGenerator
                 static (node, _) => node is ClassDeclarationSyntax or RecordDeclarationSyntax,
                 static (ctx, ct) => TvpExtractor.Extract(ctx, ct));
 
-        context.RegisterImplementationSourceOutput(tvpCandidates, static (spc, extraction) =>
+        context.RegisterImplementationSourceOutput(tvpCandidates, static (spc, model) =>
         {
-            foreach (var diag in extraction.Diagnostics)
-                spc.ReportDiagnostic(diag.ToDiagnostic());
-
-            if (extraction.Model is { Columns.Count: > 0 } model)
-                spc.AddSource($"{model.TypeName}.g.cs", TvpEmitter.Emit(model));
+            if (model is { Columns.Count: > 0 })
+                spc.AddSource(HintNameBuilder.Build(model.Namespace, model.TypeName, "Tvp"), TvpEmitter.Emit(model));
         });
     }
 }

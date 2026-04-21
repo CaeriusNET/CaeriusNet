@@ -1,6 +1,6 @@
 {
   "name": "CaeriusNet — .NET 10 + SQL Server 2022",
-  "image": "mcr.microsoft.com/devcontainers/dotnet:1-10.0-bookworm",
+  "image": "mcr.microsoft.com/devcontainers/dotnet:2-10.0-noble",
   "features": {
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
       "moby": true,

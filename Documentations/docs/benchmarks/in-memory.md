@@ -40,8 +40,6 @@ This benchmark compares three construction strategies against a simulated `IData
 - At 100 000 rows the difference between the pre-allocated array and `ToList()` is measurable in both allocations (bytes)
   and Gen0 collection count.
 
-<!--@include: ./results/DtoMappingBench.md-->
-
 ---
 
 ## Wide-Row DTO Mapping Scaling
@@ -64,8 +62,6 @@ a wide DTO vs multiple narrow DTOs + a join, this benchmark provides the raw dat
 - Memory allocation scales with column count because each wide DTO is a larger value on the heap.
 - Pre-allocating the result array (vs relying on `List<T>`) saves proportionally more allocation as column count grows,
   since the wider the type, the more expensive each internal `List<T>` resize becomes.
-
-<!--@include: ./results/WideRowDtoMappingBench.md-->
 
 ---
 
@@ -98,8 +94,6 @@ Three null density scenarios are tested via `[Params(0, 50, 100)]` on `NullDensi
 - A design consequence: if a column is almost always non-null, the generated `IsDBNull` branch has near-zero cost.
   If a column is 50 % null, consider splitting it into a separate DTO or accept the branch penalty explicitly.
 
-<!--@include: ./results/NullableColumnMappingBench.md-->
-
 ---
 
 ## StoredProcedureParametersBuilder
@@ -122,8 +116,6 @@ The builder pre-allocates an internal `List<SqlParameter>` with an initial capac
 - Pre-allocation avoids resize overhead for the common case.  
   Beyond the pre-allocated capacity, each additional parameter triggers a standard `List<T>` 2× capacity growth.
 - The `.Build()` call is essentially `list.ToArray()` — an `Array.Copy` at O(N).
-
-<!--@include: ./results/SpParameterBuilderBench.md-->
 
 ---
 
@@ -154,8 +146,6 @@ This benchmark measures **the cost of passing a pre-materialised `List<T>` vs a 
   (10 000–100 000), the allocation gap becomes significant.
 - **Best practice:** Always pass a `List<T>` (or any `IList<T>`) to `AddTvpParameter` — never a LINQ chain.
 
-<!--@include: ./results/AddTvpParameterBench.md-->
-
 ---
 
 ## TVP Serialization — SqlDataRecord Streaming
@@ -180,8 +170,6 @@ per-row `record.SetXxx(ordinal, value)` calls — at `RowCount` ranging from 10 
 - The `SqlMetaData[]` schema array is `static readonly` — it is allocated once at JIT time (field initialiser),
   not per TVP call. Increasing column count adds a fixed schema cost, not a per-invocation cost.
 - At 100 000 rows, the streaming pattern holds its O(1) allocation advantage — no secondary buffer, no `DataTable`.
-
-<!--@include: ./results/TvpSerializationBench.md-->
 
 ---
 
@@ -218,8 +206,6 @@ This benchmark puts both approaches head-to-head at the same row counts:
 - This is the core reason CaeriusNet's TVP implementation significantly reduces Gen0/Gen1 GC pressure in
   high-throughput batch-insert workloads.
 
-<!--@include: ./results/TvpVsDataTableBench.md-->
-
 ---
 
 ## TVP Column-Count Scaling
@@ -243,5 +229,3 @@ call per row. This benchmark measures the serialization cost across three TVP sc
   Switching from a 3-column to a 10-column schema does **not** add any per-call schema allocation cost.
 - Practical implication: if you need to insert wide rows frequently, the time cost is proportionally higher,
   but the memory cost remains flat — CaeriusNet never materialises a secondary buffer regardless of width.
-
-<!--@include: ./results/TvpColumnScalingBench.md-->
