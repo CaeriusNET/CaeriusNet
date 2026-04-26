@@ -46,7 +46,7 @@ public sealed partial class UsersRepository
 
         if (newUserId == 0)
             throw new InvalidOperationException(
-                "usp_Create_User did not return a user identifier; cannot create the associated order.");
+                $"usp_Create_User returned invalid user identifier ({newUserId}); cannot create the associated order.");
 
         var createOrder = new StoredProcedureParametersBuilder("Users", "usp_Create_Order")
             .AddParameter("@UserId", newUserId, SqlDbType.Int)
