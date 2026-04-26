@@ -11,6 +11,7 @@ global using CaeriusNet.Abstractions;
 global using CaeriusNet.Builders;
 global using CaeriusNet.Caches;
 global using CaeriusNet.Commands.Transactions;
+global using CaeriusNet.Telemetry;
 global using CaeriusNet.Exceptions;
 global using CaeriusNet.Factories;
 global using CaeriusNet.Mappers;

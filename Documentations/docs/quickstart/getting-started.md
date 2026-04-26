@@ -9,19 +9,25 @@ next:
 
 # Installation & Setup
 
+This page walks through installing the package, configuring CaeriusNet for your hosting model, and running your first query end-to-end.
+
 ## Prerequisites
 
-- .NET 10.0 SDK or higher
-- SQL Server 2019 or higher
-- C# 14 language version
+- **.NET 10.0 SDK** or higher
+- **C# 14** language version (default for .NET 10 projects)
+- **SQL Server 2019** or higher (Developer / Standard / Enterprise / Express / Azure SQL)
+- *(Optional)* **Redis** for distributed caching
+- *(Optional)* **.NET Aspire 10+** for cloud-native development
 
-## Install the package
+## 1. Install the package
 
 ```bash
 dotnet add package CaeriusNet
 ```
 
-## Configure the connection string
+The package ships the runtime library, the Roslyn source generators, and the analyzer in one bundle — no additional packages are required.
+
+## 2. Configure the connection string
 
 Add your SQL Server connection string to `appsettings.json`:
 
@@ -33,13 +39,15 @@ Add your SQL Server connection string to `appsettings.json`:
 }
 ```
 
-::: details Connection string parameters
-The parameters `Trusted_Connection=True;MultipleActiveResultSets=true;Encrypt=True;` are required by `Microsoft.Data.SqlClient`.
+::: details Connection string options
+The flags `Trusted_Connection=True;MultipleActiveResultSets=true;Encrypt=True;` are recommended by `Microsoft.Data.SqlClient`.
 
-Visit [connectionstrings.com/sql-server](https://www.connectionstrings.com/sql-server/) to generate a connection string for your environment.
+For Azure SQL, dev containers, or Docker, see [connectionstrings.com/sql-server](https://www.connectionstrings.com/sql-server/) for ready-made templates.
 :::
 
-## Register CaeriusNet
+## 3. Register CaeriusNet
+
+Pick the host model that matches your project. All three flavours produce the same registration — only the entry point differs.
 
 ::: code-group
 ```csharp [ASP.NET Core / Generic Host]
@@ -60,12 +68,12 @@ app.Run();
 using CaeriusNet.Builders;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.AddServiceDefaults();
+builder.AddServiceDefaults();   // Aspire ServiceDefaults wires OpenTelemetry
 
 CaeriusNetBuilder
     .Create(builder)
-    .WithAspireSqlServer("sqlserver")
-    .WithAspireRedis()   // optional — defaults to "redis"
+    .WithAspireSqlServer("sqlserver")  // matches AppHost AddSqlServer name
+    .WithAspireRedis()                  // optional — defaults to "redis"
     .Build();
 
 var app = builder.Build();
@@ -89,17 +97,21 @@ CaeriusNetBuilder
 ```
 :::
 
-## Register your repositories
+::: tip Aspire ServiceDefaults
+If you use Aspire, register CaeriusNet's `ActivitySource` and `Meter` in your `ServiceDefaults` project so spans and metrics flow into the dashboard. See the [Aspire Integration](/documentation/aspire#tracing-telemetry) guide.
+:::
 
-Register your repositories in the DI container:
+## 4. Register your repositories
+
+Inject `ICaeriusNetDbContext` into a repository and register the contract in DI:
 
 ```csharp
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 ```
 
-## Your first query
+## 5. Your first query
 
-### 1. Create a Stored Procedure
+### a. Define the Stored Procedure
 
 ```sql
 CREATE PROCEDURE dbo.sp_GetUsers_By_Age
@@ -108,12 +120,13 @@ AS
 BEGIN
     SET NOCOUNT ON;
     SELECT Id, Name, Age
-    FROM dbo.Users
-    WHERE Age >= @Age;
+    FROM   dbo.Users
+    WHERE  Age >= @Age;
 END
+GO
 ```
 
-### 2. Define a DTO
+### b. Define the DTO
 
 ```csharp
 using CaeriusNet.Attributes.Dto;
@@ -122,7 +135,9 @@ using CaeriusNet.Attributes.Dto;
 public sealed partial record UserDto(int Id, string Name, byte Age);
 ```
 
-### 3. Implement a repository
+`[GenerateDto]` instructs the compile-time source generator to emit `ISpMapper<UserDto>.MapFromDataReader` for you. The DTO must be `sealed`, `partial`, and use a primary constructor — the analyzer enforces this at build time (see [Compiler Diagnostics](/documentation/diagnostics)).
+
+### c. Implement the repository
 
 ```csharp
 using CaeriusNet.Abstractions;
@@ -133,18 +148,18 @@ public sealed record UserRepository(ICaeriusNetDbContext DbContext)
     : IUserRepository
 {
     public async Task<IEnumerable<UserDto>> GetUsersOlderThanAsync(
-        int age, CancellationToken cancellationToken)
+        int age, CancellationToken ct)
     {
-        var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Age", 128)
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Age", capacity: 128)
             .AddParameter("Age", age, SqlDbType.Int)
             .Build();
 
-        return await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, cancellationToken) ?? [];
+        return await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct) ?? [];
     }
 }
 ```
 
-### 4. Inject and call
+### d. Inject and call
 
 ```csharp
 public sealed class UserService(IUserRepository repository)
@@ -154,6 +169,20 @@ public sealed class UserService(IUserRepository repository)
 }
 ```
 
----
+That's it — you have a fully typed, instrumented, allocation-aware Stored Procedure call.
 
-**Next:** [DTO Mapping](/documentation/dto-mapping) — learn how ordinal-based mapping works.
+## What happens behind the scenes
+
+1. The builder produces an immutable `StoredProcedureParameters` value.
+2. `QueryAsIEnumerableAsync<UserDto>` opens a connection via `ICaeriusNetDbContext`, starts an OTel `Activity`, and executes the SP with `CommandBehavior.SequentialAccess`.
+3. The compile-time-generated `UserDto.MapFromDataReader` reads each row by ordinal — no reflection, no name lookups.
+4. Results are materialised into a pre-sized list (capacity = 128) and returned to the caller.
+5. The `Activity` records duration, row count, and SP metadata; the `Meter` increments executions and observes the duration histogram.
+
+## Next steps
+
+- [DTO Mapping](/documentation/dto-mapping) — understand ordinal mapping and nullability.
+- [Source Generators](/documentation/source-generators) — explore `[GenerateDto]` and `[GenerateTvp]` in depth.
+- [Reading Data](/documentation/reading-data) — choose between `IEnumerable`, `ReadOnlyCollection`, and `ImmutableArray`.
+- [Caching](/documentation/cache) — add Frozen / InMemory / Redis caching to any call.
+- [Examples](/examples/) — end-to-end walkthroughs.

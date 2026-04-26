@@ -28,9 +28,13 @@ public static class TransactionReadSqlAsyncCommands
             CancellationToken cancellationToken = default)
             where TResultSet : class, ISpMapper<TResultSet>
         {
+            const string Operation = nameof(FirstQueryAsync);
             var tx = AsInternal(transaction);
             var logger = LoggerProvider.GetLogger();
             tx.AcquireCommandSlot();
+            using var activity =
+                CaeriusActivityExtensions.StartStoredProcedureActivity(spParameters, Operation, true);
+            var tags = CaeriusActivityExtensions.BuildMetricTags(spParameters, Operation, true);
             var startTimestamp = Stopwatch.GetTimestamp();
             if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                 logger.LogExecutingProcedure(
@@ -43,17 +47,22 @@ public static class TransactionReadSqlAsyncCommands
                 var result = await SqlCommandHelperTx.ScalarQueryTxAsync<TResultSet>(
                     spParameters, tx.Connection, tx.Transaction, cancellationToken).ConfigureAwait(false);
 
+                var elapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+                var rows = result is null ? 0 : 1;
+                CaeriusActivityExtensions.RecordSuccess(activity, tags, elapsedMs, rows);
+
                 if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                     logger.LogProcedureCompleted(
                         spParameters.SchemaName,
                         spParameters.ProcedureName,
-                        (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds,
-                        result is null ? 0 : 1);
+                        (long)elapsedMs,
+                        rows);
 
                 return result;
             }
             catch (SqlException ex)
             {
+                CaeriusActivityExtensions.RecordError(activity, tags, ex);
                 tx.Poison();
                 throw new CaeriusNetSqlException(
                     $"Failed to execute stored procedure: {spParameters.ProcedureName}", ex);
@@ -71,9 +80,13 @@ public static class TransactionReadSqlAsyncCommands
             CancellationToken cancellationToken = default)
             where TResultSet : class, ISpMapper<TResultSet>
         {
+            const string Operation = nameof(QueryAsReadOnlyCollectionAsync);
             var tx = AsInternal(transaction);
             var logger = LoggerProvider.GetLogger();
             tx.AcquireCommandSlot();
+            using var activity =
+                CaeriusActivityExtensions.StartStoredProcedureActivity(spParameters, Operation, true);
+            var tags = CaeriusActivityExtensions.BuildMetricTags(spParameters, Operation, true);
             var startTimestamp = Stopwatch.GetTimestamp();
             if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                 logger.LogExecutingProcedure(
@@ -90,17 +103,21 @@ public static class TransactionReadSqlAsyncCommands
                     ? EmptyCollections.ReadOnlyCollection<TResultSet>()
                     : results;
 
+                var elapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+                CaeriusActivityExtensions.RecordSuccess(activity, tags, elapsedMs, results.Count);
+
                 if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                     logger.LogProcedureCompleted(
                         spParameters.SchemaName,
                         spParameters.ProcedureName,
-                        (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds,
+                        (long)elapsedMs,
                         results.Count);
 
                 return results;
             }
             catch (SqlException ex)
             {
+                CaeriusActivityExtensions.RecordError(activity, tags, ex);
                 tx.Poison();
                 throw new CaeriusNetSqlException(
                     $"Failed to execute stored procedure: {spParameters.ProcedureName}", ex);
@@ -129,9 +146,13 @@ public static class TransactionReadSqlAsyncCommands
             CancellationToken cancellationToken = default)
             where TResultSet : class, ISpMapper<TResultSet>
         {
+            const string Operation = nameof(QueryAsImmutableArrayAsync);
             var tx = AsInternal(transaction);
             var logger = LoggerProvider.GetLogger();
             tx.AcquireCommandSlot();
+            using var activity =
+                CaeriusActivityExtensions.StartStoredProcedureActivity(spParameters, Operation, true);
+            var tags = CaeriusActivityExtensions.BuildMetricTags(spParameters, Operation, true);
             var startTimestamp = Stopwatch.GetTimestamp();
             if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                 logger.LogExecutingProcedure(
@@ -144,17 +165,21 @@ public static class TransactionReadSqlAsyncCommands
                 var results = await SqlCommandHelperTx.ResultSetAsImmutableArrayTxAsync<TResultSet>(
                     spParameters, tx.Connection, tx.Transaction, cancellationToken).ConfigureAwait(false);
 
+                var elapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+                CaeriusActivityExtensions.RecordSuccess(activity, tags, elapsedMs, results.Length);
+
                 if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                     logger.LogProcedureCompleted(
                         spParameters.SchemaName,
                         spParameters.ProcedureName,
-                        (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds,
+                        (long)elapsedMs,
                         results.Length);
 
                 return results;
             }
             catch (SqlException ex)
             {
+                CaeriusActivityExtensions.RecordError(activity, tags, ex);
                 tx.Poison();
                 throw new CaeriusNetSqlException(
                     $"Failed to execute stored procedure: {spParameters.ProcedureName}", ex);

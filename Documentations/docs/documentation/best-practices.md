@@ -1,189 +1,197 @@
-# Best Practices and Guidelines
+# Best Practices
 
-This guide distills practical recommendations for building reliable, secure, and high‑performance applications with CaeriusNet. It complements the Get Started, Usage, and Advanced Usage pages.
+This page distills practical recommendations for building reliable, secure, and high-performance applications with CaeriusNet. It complements the [Quickstart](/quickstart/getting-started), [Reading Data](/documentation/reading-data), [Writing Data](/documentation/writing-data), and [Advanced Usage](/documentation/advanced-usage) guides.
 
-Applies to: C# 14 / .NET 10, SQL Server 2019+, Microsoft.Data.SqlClient.
+> Applies to: **C# 14 / .NET 10**, **SQL Server 2019 +**, `Microsoft.Data.SqlClient`.
 
-## Architecture and Patterns
+## Architecture & patterns
 
-- Prefer the Repository pattern. Keep data access isolated in repositories behind interfaces.
-- Use Dependency Injection to obtain ICaeriusNetDbContext where needed.
-- Favor sealed records for DTOs and TVPs. They are immutable, lightweight, and great with source generators.
-- Prefer source generators:
+- **Use the Repository pattern.** Keep data access isolated behind interfaces — `ICaeriusNetDbContext` is the only external dependency repositories should know about.
+- **Inject `ICaeriusNetDbContext` via DI.** Never instantiate it manually; the lifetime and connection management is handled by the framework.
+- **Favour sealed records.** They are immutable, lightweight, value-equatable, and pair well with the source generators.
+- **Always prefer source generators.** The analyzer enforces the contract and the generated code is identical to a hand-written mapper:
+  ```csharp
+  [GenerateDto]
+  public sealed partial record UserDto(int Id, string Name, byte? Age);
+
+  [GenerateTvp(Schema = "dbo", TvpName = "tvp_int")]
+  public sealed partial record UserIdTvp(int Id);
+  ```
+- **Keep mapping out of services and controllers.** Repositories own SQL; services orchestrate them.
+
+## DTO mapping
+
+- Mapping is **ordinal-based** — the constructor parameter order **must** match the SP `SELECT` column order. Aliases are cosmetic.
+- Mark columns that may return `NULL` as nullable in the DTO; the source generator emits `IsDBNull` guards automatically.
+- Keep DTOs **purpose-specific**. Avoid catch-all DTOs that grow with every screen.
+- Manual mapping example for reference:
+  ```csharp
+  public sealed record UserDto(int Id, string Name, byte? Age) : ISpMapper<UserDto>
+  {
+      public static UserDto MapFromDataReader(SqlDataReader reader)
+          => new(
+              reader.GetInt32(0),
+              reader.GetString(1),
+              reader.IsDBNull(2) ? null : reader.GetByte(2));
+  }
+  ```
+
+## Stored Procedure conventions (T-SQL)
+
+- **Use dedicated schemas** (`Users`, `Orders`, `Sales`, …) instead of the default `dbo` for application code where feasible.
+- Always start procedures with `SET NOCOUNT ON;` to avoid spurious result sets.
+- **Never `SELECT *`.** Explicitly list columns in the order your DTO expects.
+- Keep result-set shape stable. Any change in cardinality or order requires a matching DTO change.
+- Prefer parameterized procedures for all inputs — avoid dynamic SQL unless absolutely required.
+- Wrap multi-statement writes in `BEGIN TRY / BEGIN CATCH` with explicit `COMMIT` / `ROLLBACK` and `THROW;` for re-raise.
+- Adopt a consistent name convention, e.g. `Schema.sp_Action_Subject_By_Filter`.
+
+## TVPs
+
+- Define SQL types with the **minimal columns** needed.
+- Use `[GenerateTvp]` for zero-boilerplate mappers.
+- Ensure the .NET TVP record's primary-constructor parameters match the SQL column definition exactly (order, nullability, types).
+- Pass TVPs `READONLY` (required by SQL Server).
+- Validate non-empty input before calling — `AddTvpParameter` throws `ArgumentException` on empty collections.
+- For very large sets, batch into reasonable chunks (e.g. 5 000–10 000 rows per call) to keep memory and CPU usage predictable.
+
+## Caching strategy
+
+Pick the right tier per call via `StoredProcedureParametersBuilder`:
+
+- **Frozen** — in-process, immutable, fastest. **Only** for data that truly never changes during the application lifetime (lookup tables, currency codes, permission definitions).
+- **InMemory** — in-process with TTL. Good for hot paths where some staleness is acceptable. Always set a sensible expiration.
+- **Redis** — distributed. Use in multi-instance deployments. Secure with TLS + auth in production.
+
+**Cache keys:**
+
+- Deterministic, short, descriptive (e.g. `users:age:>=30`).
+- Include all parameters that affect the result.
+- Lowercase, colon-separated.
+
+**Invalidation:**
+
+- Prefer time-based expiry for mutable data.
+- For Frozen, only cache truly immutable data — there is no invalidation hook.
+
+See [Caching](/documentation/cache) for the full guide.
+
+## Performance
+
+- **Set `resultSetCapacity` accurately.** It pre-allocates the `List<T>` and avoids resize churn for large reads.
+- **Return only required columns.** Less data = fewer allocations and faster TDS framing.
+- **Pick the right collection.** `ImmutableArray<T>` for frozen / shared data; `ReadOnlyCollection<T>` for public APIs; `IEnumerable<T>` for LINQ pipelines.
+- **Stream multi-result-sets** with the `QueryMultipleIEnumerableAsync` family rather than chaining separate calls.
+- **Benchmark critical flows.** CaeriusNet's own [BenchmarkDotNet suites](/benchmarks/) are reproducible (`Random(42)`); use them as a baseline.
+
+Internal performance levers worth knowing about:
+
+| Mechanism | What it buys you |
+|---|---|
+| `SearchValues<char>` SIMD scans | Near-zero-cost parameter-name validation on modern CPUs |
+| `FrozenDictionary` for Frozen cache | Lock-free concurrent reads |
+| `GC.AllocateUninitializedArray` | Skips zero-fill on large result arrays that will be fully populated |
+| `CollectionsMarshal.SetCount` + `AsSpan` | Populates `List<T>` in place without bounds checks per write |
+
+## Transactions
+
+- Use `await using` so `DisposeAsync` runs on every code path — including exceptions.
+- Pass `CancellationToken` everywhere; it cancels in-flight SQL commands.
+- **Keep transactions short.** They hold locks; long transactions block other readers and writers.
+- **Don't perform non-database I/O** (HTTP calls, file writes, log shipping) inside a transaction scope.
+- Use the **lowest isolation level** that meets your consistency requirements (`ReadCommitted` is the default).
+- **Retry the entire transaction** at the caller level if the scope poisons — never attempt partial recovery.
+
 ```csharp
-  [GenerateDto] // to auto-generate ISpMapper<T> for DTOs.
-  [GenerateTvp(Schema = "", TvpName = "")] // to auto-generate ITvpMapper<T> for TVPs.
-```  
-- Keep mapping and database concerns out of controllers/services. Services orchestrate repositories.
+// ✅ Short, focused, cancellable
+await using var tx = await dbContext
+    .BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
 
-## DTO Mapping Guidelines
-
-- Mapping is ordinal-based. The constructor parameter order of your DTO must match the column order in the SQL result set.
-  - Column names don’t affect mapping. Aliases can improve readability but are not required for mapping.
-- Use nullable types for columns that may return NULL from SQL Server.
-- Keep DTOs minimal and purpose‑specific. Avoid large catch‑all DTOs.
-- Example (manual mapping):
-```csharp
-public sealed record UserDto(int Id, string Name, byte? Age)
-    : ISpMapper<UserDto>
-{
-    public static UserDto MapFromDataReader(SqlDataReader reader)
-        => new(reader.GetInt32(0), reader.GetString(1), reader.IsDBNull(2) ? null : reader.GetByte(2));
-}
+await tx.ExecuteNonQueryAsync(spDebit,  ct);
+await tx.ExecuteNonQueryAsync(spCredit, ct);
+await tx.CommitAsync(ct);
 ```
 
-## Stored Procedure Guidelines (T/SQL)
+## Logging
 
-- Use dedicated schemas (e.g., App, Users, Sales). Avoid dbo for application code where feasible.
-- Always SET NOCOUNT ON inside procedures to avoid extra result sets.
-- Keep result shapes stable. Any change in cardinality or order requires a matching DTO change.
-- Avoid SELECT *. Explicitly list columns in the exact order your DTO expects.
-- Prefer parameterized procedures for all inputs. Avoid dynamic SQL unless absolutely required.
-- Use TRY/CATCH with explicit COMMIT/ROLLBACK for transactional procedures when necessary.
-- Keep procedure names task‑based and consistent: schema.sp_Action_Subject_By_Filter.
-
-## TVP (Table‑Valued Parameter) Guidance
-
-- Create SQL types with the minimal necessary columns and indexes where relevant.
-- Use `[GenerateTvp]` for zero-boilerplate TVP mapping. The generator uses `IEnumerable<SqlDataRecord>` internally for efficient streaming.
-- Ensure the .NET TVP columns (constructor parameters) match the SQL TVP type definition exactly.
-- Keep TVP payload sizes reasonable. Extremely large TVPs can increase CPU and memory usage on both ends.
-- Pass TVPs read‑only (as required by SQL Server) and consider batching if sets are very large.
-
-## Caching Strategy
-
-Choose the right cache per call via StoredProcedureParametersBuilder:
-
-- Frozen cache
-  - In‑process, immutable, fastest.
-  - Use only for static reference data that rarely/never changes (e.g., lookup tables).
-  - No expiration, cleared when the process restarts.
-- In‑memory cache
-  - In‑process with expiration. Good for hot paths where staleness is acceptable.
-  - Always set a sensible expiration.
-- Redis cache
-  - Distributed, optional. Use in multi‑instance deployments for shared caching.
-  - Secure with TLS and auth. Set expirations aligned with your invalidation strategy.
-
-Cache key design:
-- Deterministic, short, and descriptive (e.g., users:age:>=30).
-- Include input parameters and stable identifiers.
-- Prefer lowercase and colon separators.
-
-Invalidation:
-- Prefer time‑based expiry for mutable data.
-- For Frozen cache, only cache immutable data to avoid invalidation complexity.
-
-## Performance Tips
-
-- Set ResultSetCapacity accurately to minimize list/array resizing.
-- Return only required columns. Avoid over‑fetching.
-- Avoid unnecessary allocations in hot paths; use ReadOnlyCollection/ImmutableArray variants where appropriate.
-- Benchmark critical flows. Keep an eye on memory pressure for Frozen and In‑Memory caches.
-- For very large multi‑result queries, use the MultiIEnumerable APIs to stream sets efficiently.
-- `SearchValues<char>` SIMD validation: CaeriusNet uses `SearchValues<char>` for parameter name validation — near-zero cost character scanning on modern CPUs.
-- Lock-free `FrozenCache` reads: The Frozen cache uses `FrozenDictionary<TKey, TValue>` for zero-contention concurrent reads without locks.
-- `GC.AllocateUninitializedArray`: Large result arrays use uninitialized allocation to skip zero-fill overhead when the array will be fully populated.
-
-## Transaction Best Practices
-
-- Keep transactions as short as possible — hold locks only for the duration of the actual database work.
-- Always use `await using` to guarantee `DisposeAsync` runs on all code paths.
-- Pass `CancellationToken` to all transactional methods — this cancels in-flight SQL commands if the request is aborted.
-- Use the lowest isolation level that meets your consistency requirements (`ReadCommitted` is the default).
-- Avoid performing non-database I/O (HTTP calls, file writes) inside a transaction scope.
-- Retry the entire transaction at the caller level if a poison state occurs — do not attempt partial recovery.
-
-```csharp
-// ✅ Short, focused transaction with cancellation
-await using var tx = await dbContext.BeginTransactionAsync(
-    IsolationLevel.ReadCommitted, cancellationToken);
-
-await tx.ExecuteNonQueryAsync(spDebit, cancellationToken);
-await tx.ExecuteNonQueryAsync(spCredit, cancellationToken);
-await tx.CommitAsync(cancellationToken);
-```
-
-## Logging Best Practices
-
-- Configure `LoggerProvider.SetLogger(...)` early in application startup — before any database calls.
-- Filter by event ID range to reduce noise: suppress cache events (1xxx–3xxx) in production; keep command execution (5xxx) at `Information`.
-- Use structured logging sinks (Seq, Elasticsearch, OTLP) to leverage CaeriusNet's named parameters (`{ProcedureName}`, `{Duration}`, `{RowCount}`).
-- Set up alerts on event ID 5003 (slow execution threshold) and 5004 (command failure) for production monitoring.
+- Configure `ILoggerFactory` **before** `CaeriusNetBuilder.Build()` — DI then wires the logger automatically.
+- Filter by event-ID category to control verbosity per subsystem:
+  - `CaeriusNet.Cache` → `Warning` in production
+  - `CaeriusNet.Commands` → `Information` to keep timing visible
+- Use **structured sinks** (Seq, Elasticsearch, OTLP) to leverage CaeriusNet's named placeholders (`{ProcedureName}`, `{Duration}`, `{RowCount}`).
+- Set up alerts on event ID **5003** (slow execution) and **5004** (command failure) for production monitoring.
 
 ```csharp
 builder.Services.AddLogging(logging =>
 {
-    logging.AddFilter("CaeriusNet.Cache", LogLevel.Warning);   // quiet in prod
-    logging.AddFilter("CaeriusNet.Commands", LogLevel.Information); // keep timing
+    logging.AddFilter("CaeriusNet.Cache",    LogLevel.Warning);
+    logging.AddFilter("CaeriusNet.Commands", LogLevel.Information);
 });
 ```
 
-## Async, Cancellation, and Reliability
+See [Logging & Observability](/documentation/logging) for the complete event-ID reference.
 
-- All APIs are asynchronous by design. Don’t block on async calls.
-- Propagate CancellationToken from the request boundary to database calls.
-- Configure reasonable command/connection timeouts in connection strings or command options.
-- Open one connection per operation via ICaeriusNetDbContext.DbConnection(), and dispose it promptly (handled by library helpers).
+## Async, cancellation, reliability
 
-## Error Handling and Troubleshooting
+- All APIs are asynchronous by design — never block on async calls (`.Result`, `.Wait()`).
+- Propagate `CancellationToken` from the request boundary down to every database call.
+- Configure reasonable command and connection timeouts in your connection string.
+- The library opens, uses, and disposes connections automatically — do not manage `SqlConnection` instances manually.
 
-Common issues and resolutions:
+## Error handling
 
-- Connection issues (Aspire)
-  - Ensure WithAspireSqlServer("name") matches your AppHost AddSqlServer/AddDatabase name.
-  - Confirm the connection string is available at runtime (AppHost injection).
-- TVP type mismatch
-  - Verify schema and type name (Schema.TvpName) match between SQL and .NET.
-  - Ensure constructor parameters and SQL TVP columns align (order and types).
-- Mapping errors
-  - InvalidCastException typically indicates an ordinal/type mismatch. Check DTO constructor order and SQL SELECT order.
-- Cache misses
-  - Verify identical cache keys and parameters across calls. For Redis, check connectivity and configuration.
-- Memory growth
-  - Frozen cache is immutable and monotonic. Use only for true constants.
-  - Tune In‑Memory cache expiration and avoid caching very large payloads unnecessarily.
+| Issue | Likely cause | Fix |
+|---|---|---|
+| `InvalidCastException` at runtime | Reader method or DTO type doesn't match SQL column type | Align the `Get*` call (or DTO field type) with the actual SQL type |
+| `IndexOutOfRangeException` | DTO has more parameters than the SP returns columns | Re-check `SELECT` arity and DTO parameter count |
+| Aspire connection failure | `WithAspireSqlServer("name")` does not match AppHost name | Cross-check the resource name in the AppHost |
+| TVP type mismatch | Schema/TvpName diverge between SQL and .NET, or column order is wrong | Re-align `[GenerateTvp]` arguments and constructor params |
+| Cache miss when hit was expected | Different keys per call | Build keys deterministically from inputs |
+| Memory growth (Frozen) | Frozen used for non-static data | Switch to InMemory with TTL |
 
-## Security Considerations
+## Security
 
-- Use stored procedures with parameters to avoid SQL injection.
-- Do not cache sensitive data unless necessary and lawful. Prefer short expirations and encryption at rest/in‑transit.
-- Secure Redis with TLS and authentication; restrict network access to trusted environments.
-- Limit SQL permissions for the application user to the minimum required.
+- Use Stored Procedures with parameters — no string concatenation, no dynamic SQL.
+- **Never cache sensitive data** (passwords, tokens, raw PII) without explicit threat-modelling.
+- Secure Redis with TLS and authentication; restrict network access.
+- Grant the application user the **minimum required SQL permissions** (`EXECUTE` on the SP schema, no `dbo`).
 
-## Versioning and Migrations
+## Versioning & migrations
 
-- Treat stored procedures and DTOs as a contract. Version them when breaking changes are needed.
-- Add new procedures and DTOs alongside existing ones during migrations, then deprecate old versions.
+- Treat Stored Procedures and DTOs as a contract — version them when breaking changes are needed (e.g. `sp_GetUsers` → `sp_GetUsers_v2`).
+- Add new procedures alongside existing ones; deprecate old ones once consumers migrate.
 
-## Examples
+## Quick reference
 
-- Read with caching (In‑memory):
 ```csharp
+// Read with caching
 var sp = new StoredProcedureParametersBuilder("Users", "usp_Get_All_Users", 250)
     .AddInMemoryCache("users:all", TimeSpan.FromMinutes(2))
     .Build();
-var users = await dbContext.QueryAsReadOnlyCollectionAsync<UserDto>(sp, cancellationToken);
+
+var users = await dbContext.QueryAsReadOnlyCollectionAsync<UserDto>(sp, ct);
 ```
 
-- Write with affected rows:
 ```csharp
+// Update with affected rows
 var sp = new StoredProcedureParametersBuilder("dbo", "sp_UpdateUserAge_By_Guid")
     .AddParameter("Guid", guid, SqlDbType.UniqueIdentifier)
-    .AddParameter("Age", age, SqlDbType.TinyInt)
+    .AddParameter("Age",  age,  SqlDbType.TinyInt)
     .Build();
-int rows = await dbContext.ExecuteNonQueryAsync(sp, cancellationToken);
+
+var rows = await dbContext.ExecuteNonQueryAsync(sp, ct);
 ```
 
-- TVP example:
 ```csharp
-var tvpItems = new List<UsersIdsTvp> { new(1), new(2), new(3) };
-var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Tvp_Ids", 256)
-    .AddTvpParameter("Ids", tvpItems)
+// TVP read
+var tvp = userIds.Select(id => new UserIdTvp(id));
+var sp  = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Tvp_Ids", 256)
+    .AddTvpParameter("Ids", tvp)
     .Build();
-var users = await dbContext.QueryAsIEnumerableAsync<UserDto>(sp, cancellationToken);
+
+var users = await dbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct);
 ```
 
 ---
 
-Use this page as a checklist when designing new queries or optimizing existing ones. For detailed APIs and examples, see [Reading Data](/documentation/reading-data), [Writing Data](/documentation/writing-data), [Caching](/documentation/cache), and [API Reference](/documentation/api).
+Use this page as a checklist when designing new queries or auditing existing ones. For deeper APIs and patterns, see [API Reference](/documentation/api), [Advanced Usage](/documentation/advanced-usage), and the [Examples](/examples/).

@@ -267,6 +267,42 @@ CaeriusNet uses `[LoggerMessage]` source-generated structured logging with zero-
 All events include structured properties (cache key, schema, procedure name, elapsed time, row count) for integration
 with OpenTelemetry, Seq, Application Insights, or any `ILogger` sink.
 
+### Tracing & Metrics (OpenTelemetry / Aspire)
+
+CaeriusNet also publishes OpenTelemetry-compatible **traces** and **metrics** through the BCL primitives — no
+OpenTelemetry SDK package is added to the library. Consumers (typically an Aspire `ServiceDefaults` project) opt-in
+by registering the source/meter named `CaeriusNet`:
+
+```csharp
+using CaeriusNet.Telemetry;
+
+builder.Services.AddOpenTelemetry()
+    .WithTracing(t => t.AddSource(CaeriusDiagnostics.SourceName))
+    .WithMetrics(m => m.AddMeter(CaeriusDiagnostics.SourceName));
+```
+
+Spans are `ActivityKind.Client`, named `SP {schema}.{procedure}`, and tagged with the OpenTelemetry DB semantic
+conventions (`db.system = mssql`, `db.operation`, `db.statement`) plus library-specific attributes:
+
+- `caerius.sp.schema`, `caerius.sp.name`, `caerius.sp.command`, `caerius.sp.parameters` (names only by default;
+  `CaptureParameterValues` defaults to `false` — set it to `true` on `CaeriusTelemetryOptions` to also capture
+  `@name=value` pairs, but keep it disabled in production to avoid leaking PII or secrets into telemetry back-ends)
+- `caerius.tvp.used` (`true`/`false`) and `caerius.tvp.type_name` when a Table-Valued Parameter is attached
+- `caerius.resultset.multi` and `caerius.resultset.expected_count` (1 by default, 2/3/4/5 for the multi-RS overloads)
+- `caerius.cache.tier` / `caerius.cache.hit` (set on the active span when a cache lookup occurs)
+- `caerius.tx = true` when the call runs inside an `ICaeriusNetTransaction`
+- `caerius.rows_returned` / `caerius.rows_affected` on success
+
+Metrics exposed by the `CaeriusNet` meter:
+
+- `caerius.sp.duration` (Histogram, ms)
+- `caerius.sp.executions` (Counter)
+- `caerius.sp.errors` (Counter)
+- `caerius.cache.lookups` (Counter, tagged with `caerius.cache.tier` and `caerius.cache.hit`)
+
+When a cache hit short-circuits the SQL call, no DB span is created — only `caerius.cache.lookups{hit=true}` is
+emitted, so the Aspire dashboard accurately reflects that the database was not contacted.
+
 ## Documentation
 
 Full documentation, samples, and API reference: **[https://caerius.net](https://caerius.net)**

@@ -1,16 +1,18 @@
 # Table-Valued Parameters
 
-Table-Valued Parameters (TVP) let you pass an entire set of rows — IDs, GUIDs, composite keys — as a single parameter to a SQL Server Stored Procedure. CaeriusNet implements TVP streaming via `IEnumerable<SqlDataRecord>`, which avoids `DataTable` allocation and streams data directly to the TDS protocol layer.
+Table-Valued Parameters (TVP) let you pass an entire **set of rows** — IDs, GUIDs, composite keys, or wider row shapes — as a single typed parameter to a SQL Server Stored Procedure. CaeriusNet implements TVP transport via streaming `IEnumerable<SqlDataRecord>`, which avoids `DataTable` allocations and feeds rows directly to the TDS protocol layer.
 
-## What is a TVP?
+## Why TVPs?
 
-A TVP is a SQL Server user-defined table type that can be passed as a read-only parameter (`READONLY`) to Stored Procedures. Instead of sending 1 000 IDs one by one, you send a single structured table with 1 000 rows in one round-trip.
+A TVP is a SQL Server **user-defined table type** that you pass as a `READONLY` parameter. Instead of sending 1 000 IDs one by one (or padding a dynamic SQL `IN`-list), you send a single structured table with 1 000 rows in one round-trip.
 
 ```sql
 -- 1. Create the SQL Server type
-CREATE TYPE dbo.tvp_int AS TABLE (
+CREATE TYPE dbo.tvp_int AS TABLE
+(
     Id INT NOT NULL
 );
+GO
 
 -- 2. Use it in a Stored Procedure
 CREATE PROCEDURE dbo.sp_GetUsers_By_Tvp_Ids
@@ -19,16 +21,17 @@ AS
 BEGIN
     SET NOCOUNT ON;
     SELECT Id, Username, Age
-    FROM dbo.Users
-    WHERE Id IN (SELECT Id FROM @Ids);
+    FROM   dbo.Users
+    WHERE  Id IN (SELECT Id FROM @Ids);
 END
+GO
 ```
 
 ## C# implementation
 
 ### Source-generated (recommended)
 
-Annotate a sealed partial record with `[GenerateTvp]`. Provide the SQL schema and type name:
+Annotate a sealed partial record with `[GenerateTvp]` and provide the SQL `Schema` and `TvpName`:
 
 ```csharp
 using CaeriusNet.Attributes.Tvp;
@@ -37,7 +40,7 @@ using CaeriusNet.Attributes.Tvp;
 public sealed partial record UserIdTvp(int Id);
 ```
 
-The generator emits `ITvpMapper<UserIdTvp>` with a zero-allocation `SqlDataRecord` streaming implementation. See [Source Generators](/documentation/source-generators) for details on the generated code.
+The generator emits `ITvpMapper<UserIdTvp>` with a zero-allocation `SqlDataRecord` streaming implementation. See [Source Generators](/documentation/source-generators#generatetvp-tvp-mapper) for the generated shape.
 
 ### Manual implementation
 
@@ -55,58 +58,60 @@ public sealed record UserIdTvp(int Id) : ITvpMapper<UserIdTvp>
     public IEnumerable<SqlDataRecord> MapAsSqlDataRecords(IEnumerable<UserIdTvp> items)
     {
         var metaData = new[] { new SqlMetaData("Id", SqlDbType.Int) };
-        var record = new SqlDataRecord(metaData);  // single instance reused across all rows
+        var record   = new SqlDataRecord(metaData); // single instance reused across all rows
+
         foreach (var item in items)
         {
             record.SetInt32(0, item.Id);
-            yield return record;    // Microsoft.Data.SqlClient reads values before advancing
+            yield return record;
         }
     }
 }
 ```
 
-::: tip Single-instance reuse
-A single `SqlDataRecord` is created once and its values are overwritten before each `yield return`. `Microsoft.Data.SqlClient` reads all column values synchronously before moving to the next row, making this zero-copy pattern safe.
+::: tip Why a single reused `SqlDataRecord`?
+`Microsoft.Data.SqlClient` reads all column values synchronously before advancing to the next row, so overwriting the same instance between `yield return` calls is safe and avoids one allocation per row.
 :::
 
-## Using TVP with the builder
+## Using a TVP with the builder
 
 Pass the TVP collection via `AddTvpParameter`:
 
 ```csharp
 var ids = users.Select(u => new UserIdTvp(u.Id)).ToList();
 
-var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Tvp_Ids", 1024)
+var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Tvp_Ids", capacity: 1024)
     .AddTvpParameter("Ids", ids)
     .Build();
 
-var users = await dbContext.QueryAsIEnumerableAsync<UserDto>(sp, cancellationToken);
+var matchedUsers = await dbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct);
 ```
 
 ::: warning Empty collections throw
-`AddTvpParameter` validates that the collection is non-empty. Passing an empty `IEnumerable<T>` throws `ArgumentException`. Validate before calling:
+`AddTvpParameter` requires a non-empty collection — SQL Server rejects empty TVPs. Validate before calling:
 
 ```csharp
 if (ids.Count == 0) return [];
 ```
 :::
 
-## Combining TVP with regular parameters
+## Combining a TVP with regular parameters
 
-Mix `.AddTvpParameter()` and `.AddParameter()` freely. Order does not matter for SQL Server, but match the SP parameter names exactly:
+`AddTvpParameter` and `AddParameter` mix freely. Order does not matter for SQL Server, but parameter names must match the SP definition exactly:
 
 ```sql
 CREATE PROCEDURE dbo.sp_GetUsers_By_Tvp_Ids_And_Age
-    @Ids   dbo.tvp_int READONLY,
-    @Age   INT
+    @Ids dbo.tvp_int READONLY,
+    @Age INT
 AS
 BEGIN
     SET NOCOUNT ON;
     SELECT Id, Username, Age
-    FROM dbo.Users
-    WHERE Id IN (SELECT Id FROM @Ids)
-      AND Age >= @Age;
+    FROM   dbo.Users
+    WHERE  Id IN (SELECT Id FROM @Ids)
+       AND Age >= @Age;
 END
+GO
 ```
 
 ```csharp
@@ -116,14 +121,15 @@ var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Tvp_Ids_And
     .Build();
 ```
 
-## Multi-column TVP
+## Multi-column TVPs
 
-TVPs are not limited to a single column. Define as many columns as needed:
+TVPs are not limited to a single column. Define as many columns as needed and the generator handles them all:
 
 ```sql
-CREATE TYPE dbo.tvp_user_key AS TABLE (
-    Id    INT  NOT NULL,
-    Guid  UNIQUEIDENTIFIER NOT NULL
+CREATE TYPE dbo.tvp_user_key AS TABLE
+(
+    Id   INT              NOT NULL,
+    Guid UNIQUEIDENTIFIER NOT NULL
 );
 ```
 
@@ -132,15 +138,25 @@ CREATE TYPE dbo.tvp_user_key AS TABLE (
 public sealed partial record UserKeyTvp(int Id, Guid Guid);
 ```
 
-## Performance notes
+## Performance characteristics
 
 | Aspect | Detail |
 |---|---|
-| Allocation | Single `SqlDataRecord` allocated per call, reused across all rows |
-| Protocol | TDS-native structured parameter — no XML serialization |
+| Allocation | Single `SqlDataRecord` allocated per call, reused for every row |
+| Protocol | TDS-native structured parameter — no XML, no JSON, no `DataTable` |
 | Throughput | Scales to tens of thousands of rows efficiently |
-| `DataTable` | Not used — avoids boxing all values into `object[]` rows |
-| Empty guard | `ArgumentException` prevents empty TVP (SQL Server requires ≥ 1 row) |
+| Boxing | Strongly-typed `Set*` calls (`SetInt32`, `SetGuid`, …) — no `object[]` row materialization |
+| Empty input | `ArgumentException` prevents an invalid call (SQL Server requires ≥ 1 row) |
+
+## Telemetry
+
+When a TVP is attached, the corresponding SP span is tagged accordingly:
+
+| Tag | Value |
+|---|---|
+| `caerius.tvp.used` | `true` |
+| `caerius.tvp.type_name` | The TVP type name (e.g. `dbo.tvp_int`); comma-separated when several TVPs are used |
+| `caerius.sp.parameters` | `[TVP]` is shown for the TVP entry — the row data is never inlined into the span, even when `CaptureParameterValues = true` |
 
 ---
 

@@ -1,25 +1,25 @@
 # Source Generators
 
-CaeriusNet ships two Roslyn incremental source generators that eliminate mapping boilerplate at compile time. Both generators run as part of your build — they produce zero runtime overhead and are fully AOT-compatible.
+CaeriusNet ships two Roslyn **incremental source generators** that eliminate mapping boilerplate at compile time. They run as part of your build, produce zero runtime overhead, and are fully AOT- and trim-compatible.
 
 ## Overview
 
-| Generator | Attribute | Interface generated |
+| Generator | Attribute | Generated interface |
 |---|---|---|
 | `DtoSourceGenerator` | `[GenerateDto]` | `ISpMapper<T>` |
 | `TvpSourceGenerator` | `[GenerateTvp]` | `ITvpMapper<T>` |
 
-Both generators target **sealed partial records or classes**. The `partial` keyword lets the generator add the interface implementation as a second partial declaration alongside your type.
+Both generators target **sealed partial records or classes** with a primary constructor. The `partial` keyword lets the generator add the interface implementation as a second declaration alongside your type. Constraints are enforced at compile time by the [CaeriusNet analyzer](/documentation/diagnostics) (`CAERIUS001`–`CAERIUS005`).
 
 ## `[GenerateDto]` — DTO mapper
 
-Annotate a sealed partial record or class with `[GenerateDto]`. The generator emits a `MapFromDataReader` method with ordinal-based column reads, correct nullability guards, and special type conversions.
+Annotate a sealed partial record (or class) with `[GenerateDto]`. The generator emits a `MapFromDataReader` method with ordinal-based column reads, correct nullability guards, and special-type conversions.
 
 ### Requirements
 
 - Type must be `sealed`
 - Type must be `partial`
-- Type must use a primary constructor (the constructor parameters become the mapped columns, in order)
+- Type must declare a **primary constructor** — its parameters become the mapped columns, in order.
 
 ### Basic example
 
@@ -53,10 +53,10 @@ partial record UserDto : ISpMapper<UserDto>
 ```
 
 ::: details Generated code attributes
-- `[GeneratedCode]` marks the file as tool-generated for IDE and analysis tooling
+- `[GeneratedCode]` marks the file as tool-generated for IDEs and analysis tooling
 - `[MethodImpl(AggressiveInlining)]` on `MapFromDataReader` enables JIT inlining of the hot-path mapper
 - `#pragma warning disable CS1591` suppresses XML doc warnings on generated code
-- `#nullable enable` ensures nullable analysis applies to generated types
+- `#nullable enable` ensures nullable analysis applies regardless of project-level settings
 :::
 
 ### Nullable fields
@@ -87,22 +87,72 @@ public static ProductDto MapFromDataReader(SqlDataReader reader)
 | `Half` | `(Half)reader.GetFloat(n)` |
 | `byte[]` | `reader.GetFieldValue<byte[]>(n)` |
 
-::: tip Half type support
-`System.Half` maps to SQL `real`. The generator reads via `GetFloat` and casts to `Half`. Use for low-precision floating-point values where memory is constrained.
+::: tip `Half` support
+`System.Half` maps to SQL `real`. The generator reads via `GetFloat` and casts to `Half`. Use it for low-precision floating-point values where memory matters.
+:::
+
+### Ordinal constants for wide DTOs
+
+For DTOs with **more than 8 properties**, the generator emits named ordinal constants for readability:
+
+```csharp
+[GenerateDto]
+public sealed partial record LargeDto(
+    int Id, string Name, string Email, byte Age,
+    DateTime CreatedAt, DateTime? UpdatedAt, bool IsActive,
+    decimal Balance, string Country, string? Phone);
+```
+
+Generated (simplified):
+
+```csharp
+partial record LargeDto : ISpMapper<LargeDto>
+{
+    private const int OrdId = 0;
+    private const int OrdName = 1;
+    private const int OrdEmail = 2;
+    private const int OrdAge = 3;
+    private const int OrdCreatedAt = 4;
+    private const int OrdUpdatedAt = 5;
+    private const int OrdIsActive = 6;
+    private const int OrdBalance = 7;
+    private const int OrdCountry = 8;
+    private const int OrdPhone = 9;
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public static LargeDto MapFromDataReader(SqlDataReader reader)
+        => new(
+            reader.GetInt32(OrdId),
+            reader.GetString(OrdName),
+            reader.GetString(OrdEmail),
+            reader.GetByte(OrdAge),
+            reader.GetDateTime(OrdCreatedAt),
+            reader.IsDBNull(OrdUpdatedAt) ? null : reader.GetDateTime(OrdUpdatedAt),
+            reader.GetBoolean(OrdIsActive),
+            reader.GetDecimal(OrdBalance),
+            reader.GetString(OrdCountry),
+            reader.IsDBNull(OrdPhone) ? null : reader.GetString(OrdPhone));
+}
+```
+
+::: tip Why a threshold?
+Compact DTOs read well with raw indices; wide ones do not. The 8-property threshold keeps simple cases terse and improves readability for wider result sets.
 :::
 
 ## `[GenerateTvp]` — TVP mapper
 
-Annotate a sealed partial record or class with `[GenerateTvp]`. The generator emits:
-- `TvpTypeName` static property (e.g., `"dbo.tvp_int"`)
-- `_tvpMetaData` static `SqlMetaData[]` field (one entry per property)
-- `MapAsSqlDataRecords` iterator that **reuses a single `SqlDataRecord`** instance across all rows (zero-copy streaming)
+Annotate a sealed partial record (or class) with `[GenerateTvp]` and provide the SQL schema and type name. The generator emits:
+
+- A static `TvpTypeName` property (e.g., `"dbo.tvp_int"`)
+- A static `_tvpMetaData` `SqlMetaData[]` field — one entry per constructor parameter
+- A `MapAsSqlDataRecords` iterator that **reuses a single `SqlDataRecord`** instance across all rows (zero-copy streaming)
 
 ### Requirements
 
 - Type must be `sealed`
 - Type must be `partial`
-- Attribute requires `Schema` and `TvpName` named arguments
+- Attribute requires **`Schema`** and **`TvpName`** named arguments
+- `TvpName` cannot be empty (analyzer rule `CAERIUS004`)
 
 ### Basic example
 
@@ -146,9 +196,13 @@ partial record UserIdTvp : ITvpMapper<UserIdTvp>
 }
 ```
 
+::: tip Why a single reused `SqlDataRecord`?
+`Microsoft.Data.SqlClient` synchronously consumes all column values before advancing to the next row, so overwriting the same record between `yield return` calls is safe — and it skips one allocation per row, which adds up at TVP sizes of 10 000 +.
+:::
+
 ### Nullable TVP fields
 
-The generator emits `record.SetDBNull(n)` for nullable fields when the value is null:
+The generator emits `record.SetDBNull(n)` for nullable fields whose value is null:
 
 ```csharp
 [GenerateTvp(Schema = "dbo", TvpName = "tvp_optional")]
@@ -171,80 +225,32 @@ public sealed partial record UserIdTvp(int Id);
 |---|---|---|
 | `MapFromDataReader` | You write it | Compiler emits it |
 | Ordinal indices | You manage them | Auto-assigned from constructor order |
-| Nullable guards | You add `IsDBNull` | Emitted when field is nullable |
-| `SqlDataRecord` reuse | You implement it | Always reused (single instance) |
-| Compilation | Compiles as-is | Requires `sealed partial` |
-| Build-time errors | Runtime | Compile-time |
+| Nullable guards | You add `IsDBNull` checks | Emitted when the parameter is nullable |
+| `SqlDataRecord` reuse (TVP) | You implement it | Always reused (single instance) |
+| Compilation requirement | Compiles as-is | Requires `sealed partial` + primary ctor |
+| Contract violation feedback | Discovered at runtime | Reported at build time by the analyzer |
 
 ## Enabling the generators
 
-The generators ship **inside the CaeriusNet NuGet package** as an embedded Roslyn analyzer. No additional package or MSBuild configuration is required.
+The generators ship **inside the `CaeriusNet` NuGet package** as embedded Roslyn analyzers. No additional package, MSBuild target, or property is required.
 
-```shell
+```bash
 dotnet add package CaeriusNet
 ```
 
 Once added, `[GenerateDto]` and `[GenerateTvp]` are available in the `CaeriusNet.Attributes.Dto` and `CaeriusNet.Attributes.Tvp` namespaces.
 
 ::: tip Inspecting generated code
-Set `<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>` in your `.csproj` to write generated files to `obj/Generated/` for inspection.
+Set `<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>` in your `.csproj` to write generated files to `obj/Generated/` for inspection. Useful when debugging mapper behaviour or reviewing what the compiler produced.
 :::
 
-## Ordinal constants
-
-For DTOs with many columns (more than 8), the generator emits named ordinal constants for readability:
-
-```csharp
-[GenerateDto]
-public sealed partial record LargeDto(
-    int Id, string Name, string Email, byte Age,
-    DateTime CreatedAt, DateTime? UpdatedAt, bool IsActive,
-    decimal Balance, string Country, string? Phone);
-```
-
-Generated:
-
-```csharp
-partial record LargeDto : ISpMapper<LargeDto>
-{
-    private const int OrdId = 0;
-    private const int OrdName = 1;
-    private const int OrdEmail = 2;
-    private const int OrdAge = 3;
-    private const int OrdCreatedAt = 4;
-    private const int OrdUpdatedAt = 5;
-    private const int OrdIsActive = 6;
-    private const int OrdBalance = 7;
-    private const int OrdCountry = 8;
-    private const int OrdPhone = 9;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static LargeDto MapFromDataReader(SqlDataReader reader)
-        => new(
-            reader.GetInt32(OrdId),
-            reader.GetString(OrdName),
-            reader.GetString(OrdEmail),
-            reader.GetByte(OrdAge),
-            reader.GetDateTime(OrdCreatedAt),
-            reader.IsDBNull(OrdUpdatedAt) ? null : reader.GetDateTime(OrdUpdatedAt),
-            reader.GetBoolean(OrdIsActive),
-            reader.GetDecimal(OrdBalance),
-            reader.GetString(OrdCountry),
-            reader.IsDBNull(OrdPhone) ? null : reader.GetString(OrdPhone));
-}
-```
-
-::: tip Threshold
-The ordinal constant threshold (>8 properties) keeps simple DTOs compact while improving readability for wider result sets.
-:::
-
-## Pragma directives
+## Pragma directives in generated files
 
 All generated files include standard pragma directives:
 
 ```csharp
 // <auto-generated/>
-#pragma warning disable CS1591  // Missing XML comment
+#pragma warning disable CS1591  // Missing XML comment on a public member
 #nullable enable
 ```
 
@@ -253,4 +259,4 @@ All generated files include standard pragma directives:
 
 ---
 
-**Next:** [Table-Valued Parameters](/documentation/tvp) — bulk inputs without DataTable overhead.
+**Next:** [Table-Valued Parameters](/documentation/tvp) — bulk inputs without `DataTable` overhead.

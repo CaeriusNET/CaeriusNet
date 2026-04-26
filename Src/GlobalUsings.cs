@@ -13,6 +13,7 @@ global using Microsoft.Extensions.Caching.Memory;
 global using System.Collections.Frozen;
 global using System.Text.Json;
 global using CaeriusNet.Caches;
+global using CaeriusNet.Telemetry;
 global using CaeriusNet.Helpers;
 global using CaeriusNet.Logging;
 global using Microsoft.Extensions.Caching.Distributed;

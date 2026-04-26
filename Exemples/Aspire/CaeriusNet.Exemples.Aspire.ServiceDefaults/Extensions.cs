@@ -68,11 +68,16 @@ public static class Extensions
                 {
                     metrics.AddAspNetCoreInstrumentation()
                         .AddHttpClientInstrumentation()
-                        .AddRuntimeInstrumentation();
+                        .AddRuntimeInstrumentation()
+                        // CaeriusNet metrics: caerius.sp.duration, caerius.sp.executions,
+                        // caerius.sp.errors, caerius.cache.lookups.
+                        .AddMeter("CaeriusNet");
                 })
                 .WithTracing(tracing =>
                 {
                     tracing.AddSource(builder.Environment.ApplicationName)
+                        // CaeriusNet stored procedure spans (kind = Client, db.system = mssql).
+                        .AddSource("CaeriusNet")
                         .AddAspNetCoreInstrumentation(tracing =>
                             // Exclude health check requests from tracing
                             tracing.Filter = context =>

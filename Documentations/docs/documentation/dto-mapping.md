@@ -1,16 +1,20 @@
 # DTO Mapping
 
-CaeriusNet maps SQL Server result sets to C# DTOs at **compile time** — no reflection, no dynamic expression trees, no surprises at runtime.
+CaeriusNet maps SQL Server result sets to C# DTOs at **compile time** — no reflection, no expression-tree compilation, no runtime metadata lookups. This page explains how the contract works, what it requires from your DTOs, and the few special cases worth knowing.
 
 ## How it works
 
-Every DTO must implement `ISpMapper<T>`, a static-interface contract that provides a single `MapFromDataReader` method. Reads are **ordinal-based**: columns are accessed by index rather than by name, which eliminates per-row string lookups and matches the TDS wire protocol directly.
+Every DTO implements `ISpMapper<T>`, a static-interface contract with a single method:
 
 ```csharp
 public static abstract T MapFromDataReader(SqlDataReader reader);
 ```
 
-## The `ISpMapper<T>` interface
+Reads are **ordinal-based**: each column is accessed by its zero-based index rather than by name. This eliminates per-row string lookups and matches the TDS wire protocol directly — the column order in your `SELECT` statement is the contract between SQL and C#.
+
+You can implement `ISpMapper<T>` manually, or — preferably — let the source generator emit it for you with `[GenerateDto]`. Both produce the same machine code; the generator simply removes the boilerplate.
+
+## A manual `ISpMapper<T>`
 
 ```csharp
 using CaeriusNet.Mappers;
@@ -27,20 +31,18 @@ public sealed record UserDto(int Id, string Username, byte Age)
 }
 ```
 
-Column indices **must match** the `SELECT` column order in your Stored Procedure. Declare your DTO properties in the same order as the SP result columns.
+The constructor parameter order **must** match the `SELECT` column order in your Stored Procedure.
 
-## Column order contract
+## Column order is the contract
 
-The column at position `0` in the result set is read by ordinal `0`. Your Stored Procedure defines the contract:
+The column at position `0` in the result set is read at ordinal `0`. Your Stored Procedure defines the contract:
 
 ```sql
 -- Columns: Id (0), Username (1), Age (2)
 SELECT Id, Username, Age
-FROM dbo.Users
-WHERE Age >= @Age
+FROM   dbo.Users
+WHERE  Age >= @Age;
 ```
-
-The matching DTO:
 
 ```csharp
 public sealed record UserDto(int Id, string Username, byte Age)
@@ -57,7 +59,7 @@ If the SP `SELECT` order changes, update the ordinal indices in `MapFromDataRead
 
 ## Nullable columns
 
-Use `reader.IsDBNull(ordinal)` before reading nullable columns. For nullable reference types (`string?`) and nullable value types (`int?`):
+Use `reader.IsDBNull(ordinal)` before reading nullable columns. The pattern applies equally to nullable reference types (`string?`) and nullable value types (`int?`):
 
 ```csharp
 public sealed record ItemDto(int Id, string? Description, int? Quantity)
@@ -71,18 +73,21 @@ public sealed record ItemDto(int Id, string? Description, int? Quantity)
 }
 ```
 
+The source generator emits these guards automatically when the constructor parameter is declared nullable.
+
 ## Special type conversions
 
-Some C# types require explicit conversion from their SQL Server equivalents:
+A handful of C# types do not have a direct `Get*` method on `SqlDataReader` and require an explicit conversion:
 
-| C# type | SQL type | Conversion |
+| C# type | SQL type | Conversion expression |
 |---|---|---|
 | `DateOnly` | `date` / `datetime2` | `DateOnly.FromDateTime(reader.GetDateTime(n))` |
 | `TimeOnly` | `time` | `TimeOnly.FromDateTime(reader.GetDateTime(n))` |
-| `byte[]` | `varbinary` | `(byte[])reader.GetValue(n)` |
+| `Half` | `real` | `(Half)reader.GetFloat(n)` |
+| `byte[]` | `varbinary` / `image` | `reader.GetFieldValue<byte[]>(n)` |
 | `ushort` | `int` | `(ushort)reader.GetInt32(n)` |
 
-Example with `DateOnly` and `byte[]`:
+Example combining `DateOnly` and `byte[]`:
 
 ```csharp
 public sealed record DocumentDto(int Id, DateOnly CreatedDate, byte[] Content)
@@ -92,16 +97,18 @@ public sealed record DocumentDto(int Id, DateOnly CreatedDate, byte[] Content)
         => new(
             reader.GetInt32(0),
             DateOnly.FromDateTime(reader.GetDateTime(1)),
-            (byte[])reader.GetValue(2));
+            reader.GetFieldValue<byte[]>(2));
 }
 ```
 
+The source generator handles all of the above automatically.
+
 ## Enum mapping
 
-Enums map to their underlying integer type in SQL. Cast the reader result:
+Enums map to their underlying integer type in SQL. Cast the reader result accordingly:
 
 ```csharp
-public enum UserStatus : byte { Active = 1, Inactive = 0 }
+public enum UserStatus : byte { Inactive = 0, Active = 1 }
 
 public sealed record UserDto(int Id, UserStatus Status)
     : ISpMapper<UserDto>
@@ -113,7 +120,7 @@ public sealed record UserDto(int Id, UserStatus Status)
 
 ## Source generation (recommended)
 
-Writing `MapFromDataReader` manually is straightforward but repetitive. Use `[GenerateDto]` to have the compiler emit it for you. See the [Source Generators](/documentation/source-generators) page for full details.
+Writing `MapFromDataReader` manually is straightforward but repetitive. Annotate your DTO with `[GenerateDto]` and the generator emits the implementation at build time:
 
 ```csharp
 using CaeriusNet.Attributes.Dto;
@@ -122,14 +129,16 @@ using CaeriusNet.Attributes.Dto;
 public sealed partial record UserDto(int Id, string Username, byte Age);
 ```
 
+The DTO must be `sealed`, `partial`, and use a primary constructor — the [Roslyn analyzer](/documentation/diagnostics) reports a build error if any of these are missing. See the [Source Generators](/documentation/source-generators) page for the full list of features.
+
 ## Common pitfalls
 
-| Issue | Fix |
-|---|---|
-| `InvalidCastException` at runtime | Reader method doesn't match the SQL column type |
-| `IndexOutOfRangeException` | Ordinal index doesn't correspond to actual column count |
-| Null reference exception | Nullable column not guarded with `IsDBNull` |
-| Wrong field values | SP column order doesn't match the DTO constructor order |
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `InvalidCastException` at runtime | Reader method does not match the SQL column type | Align the `Get*` call (or DTO field type) with the actual SQL type |
+| `IndexOutOfRangeException` | Ordinal index does not correspond to an actual column | Re-check the SP `SELECT` arity |
+| `NullReferenceException` on a column | Nullable column not guarded with `IsDBNull` | Make the field nullable or add the guard |
+| Wrong values for several fields | SP column order does not match constructor parameter order | Re-align the SELECT with the constructor |
 
 ---
 
