@@ -1,129 +1,128 @@
-﻿# Transactions
+# Transactions
 
-CaeriusNet provides a lightweight transaction scope that wraps `SqlTransaction` with a thread-safe state machine, automatic rollback on dispose, and cache bypass. Transactions execute multiple commands atomically — either all succeed or all are rolled back.
+CaeriusNet provides a lightweight transaction scope that wraps `SqlTransaction` with a thread-safe state machine, automatic rollback on dispose, cache bypass, and a parent `TX` activity for cohesive tracing. Multiple commands enlisted on the scope succeed or fail **atomically** — there are no partial commits.
 
-## Overview
+## At a glance
 
-| Feature | Behavior |
+| Feature | Behaviour |
 |---|---|
 | **State machine** | `Active` → `Committed` / `RolledBack` / `Poisoned` / `Disposed` |
-| **Thread safety** | `Interlocked.CompareExchange` for state transitions |
-| **Command enforcement** | Single in-flight command (SqlConnection is not thread-safe) |
-| **Failure handling** | Failure poisons the scope — only rollback/dispose remain valid |
+| **Thread safety** | State transitions guarded by `Interlocked.CompareExchange` |
+| **Single in-flight command** | Enforced — `SqlConnection` is not thread-safe |
+| **Failure handling** | A failure poisons the scope; only `RollbackAsync` / `DisposeAsync` remain valid |
 | **Cache** | Bypassed inside transactions (no dirty reads published) |
-| **Auto-rollback** | Uncommitted scope rolls back on `DisposeAsync` |
+| **Auto-rollback** | An uncommitted scope rolls back on `DisposeAsync` |
+| **Telemetry** | Parent `TX` span (kind = Internal) wraps every child SP span |
 | **Logging** | Structured events for start, commit, rollback, and poison |
 
 ## Basic usage
 
 ### Commit example
 
-Execute multiple commands in a single transaction and commit atomically:
+Execute multiple commands and commit atomically:
 
 ```csharp
-await using var tx = await dbContext.BeginTransactionAsync(
-    IsolationLevel.ReadCommitted, cancellationToken);
+await using var tx = await DbContext
+    .BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
 
 var spInsert = new StoredProcedureParametersBuilder("dbo", "sp_InsertOrder")
     .AddParameter("UserId", userId, SqlDbType.Int)
     .AddParameter("Amount", amount, SqlDbType.Decimal)
     .Build();
 
-await tx.ExecuteNonQueryAsync(spInsert, cancellationToken);
+await tx.ExecuteNonQueryAsync(spInsert, ct);
 
 var spUpdate = new StoredProcedureParametersBuilder("dbo", "sp_UpdateUserBalance")
     .AddParameter("UserId", userId, SqlDbType.Int)
-    .AddParameter("Debit", amount, SqlDbType.Decimal)
+    .AddParameter("Debit",  amount, SqlDbType.Decimal)
     .Build();
 
-await tx.ExecuteNonQueryAsync(spUpdate, cancellationToken);
+await tx.ExecuteNonQueryAsync(spUpdate, ct);
 
-await tx.CommitAsync(cancellationToken);
+await tx.CommitAsync(ct);
 ```
 
-### Rollback example
+### Explicit rollback
 
-Explicitly roll back when business logic requires it:
+Roll back deliberately when business logic decides the work should not persist:
 
 ```csharp
-await using var tx = await dbContext.BeginTransactionAsync(
-    IsolationLevel.ReadCommitted, cancellationToken);
+await using var tx = await DbContext
+    .BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
 
 var sp = new StoredProcedureParametersBuilder("dbo", "sp_ReserveInventory")
     .AddParameter("ProductId", productId, SqlDbType.Int)
-    .AddParameter("Quantity", quantity, SqlDbType.Int)
+    .AddParameter("Quantity",  quantity,  SqlDbType.Int)
     .Build();
 
-var reserved = await tx.ExecuteScalarAsync<int>(sp, cancellationToken);
+var reserved = await tx.ExecuteScalarAsync<int>(sp, ct);
 
 if (reserved < quantity)
 {
-    await tx.RollbackAsync(cancellationToken);
+    await tx.RollbackAsync(ct);
     return InventoryResult.InsufficientStock;
 }
 
-await tx.CommitAsync(cancellationToken);
+await tx.CommitAsync(ct);
 return InventoryResult.Reserved;
 ```
 
 ### Auto-rollback on dispose
 
-If `CommitAsync` is never called, `DisposeAsync` automatically rolls back:
+If `CommitAsync` is never called, `DisposeAsync` rolls back automatically:
 
 ```csharp
-await using var tx = await dbContext.BeginTransactionAsync(
-    IsolationLevel.ReadCommitted, cancellationToken);
+await using var tx = await DbContext
+    .BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
 
-await tx.ExecuteNonQueryAsync(sp, cancellationToken);
+await tx.ExecuteNonQueryAsync(sp, ct);
 
-// No CommitAsync — transaction is rolled back when tx is disposed.
+// No CommitAsync — the transaction is rolled back when tx is disposed.
 ```
 
-::: warning Always call CommitAsync explicitly
-Relying on auto-rollback is a safety net, not an intended control flow. Always call `CommitAsync` on the success path for clarity and intent.
+::: warning Always call `CommitAsync` on the success path
+Auto-rollback is a safety net, not an intended control flow. Calling `CommitAsync` explicitly makes the success path obvious to the reader and to logs.
 :::
 
-## Reading data inside transactions
+## Reading inside a transaction
 
-Query methods work inside a transaction scope. Results reflect uncommitted changes within the same transaction:
+Query methods work inside a transaction scope. Reads see uncommitted changes made earlier in the same transaction:
 
 ```csharp
-await using var tx = await dbContext.BeginTransactionAsync(
-    IsolationLevel.ReadCommitted, cancellationToken);
+await using var tx = await DbContext
+    .BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
 
 var spInsert = new StoredProcedureParametersBuilder("dbo", "sp_InsertUser")
     .AddParameter("Username", "alice", SqlDbType.NVarChar)
     .Build();
 
-await tx.ExecuteNonQueryAsync(spInsert, cancellationToken);
+await tx.ExecuteNonQueryAsync(spInsert, ct);
 
 var spRead = new StoredProcedureParametersBuilder("dbo", "sp_GetUser_By_Name", 1)
     .AddParameter("Username", "alice", SqlDbType.NVarChar)
     .Build();
 
-var user = await tx.QueryAsIEnumerableAsync<UserDto>(spRead, cancellationToken);
-// user contains the uncommitted row — visible within this transaction.
+var user = await tx.QueryAsIEnumerableAsync<UserDto>(spRead, ct);
+// user contains the uncommitted row — visible within this transaction only.
 
-await tx.CommitAsync(cancellationToken);
+await tx.CommitAsync(ct);
 ```
 
 ## State machine
 
-The transaction scope enforces a strict state machine to prevent illegal operations:
+The scope enforces a strict state machine to prevent illegal operations:
 
-| State | Value | Allowed operations |
-|---|---|---|
-| **Active** | 0 | `ExecuteNonQueryAsync`, `QueryAs*Async`, `CommitAsync`, `RollbackAsync`, `DisposeAsync` |
-| **Committed** | 1 | `DisposeAsync` only |
-| **RolledBack** | 2 | `DisposeAsync` only |
-| **Poisoned** | 3 | `RollbackAsync`, `DisposeAsync` only |
-| **Disposed** | 4 | None — all calls throw `ObjectDisposedException` |
+| State | Allowed operations |
+|---|---|
+| **Active** | `ExecuteNonQueryAsync`, `QueryAs*Async`, `CommitAsync`, `RollbackAsync`, `DisposeAsync` |
+| **Committed** | `DisposeAsync` only |
+| **RolledBack** | `DisposeAsync` only |
+| **Poisoned** | `RollbackAsync`, `DisposeAsync` only |
+| **Disposed** | None — all calls throw `ObjectDisposedException` |
 
-### State transition diagram
-
-```
+```text
          ┌──────────────┐
-         │    Active     │
+         │    Active    │
          └──────┬───────┘
                 │
     ┌───────────┼───────────┐
@@ -139,27 +138,27 @@ Committed   RolledBack   Poisoned
 
 ### Poison state
 
-When a command fails (throws an exception) inside an `Active` transaction, the scope transitions to `Poisoned`. In this state:
+When a command fails inside an `Active` transaction, the scope transitions to `Poisoned`. In this state:
 
 - All subsequent `ExecuteNonQueryAsync` / `QueryAs*Async` calls throw immediately.
 - `CommitAsync` throws — you cannot commit a poisoned transaction.
 - Only `RollbackAsync` and `DisposeAsync` are valid.
 
-This prevents partial commits after a failure — the entire unit of work must be retried.
+This rule prevents partial commits after a failure. Retry the **entire** unit of work, do not attempt partial recovery.
 
 ```csharp
-await using var tx = await dbContext.BeginTransactionAsync(
-    IsolationLevel.ReadCommitted, cancellationToken);
+await using var tx = await DbContext
+    .BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
 
 try
 {
-    await tx.ExecuteNonQueryAsync(sp1, cancellationToken); // succeeds
-    await tx.ExecuteNonQueryAsync(sp2, cancellationToken); // throws — scope poisoned
+    await tx.ExecuteNonQueryAsync(sp1, ct); // succeeds
+    await tx.ExecuteNonQueryAsync(sp2, ct); // throws — scope is now Poisoned
 }
 catch (CaeriusNetSqlException)
 {
-    // tx is now Poisoned. CommitAsync would throw.
-    await tx.RollbackAsync(cancellationToken);
+    // CommitAsync would throw here.
+    await tx.RollbackAsync(ct);
 }
 ```
 
@@ -167,10 +166,10 @@ catch (CaeriusNetSqlException)
 
 ### Single in-flight command
 
-`SqlConnection` is not thread-safe. CaeriusNet enforces a single command at a time within a transaction scope. Attempting concurrent commands throws `InvalidOperationException`:
+`SqlConnection` is not thread-safe. CaeriusNet enforces a single command at a time within a scope. Concurrent commands throw `InvalidOperationException`:
 
 ```csharp
-// ❌ DO NOT — concurrent commands on the same transaction
+// ❌ DO NOT — concurrent commands on the same scope
 var task1 = tx.ExecuteNonQueryAsync(sp1, ct);
 var task2 = tx.ExecuteNonQueryAsync(sp2, ct); // throws InvalidOperationException
 await Task.WhenAll(task1, task2);
@@ -184,46 +183,63 @@ await tx.ExecuteNonQueryAsync(sp2, ct);
 
 ### No nested transactions
 
-SQL Server does not support nested transactions. Use SQL `SAVEPOINT` within a stored procedure if you need partial rollback semantics:
+SQL Server does not support nested transactions on a single connection. Calling `BeginTransactionAsync` on a scope throws `NotSupportedException`. Use SQL `SAVEPOINT` inside a Stored Procedure if you need partial-rollback semantics:
 
 ```sql
-CREATE PROCEDURE dbo.sp_WithSavepoint
+CREATE PROCEDURE dbo.sp_With_Savepoint
 AS
 BEGIN
     SET NOCOUNT ON;
-    SAVE TRANSACTION SavePoint1;
+    SAVE TRANSACTION sp1;
     -- ... work ...
     IF @@ERROR <> 0
-        ROLLBACK TRANSACTION SavePoint1;
+        ROLLBACK TRANSACTION sp1;
 END
+GO
 ```
 
 ### Cache bypass
 
-CaeriusNet bypasses all cache layers (Frozen, InMemory, Redis) inside a transaction. This prevents uncommitted (dirty) data from being published to the cache and served to other consumers.
+CaeriusNet bypasses every cache tier (Frozen, InMemory, Redis) inside a transaction scope. This prevents uncommitted data from being published to the cache and served to other consumers. After `CommitAsync`, subsequent non-transactional reads populate the cache normally.
 
 ::: tip Cache bypass is intentional
-After `CommitAsync`, subsequent non-transactional reads will populate the cache normally. Design your cache keys and TTLs accordingly.
+If a cached read is critical, perform it **before** entering the transaction, or **after** committing — never inside.
 :::
 
 ### Failure poisoning
 
-Any unhandled exception from a command execution poisons the transaction. This is deliberate — partial success in a transaction is unsafe. The poison state forces you to either:
-1. Roll back explicitly with `RollbackAsync`.
-2. Let `DisposeAsync` auto-rollback.
+Any unhandled exception from a command poisons the scope. Partial success in a transaction is unsafe — you must either `RollbackAsync` explicitly or let `DisposeAsync` auto-rollback.
+
+## Tracing
+
+Every scope emits a parent **`TX` span** (kind = Internal) under which all child SP spans nest. The trace remains a single cohesive workflow in the Aspire dashboard:
+
+```text
+TX  (caerius.tx.isolation_level=ReadCommitted, caerius.tx.outcome=committed)
+├── SP Users.usp_Create_User  (caerius.tx=true)
+└── SP Users.usp_Create_Order (caerius.tx=true)
+```
+
+| Tag | Description |
+|---|---|
+| `caerius.tx.isolation_level` | The SQL Server isolation level (e.g. `ReadCommitted`) |
+| `caerius.tx.outcome` | `committed`, `rolled-back`, `auto-rollback`, `poisoned-auto-rollback`, `commit-failed`, `rollback-failed` |
+| `caerius.tx` | `true` on every child SP span enlisted in the scope |
+
+See [Aspire Integration — Transaction tracing](/documentation/aspire#transaction-tracing) for full details.
 
 ## Best practices
 
 | Practice | Rationale |
 |---|---|
-| Always use `await using` | Guarantees `DisposeAsync` runs even on exception paths |
-| Pass `CancellationToken` | Cancels long-running SQL commands on request abort |
-| Keep transactions short | Long transactions hold locks, block other readers/writers |
-| Use appropriate `IsolationLevel` | `ReadCommitted` is the default; use `Serializable` only when required |
-| Avoid I/O inside transactions | HTTP calls, file writes, etc. extend transaction lifetime unpredictably |
-| Retry at the caller, not inside | If poisoned, create a new transaction scope for retry |
+| Always use `await using` | Guarantees `DisposeAsync` runs on every code path, including exceptions |
+| Pass `CancellationToken` | Cancels in-flight SQL commands when the request is aborted |
+| Keep transactions short | Long transactions hold locks and block other readers / writers |
+| Pick the right `IsolationLevel` | `ReadCommitted` is the default; raise it only when you must |
+| Avoid I/O inside transactions | HTTP calls, file writes, etc. extend lifetime unpredictably |
+| Retry at the caller, not inside | If poisoned, create a fresh scope and retry the whole unit of work |
 
-::: warning Isolation level guidance
+::: tip Isolation-level guidance
 - `ReadUncommitted` — dirty reads acceptable, highest concurrency
 - `ReadCommitted` — default, prevents dirty reads
 - `RepeatableRead` — prevents non-repeatable reads, higher lock contention
@@ -233,40 +249,38 @@ Any unhandled exception from a command execution poisons the transaction. This i
 
 ## Error handling
 
-All SQL errors inside a transaction are wrapped in `CaeriusNetSqlException`, which includes:
+SQL errors raised inside a transaction are wrapped in `CaeriusNetSqlException`:
 
-- The original `SqlException` as `InnerException`
-- The stored procedure name that failed
-- The transaction state at the time of failure
+- Original `SqlException` is preserved as `InnerException`
+- The active SP span is tagged `ActivityStatusCode.Error` before the exception bubbles up
 
 ```csharp
-await using var tx = await dbContext.BeginTransactionAsync(
-    IsolationLevel.ReadCommitted, cancellationToken);
+await using var tx = await DbContext
+    .BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
 
 try
 {
-    await tx.ExecuteNonQueryAsync(sp, cancellationToken);
-    await tx.CommitAsync(cancellationToken);
+    await tx.ExecuteNonQueryAsync(sp, ct);
+    await tx.CommitAsync(ct);
 }
 catch (CaeriusNetSqlException ex) when (ex.InnerException is SqlException sqlEx)
 {
-    // Log structured error details
     logger.LogError(ex, "Transaction failed on {Procedure}", ex.ProcedureName);
-    await tx.RollbackAsync(cancellationToken);
+    await tx.RollbackAsync(ct);
 }
 ```
 
 ## Logging events
 
-CaeriusNet emits structured log events for transaction lifecycle:
+CaeriusNet emits structured log events for the transaction lifecycle:
 
 | Event | Level | Description |
 |---|---|---|
-| Transaction started | Information | Logs isolation level and connection |
+| Transaction started | Information | Logs isolation level and connection identifier |
 | Transaction committed | Information | Logs elapsed time |
-| Transaction rolled back | Warning | Logs whether explicit or auto-rollback |
-| Transaction poisoned | Error | Logs the causing exception |
+| Transaction rolled back | Warning | Logs whether the rollback was explicit or automatic |
+| Transaction poisoned | Error | Logs the originating exception |
 
 ---
 
-**Next:** [Logging & Observability](/documentation/logging) — structured logging, event IDs, and telemetry integration.
+**Next:** [Logging & Observability](/documentation/logging) — structured logging, event IDs, and OTel integration.

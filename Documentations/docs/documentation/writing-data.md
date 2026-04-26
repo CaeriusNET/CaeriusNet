@@ -1,136 +1,153 @@
 # Writing Data
 
-CaeriusNet provides three write commands for executing Stored Procedures that modify data. All are async-only and accept a `CancellationToken`.
+CaeriusNet provides three write commands for executing Stored Procedures that modify data — all asynchronous, all `CancellationToken`-aware, and all pluggable into a transaction scope.
 
-## Write commands overview
+## Overview
 
-| Method | Return | When to use |
+| Method | Returns | When to use |
 |---|---|---|
-| `ExecuteNonQueryAsync` | `int` (rows affected) | INSERT / UPDATE / DELETE — need row count |
-| `ExecuteAsync` | `void` | Fire-and-forget writes — row count not needed |
-| `ExecuteScalarAsync<T>` | `T?` | SELECT scalar — SCOPE_IDENTITY, COUNT, etc. |
+| `ExecuteNonQueryAsync` | `int` (rows affected) | INSERT / UPDATE / DELETE — when you need a row count |
+| `ExecuteAsync` | *void* (`ValueTask`) | Fire-and-forget writes — row count not needed |
+| `ExecuteScalarAsync<T>` | `T?` | SELECT scalar — `SCOPE_IDENTITY`, `COUNT`, status code, etc. |
 
-## Setting up a write Stored Procedure
+## A representative write SP
 
 ```sql
 CREATE PROCEDURE dbo.sp_UpdateUserAge_By_Guid
-    @Guid   UNIQUEIDENTIFIER,
-    @Age    TINYINT
+    @Guid UNIQUEIDENTIFIER,
+    @Age  TINYINT
 AS
 BEGIN
     SET NOCOUNT ON;
-    SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
     BEGIN TRY
-        BEGIN TRANSACTION
-            UPDATE dbo.Users
-            SET Age = @Age
-            WHERE Guid = @Guid;
+        BEGIN TRANSACTION;
+
+        UPDATE dbo.Users
+        SET    Age = @Age
+        WHERE  Guid = @Guid;
+
         IF @@TRANCOUNT > 0
             COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
         IF @@TRANCOUNT > 0
             ROLLBACK TRANSACTION;
-    END CATCH
+        THROW;  -- re-raise so the SP span is correctly tagged Error
+    END CATCH;
 END
+GO
 ```
 
-## `ExecuteNonQueryAsync` — row count
+## `ExecuteNonQueryAsync` — affected rows
 
-Use when you need to know how many rows were affected (e.g., to validate an update):
+Use when you need to know how many rows were affected (for example to validate an update):
 
 ```csharp
 public async Task<int> UpdateUserAgeAsync(
-    Guid guid, byte age, CancellationToken cancellationToken)
+    Guid guid, byte age, CancellationToken ct)
 {
     var sp = new StoredProcedureParametersBuilder("dbo", "sp_UpdateUserAge_By_Guid")
         .AddParameter("Guid", guid, SqlDbType.UniqueIdentifier)
-        .AddParameter("Age", age, SqlDbType.TinyInt)
+        .AddParameter("Age",  age,  SqlDbType.TinyInt)
         .Build();
 
-    return await DbContext.ExecuteNonQueryAsync(sp, cancellationToken);
+    return await DbContext.ExecuteNonQueryAsync(sp, ct);
 }
 ```
 
 ## `ExecuteAsync` — fire and forget
 
-Use when the result count is irrelevant. Slightly leaner than `ExecuteNonQueryAsync`:
+Use when the affected-row count is irrelevant. Slightly leaner than `ExecuteNonQueryAsync`:
 
 ```csharp
-public async Task DeleteUserAsync(Guid guid, CancellationToken cancellationToken)
+public async Task DeleteUserAsync(Guid guid, CancellationToken ct)
 {
     var sp = new StoredProcedureParametersBuilder("dbo", "sp_DeleteUser_By_Guid")
         .AddParameter("Guid", guid, SqlDbType.UniqueIdentifier)
         .Build();
 
-    await DbContext.ExecuteAsync(sp, cancellationToken);
+    await DbContext.ExecuteAsync(sp, ct);
 }
 ```
 
 ## `ExecuteScalarAsync<T>` — scalar return
 
-Use when the Stored Procedure returns a single scalar value — for example a new identity, a count, or a status code:
+Use when the SP returns a single scalar value — a new identity, a count, a status code, etc.
 
 ```sql
 CREATE PROCEDURE dbo.sp_InsertUser_Return_Id
-    @Username   NVARCHAR(100),
-    @Age        TINYINT
+    @Username NVARCHAR(100),
+    @Age      TINYINT
 AS
 BEGIN
     SET NOCOUNT ON;
     INSERT INTO dbo.Users (Username, Age)
     VALUES (@Username, @Age);
-    SELECT SCOPE_IDENTITY();
+    SELECT CAST(SCOPE_IDENTITY() AS INT);
 END
+GO
 ```
 
 ```csharp
 public async Task<int?> InsertUserAsync(
-    string username, byte age, CancellationToken cancellationToken)
+    string username, byte age, CancellationToken ct)
 {
     var sp = new StoredProcedureParametersBuilder("dbo", "sp_InsertUser_Return_Id")
         .AddParameter("Username", username, SqlDbType.NVarChar)
-        .AddParameter("Age", age, SqlDbType.TinyInt)
+        .AddParameter("Age",      age,      SqlDbType.TinyInt)
         .Build();
 
-    return await DbContext.ExecuteScalarAsync<int>(sp, cancellationToken);
+    return await DbContext.ExecuteScalarAsync<int>(sp, ct);
 }
 ```
 
 ## Capacity for write operations
 
-Write operations do not return a result set. You can omit the capacity argument (it defaults to `16`) or explicitly pass any small value — it has no performance impact for non-query operations:
+Write commands do not return result sets, so the `resultSetCapacity` argument has no effect — leave it at the default:
 
 ```csharp
-// Capacity is irrelevant for writes — default 16 is fine
-new StoredProcedureParametersBuilder("dbo", "sp_DeleteUser_By_Guid")
+new StoredProcedureParametersBuilder("dbo", "sp_DeleteUser_By_Guid"); // capacity ignored
 ```
 
 ## Multiple parameters
 
-Chain as many `.AddParameter()` calls as needed. Each call maps to a named SP parameter:
+Chain as many `.AddParameter()` calls as needed. Each maps to a named SP parameter:
 
 ```csharp
 var sp = new StoredProcedureParametersBuilder("dbo", "sp_InsertAuditLog")
-    .AddParameter("UserId", userId, SqlDbType.Int)
-    .AddParameter("Action", action, SqlDbType.NVarChar)
-    .AddParameter("OccurredAt", DateTime.UtcNow, SqlDbType.DateTime2)
+    .AddParameter("UserId",     userId,           SqlDbType.Int)
+    .AddParameter("Action",     action,           SqlDbType.NVarChar)
+    .AddParameter("OccurredAt", DateTime.UtcNow,  SqlDbType.DateTime2)
     .Build();
 
-await DbContext.ExecuteAsync(sp, cancellationToken);
+await DbContext.ExecuteAsync(sp, ct);
 ```
 
-## Combining TVP with writes
+## Combining a TVP with a write
 
-You can use `AddTvpParameter` on write operations too — for bulk inserts or deletes by ID set:
+`AddTvpParameter` works on write commands too — perfect for bulk inserts or deletes by ID set:
 
 ```csharp
 var sp = new StoredProcedureParametersBuilder("dbo", "sp_DeleteUsers_By_Ids")
     .AddTvpParameter("Ids", userIds)
     .Build();
 
-var deleted = await DbContext.ExecuteNonQueryAsync(sp, cancellationToken);
+var deleted = await DbContext.ExecuteNonQueryAsync(sp, ct);
+```
+
+See [Table-Valued Parameters](/documentation/tvp) for the full TVP guide.
+
+## Writes inside a transaction
+
+All three commands are also exposed on `ICaeriusNetTransaction` for atomic multi-statement units of work. See [Transactions](/documentation/transactions).
+
+```csharp
+await using var tx = await DbContext.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+
+await tx.ExecuteNonQueryAsync(spDebit,  ct);
+await tx.ExecuteNonQueryAsync(spCredit, ct);
+await tx.CommitAsync(ct);
 ```
 
 ---

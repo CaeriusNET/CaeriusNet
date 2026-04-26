@@ -24,18 +24,32 @@ public static class SimpleReadSqlAsyncCommands
             CancellationToken cancellationToken = default)
             where TResultSet : class, ISpMapper<TResultSet>
         {
+            const string Operation = nameof(FirstQueryAsync);
             var logger = LoggerProvider.GetLogger();
+
+            // Start the activity before any cache/SQL work so that Redis lookups and SQL
+            // connection opens are nested under this span rather than becoming root traces.
+            using var activity = CaeriusActivityExtensions.StartStoredProcedureActivity(spParameters, Operation);
+            var tags = CaeriusActivityExtensions.BuildMetricTags(spParameters, Operation);
+            var startTimestamp = Stopwatch.GetTimestamp();
 
             if (spParameters.CacheType.HasValue && !string.IsNullOrEmpty(spParameters.CacheKey))
                 if (CacheHelper.TryRetrieveFromCache(spParameters, context.RedisCacheManager,
                         out TResultSet? cachedResult))
                 {
+                    CaeriusActivityExtensions.RecordCacheLookup(spParameters, spParameters.CacheType.Value, true);
                     if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                         logger.LogCacheHitSkippingExecution(spParameters.CacheKey);
+                    var cacheElapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+                    CaeriusActivityExtensions.RecordSuccess(activity, tags, cacheElapsedMs,
+                        cachedResult is null ? 0 : 1);
                     return cachedResult;
                 }
+                else
+                {
+                    CaeriusActivityExtensions.RecordCacheLookup(spParameters, spParameters.CacheType.Value, false);
+                }
 
-            var startTimestamp = Stopwatch.GetTimestamp();
             if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                 logger.LogExecutingProcedure(
                     spParameters.SchemaName,
@@ -51,17 +65,22 @@ public static class SimpleReadSqlAsyncCommands
                 if (result is not null)
                     CacheHelper.StoreInCache(spParameters, context.RedisCacheManager, result);
 
+                var elapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+                var rows = result is null ? 0 : 1;
+                CaeriusActivityExtensions.RecordSuccess(activity, tags, elapsedMs, rows);
+
                 if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                     logger.LogProcedureCompleted(
                         spParameters.SchemaName,
                         spParameters.ProcedureName,
-                        (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds,
-                        result is null ? 0 : 1);
+                        (long)elapsedMs,
+                        rows);
 
                 return result;
             }
             catch (SqlException ex)
             {
+                CaeriusActivityExtensions.RecordError(activity, tags, ex);
                 throw new CaeriusNetSqlException(
                     $"Failed to execute stored procedure: {spParameters.ProcedureName}", ex);
             }
@@ -81,20 +100,35 @@ public static class SimpleReadSqlAsyncCommands
             CancellationToken cancellationToken = default)
             where TResultSet : class, ISpMapper<TResultSet>
         {
+            const string Operation = nameof(QueryAsReadOnlyCollectionAsync);
             var logger = LoggerProvider.GetLogger();
+
+            // Start the activity before any cache/SQL work so that Redis lookups and SQL
+            // connection opens are nested under this span rather than becoming root traces.
+            using var activity = CaeriusActivityExtensions.StartStoredProcedureActivity(spParameters, Operation);
+            var tags = CaeriusActivityExtensions.BuildMetricTags(spParameters, Operation);
+            var startTimestamp = Stopwatch.GetTimestamp();
 
             if (CacheHelper.TryRetrieveFromCache(spParameters, context.RedisCacheManager,
                     out ReadOnlyCollection<TResultSet>? cachedResult) &&
                 cachedResult != null)
             {
-                if (spParameters.CacheKey is null) return cachedResult;
-                if (logger is not null && logger.IsEnabled(LogLevel.Debug))
-                    logger.LogCacheHitSkippingExecution(spParameters.CacheKey);
+                if (spParameters.CacheKey is not null)
+                {
+                    CaeriusActivityExtensions.RecordCacheLookup(spParameters, spParameters.CacheType!.Value, true);
+                    if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                        logger.LogCacheHitSkippingExecution(spParameters.CacheKey);
+                }
 
+                var cacheElapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+                CaeriusActivityExtensions.RecordSuccess(activity, tags, cacheElapsedMs,
+                    cachedResult.Count);
                 return cachedResult;
             }
 
-            var startTimestamp = Stopwatch.GetTimestamp();
+            if (spParameters.CacheType.HasValue && !string.IsNullOrEmpty(spParameters.CacheKey))
+                CaeriusActivityExtensions.RecordCacheLookup(spParameters, spParameters.CacheType.Value, false);
+
             if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                 logger.LogExecutingProcedure(
                     spParameters.SchemaName,
@@ -112,17 +146,21 @@ public static class SimpleReadSqlAsyncCommands
 
                 CacheHelper.StoreInCache(spParameters, context.RedisCacheManager, results);
 
+                var elapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+                CaeriusActivityExtensions.RecordSuccess(activity, tags, elapsedMs, results.Count);
+
                 if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                     logger.LogProcedureCompleted(
                         spParameters.SchemaName,
                         spParameters.ProcedureName,
-                        (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds,
+                        (long)elapsedMs,
                         results.Count);
 
                 return results;
             }
             catch (SqlException ex)
             {
+                CaeriusActivityExtensions.RecordError(activity, tags, ex);
                 throw new CaeriusNetSqlException(
                     $"Failed to execute stored procedure: {spParameters.ProcedureName}", ex);
             }
@@ -142,20 +180,34 @@ public static class SimpleReadSqlAsyncCommands
             CancellationToken cancellationToken = default)
             where TResultSet : class, ISpMapper<TResultSet>
         {
+            const string Operation = nameof(QueryAsIEnumerableAsync);
             var logger = LoggerProvider.GetLogger();
+
+            // Start the activity before any cache/SQL work so that Redis lookups and SQL
+            // connection opens are nested under this span rather than becoming root traces.
+            using var activity = CaeriusActivityExtensions.StartStoredProcedureActivity(spParameters, Operation);
+            var tags = CaeriusActivityExtensions.BuildMetricTags(spParameters, Operation);
+            var startTimestamp = Stopwatch.GetTimestamp();
 
             if (CacheHelper.TryRetrieveFromCache(spParameters, context.RedisCacheManager,
                     out IEnumerable<TResultSet>? cachedResult) &&
                 cachedResult != null)
             {
-                if (spParameters.CacheKey is null) return cachedResult;
-                if (logger is not null && logger.IsEnabled(LogLevel.Debug))
-                    logger.LogCacheHitSkippingExecution(spParameters.CacheKey);
+                if (spParameters.CacheKey is not null)
+                {
+                    CaeriusActivityExtensions.RecordCacheLookup(spParameters, spParameters.CacheType!.Value, true);
+                    if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                        logger.LogCacheHitSkippingExecution(spParameters.CacheKey);
+                }
 
+                var cacheElapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+                CaeriusActivityExtensions.RecordSuccess(activity, tags, cacheElapsedMs);
                 return cachedResult;
             }
 
-            var startTimestamp = Stopwatch.GetTimestamp();
+            if (spParameters.CacheType.HasValue && !string.IsNullOrEmpty(spParameters.CacheKey))
+                CaeriusActivityExtensions.RecordCacheLookup(spParameters, spParameters.CacheType.Value, false);
+
             if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                 logger.LogExecutingProcedure(
                     spParameters.SchemaName,
@@ -173,17 +225,21 @@ public static class SimpleReadSqlAsyncCommands
 
                 CacheHelper.StoreInCache(spParameters, context.RedisCacheManager, results);
 
+                var elapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+                CaeriusActivityExtensions.RecordSuccess(activity, tags, elapsedMs, results.Count);
+
                 if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                     logger.LogProcedureCompleted(
                         spParameters.SchemaName,
                         spParameters.ProcedureName,
-                        (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds,
+                        (long)elapsedMs,
                         results.Count);
 
                 return results;
             }
             catch (SqlException ex)
             {
+                CaeriusActivityExtensions.RecordError(activity, tags, ex);
                 throw new CaeriusNetSqlException(
                     $"Failed to execute stored procedure: {spParameters.ProcedureName}", ex);
             }
@@ -203,20 +259,35 @@ public static class SimpleReadSqlAsyncCommands
             CancellationToken cancellationToken = default)
             where TResultSet : class, ISpMapper<TResultSet>
         {
+            const string Operation = nameof(QueryAsImmutableArrayAsync);
             var logger = LoggerProvider.GetLogger();
+
+            // Start the activity before any cache/SQL work so that Redis lookups and SQL
+            // connection opens are nested under this span rather than becoming root traces.
+            using var activity = CaeriusActivityExtensions.StartStoredProcedureActivity(spParameters, Operation);
+            var tags = CaeriusActivityExtensions.BuildMetricTags(spParameters, Operation);
+            var startTimestamp = Stopwatch.GetTimestamp();
 
             if (CacheHelper.TryRetrieveFromCache(spParameters, context.RedisCacheManager,
                     out ImmutableArray<TResultSet>? cachedResult) &&
                 cachedResult.HasValue)
             {
-                if (spParameters.CacheKey is null) return cachedResult.Value;
-                if (logger is not null && logger.IsEnabled(LogLevel.Debug))
-                    logger.LogCacheHitSkippingExecution(spParameters.CacheKey);
+                if (spParameters.CacheKey is not null)
+                {
+                    CaeriusActivityExtensions.RecordCacheLookup(spParameters, spParameters.CacheType!.Value, true);
+                    if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                        logger.LogCacheHitSkippingExecution(spParameters.CacheKey);
+                }
 
+                var cacheElapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+                CaeriusActivityExtensions.RecordSuccess(activity, tags, cacheElapsedMs,
+                    cachedResult.Value.Length);
                 return cachedResult.Value;
             }
 
-            var startTimestamp = Stopwatch.GetTimestamp();
+            if (spParameters.CacheType.HasValue && !string.IsNullOrEmpty(spParameters.CacheKey))
+                CaeriusActivityExtensions.RecordCacheLookup(spParameters, spParameters.CacheType.Value, false);
+
             if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                 logger.LogExecutingProcedure(
                     spParameters.SchemaName,
@@ -231,17 +302,21 @@ public static class SimpleReadSqlAsyncCommands
 
                 CacheHelper.StoreInCache(spParameters, context.RedisCacheManager, results);
 
+                var elapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+                CaeriusActivityExtensions.RecordSuccess(activity, tags, elapsedMs, results.Length);
+
                 if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                     logger.LogProcedureCompleted(
                         spParameters.SchemaName,
                         spParameters.ProcedureName,
-                        (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds,
+                        (long)elapsedMs,
                         results.Length);
 
                 return results;
             }
             catch (SqlException ex)
             {
+                CaeriusActivityExtensions.RecordError(activity, tags, ex);
                 throw new CaeriusNetSqlException(
                     $"Failed to execute stored procedure: {spParameters.ProcedureName}", ex);
             }

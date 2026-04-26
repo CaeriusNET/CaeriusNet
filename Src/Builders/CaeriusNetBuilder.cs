@@ -12,6 +12,7 @@ public sealed class CaeriusNetBuilder
     private MemoryCacheOptions? _inMemoryCacheOptions;
     private string? _redisConnectionString;
     private string? _sqlServerConnectionString;
+    private CaeriusTelemetryOptions? _telemetryOptions;
 
     private CaeriusNetBuilder(IServiceCollection services)
     {
@@ -46,6 +47,18 @@ public sealed class CaeriusNetBuilder
     public CaeriusNetBuilder WithRedis(string? connectionString)
     {
         _redisConnectionString = connectionString;
+        return this;
+    }
+
+    /// <summary>
+    ///     Configures OpenTelemetry emission behaviour for this CaeriusNet instance.
+    ///     Must be called before <see cref="Build" /> to take effect.
+    /// </summary>
+    /// <param name="options">Telemetry options to apply.</param>
+    public CaeriusNetBuilder WithTelemetryOptions(CaeriusTelemetryOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(options);
+        _telemetryOptions = options;
         return this;
     }
 
@@ -94,6 +107,9 @@ public sealed class CaeriusNetBuilder
             string.IsNullOrWhiteSpace(_aspireSqlServerConnectionName))
             throw new InvalidOperationException(
                 "SQL Server connection must be configured using WithSqlServer() or WithAspireSqlServer().");
+
+        if (_telemetryOptions is not null)
+            CaeriusDiagnostics.TelemetryOptions = _telemetryOptions;
 
         if (_inMemoryCacheOptions is not null)
             InMemoryCacheManager.Configure(_inMemoryCacheOptions);

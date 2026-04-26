@@ -4,6 +4,8 @@ public static class ServiceCollectionExtension
 {
     public static IServiceCollection AddDependenciesInjections(this IServiceCollection services)
     {
-        return services.AddScoped<IUsersRepository, UsersRepository>();
+        return services
+            .AddScoped<IUsersRepository, UsersRepository>()
+            .AddScoped<IUsersService, UsersService>();
     }
 }

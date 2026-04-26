@@ -11,14 +11,24 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Aspire.Hosting.AppHost" Version="13.2.2"/>
-        <PackageReference Include="Aspire.Hosting.Redis" Version="13.2.2"/>
-        <PackageReference Include="Aspire.Hosting.SqlServer" Version="13.2.2"/>
-        <PackageReference Include="Aspire.StackExchange.Redis" Version="13.2.2"/>
+        <PackageReference Include="Aspire.Hosting.AppHost" Version="13.2.4"/>
+        <PackageReference Include="Aspire.Hosting.Redis" Version="13.2.4"/>
+        <PackageReference Include="Aspire.Hosting.SqlServer" Version="13.2.4"/>
+        <PackageReference Include="Aspire.StackExchange.Redis" Version="13.2.4"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- init.sql lives here so it is easy to find and edit alongside the AppHost.
+             CopyToOutputDirectory makes it available at runtime via AppContext.BaseDirectory. -->
+        <Content Include="Sql\init.sql" CopyToOutputDirectory="PreserveNewest"/>
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\CaeriusNet.Exemples.Aspire.Console\CaeriusNet.Exemples.Aspire.Console.csproj"/>
+        <!-- Pulled in only to share the Sql/init.sql script via ExampleDatabaseBootstrapper.GetCreationScript().
+             Marked IsAspireProjectResource="false" because it is a class library, not an Aspire resource. -->
+        <ProjectReference Include="..\..\Libs\CaeriusNet.Exemples.Libs.Commons\CaeriusNet.Exemples.Libs.Commons.csproj"
+                          IsAspireProjectResource="false"/>
     </ItemGroup>
 
 </Project>

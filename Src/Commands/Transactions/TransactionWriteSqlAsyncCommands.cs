@@ -25,9 +25,13 @@ public static class TransactionWriteSqlAsyncCommands
             StoredProcedureParameters spParameters,
             CancellationToken cancellationToken = default)
         {
+            const string Operation = nameof(ExecuteScalarAsync);
             var tx = AsInternal(transaction);
             var logger = LoggerProvider.GetLogger();
             tx.AcquireCommandSlot();
+            using var activity =
+                CaeriusActivityExtensions.StartStoredProcedureActivity(spParameters, Operation, true);
+            var tags = CaeriusActivityExtensions.BuildMetricTags(spParameters, Operation, true);
             var startTimestamp = Stopwatch.GetTimestamp();
             if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                 logger.LogExecutingProcedure(
@@ -41,20 +45,24 @@ public static class TransactionWriteSqlAsyncCommands
                     spParameters, tx.Connection, tx.Transaction,
                     async command =>
                     {
-                        var result = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-                        return result is DBNull ? default : (T?)result;
+                        var inner = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                        return inner is DBNull ? default : (T?)inner;
                     }, cancellationToken).ConfigureAwait(false);
+
+                var elapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+                CaeriusActivityExtensions.RecordSuccess(activity, tags, elapsedMs);
 
                 if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                     logger.LogProcedureScalarCompleted(
                         spParameters.SchemaName,
                         spParameters.ProcedureName,
-                        (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds);
+                        (long)elapsedMs);
 
                 return result;
             }
-            catch (CaeriusNetSqlException)
+            catch (CaeriusNetSqlException ex)
             {
+                CaeriusActivityExtensions.RecordError(activity, tags, ex);
                 tx.Poison();
                 throw;
             }
@@ -70,9 +78,13 @@ public static class TransactionWriteSqlAsyncCommands
             StoredProcedureParameters spParameters,
             CancellationToken cancellationToken = default)
         {
+            const string Operation = nameof(ExecuteNonQueryAsync);
             var tx = AsInternal(transaction);
             var logger = LoggerProvider.GetLogger();
             tx.AcquireCommandSlot();
+            using var activity =
+                CaeriusActivityExtensions.StartStoredProcedureActivity(spParameters, Operation, true);
+            var tags = CaeriusActivityExtensions.BuildMetricTags(spParameters, Operation, true);
             var startTimestamp = Stopwatch.GetTimestamp();
             if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                 logger.LogExecutingProcedure(
@@ -87,17 +99,21 @@ public static class TransactionWriteSqlAsyncCommands
                     command => new ValueTask<int>(command.ExecuteNonQueryAsync(cancellationToken)),
                     cancellationToken).ConfigureAwait(false);
 
+                var elapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+                CaeriusActivityExtensions.RecordSuccess(activity, tags, elapsedMs, rowsAffected: rowsAffected);
+
                 if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                     logger.LogProcedureNonQueryCompleted(
                         spParameters.SchemaName,
                         spParameters.ProcedureName,
-                        (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds,
+                        (long)elapsedMs,
                         rowsAffected);
 
                 return rowsAffected;
             }
-            catch (CaeriusNetSqlException)
+            catch (CaeriusNetSqlException ex)
             {
+                CaeriusActivityExtensions.RecordError(activity, tags, ex);
                 tx.Poison();
                 throw;
             }
@@ -113,9 +129,13 @@ public static class TransactionWriteSqlAsyncCommands
             StoredProcedureParameters spParameters,
             CancellationToken cancellationToken = default)
         {
+            const string Operation = nameof(ExecuteAsync);
             var tx = AsInternal(transaction);
             var logger = LoggerProvider.GetLogger();
             tx.AcquireCommandSlot();
+            using var activity =
+                CaeriusActivityExtensions.StartStoredProcedureActivity(spParameters, Operation, true);
+            var tags = CaeriusActivityExtensions.BuildMetricTags(spParameters, Operation, true);
             var startTimestamp = Stopwatch.GetTimestamp();
             if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                 logger.LogExecutingProcedure(
@@ -130,15 +150,19 @@ public static class TransactionWriteSqlAsyncCommands
                     command => new ValueTask<int>(command.ExecuteNonQueryAsync(cancellationToken)),
                     cancellationToken).ConfigureAwait(false);
 
+                var elapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+                CaeriusActivityExtensions.RecordSuccess(activity, tags, elapsedMs, rowsAffected: rowsAffected);
+
                 if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                     logger.LogProcedureNonQueryCompleted(
                         spParameters.SchemaName,
                         spParameters.ProcedureName,
-                        (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds,
+                        (long)elapsedMs,
                         rowsAffected);
             }
-            catch (CaeriusNetSqlException)
+            catch (CaeriusNetSqlException ex)
             {
+                CaeriusActivityExtensions.RecordError(activity, tags, ex);
                 tx.Poison();
                 throw;
             }

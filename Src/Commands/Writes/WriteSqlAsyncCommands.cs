@@ -22,7 +22,10 @@ public static class WriteSqlAsyncCommands
             StoredProcedureParameters spParameters,
             CancellationToken cancellationToken = default)
         {
+            const string Operation = nameof(ExecuteScalarAsync);
             var logger = LoggerProvider.GetLogger();
+            using var activity = CaeriusActivityExtensions.StartStoredProcedureActivity(spParameters, Operation);
+            var tags = CaeriusActivityExtensions.BuildMetricTags(spParameters, Operation);
             var startTimestamp = Stopwatch.GetTimestamp();
 
             if (logger is not null && logger.IsEnabled(LogLevel.Debug))
@@ -31,19 +34,30 @@ public static class WriteSqlAsyncCommands
                     spParameters.ProcedureName,
                     spParameters.GetParametersSpan().Length);
 
-            var result = await SqlCommandHelper.ExecuteCommandAsync(dbContext, spParameters, async command =>
+            try
             {
-                var scalar = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-                return scalar is DBNull ? default : (T?)scalar;
-            }, cancellationToken).ConfigureAwait(false);
+                var result = await SqlCommandHelper.ExecuteCommandAsync(dbContext, spParameters, async command =>
+                {
+                    var scalar = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                    return scalar is DBNull ? default : (T?)scalar;
+                }, cancellationToken).ConfigureAwait(false);
 
-            if (logger is not null && logger.IsEnabled(LogLevel.Debug))
-                logger.LogProcedureScalarCompleted(
-                    spParameters.SchemaName,
-                    spParameters.ProcedureName,
-                    (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds);
+                var elapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+                CaeriusActivityExtensions.RecordSuccess(activity, tags, elapsedMs);
 
-            return result;
+                if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                    logger.LogProcedureScalarCompleted(
+                        spParameters.SchemaName,
+                        spParameters.ProcedureName,
+                        (long)elapsedMs);
+
+                return result;
+            }
+            catch (CaeriusNetSqlException ex)
+            {
+                CaeriusActivityExtensions.RecordError(activity, tags, ex);
+                throw;
+            }
         }
 
         /// <summary>
@@ -57,7 +71,10 @@ public static class WriteSqlAsyncCommands
             StoredProcedureParameters spParameters,
             CancellationToken cancellationToken = default)
         {
+            const string Operation = nameof(ExecuteNonQueryAsync);
             var logger = LoggerProvider.GetLogger();
+            using var activity = CaeriusActivityExtensions.StartStoredProcedureActivity(spParameters, Operation);
+            var tags = CaeriusActivityExtensions.BuildMetricTags(spParameters, Operation);
             var startTimestamp = Stopwatch.GetTimestamp();
 
             if (logger is not null && logger.IsEnabled(LogLevel.Debug))
@@ -66,18 +83,29 @@ public static class WriteSqlAsyncCommands
                     spParameters.ProcedureName,
                     spParameters.GetParametersSpan().Length);
 
-            var rowsAffected = await SqlCommandHelper.ExecuteCommandAsync(dbContext, spParameters,
-                command => new ValueTask<int>(command.ExecuteNonQueryAsync(cancellationToken)),
-                cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var rowsAffected = await SqlCommandHelper.ExecuteCommandAsync(dbContext, spParameters,
+                    command => new ValueTask<int>(command.ExecuteNonQueryAsync(cancellationToken)),
+                    cancellationToken).ConfigureAwait(false);
 
-            if (logger is not null && logger.IsEnabled(LogLevel.Debug))
-                logger.LogProcedureNonQueryCompleted(
-                    spParameters.SchemaName,
-                    spParameters.ProcedureName,
-                    (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds,
-                    rowsAffected);
+                var elapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+                CaeriusActivityExtensions.RecordSuccess(activity, tags, elapsedMs, rowsAffected: rowsAffected);
 
-            return rowsAffected;
+                if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                    logger.LogProcedureNonQueryCompleted(
+                        spParameters.SchemaName,
+                        spParameters.ProcedureName,
+                        (long)elapsedMs,
+                        rowsAffected);
+
+                return rowsAffected;
+            }
+            catch (CaeriusNetSqlException ex)
+            {
+                CaeriusActivityExtensions.RecordError(activity, tags, ex);
+                throw;
+            }
         }
 
         /// <summary>
@@ -91,7 +119,10 @@ public static class WriteSqlAsyncCommands
             StoredProcedureParameters spParameters,
             CancellationToken cancellationToken = default)
         {
+            const string Operation = nameof(ExecuteAsync);
             var logger = LoggerProvider.GetLogger();
+            using var activity = CaeriusActivityExtensions.StartStoredProcedureActivity(spParameters, Operation);
+            var tags = CaeriusActivityExtensions.BuildMetricTags(spParameters, Operation);
             var startTimestamp = Stopwatch.GetTimestamp();
 
             if (logger is not null && logger.IsEnabled(LogLevel.Debug))
@@ -100,16 +131,27 @@ public static class WriteSqlAsyncCommands
                     spParameters.ProcedureName,
                     spParameters.GetParametersSpan().Length);
 
-            var rowsAffected = await SqlCommandHelper.ExecuteCommandAsync(dbContext, spParameters,
-                command => new ValueTask<int>(command.ExecuteNonQueryAsync(cancellationToken)),
-                cancellationToken).ConfigureAwait(false);
+            try
+            {
+                var rowsAffected = await SqlCommandHelper.ExecuteCommandAsync(dbContext, spParameters,
+                    command => new ValueTask<int>(command.ExecuteNonQueryAsync(cancellationToken)),
+                    cancellationToken).ConfigureAwait(false);
 
-            if (logger is not null && logger.IsEnabled(LogLevel.Debug))
-                logger.LogProcedureNonQueryCompleted(
-                    spParameters.SchemaName,
-                    spParameters.ProcedureName,
-                    (long)Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds,
-                    rowsAffected);
+                var elapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
+                CaeriusActivityExtensions.RecordSuccess(activity, tags, elapsedMs, rowsAffected: rowsAffected);
+
+                if (logger is not null && logger.IsEnabled(LogLevel.Debug))
+                    logger.LogProcedureNonQueryCompleted(
+                        spParameters.SchemaName,
+                        spParameters.ProcedureName,
+                        (long)elapsedMs,
+                        rowsAffected);
+            }
+            catch (CaeriusNetSqlException ex)
+            {
+                CaeriusActivityExtensions.RecordError(activity, tags, ex);
+                throw;
+            }
         }
     }
 }

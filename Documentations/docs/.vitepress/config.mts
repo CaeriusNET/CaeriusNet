@@ -35,9 +35,10 @@ export default defineConfig({
         items: [
           { text: 'API Reference', link: '/documentation/api' },
           { text: 'Best Practices', link: '/documentation/best-practices' },
-          { text: 'Diagnostics', link: '/documentation/diagnostics' },
+          { text: 'Telemetry & Diagnostics', link: '/documentation/diagnostics' },
         ]
       },
+      { text: 'Examples', link: '/examples/' },
       { text: 'Performance', link: '/benchmarks/' }
     ],
 
@@ -79,7 +80,18 @@ export default defineConfig({
         items: [
           { text: 'API Reference', link: '/documentation/api' },
           { text: 'Best Practices', link: '/documentation/best-practices' },
-          { text: 'Diagnostics', link: '/documentation/diagnostics' }
+          { text: 'Telemetry & Diagnostics', link: '/documentation/diagnostics' }
+        ]
+      },
+      {
+        text: 'Examples',
+        collapsed: false,
+        items: [
+          { text: 'Overview', link: '/examples/' },
+          { text: 'Stored Procedures', link: '/examples/stored-procedures' },
+          { text: 'Table-Valued Parameters', link: '/examples/tvp' },
+          { text: 'Multi-Result Sets', link: '/examples/multi-result-sets' },
+          { text: 'Transactions', link: '/examples/transactions' }
         ]
       },
       {

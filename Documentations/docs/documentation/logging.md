@@ -1,6 +1,8 @@
-﻿# Logging & Observability
+# Logging & Observability
 
-CaeriusNet uses `[LoggerMessage]` source-generated logging for zero-allocation structured log output. Every database operation emits timing, procedure name, and result metadata — enabling diagnostics, performance monitoring, and alerting without custom instrumentation.
+CaeriusNet uses **source-generated** `[LoggerMessage]` logging for zero-allocation structured output. Every database operation emits timing, procedure name, and result metadata — enabling diagnostics, performance monitoring, and alerting without custom instrumentation.
+
+For OpenTelemetry tracing and metrics, see [Aspire Integration — Tracing & Telemetry](/documentation/aspire#tracing-telemetry).
 
 ## Overview
 
@@ -8,29 +10,30 @@ CaeriusNet uses `[LoggerMessage]` source-generated logging for zero-allocation s
 |---|---|
 | **Zero-allocation** | `[LoggerMessage]` source generators — no string interpolation at runtime |
 | **Structured parameters** | Named placeholders (`{ProcedureName}`, `{Duration}`, `{RowCount}`) |
-| **Execution timing** | `Stopwatch.GetElapsedTime` for high-resolution elapsed measurement |
-| **Event ID convention** | Categorized by subsystem (see table below) |
+| **Execution timing** | `Stopwatch.GetElapsedTime` for high-resolution measurement |
+| **Event-ID convention** | Categorized by subsystem (see table below) |
 | **Provider-agnostic** | Works with any `ILogger` implementation |
 
 ## Configuration
 
 ### Setting the logger
 
-CaeriusNet uses a static `LoggerProvider` to obtain the logger instance. Configure it during application startup:
+CaeriusNet uses a static `LoggerProvider` to obtain its logger instance. Configure it once during application startup:
 
 ```csharp
 using CaeriusNet.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// After building the service provider, set the logger
+// ... DI registration ...
+
 var app = builder.Build();
 LoggerProvider.SetLogger(app.Services.GetRequiredService<ILoggerFactory>());
 ```
 
-### Integration with dependency injection
+### Integration with DI
 
-When using `CaeriusNetBuilder`, the logger is configured automatically if `ILoggerFactory` is registered in the DI container:
+When using `CaeriusNetBuilder`, the logger is wired automatically as long as `ILoggerFactory` is registered in the DI container — `LoggerProvider.SetLogger` is called for you during `Build()`.
 
 ```csharp
 var builder = WebApplication.CreateBuilder(args);
@@ -47,36 +50,32 @@ CaeriusNetBuilder
     .Build();
 ```
 
-### Filtering by event ID range
+### Filtering by category
 
-Use `ILoggerFactory` configuration to filter CaeriusNet logs by event ID ranges:
+Use `ILoggerFactory` configuration to filter CaeriusNet logs by subsystem:
 
 ```csharp
 builder.Services.AddLogging(logging =>
 {
-    logging.AddFilter("CaeriusNet", LogLevel.Information);
-
-    // Show only command execution events (5xxx)
-    logging.AddFilter("CaeriusNet.Commands", LogLevel.Debug);
-
-    // Suppress cache hit/miss noise in production
-    logging.AddFilter("CaeriusNet.Cache", LogLevel.Warning);
+    logging.AddFilter("CaeriusNet",          LogLevel.Information);
+    logging.AddFilter("CaeriusNet.Commands", LogLevel.Debug);    // verbose for command execution
+    logging.AddFilter("CaeriusNet.Cache",    LogLevel.Warning);  // suppress per-call cache noise
 });
 ```
 
-## Event ID categories
+## Event-ID categories
 
 CaeriusNet organizes event IDs by subsystem. Use these ranges to filter, route, or alert on specific categories:
 
 | Range | Category | Description |
 |---|---|---|
-| **1000–1999** | In-Memory Cache | Cache hit, miss, set, eviction |
-| **2000–2999** | Frozen Cache | Cache hit, miss, freeze operations |
-| **3000–3999** | Redis Cache | Redis get, set, connection events |
-| **4000–4999** | Database / Connection | Connection open, close, pool events |
-| **5000–5999** | Command Execution | Start, complete, duration, row count |
+| **1000–1999** | In-Memory cache | Hit, miss, set, eviction |
+| **2000–2999** | Frozen cache | Hit, miss, freeze operations |
+| **3000–3999** | Redis cache | Get, set, connection events |
+| **4000–4999** | Database / connection | Connection open, close, pool events |
+| **5000–5999** | Command execution | Start, complete, duration, row count |
 
-### Detailed event reference
+### Event reference
 
 | Event ID | Level | Message template |
 |---|---|---|
@@ -100,20 +99,20 @@ CaeriusNet organizes event IDs by subsystem. Use these ranges to filter, route, 
 
 ## Structured parameters
 
-CaeriusNet logs use semantic (structured) parameters. These are preserved as key-value pairs by structured logging sinks:
+CaeriusNet log messages use semantic (structured) placeholders. Structured logging sinks preserve them as queryable key/value pairs:
 
-| Parameter | Type | Description |
+| Placeholder | Type | Description |
 |---|---|---|
-| `{ProcedureName}` | `string` | Fully qualified stored procedure name |
+| `{ProcedureName}` | `string` | Fully qualified Stored Procedure name (`schema.name`) |
 | `{Duration}` | `TimeSpan` | Elapsed execution time |
 | `{RowCount}` | `int` | Number of rows returned or affected |
-| `{CacheKey}` | `string` | Cache key used for lookup/store |
+| `{CacheKey}` | `string` | Cache key used for lookup or store |
 | `{Expiration}` | `TimeSpan` | Cache entry TTL |
 | `{ErrorMessage}` | `string` | Exception message on failure |
 | `{IsolationLevel}` | `string` | Transaction isolation level |
 
-::: tip Structured logging benefits
-Structured parameters enable powerful queries: "Show all executions of `sp_GetUsers` that took longer than 500ms" or "Count cache misses per key in the last hour."
+::: tip Why this matters
+Structured parameters unlock powerful queries — *"all executions of `sp_GetUsers` slower than 500 ms"*, *"cache misses per key in the last hour"*, *"failure rate by procedure name"* — without parsing log text.
 :::
 
 ## Integration examples
@@ -148,7 +147,7 @@ Filter CaeriusNet events in `appsettings.json`:
     "MinimumLevel": {
       "Default": "Information",
       "Override": {
-        "CaeriusNet.Cache": "Warning",
+        "CaeriusNet.Cache":    "Warning",
         "CaeriusNet.Commands": "Debug"
       }
     }
@@ -162,10 +161,7 @@ Export CaeriusNet logs to an OTLP-compatible backend:
 
 ```csharp
 builder.Services.AddOpenTelemetry()
-    .WithLogging(logging =>
-    {
-        logging.AddOtlpExporter();
-    });
+    .WithLogging(logging => logging.AddOtlpExporter());
 
 builder.Services.AddLogging(logging =>
 {
@@ -189,37 +185,28 @@ builder.Services.AddLogging(logging =>
 });
 ```
 
-::: details Custom telemetry from CaeriusNet events
-Use `ILogger` event subscriptions or middleware to convert CaeriusNet log events into custom Application Insights metrics:
-
-```csharp
-// Example: track execution duration as a custom metric
-services.AddSingleton<ILoggerProvider, CustomMetricsLoggerProvider>();
-```
-:::
-
 ## Performance considerations
 
 | Aspect | Guidance |
 |---|---|
-| **Log level filtering** | Set `CaeriusNet.Cache` to `Warning` in production to suppress per-request cache hit/miss noise |
-| **High-throughput paths** | `Debug` level events are compiled out when the level is not enabled (source-generator check) |
-| **Structured sinks** | Prefer Seq, Elasticsearch, or OTLP over flat-file for queryability |
+| **Log level filtering** | Set `CaeriusNet.Cache` to `Warning` in production to suppress per-call cache noise |
+| **Hot paths** | `Debug`-level callsites are compiled out when the level is disabled (the source-generator emits an `IsEnabled` check) |
+| **Structured sinks** | Prefer Seq, Elasticsearch, or OTLP over flat-file sinks for queryability |
 | **Sampling** | For very high RPS, configure sampling in your telemetry pipeline |
 
 ::: warning Avoid excessive logging in hot paths
-`Debug`-level cache events fire on every database call. In production, ensure your minimum level is `Information` or higher for CaeriusNet categories to avoid log volume overwhelming sinks.
+`Debug`-level cache events fire on every call. In production, ensure your minimum level is `Information` (or higher) for `CaeriusNet.Cache` to avoid log volume drowning your sinks.
 :::
 
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| No CaeriusNet logs appear | Logger not configured | Call `LoggerProvider.SetLogger(...)` at startup |
-| Missing structured parameters | Using flat-text sink | Switch to a structured sink (Seq, OTLP, JSON console) |
-| High log volume | Debug level in production | Raise minimum level to Information |
-| Missing timing data | Logs filtered too aggressively | Ensure event ID 5002 (command complete) is not filtered |
+| No CaeriusNet logs appear | Logger not configured | Ensure `ILoggerFactory` is registered before `CaeriusNetBuilder.Build()` |
+| Missing structured parameters | Flat-text sink in use | Switch to a structured sink (Seq, OTLP, JSON console) |
+| High log volume | Debug level enabled in production | Raise the minimum level for `CaeriusNet.Cache` to `Warning` |
+| Missing timing data | Event ID 5002 filtered out | Re-enable `CaeriusNet.Commands` at `Information` |
 
 ---
 
-**Next:** [Best Practices](/documentation/best-practices) — recommendations for production-ready CaeriusNet usage.
+**Next:** [Aspire Integration](/documentation/aspire) — connect CaeriusNet to the Aspire dashboard via OpenTelemetry.

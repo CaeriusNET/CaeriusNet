@@ -1,53 +1,53 @@
 # Caching
 
-CaeriusNet supports three caching strategies to reduce database load and improve latency. Caching is opt-in per call via `StoredProcedureParametersBuilder`. When a cache hit occurs, CaeriusNet returns the cached result without executing the Stored Procedure.
+CaeriusNet supports three caching strategies to reduce database load and improve latency. Caching is **opt-in per call** via `StoredProcedureParametersBuilder` — you choose the tier exactly where you need it. On a cache hit, CaeriusNet returns the cached result without executing the Stored Procedure and **without creating a DB span**.
 
 ## Strategy comparison
 
-| Strategy | Scope | Expiration | Requires setup | Best for |
+| Strategy | Scope | Expiration | DI prerequisite | Best for |
 |---|---|---|---|---|
-| **Frozen** | In-process | None — lives until process restart | None | Static reference data (e.g., lookup tables, enums) |
-| **InMemory** | In-process | Required (`TimeSpan`) | None | Frequently read data with acceptable staleness |
-| **Redis** | Distributed | Optional | `WithRedis` / `WithAspireRedis` | Multi-instance deployments, shared cache |
+| **Frozen** | In-process | None — lives until process restart | None | Static reference data (lookup tables, enums, country codes) |
+| **InMemory** | In-process | Required (`TimeSpan`) | None | Frequently-read data with acceptable staleness |
+| **Redis** | Distributed | Optional (`TimeSpan?`) | `WithRedis` / `WithAspireRedis` | Multi-instance deployments, shared cache, surviving restarts |
 
 ## Frozen cache
 
-Immutable, in-process cache. Entries persist until the process restarts. No expiration configuration.
+Immutable, in-process cache backed by `FrozenDictionary<TKey, TValue>` for lock-free reads. Entries persist until the process restarts; there is no expiration.
 
 ```csharp
 var sp = new StoredProcedureParametersBuilder("Users", "usp_Get_All_Users", 250)
-    .AddFrozenCache("all_users_frozen")
+    .AddFrozenCache("users:all:frozen")
     .Build();
 
-var users = await dbContext.QueryAsReadOnlyCollectionAsync<UserDto>(sp, cancellationToken);
+var users = await dbContext.QueryAsReadOnlyCollectionAsync<UserDto>(sp, ct);
 ```
 
 ::: tip When to use Frozen
-Use Frozen for data that truly never changes during the application lifetime: country lists, currency codes, permission definitions, static lookup tables.
+Frozen is for data that **truly never changes** for the lifetime of the process: country lists, currency codes, permission definitions, static lookup tables. If the data needs an invalidation strategy, prefer InMemory or Redis.
 :::
 
 ## In-memory cache
 
-In-process cache with a mandatory expiration `TimeSpan`. Entries are automatically evicted after the specified duration.
+In-process cache with a mandatory `TimeSpan` expiration. Entries are evicted automatically when their TTL elapses.
 
 ```csharp
 var sp = new StoredProcedureParametersBuilder("Users", "usp_Get_All_Users", 250)
-    .AddInMemoryCache("all_users_memory", TimeSpan.FromMinutes(1))
+    .AddInMemoryCache("users:all:memory", TimeSpan.FromMinutes(1))
     .Build();
 
-var users = await dbContext.QueryAsReadOnlyCollectionAsync<UserDto>(sp, cancellationToken);
+var users = await dbContext.QueryAsReadOnlyCollectionAsync<UserDto>(sp, ct);
 ```
 
 ::: tip When to use InMemory
-Use InMemory for data that is read frequently but can tolerate slight staleness: user profiles, product catalogues, configuration records that change infrequently.
+InMemory is for data read frequently within a single process where some staleness is acceptable: user profiles, product catalogues, configuration records that change infrequently.
 :::
 
 ## Redis cache (distributed)
 
-Distributed cache backed by Redis. Expiration is optional — if omitted, the entry persists until Redis evicts it. Requires `WithRedis` or `WithAspireRedis` in the builder.
+Distributed cache backed by Redis through `Microsoft.Extensions.Caching.StackExchangeRedis`. Expiration is **optional** — when omitted, the entry persists until Redis evicts it under memory pressure.
 
 ```csharp
-// Required: configure Redis in your DI setup
+// Required: configure Redis once in your DI setup
 CaeriusNetBuilder
     .Create(services)
     .WithSqlServer(connectionString)
@@ -56,59 +56,82 @@ CaeriusNetBuilder
 ```
 
 ```csharp
-// Per-call: with expiration
+// Per-call: with explicit expiration
 var sp = new StoredProcedureParametersBuilder("Users", "usp_Get_All_Users", 250)
-    .AddRedisCache("all_users_redis", TimeSpan.FromMinutes(2))
+    .AddRedisCache("users:all:redis", TimeSpan.FromMinutes(2))
     .Build();
 
-// Per-call: no expiration (entry persists until Redis eviction)
+// Per-call: no expiration (entry persists until Redis evicts it)
 var sp = new StoredProcedureParametersBuilder("Users", "usp_Get_All_Users", 250)
-    .AddRedisCache("all_users_redis")
+    .AddRedisCache("users:all:redis")
     .Build();
 ```
 
 ::: tip When to use Redis
-Use Redis when multiple instances of your service share the same cache, or when you need cache to survive application restarts. Combine with Aspire for automatic connection management.
+Redis is for **multi-instance** deployments where the cache must be shared across replicas, or where it must survive application restarts. Combine with Aspire (`WithAspireRedis`) for automatic connection-string resolution from the AppHost.
 :::
 
 ## Cache key design
 
-- **Deterministic**: keys must be stable across calls with the same logical input
-- **Scoped**: include parameters that affect the result
-- **Compact**: avoid very long keys
-- **Readable**: use lowercase with `:` separators
+Good cache keys are **deterministic**, **scoped to the input**, and **readable**:
 
 ```csharp
-// Good examples
+// ✅ Good
 "users:all"
 $"users:age:{age}"
 $"orders:user:{userId}:page:{page}"
 
-// Avoid
-$"result_{DateTime.UtcNow}"     // non-deterministic
-"very_long_key_with_lots_of_data_that_is_hard_to_read"
+// ❌ Avoid
+$"result_{DateTime.UtcNow}"      // non-deterministic — never hits
+"all_user_data_cached_safely"    // not scoped to inputs — collisions
 ```
+
+Recommended conventions:
+
+- Lowercase, colon-separated segments
+- Most-stable prefix first (`entity`), then identifier, then variant
+- Include all parameters that affect the result — otherwise the cache returns the wrong rows
 
 ## Cache invalidation
 
-CaeriusNet does not provide explicit cache invalidation APIs — caches are TTL-based. For Frozen cache, restart the process or deploy a new version. For InMemory, tune the `TimeSpan`. For Redis, use `IDatabase.KeyDelete` directly if needed between deployments.
+CaeriusNet does not provide explicit invalidation APIs — caches are TTL-based by design. Strategies:
+
+- **Frozen** — restart the process or deploy a new version
+- **InMemory** — pick a TTL that matches your acceptable staleness
+- **Redis** — call `IDatabase.KeyDelete` directly (e.g., on a deployment hook) or rely on TTL
+
+## Cache and transactions
+
+**Caches are bypassed inside `ICaeriusNetTransaction` scopes.** This prevents uncommitted (dirty) reads from being published to the cache and served to other consumers. After `CommitAsync`, the next non-transactional call populates the cache normally.
+
+See [Transactions — Cache bypass](/documentation/transactions#cache-bypass).
+
+## Telemetry
+
+Every cache lookup is recorded — both hits and misses — through the `caerius.cache.lookups` counter:
+
+| Tag | Value |
+|---|---|
+| `caerius.cache.tier` | `Frozen`, `InMemory`, or `Redis` |
+| `caerius.cache.hit` | `true` on hit, `false` on miss |
+
+On a hit, **no DB span is created** — the trace accurately reflects that the database was not contacted.
 
 ## Security considerations
 
-- Do not cache data that mixes users without a user-scoped key (e.g., `$"users:profile:{userId}"`)
-- For Redis in production: enable TLS, use authentication, and restrict network access
-- Avoid caching sensitive data (passwords, tokens, PII) unless the risk is acceptable and the cache is properly secured
+- **Per-user data** must include the user identifier in the key (`$"profile:{userId}"`).
+- **Production Redis** should enable TLS, require authentication, and restrict network access to trusted environments.
+- **Sensitive data** (passwords, tokens, PII) should not be cached unless the risk is acceptable and the cache is properly secured. Prefer short TTLs.
 
 ## Troubleshooting
 
-| Issue | Likely cause | Fix |
+| Symptom | Likely cause | Fix |
 |---|---|---|
-| Cache miss when hit expected | Different key on each call | Use a deterministic key construction |
-| Stale data returned | Expiration too long | Lower the `TimeSpan` or use a scoped key |
-| Redis not used | Not configured in builder | Add `.WithRedis(...)` or `.WithAspireRedis(...)` |
-| Memory growth | Frozen cache overused | Reserve Frozen for truly static data |
+| Cache miss when a hit was expected | Different key on each call | Construct keys deterministically from inputs |
+| Stale data returned | TTL too long | Lower the `TimeSpan` or include a version segment |
+| `WithRedis` not used | Redis not configured | Add `.WithRedis(...)` or `.WithAspireRedis(...)` to the builder |
+| Memory growth | Frozen cache misused | Reserve Frozen for truly static data; prefer InMemory with TTL otherwise |
 
 ---
 
-**Next:** [Aspire Integration](/documentation/aspire) — configure SQL Server and Redis via .NET Aspire.
-
+**Next:** [Transactions](/documentation/transactions) — atomic multi-statement units of work with parent `TX` spans.

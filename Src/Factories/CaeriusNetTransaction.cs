@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace CaeriusNet.Factories;
 
 /// <summary>
@@ -15,15 +17,17 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransactionInternal
     private readonly bool _isLoggingEnabled;
     private readonly ILogger? _logger;
     private int _commandInFlight; // 0 = none, 1 = busy
-
     private SqlConnection? _connection;
     private int _state; // 0 = active, 1 = committed, 2 = rolledback, 3 = poisoned, 4 = disposed
     private SqlTransaction? _transaction;
 
-    private CaeriusNetTransaction(SqlConnection connection, SqlTransaction transaction)
+    private Activity? _txActivity;
+
+    private CaeriusNetTransaction(SqlConnection connection, SqlTransaction transaction, Activity? txActivity)
     {
         _connection = connection;
         _transaction = transaction;
+        _txActivity = txActivity;
         _logger = LoggerProvider.GetLogger();
         _isLoggingEnabled = _logger != null;
     }
@@ -46,11 +50,15 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransactionInternal
         try
         {
             await Transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            CaeriusActivityExtensions.RecordTransactionOutcome(_txActivity, "committed");
+            _txActivity = null;
             if (_isLoggingEnabled) _logger!.LogTransactionCommitted();
         }
         catch (SqlException ex)
         {
             Volatile.Write(ref _state, StatePoisoned);
+            CaeriusActivityExtensions.RecordTransactionOutcome(_txActivity, "commit-failed", true);
+            _txActivity = null;
             throw new CaeriusNetSqlException("Failed to commit SQL Server transaction.", ex);
         }
     }
@@ -66,11 +74,15 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransactionInternal
         {
             await Transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
             Volatile.Write(ref _state, StateRolledBack);
+            CaeriusActivityExtensions.RecordTransactionOutcome(_txActivity, "rolled-back");
+            _txActivity = null;
             if (_isLoggingEnabled) _logger!.LogTransactionRolledBack();
         }
         catch (SqlException ex)
         {
             Volatile.Write(ref _state, StatePoisoned);
+            CaeriusActivityExtensions.RecordTransactionOutcome(_txActivity, "rollback-failed", true);
+            _txActivity = null;
             throw new CaeriusNetSqlException("Failed to rollback SQL Server transaction.", ex);
         }
     }
@@ -109,11 +121,16 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransactionInternal
             try
             {
                 await _transaction.RollbackAsync().ConfigureAwait(false);
+                var outcome = prev == StatePoisoned ? "poisoned-auto-rollback" : "auto-rollback";
+                CaeriusActivityExtensions.RecordTransactionOutcome(_txActivity, outcome, prev == StatePoisoned);
+                _txActivity = null;
                 if (_isLoggingEnabled) _logger!.LogTransactionRolledBack();
             }
             catch
             {
                 // Best-effort rollback during disposal; surface no exception to callers.
+                _txActivity?.Stop();
+                _txActivity = null;
             }
 
         if (_transaction is not null)
@@ -153,7 +170,12 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransactionInternal
                 .BeginTransactionAsync(isolationLevel, cancellationToken)
                 .ConfigureAwait(false);
 
-            var tx = new CaeriusNetTransaction(connection, transaction);
+            // Start the parent TX activity AFTER the connection is open and the transaction is
+            // begun. All SP activities started inside this scope will become children of this
+            // activity because Activity.Current is set to it on the calling async context.
+            var txActivity = CaeriusActivityExtensions.StartTransactionActivity(isolationLevel);
+
+            var tx = new CaeriusNetTransaction(connection, transaction, txActivity);
             if (tx._isLoggingEnabled) tx._logger!.LogTransactionStarted(isolationLevel);
             return tx;
         }

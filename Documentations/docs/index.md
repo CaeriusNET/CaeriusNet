@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: "CaeriusNet"
-  text: "SQL Server Stored Procedures → C# DTOs"
-  tagline: Compile-time safe mapping. No reflection. No DataTable. Just SQL Server + C#.
+  text: "SQL Server Stored Procedures to C# DTOs"
+  tagline: A focused, high-performance micro-ORM for C# 14 / .NET 10. Compile-time safe mapping, zero reflection, first-class observability.
   image:
     alt: CaeriusNet Logo
   actions:
@@ -15,28 +15,37 @@ hero:
       text: Get Started
       link: /quickstart/getting-started
     - theme: alt
-      text: Usage
-      link: /documentation/usage
+      text: Examples
+      link: /examples/
     - theme: alt
       text: GitHub
       link: https://github.com/CaeriusNET/CaeriusNet
 
 features:
   - icon: 🛠️
-    title: Stored Procedures only
-    details: Data access lives in T/SQL Stored Procedures, results land in typed C# DTOs. CaeriusNet binds both sides with minimal boilerplate and DI-first design.
+    title: Stored Procedures, first and only
+    details: Data access lives in T-SQL where it belongs. CaeriusNet binds Stored Procedure result sets to typed C# DTOs with a fluent builder, DI-first design, and a deliberately small API surface — no LINQ translation, no change tracking, no surprises.
+  - icon: ⚡
+    title: Compile-time mapping via Roslyn generators
+    details: <code>[GenerateDto]</code> and <code>[GenerateTvp]</code> emit <code>ISpMapper&lt;T&gt;</code> / <code>ITvpMapper&lt;T&gt;</code> at build time. A dedicated analyzer enforces the <code>sealed partial</code> + primary-constructor shape, so contract drift surfaces in your IDE — never at runtime.
   - icon: 🚀
-    title: Ordinal mapping — no reflection
-    details: Allocation-aware, ordinal-indexed mapping via <code>SqlDataReader</code>. Pre-sized collections, <code>SequentialAccess</code> readers, and compile-time source generators.
-  - icon: 💪
-    title: TVP + multi-result in one call
-    details: Stream thousands of IDs via Table-Valued Parameters, combine them with scalar parameters, and return up to 5 result sets in a single round-trip.
-  - icon: 🔄
-    title: Async-only I/O
-    details: Every database call is async and <code>CancellationToken</code>-aware for throughput and thread-pool health.
+    title: Ordinal, allocation-aware reads
+    details: Columns are read by index — never by name — through <code>SqlDataReader</code> with <code>SequentialAccess</code>. Result lists are pre-sized via your declared capacity, populated through <code>CollectionsMarshal</code>, and pooled with <code>ArrayPool&lt;T&gt;</code> for <code>ImmutableArray</code> outputs.
+  - icon: 📦
+    title: Table-Valued Parameters, zero-copy
+    details: Pass thousands of IDs, GUIDs, or composite keys in a single round-trip. The generator emits a streaming <code>IEnumerable&lt;SqlDataRecord&gt;</code> that reuses a single record instance across rows — no <code>DataTable</code>, no boxing, no IN-list size limits.
+  - icon: 🔀
+    title: Multiple result sets in one call
+    details: Return up to five typed result sets from a single Stored Procedure execution. Helpers come in three collection flavours — <code>IEnumerable</code>, <code>ReadOnlyCollection</code>, <code>ImmutableArray</code> — destructured straight into a tuple at the call site.
   - icon: 🧊
-    title: Per-call caching
-    details: Opt into Frozen (immutable), InMemory (TTL), or Redis (distributed) caching directly on the parameters builder — zero overhead when not used.
+    title: Three-tier opt-in caching
+    details: Pick the right tier per call directly on the parameters builder. <strong>Frozen</strong> for static reference data, <strong>InMemory</strong> for short-TTL hot paths, <strong>Redis</strong> for shared distributed cache — zero overhead when not used, zero allocation on cache hits.
+  - icon: 🔐
+    title: Atomic transactions with safety nets
+    details: <code>BeginTransactionAsync</code> returns a thread-safe scope with a strict state machine (Active → Committed / RolledBack / Poisoned). Failures auto-poison and rollback on dispose; child SP spans nest under a parent <code>TX</code> activity for one cohesive trace per unit of work.
+  - icon: 📡
+    title: OpenTelemetry & Aspire, native
+    details: A built-in <code>ActivitySource</code> and <code>Meter</code> emit OTel-compliant spans (<code>db.system</code>, <code>db.operation</code>, <code>db.statement</code>) and metrics (duration, executions, errors, cache lookups). <code>WithAspireSqlServer</code> / <code>WithAspireRedis</code> wire it into the Aspire dashboard in two lines.
 ---
 
 <style>
