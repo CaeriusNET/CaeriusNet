@@ -27,12 +27,8 @@ public static class SimpleReadSqlAsyncCommands
             const string Operation = nameof(FirstQueryAsync);
             var logger = LoggerProvider.GetLogger();
 
-            // Start the activity before any cache/SQL work so that Redis lookups and SQL
-            // connection opens are nested under this span rather than becoming root traces.
-            using var activity = CaeriusActivityExtensions.StartStoredProcedureActivity(spParameters, Operation);
-            var tags = CaeriusActivityExtensions.BuildMetricTags(spParameters, Operation);
-            var startTimestamp = Stopwatch.GetTimestamp();
-
+            // Check cache before starting the SP span so that cache hits do not emit a
+            // misleading DB span or record SP duration/execution metrics.
             if (spParameters.CacheType.HasValue && !string.IsNullOrEmpty(spParameters.CacheKey))
                 if (CacheHelper.TryRetrieveFromCache(spParameters, context.RedisCacheManager,
                         out TResultSet? cachedResult))
@@ -40,15 +36,16 @@ public static class SimpleReadSqlAsyncCommands
                     CaeriusActivityExtensions.RecordCacheLookup(spParameters, spParameters.CacheType.Value, true);
                     if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                         logger.LogCacheHitSkippingExecution(spParameters.CacheKey);
-                    var cacheElapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
-                    CaeriusActivityExtensions.RecordSuccess(activity, tags, cacheElapsedMs,
-                        cachedResult is null ? 0 : 1);
                     return cachedResult;
                 }
                 else
                 {
                     CaeriusActivityExtensions.RecordCacheLookup(spParameters, spParameters.CacheType.Value, false);
                 }
+
+            using var activity = CaeriusActivityExtensions.StartStoredProcedureActivity(spParameters, Operation);
+            var tags = CaeriusActivityExtensions.BuildMetricTags(spParameters, Operation);
+            var startTimestamp = Stopwatch.GetTimestamp();
 
             if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                 logger.LogExecutingProcedure(
@@ -103,12 +100,8 @@ public static class SimpleReadSqlAsyncCommands
             const string Operation = nameof(QueryAsReadOnlyCollectionAsync);
             var logger = LoggerProvider.GetLogger();
 
-            // Start the activity before any cache/SQL work so that Redis lookups and SQL
-            // connection opens are nested under this span rather than becoming root traces.
-            using var activity = CaeriusActivityExtensions.StartStoredProcedureActivity(spParameters, Operation);
-            var tags = CaeriusActivityExtensions.BuildMetricTags(spParameters, Operation);
-            var startTimestamp = Stopwatch.GetTimestamp();
-
+            // Check cache before starting the SP span so that cache hits do not emit a
+            // misleading DB span or record SP duration/execution metrics.
             if (CacheHelper.TryRetrieveFromCache(spParameters, context.RedisCacheManager,
                     out ReadOnlyCollection<TResultSet>? cachedResult) &&
                 cachedResult != null)
@@ -120,14 +113,15 @@ public static class SimpleReadSqlAsyncCommands
                         logger.LogCacheHitSkippingExecution(spParameters.CacheKey);
                 }
 
-                var cacheElapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
-                CaeriusActivityExtensions.RecordSuccess(activity, tags, cacheElapsedMs,
-                    cachedResult.Count);
                 return cachedResult;
             }
 
             if (spParameters.CacheType.HasValue && !string.IsNullOrEmpty(spParameters.CacheKey))
                 CaeriusActivityExtensions.RecordCacheLookup(spParameters, spParameters.CacheType.Value, false);
+
+            using var activity = CaeriusActivityExtensions.StartStoredProcedureActivity(spParameters, Operation);
+            var tags = CaeriusActivityExtensions.BuildMetricTags(spParameters, Operation);
+            var startTimestamp = Stopwatch.GetTimestamp();
 
             if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                 logger.LogExecutingProcedure(
@@ -183,12 +177,8 @@ public static class SimpleReadSqlAsyncCommands
             const string Operation = nameof(QueryAsIEnumerableAsync);
             var logger = LoggerProvider.GetLogger();
 
-            // Start the activity before any cache/SQL work so that Redis lookups and SQL
-            // connection opens are nested under this span rather than becoming root traces.
-            using var activity = CaeriusActivityExtensions.StartStoredProcedureActivity(spParameters, Operation);
-            var tags = CaeriusActivityExtensions.BuildMetricTags(spParameters, Operation);
-            var startTimestamp = Stopwatch.GetTimestamp();
-
+            // Check cache before starting the SP span so that cache hits do not emit a
+            // misleading DB span or record SP duration/execution metrics.
             if (CacheHelper.TryRetrieveFromCache(spParameters, context.RedisCacheManager,
                     out IEnumerable<TResultSet>? cachedResult) &&
                 cachedResult != null)
@@ -200,13 +190,15 @@ public static class SimpleReadSqlAsyncCommands
                         logger.LogCacheHitSkippingExecution(spParameters.CacheKey);
                 }
 
-                var cacheElapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
-                CaeriusActivityExtensions.RecordSuccess(activity, tags, cacheElapsedMs);
                 return cachedResult;
             }
 
             if (spParameters.CacheType.HasValue && !string.IsNullOrEmpty(spParameters.CacheKey))
                 CaeriusActivityExtensions.RecordCacheLookup(spParameters, spParameters.CacheType.Value, false);
+
+            using var activity = CaeriusActivityExtensions.StartStoredProcedureActivity(spParameters, Operation);
+            var tags = CaeriusActivityExtensions.BuildMetricTags(spParameters, Operation);
+            var startTimestamp = Stopwatch.GetTimestamp();
 
             if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                 logger.LogExecutingProcedure(
@@ -262,12 +254,8 @@ public static class SimpleReadSqlAsyncCommands
             const string Operation = nameof(QueryAsImmutableArrayAsync);
             var logger = LoggerProvider.GetLogger();
 
-            // Start the activity before any cache/SQL work so that Redis lookups and SQL
-            // connection opens are nested under this span rather than becoming root traces.
-            using var activity = CaeriusActivityExtensions.StartStoredProcedureActivity(spParameters, Operation);
-            var tags = CaeriusActivityExtensions.BuildMetricTags(spParameters, Operation);
-            var startTimestamp = Stopwatch.GetTimestamp();
-
+            // Check cache before starting the SP span so that cache hits do not emit a
+            // misleading DB span or record SP duration/execution metrics.
             if (CacheHelper.TryRetrieveFromCache(spParameters, context.RedisCacheManager,
                     out ImmutableArray<TResultSet>? cachedResult) &&
                 cachedResult.HasValue)
@@ -279,14 +267,15 @@ public static class SimpleReadSqlAsyncCommands
                         logger.LogCacheHitSkippingExecution(spParameters.CacheKey);
                 }
 
-                var cacheElapsedMs = Stopwatch.GetElapsedTime(startTimestamp).TotalMilliseconds;
-                CaeriusActivityExtensions.RecordSuccess(activity, tags, cacheElapsedMs,
-                    cachedResult.Value.Length);
                 return cachedResult.Value;
             }
 
             if (spParameters.CacheType.HasValue && !string.IsNullOrEmpty(spParameters.CacheKey))
                 CaeriusActivityExtensions.RecordCacheLookup(spParameters, spParameters.CacheType.Value, false);
+
+            using var activity = CaeriusActivityExtensions.StartStoredProcedureActivity(spParameters, Operation);
+            var tags = CaeriusActivityExtensions.BuildMetricTags(spParameters, Operation);
+            var startTimestamp = Stopwatch.GetTimestamp();
 
             if (logger is not null && logger.IsEnabled(LogLevel.Debug))
                 logger.LogExecutingProcedure(

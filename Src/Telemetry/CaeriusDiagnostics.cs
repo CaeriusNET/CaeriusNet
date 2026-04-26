@@ -60,12 +60,13 @@ public static class CaeriusDiagnostics
         "Duration of CaeriusNet stored procedure executions.");
 
     /// <summary>
-    ///     Counter of stored-procedure executions (successful or failed). Failures are also counted in
-    ///     <see cref="SpErrors" />.
+    ///     Counter of stored-procedure executions that completed successfully.
+    ///     Failed calls are counted in <see cref="SpErrors" /> instead of here.
+    ///     Cache-hit short-circuits are not counted — no SQL was executed.
     /// </summary>
     public static readonly Counter<long> SpExecutions = Meter.CreateCounter<long>(
         "caerius.sp.executions",
-        description: "Number of CaeriusNet stored procedure executions started.");
+        description: "Number of CaeriusNet stored procedure executions that completed successfully.");
 
     /// <summary>
     ///     Counter of stored-procedure executions that ended in a SQL error.

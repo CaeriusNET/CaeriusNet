@@ -7,6 +7,7 @@ namespace CaeriusNet.Tests.Telemetry;
 ///     Verifies that CaeriusNet metric instruments are reachable through a
 ///     <see cref="MeterListener" /> and emit the expected tags.
 /// </summary>
+[Collection(TelemetryTestsCollection.Name)]
 public sealed class CaeriusDiagnosticsMetricsTests
 {
     private static StoredProcedureParameters Sp()

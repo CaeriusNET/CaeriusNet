@@ -7,6 +7,7 @@ namespace CaeriusNet.Tests.Telemetry;
 ///     spans with the expected <c>db.*</c> + <c>caerius.*</c> tags, and react correctly to error,
 ///     success and cache-lookup signals. These tests do not require a SQL Server.
 /// </summary>
+[Collection(TelemetryTestsCollection.Name)]
 public sealed class CaeriusActivityExtensionsTests
 {
     /// <summary>Builds a <see cref="StoredProcedureParameters" /> with optional raw parameters.</summary>

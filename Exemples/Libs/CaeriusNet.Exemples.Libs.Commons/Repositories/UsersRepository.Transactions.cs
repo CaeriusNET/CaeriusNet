@@ -44,6 +44,10 @@ public sealed partial class UsersRepository
             .ExecuteScalarAsync<int>(createUser, cancellationToken)
             .ConfigureAwait(false);
 
+        if (newUserId == 0)
+            throw new InvalidOperationException(
+                "usp_Create_User did not return a user identifier; cannot create the associated order.");
+
         var createOrder = new StoredProcedureParametersBuilder("Users", "usp_Create_Order")
             .AddParameter("@UserId", newUserId, SqlDbType.Int)
             .AddParameter("@Label", firstOrderLabel, SqlDbType.NVarChar)
@@ -53,7 +57,7 @@ public sealed partial class UsersRepository
         await tx.ExecuteScalarAsync<int>(createOrder, cancellationToken).ConfigureAwait(false);
         await tx.CommitAsync(cancellationToken).ConfigureAwait(false);
 
-        return newUserId is int id ? id : 0;
+        return newUserId;
     }
 
     // ─── Scenario 2: C#-side rollback ───────────────────────────────────────

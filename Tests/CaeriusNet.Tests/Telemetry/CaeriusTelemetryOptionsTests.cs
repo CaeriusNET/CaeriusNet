@@ -7,6 +7,7 @@ namespace CaeriusNet.Tests.Telemetry;
 ///     <see cref="CaeriusDiagnostics.TelemetryOptions" /> and
 ///     <see cref="CaeriusActivityExtensions.StartStoredProcedureActivity" />.
 /// </summary>
+[Collection(TelemetryTestsCollection.Name)]
 public sealed class CaeriusTelemetryOptionsTests : IDisposable
 {
     private readonly CaeriusTelemetryOptions _previousOptions = CaeriusDiagnostics.TelemetryOptions;

@@ -3,16 +3,16 @@
 public interface IUsersRepository
 {
     // Reads ---------------------------------------------------------------
-    Task<IEnumerable<UserDto>> GetAllUsers();
-    Task<IEnumerable<UserDto>> GetAllUsersWithFrozenCache();
-    Task<IEnumerable<UserDto>> GetAllUsersWithMemoryCache();
-    Task<IEnumerable<UserDto>> GetAllUsersWithRedisCache();
-    Task<IEnumerable<UserDto>> GetUsersByTvpIntGuid();
-    Task<IReadOnlyCollection<UserDto>> GetUsersByTvpInt();
-    Task<ImmutableArray<UserDto>> GetUsersByTvpGuid();
+    Task<IEnumerable<UserDto>> GetAllUsers(CancellationToken cancellationToken = default);
+    Task<IEnumerable<UserDto>> GetAllUsersWithFrozenCache(CancellationToken cancellationToken = default);
+    Task<IEnumerable<UserDto>> GetAllUsersWithMemoryCache(CancellationToken cancellationToken = default);
+    Task<IEnumerable<UserDto>> GetAllUsersWithRedisCache(CancellationToken cancellationToken = default);
+    Task<IEnumerable<UserDto>> GetUsersByTvpIntGuid(CancellationToken cancellationToken = default);
+    Task<IReadOnlyCollection<UserDto>> GetUsersByTvpInt(CancellationToken cancellationToken = default);
+    Task<ImmutableArray<UserDto>> GetUsersByTvpGuid(CancellationToken cancellationToken = default);
 
     // Writes --------------------------------------------------------------
-    Task CreateNewUser();
+    Task CreateNewUser(CancellationToken cancellationToken = default);
 
     // Multi-result sets ---------------------------------------------------
     Task<DashboardSnapshot> GetDashboardAsync(CancellationToken cancellationToken = default);

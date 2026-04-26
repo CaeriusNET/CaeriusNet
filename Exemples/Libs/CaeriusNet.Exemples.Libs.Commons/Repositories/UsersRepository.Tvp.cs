@@ -10,7 +10,7 @@ public sealed partial class UsersRepository
 {
     // ─── Types.tvp_Int — filter by a set of integer user IDs ───────────────
 
-    public async Task<IReadOnlyCollection<UserDto>> GetUsersByTvpInt()
+    public async Task<IReadOnlyCollection<UserDto>> GetUsersByTvpInt(CancellationToken cancellationToken = default)
     {
         IEnumerable<UsersIntTvp> ids = [new(1), new(2), new(3), new(4)];
 
@@ -18,12 +18,12 @@ public sealed partial class UsersRepository
             .AddTvpParameter("tvp", ids)
             .Build();
 
-        return await dbContext.QueryAsReadOnlyCollectionAsync<UserDto>(sp);
+        return await dbContext.QueryAsReadOnlyCollectionAsync<UserDto>(sp, cancellationToken);
     }
 
     // ─── Types.tvp_Guid — filter by a set of GUID user identifiers ─────────
 
-    public async Task<ImmutableArray<UserDto>> GetUsersByTvpGuid()
+    public async Task<ImmutableArray<UserDto>> GetUsersByTvpGuid(CancellationToken cancellationToken = default)
     {
         IEnumerable<UsersGuidTvp> guids =
         [
@@ -36,12 +36,12 @@ public sealed partial class UsersRepository
             .AddTvpParameter("tvp", guids)
             .Build();
 
-        return await dbContext.QueryAsImmutableArrayAsync<UserDto>(sp);
+        return await dbContext.QueryAsImmutableArrayAsync<UserDto>(sp, cancellationToken);
     }
 
     // ─── Types.tvp_IntGuid — filter by a composite (int, Guid) key ─────────
 
-    public async Task<IEnumerable<UserDto>> GetUsersByTvpIntGuid()
+    public async Task<IEnumerable<UserDto>> GetUsersByTvpIntGuid(CancellationToken cancellationToken = default)
     {
         IEnumerable<UsersIntGuidTvp> pairs =
         [
@@ -54,6 +54,6 @@ public sealed partial class UsersRepository
             .AddTvpParameter("tvp", pairs)
             .Build();
 
-        return await dbContext.QueryAsIEnumerableAsync<UserDto>(sp) ?? [];
+        return await dbContext.QueryAsIEnumerableAsync<UserDto>(sp, cancellationToken) ?? [];
     }
 }

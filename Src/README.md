@@ -284,8 +284,9 @@ builder.Services.AddOpenTelemetry()
 Spans are `ActivityKind.Client`, named `SP {schema}.{procedure}`, and tagged with the OpenTelemetry DB semantic
 conventions (`db.system = mssql`, `db.operation`, `db.statement`) plus library-specific attributes:
 
-- `caerius.sp.schema`, `caerius.sp.name`, `caerius.sp.command`, `caerius.sp.parameters` (names only — values are
-  never published)
+- `caerius.sp.schema`, `caerius.sp.name`, `caerius.sp.command`, `caerius.sp.parameters` (names only by default;
+  set `CaptureParameterValues = true` on `CaeriusTelemetryOptions` to also capture `@name=value` pairs — keep
+  disabled in production to avoid leaking PII or secrets into telemetry back-ends)
 - `caerius.tvp.used` (`true`/`false`) and `caerius.tvp.type_name` when a Table-Valued Parameter is attached
 - `caerius.resultset.multi` and `caerius.resultset.expected_count` (1 by default, 2/3/4/5 for the multi-RS overloads)
 - `caerius.cache.tier` / `caerius.cache.hit` (set on the active span when a cache lookup occurs)

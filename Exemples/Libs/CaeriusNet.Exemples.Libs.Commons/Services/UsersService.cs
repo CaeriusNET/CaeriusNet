@@ -11,39 +11,39 @@ public sealed class UsersService(IUsersRepository repository) : IUsersService
 
     public Task<IEnumerable<UserDto>> GetAllUsersAsync(CancellationToken cancellationToken = default)
     {
-        return repository.GetAllUsers();
+        return repository.GetAllUsers(cancellationToken);
     }
 
     public Task<IEnumerable<UserDto>> GetAllUsersWithFrozenCacheAsync(CancellationToken cancellationToken = default)
     {
-        return repository.GetAllUsersWithFrozenCache();
+        return repository.GetAllUsersWithFrozenCache(cancellationToken);
     }
 
     public Task<IEnumerable<UserDto>> GetAllUsersWithMemoryCacheAsync(CancellationToken cancellationToken = default)
     {
-        return repository.GetAllUsersWithMemoryCache();
+        return repository.GetAllUsersWithMemoryCache(cancellationToken);
     }
 
     public Task<IEnumerable<UserDto>> GetAllUsersWithRedisCacheAsync(CancellationToken cancellationToken = default)
     {
-        return repository.GetAllUsersWithRedisCache();
+        return repository.GetAllUsersWithRedisCache(cancellationToken);
     }
 
     // ─── TVP-driven reads ────────────────────────────────────────────────────
 
     public Task<IReadOnlyCollection<UserDto>> GetUsersByTvpIntAsync(CancellationToken cancellationToken = default)
     {
-        return repository.GetUsersByTvpInt();
+        return repository.GetUsersByTvpInt(cancellationToken);
     }
 
     public Task<ImmutableArray<UserDto>> GetUsersByTvpGuidAsync(CancellationToken cancellationToken = default)
     {
-        return repository.GetUsersByTvpGuid();
+        return repository.GetUsersByTvpGuid(cancellationToken);
     }
 
     public Task<IEnumerable<UserDto>> GetUsersByTvpIntGuidAsync(CancellationToken cancellationToken = default)
     {
-        return repository.GetUsersByTvpIntGuid();
+        return repository.GetUsersByTvpIntGuid(cancellationToken);
     }
 
     // ─── Multi result-set reads ──────────────────────────────────────────────
