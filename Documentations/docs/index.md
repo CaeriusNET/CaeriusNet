@@ -39,7 +39,7 @@ features:
     details: Read up to five typed result sets from one stored-procedure execution. Return shapes are available for <code>IEnumerable</code>, <code>ReadOnlyCollection</code>, and <code>ImmutableArray</code>.
   - icon: 🧊
     title: Per-call caching
-    details: Choose a cache tier on the parameters builder when a call is safe to cache: Frozen for process-lifetime reference data, InMemory for expiring local entries, or Redis for shared distributed cache.
+    details: Choose a cache tier on the parameters builder when a call is safe to cache Frozen for process-lifetime reference data, InMemory for expiring local entries, or Redis for shared distributed cache.
   - icon: 🔐
     title: Transaction scopes
     details: <code>BeginTransactionAsync</code> returns an explicit async scope with commit, rollback, poisoned-state handling, and tracing that groups child stored-procedure calls under a transaction activity.
