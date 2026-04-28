@@ -6,16 +6,13 @@
 internal static class MultiResultSetHelper
 {
     /// <summary>
-    ///     Reads a single result set into a List using CollectionsMarshal for zero-copy access.
+    ///     Reads a single result set into a List.
     /// </summary>
     /// <typeparam name="T">The type to map the result set rows to</typeparam>
     /// <param name="reader">The SqlDataReader to read from</param>
     /// <param name="capacity">Initial capacity for the List</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>A List containing the mapped rows</returns>
-    /// <remarks>
-    ///     Uses CollectionsMarshal for optimized list access without additional allocations
-    /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     internal static async ValueTask<List<T>> ReadResultSetAsync<T>(
         SqlDataReader reader,

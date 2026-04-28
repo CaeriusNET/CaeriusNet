@@ -76,6 +76,7 @@ public sealed record StoredProcedureParametersBuilder(
         where T : class, ITvpMapper<T>
     {
         ArgumentException.ThrowIfNullOrEmpty(parameter);
+        ArgumentNullException.ThrowIfNull(items);
         var tvpItems = items as T[] ?? items.ToArray();
         if (tvpItems.Length == 0)
             throw new ArgumentException("No items found in the collection to map to a Table-Valued Parameter.");
