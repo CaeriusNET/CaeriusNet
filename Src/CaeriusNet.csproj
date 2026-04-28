@@ -11,7 +11,7 @@
     </PropertyGroup>
 
     <PropertyGroup>
-        <Version>11.0.2</Version>
+        <Version>11.0.3</Version>
         <Title>CaeriusNet</Title>
         <Authors>AriusII &amp; CaeriusNet</Authors>
         <Description>High-performance micro-ORM for C# 14 / .NET 10 and SQL Server. Execute Stored Procedures, map DTOs at compile-time ([GenerateDto]), pass Table-Valued Parameters ([GenerateTvp]), and cache results — all in a single package.</Description>
