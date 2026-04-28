@@ -113,7 +113,49 @@ public sealed class CaeriusNetTransactionTests
     {
         var constructor = typeof(CaeriusNetTransaction).GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
             .Single();
-        return (ICaeriusNetTransactionInternal)constructor.Invoke([new SqlConnection(), null, null]);
+        var connection = new SqlConnection();
+        var inner = (ICaeriusNetTransactionInternal)constructor.Invoke([connection, null, null]);
+        return new OwnedConnectionTransaction(inner, connection);
+    }
+
+    private sealed class OwnedConnectionTransaction : ICaeriusNetTransactionInternal
+    {
+        private readonly ICaeriusNetTransactionInternal _inner;
+        private readonly SqlConnection _connection;
+
+        public OwnedConnectionTransaction(ICaeriusNetTransactionInternal inner, SqlConnection connection)
+        {
+            _inner = inner;
+            _connection = connection;
+        }
+
+        public bool IsActive => _inner.IsActive;
+
+        public void AcquireCommandSlot()
+        {
+            _inner.AcquireCommandSlot();
+        }
+
+        public void ReleaseCommandSlot()
+        {
+            _inner.ReleaseCommandSlot();
+        }
+
+        public ValueTask CommitAsync(CancellationToken cancellationToken = default)
+        {
+            return _inner.CommitAsync(cancellationToken);
+        }
+
+        public ValueTask RollbackAsync(CancellationToken cancellationToken = default)
+        {
+            return _inner.RollbackAsync(cancellationToken);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await _inner.DisposeAsync();
+            _connection.Dispose();
+        }
     }
 
     private sealed class FakeTransaction : ICaeriusNetTransaction
