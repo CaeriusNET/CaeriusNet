@@ -75,10 +75,10 @@ public sealed record UsersRepository(
 ```csharp
 public async Task<IEnumerable<UserDto>> GetAllUsersAsync(CancellationToken ct)
 {
-    var sp = new StoredProcedureParametersBuilder("Users", "usp_Get_All_Users", capacity: 25)
+    var sp = new StoredProcedureParametersBuilder("Users", "usp_Get_All_Users", ResultSetCapacity: 25)
         .Build();
 
-    return await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct) ?? [];
+    return await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct);
 }
 ```
 
@@ -129,7 +129,7 @@ On a cache hit, **no SQL command runs and no DB span is created** — only the `
 public async Task<int> CreateUserAsync(string userName, CancellationToken ct)
 {
     var sp = new StoredProcedureParametersBuilder("Users", "usp_Create_User")
-        .AddParameter("@UserName", userName, SqlDbType.NVarChar)
+        .AddParameter("UserName", userName, SqlDbType.NVarChar)
         .Build();
 
     return await DbContext.ExecuteScalarAsync<int>(sp, ct) ?? 0;
@@ -148,7 +148,7 @@ public async Task<IEnumerable<UserDto>> GetAllUsersSafeAsync(CancellationToken c
         var sp = new StoredProcedureParametersBuilder("Users", "usp_Get_All_Users", 25)
             .Build();
 
-        return await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct) ?? [];
+        return await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct);
     }
     catch (CaeriusNetSqlException ex)
     {

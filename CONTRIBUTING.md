@@ -54,8 +54,8 @@ Tests/CaeriusNet.Tests/                # Pure unit tests (no IO)
 Tests/CaeriusNet.Generator.Tests/      # Source-generator emit & diagnostic tests
 Tests/CaeriusNet.IntegrationTests/     # End-to-end tests (Testcontainers MSSQL)
 Benchmark/                 # BenchmarkDotNet suites
-Exemples/                  # Sample consumer apps
-Documentations/            # MkDocs site (GitHub Pages)
+Exemples/                  # Example consumer apps (directory name retained for compatibility)
+Documentations/            # VitePress documentation site
 .devcontainer/             # Reproducible dev environment
 .github/                   # Workflows, templates, issue forms
 ```
@@ -89,6 +89,8 @@ migration path in the PR description.
 | `dotnet build CaeriusNet.slnx -c Release -p:TreatWarningsAsErrors=true` | Mirrors CI. |
 | `dotnet test CaeriusNet.slnx -c Release --filter "FullyQualifiedName!~IntegrationTests"` | Unit + generator tests (fast, no Docker). |
 | `dotnet test Tests/CaeriusNet.IntegrationTests` | End-to-end tests; needs Docker. |
+| `pwsh ./eng/ValidatePackage.ps1 -Configuration Release` | Packs the NuGet package and smoke-tests a consumer project. |
+| `cd Documentations && npm install && npm run docs:build` | Builds the VitePress docs when npm is available; use `npm ci` if a lockfile exists. |
 | `dotnet test --collect:"XPlat Code Coverage"` | Generates Cobertura coverage. |
 
 Coverage is reported on every PR via the CI workflow. Aim to **never decrease**
@@ -116,11 +118,13 @@ root cause over a `#pragma warning disable`.
 1. **Open an issue first** for non-trivial changes so we can align on direction.
 2. Use a focused branch with the prefix described above.
 3. Keep PRs small and reviewable. Split refactors from features.
-4. **CI must be green** (build, unit tests, CodeQL, dependency review).
-5. Update [`CHANGELOG.md`](./CHANGELOG.md) under the `[Unreleased]` section.
-6. Update README / docs when public behaviour changes.
-7. At least **one approving review** is required before merge.
-8. PRs are squash-merged onto `main` with a Conventional Commit title.
+4. **CI must be green** (build, non-integration tests, package validation, CodeQL, dependency review, and docs build when docs changed).
+5. Run Docker-backed integration tests when storage, transactions, SQL, or TVP behaviour changes.
+6. Update [`CHANGELOG.md`](./CHANGELOG.md) under the `[Unreleased]` section.
+7. Update README / docs when public behaviour changes.
+8. Release PRs must leave clear release notes in the PR or changelog so the manual release workflow can publish a tagged NuGet package with generated or supplied notes.
+9. At least **one approving review** is required before merge.
+10. PRs are squash-merged onto `main` with a Conventional Commit title.
 
 ## Reporting bugs / requesting features
 

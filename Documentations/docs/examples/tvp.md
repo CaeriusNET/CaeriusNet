@@ -96,7 +96,7 @@ public async Task<IReadOnlyCollection<UserDto>> GetUsersByTvpIntAsync(
     IEnumerable<UsersIntTvp> ids = [new(1), new(2), new(3), new(4)];
 
     var sp = new StoredProcedureParametersBuilder(
-            "Users", "usp_Get_Users_From_TvpInt", capacity: 5)
+            "Users", "usp_Get_Users_From_TvpInt", ResultSetCapacity: 5)
         .AddTvpParameter("tvp", ids)   // matches @tvp in the SP (no leading @)
         .Build();
 
@@ -121,7 +121,7 @@ public async Task<ImmutableArray<UserDto>> GetUsersByTvpGuidAsync(
     ];
 
     var sp = new StoredProcedureParametersBuilder(
-            "Users", "usp_Get_Users_From_TvpGuid", capacity: 5)
+            "Users", "usp_Get_Users_From_TvpGuid", ResultSetCapacity: 5)
         .AddTvpParameter("tvp", guids)
         .Build();
 
@@ -142,11 +142,11 @@ public async Task<IEnumerable<UserDto>> GetUsersByTvpIntGuidAsync(
     ];
 
     var sp = new StoredProcedureParametersBuilder(
-            "Users", "usp_Get_Users_From_TvpIntGuid", capacity: 5)
+            "Users", "usp_Get_Users_From_TvpIntGuid", ResultSetCapacity: 5)
         .AddTvpParameter("tvp", pairs)
         .Build();
 
-    return await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct) ?? [];
+    return await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct);
 }
 ```
 
@@ -185,8 +185,8 @@ public async Task<int> CreateBatchOrdersAsync(
 
     var sp = new StoredProcedureParametersBuilder("Users", "usp_Create_Orders_For_Users")
         .AddTvpParameter("tvp",     targetUserIds)
-        .AddParameter   ("@Label",  label,  SqlDbType.NVarChar)
-        .AddParameter   ("@Amount", amount, SqlDbType.Decimal)
+        .AddParameter   ("Label",  label,  SqlDbType.NVarChar)
+        .AddParameter   ("Amount", amount, SqlDbType.Decimal)
         .Build();
 
     return await DbContext.ExecuteScalarAsync<int>(sp, ct) ?? 0;

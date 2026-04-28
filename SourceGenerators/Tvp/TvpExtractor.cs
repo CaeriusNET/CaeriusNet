@@ -18,7 +18,8 @@ internal static class TvpExtractor
             return null;
 
         var validation = TypeStructureValidator.Validate(typeSymbol);
-        if (!validation.IsSealed || !validation.IsPartial || validation.PrimaryConstructorDeclaration is null)
+        if (!validation.IsSealed || !validation.IsPartial || !validation.IsTopLevel || !validation.IsNonGeneric ||
+            validation.PrimaryConstructorDeclaration is null)
             return null;
 
         var (schema, tvpName) = ExtractAttribute(context);
@@ -37,10 +38,16 @@ internal static class TvpExtractor
         return new TvpModel(
             NamespaceHelper.GetNamespace(typeSymbol),
             typeSymbol.Name,
+            GetAccessibilityKeyword(typeSymbol.DeclaredAccessibility),
             typeKindKeyword,
             schema,
             tvpName,
             columns);
+    }
+
+    private static string GetAccessibilityKeyword(Accessibility accessibility)
+    {
+        return accessibility == Accessibility.Public ? "public" : "internal";
     }
 
     private static (string Schema, string? TvpName) ExtractAttribute(

@@ -13,5 +13,6 @@
 internal sealed record DtoModel(
     string Namespace,
     string TypeName,
+    string AccessibilityKeyword,
     string TypeKindKeyword,
     EquatableArray<ColumnModel> Columns);

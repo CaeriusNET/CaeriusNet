@@ -5,44 +5,44 @@
 /// </summary>
 internal sealed class RedisCacheManager : IRedisCacheManager
 {
-	/// <summary>
-	///     A thread-local pool of ArrayBufferWriter instances used for efficient byte buffer management.
-	/// </summary>
-	/// <remarks>
-	///     Each thread maintains its own ArrayBufferWriter instance with an initial capacity of 4096 bytes.
-	///     This helps avoid allocation overhead in high-concurrency scenarios.
-	/// </remarks>
-	private static readonly ThreadLocal<ArrayBufferWriter<byte>> BufferWriterPool =
+    /// <summary>
+    ///     A thread-local pool of ArrayBufferWriter instances used for efficient byte buffer management.
+    /// </summary>
+    /// <remarks>
+    ///     Each thread maintains its own ArrayBufferWriter instance with an initial capacity of 4096 bytes.
+    ///     This helps avoid allocation overhead in high-concurrency scenarios.
+    /// </remarks>
+    private static readonly ThreadLocal<ArrayBufferWriter<byte>> BufferWriterPool =
         new(() => new ArrayBufferWriter<byte>(4096));
 
-	/// <summary>
-	///     JSON serialization options for Redis cache operations.
-	/// </summary>
-	/// <remarks>
-	///     Configures serialization to ignore null values, use case-insensitive property names,
-	///     and populate existing object instances during deserialization.
-	/// </remarks>
-	private static readonly JsonSerializerOptions JsonOptions = new()
+    /// <summary>
+    ///     JSON serialization options for Redis cache operations.
+    /// </summary>
+    /// <remarks>
+    ///     Configures serialization to ignore null values, use case-insensitive property names,
+    ///     and populate existing object instances during deserialization.
+    /// </remarks>
+    private static readonly JsonSerializerOptions JsonOptions = new()
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         PropertyNameCaseInsensitive = true,
         PreferredObjectCreationHandling = JsonObjectCreationHandling.Populate
     };
 
-	/// <summary>
-	///     The distributed cache instance for Redis operations.
-	/// </summary>
-	private readonly IDistributedCache? _distributedCache;
+    /// <summary>
+    ///     The distributed cache instance for Redis operations.
+    /// </summary>
+    private readonly IDistributedCache? _distributedCache;
 
-	/// <summary>
-	///     Logger instance for diagnostic and error reporting.
-	/// </summary>
-	private readonly ILogger? _logger;
+    /// <summary>
+    ///     Logger instance for diagnostic and error reporting.
+    /// </summary>
+    private readonly ILogger? _logger;
 
-	/// <summary>
-	///     Initializes a new instance of the RedisCacheManager.
-	/// </summary>
-	public RedisCacheManager(IDistributedCache? distributedCache, ILoggerFactory? loggerFactory = null)
+    /// <summary>
+    ///     Initializes a new instance of the RedisCacheManager.
+    /// </summary>
+    public RedisCacheManager(IDistributedCache? distributedCache, ILoggerFactory? loggerFactory = null)
     {
         _distributedCache = distributedCache;
         _logger = loggerFactory?.CreateLogger<RedisCacheManager>();
@@ -51,10 +51,10 @@ internal sealed class RedisCacheManager : IRedisCacheManager
             _logger.LogRedisConnected();
     }
 
-	/// <summary>
-	///     Stores a value in the Redis cache.
-	/// </summary>
-	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    /// <summary>
+    ///     Stores a value in the Redis cache.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public void Store<T>(string cacheKey, T value, TimeSpan? expiration) where T : notnull
     {
         if (_distributedCache == null) return;
@@ -90,10 +90,10 @@ internal sealed class RedisCacheManager : IRedisCacheManager
         }
     }
 
-	/// <summary>
-	///     Attempts to retrieve a cached value from Redis.
-	/// </summary>
-	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    /// <summary>
+    ///     Attempts to retrieve a cached value from Redis.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public bool TryGet<T>(string cacheKey, out T? value)
     {
         value = default;
@@ -120,11 +120,11 @@ internal sealed class RedisCacheManager : IRedisCacheManager
         }
     }
 
-	/// <summary>
-	///     Removes the entry associated with the specified key. Failures are logged and swallowed
-	///     to keep the call site oblivious to transient distributed-cache errors.
-	/// </summary>
-	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    /// <summary>
+    ///     Removes the entry associated with the specified key. Failures are logged and swallowed
+    ///     to keep the call site oblivious to transient distributed-cache errors.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public void Remove(string cacheKey)
     {
         if (_distributedCache == null) return;

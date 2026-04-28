@@ -1,16 +1,18 @@
 # Compiler Diagnostics
 
-CaeriusNet's Roslyn analyzer emits **compile-time diagnostics** for `[GenerateDto]` and `[GenerateTvp]` so contract problems show up in your IDE — never at runtime. The analyzer ships **inside the `CaeriusNet` NuGet package**; no extra reference is required.
+CaeriusNet's Roslyn analyzer emits **compile-time diagnostics** for `[GenerateDto]` and `[GenerateTvp]` contract issues. The analyzer ships inside the `CaeriusNet` NuGet package; no extra reference is required.
+
+Use this page to decide whether a diagnostic must be fixed, can be suppressed, or should be escalated in CI.
 
 ## Diagnostic reference
 
 | ID | Severity | Title | Triggered when |
 |---|---|---|---|
-| [CAERIUS001](https://github.com/CaeriusNET/CaeriusNet/blob/main/Documentations/diagnostics/CAERIUS001.md) | Error | Type must be `sealed` | A `[GenerateDto]` or `[GenerateTvp]` type is missing the `sealed` modifier |
-| [CAERIUS002](https://github.com/CaeriusNET/CaeriusNet/blob/main/Documentations/diagnostics/CAERIUS002.md) | Error | Type must be `partial` | A `[GenerateDto]` or `[GenerateTvp]` type is missing the `partial` modifier |
-| [CAERIUS003](https://github.com/CaeriusNET/CaeriusNet/blob/main/Documentations/diagnostics/CAERIUS003.md) | Error | Primary constructor required | The type does not declare a primary constructor (or the constructor has no parameters) |
-| [CAERIUS004](https://github.com/CaeriusNET/CaeriusNet/blob/main/Documentations/diagnostics/CAERIUS004.md) | Error | `[GenerateTvp]` requires a non-empty `TvpName` | The attribute sets `TvpName` to an empty or whitespace-only string |
-| [CAERIUS005](https://github.com/CaeriusNET/CaeriusNet/blob/main/Documentations/diagnostics/CAERIUS005.md) | Warning | Unmapped CLR type falls back to `sql_variant` | A constructor parameter has a type with no native SQL Server mapping |
+| [CAERIUS001](/diagnostics/CAERIUS001) | Error | Type must be `sealed` | A `[GenerateDto]` or `[GenerateTvp]` type is missing the `sealed` modifier |
+| [CAERIUS002](/diagnostics/CAERIUS002) | Error | Type must be `partial` | A `[GenerateDto]` or `[GenerateTvp]` type is missing the `partial` modifier |
+| [CAERIUS003](/diagnostics/CAERIUS003) | Error | Primary constructor required | The type does not declare a primary constructor (or the constructor has no parameters) |
+| [CAERIUS004](/diagnostics/CAERIUS004) | Error | `[GenerateTvp]` requires a non-empty `TvpName` | The attribute sets `TvpName` to an empty or whitespace-only string |
+| [CAERIUS005](/diagnostics/CAERIUS005) | Warning | Unmapped CLR type falls back to `sql_variant` | A constructor parameter has a type with no native SQL Server mapping |
 
 ## Severity levels
 
@@ -18,6 +20,10 @@ CaeriusNet's Roslyn analyzer emits **compile-time diagnostics** for `[GenerateDt
 |---|---|---|
 | **Error** | Fails compilation | Must be fixed before the project builds |
 | **Warning** | Compilation succeeds | Review and fix, or suppress intentionally |
+
+::: tip Full rule pages
+For examples and rule-specific guidance, open the individual pages under [Diagnostic rules](/diagnostics/).
+:::
 
 ## Suppressing diagnostics
 

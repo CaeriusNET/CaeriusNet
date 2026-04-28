@@ -1,8 +1,12 @@
-﻿# CaeriusNet Examples
+# CaeriusNet Examples
 
 ## Overview
 
 Working example projects show how to use CaeriusNet in traditional and .NET Aspire hosting scenarios.
+
+> [!NOTE]
+> The repository directory is currently named `Exemples/` for historical compatibility with project and solution paths.
+> User-facing documentation refers to these projects as **Examples**.
 
 ## Projects
 

@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress'
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   title: "CaeriusNet",
-  description: "High-performance .NET 10 / C# 14 micro-ORM for SQL Server Stored Procedures",
+  description: "SQL Server stored procedure data access for .NET",
 
   head: [
     ['link', { rel: 'icon', type: 'image/png', href: '/logo.png' }],
@@ -16,10 +16,12 @@ export default defineConfig({
 
     nav: [
       { text: 'Home', link: '/' },
-      { text: 'Get Started', link: '/quickstart/what-is-caeriusnet' },
+      { text: 'Quickstart', link: '/quickstart/getting-started' },
       {
         text: 'Guides',
         items: [
+          { text: 'DTO Mapping', link: '/documentation/dto-mapping' },
+          { text: 'Source Generators', link: '/documentation/source-generators' },
           { text: 'Reading Data', link: '/documentation/reading-data' },
           { text: 'Writing Data', link: '/documentation/writing-data' },
           { text: 'Table-Valued Parameters', link: '/documentation/tvp' },
@@ -33,18 +35,20 @@ export default defineConfig({
       {
         text: 'Reference',
         items: [
-          { text: 'API Reference', link: '/documentation/api' },
-          { text: 'Best Practices', link: '/documentation/best-practices' },
-          { text: 'Telemetry & Diagnostics', link: '/documentation/diagnostics' },
+            { text: 'API Reference', link: '/documentation/api' },
+            { text: 'Best Practices', link: '/documentation/best-practices' },
+            { text: 'Telemetry & Diagnostics', link: '/documentation/diagnostics' },
+            { text: 'Diagnostic Rules', link: '/diagnostics/' },
         ]
       },
+      { text: 'Diagnostics', link: '/diagnostics/' },
       { text: 'Examples', link: '/examples/' },
-      { text: 'Performance', link: '/benchmarks/' }
+      { text: 'Benchmarks', link: '/benchmarks/' }
     ],
 
     sidebar: [
       {
-        text: 'Get Started',
+         text: 'Quickstart',
         collapsed: false,
         items: [
           { text: 'What is CaeriusNet?', link: '/quickstart/what-is-caeriusnet' },
@@ -78,11 +82,24 @@ export default defineConfig({
         text: 'Reference',
         collapsed: true,
         items: [
-          { text: 'API Reference', link: '/documentation/api' },
-          { text: 'Best Practices', link: '/documentation/best-practices' },
-          { text: 'Telemetry & Diagnostics', link: '/documentation/diagnostics' }
-        ]
-      },
+           { text: 'API Reference', link: '/documentation/api' },
+           { text: 'Best Practices', link: '/documentation/best-practices' },
+           { text: 'Telemetry & Diagnostics', link: '/documentation/diagnostics' },
+           { text: 'Diagnostic Rules', link: '/diagnostics/' }
+         ]
+       },
+       {
+         text: 'Diagnostics',
+         collapsed: true,
+         items: [
+           { text: 'Overview', link: '/diagnostics/' },
+           { text: 'CAERIUS001', link: '/diagnostics/CAERIUS001' },
+           { text: 'CAERIUS002', link: '/diagnostics/CAERIUS002' },
+           { text: 'CAERIUS003', link: '/diagnostics/CAERIUS003' },
+           { text: 'CAERIUS004', link: '/diagnostics/CAERIUS004' },
+           { text: 'CAERIUS005', link: '/diagnostics/CAERIUS005' }
+         ]
+       },
       {
         text: 'Examples',
         collapsed: false,
@@ -95,7 +112,7 @@ export default defineConfig({
         ]
       },
       {
-        text: 'Performance',
+        text: 'Benchmarks',
         collapsed: false,
         items: [
           { text: 'Overview & Methodology', link: '/benchmarks/' },

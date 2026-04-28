@@ -58,7 +58,7 @@ public sealed record UserRepository(ICaeriusNetDbContext DbContext)
             .AddParameter("Age", age, SqlDbType.TinyInt)
             .Build();
 
-        return await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct) ?? [];
+        return await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct);
     }
 
     public async Task<int> UpdateUserAgeAsync(

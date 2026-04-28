@@ -21,43 +21,43 @@
 /// </remarks>
 public static class LoggerProvider
 {
-	/// <summary>
-	///     The private logger instance used for logging throughout the application.
-	/// </summary>
-	private static ILogger? _logger;
+    /// <summary>
+    ///     The private logger instance used for logging throughout the application.
+    /// </summary>
+    private static ILogger? _logger;
 
-	/// <summary>
-	///     Gets the current logger instance.
-	/// </summary>
-	/// <returns>
-	///     The configured <see cref="ILogger" /> instance, or null if no instance has been configured.
-	/// </returns>
-	/// <remarks>
-	///     <para>
-	///         This method does not throw when no logger has been configured.
-	///         Typical patterns include:
-	///         - Providing a default no-op logger when null is returned.
-	///         - Failing fast during startup if a logger is required for the application.
-	///     </para>
-	///     <para>
-	///         No locking is performed during the read operation. The method uses <see cref="Volatile.Read" />
-	///         to ensure thread-safe access to the logger instance.
-	///     </para>
-	/// </remarks>
-	internal static ILogger? GetLogger()
+    /// <summary>
+    ///     Gets the current logger instance.
+    /// </summary>
+    /// <returns>
+    ///     The configured <see cref="ILogger" /> instance, or null if no instance has been configured.
+    /// </returns>
+    /// <remarks>
+    ///     <para>
+    ///         This method does not throw when no logger has been configured.
+    ///         Typical patterns include:
+    ///         - Providing a default no-op logger when null is returned.
+    ///         - Failing fast during startup if a logger is required for the application.
+    ///     </para>
+    ///     <para>
+    ///         No locking is performed during the read operation. The method uses <see cref="Volatile.Read" />
+    ///         to ensure thread-safe access to the logger instance.
+    ///     </para>
+    /// </remarks>
+    internal static ILogger? GetLogger()
     {
         return Volatile.Read(ref _logger);
     }
 
-	/// <summary>
-	///     Sets the logger instance to be used throughout the application.
-	/// </summary>
-	/// <param name="logger">The logger instance to configure</param>
-	/// <remarks>
-	///     This method should be called once during application startup.
-	///     Subsequent calls will replace the previous logger instance.
-	/// </remarks>
-	public static void SetLogger(ILogger logger)
+    /// <summary>
+    ///     Sets the logger instance to be used throughout the application.
+    /// </summary>
+    /// <param name="logger">The logger instance to configure</param>
+    /// <remarks>
+    ///     This method should be called once during application startup.
+    ///     Subsequent calls will replace the previous logger instance.
+    /// </remarks>
+    public static void SetLogger(ILogger logger)
     {
         Volatile.Write(ref _logger, logger);
     }

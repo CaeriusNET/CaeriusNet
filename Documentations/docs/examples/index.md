@@ -1,6 +1,10 @@
 # Examples
 
-End-to-end, production-shaped walkthroughs for CaeriusNet. Each page covers **one category** from the SQL Server objects to the C# repository, including the telemetry tags emitted along the way.
+End-to-end walkthroughs for CaeriusNet. Each page covers one category from the SQL Server objects to the C# repository, including the telemetry tags emitted along the way.
+
+::: info SQL Server stored-procedure examples
+The examples use SQL Server stored procedures and TVPs. C# parameter builder calls use parameter identifiers without the SQL `@` prefix; the SQL snippets continue to use normal SQL Server syntax.
+:::
 
 | Page | Scope |
 |---|---|
@@ -14,7 +18,7 @@ End-to-end, production-shaped walkthroughs for CaeriusNet. Each page covers **on
 - **Repositories** inject `ICaeriusNetDbContext` via primary-constructor DI and expose intent-revealing async methods.
 - **DTOs and TVPs** use `[GenerateDto]` / `[GenerateTvp]` — sealed partial records with primary constructors.
 - **All examples** propagate `CancellationToken` and use `await using` for transaction scopes.
-- **SQL snippets** are idempotent (`SET NOCOUNT ON`, explicit schema) and match the schema used by the runnable `Exemples/` projects in the repository.
+- **SQL snippets** are idempotent (`SET NOCOUNT ON`, explicit schema) and match the schema used by the runnable **Examples** projects in the repository (`Exemples/` path retained for compatibility).
 - **Telemetry callouts** name the tags emitted by each scenario so you can validate them in the Aspire dashboard.
 
 ## Running the examples

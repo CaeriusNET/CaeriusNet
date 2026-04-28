@@ -21,7 +21,7 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.Tvp;
 [Config(typeof(BenchmarkConfig))]
 [MemoryDiagnoser]
 [HardwareCounters(HardwareCounter.BranchMispredictions, HardwareCounter.CacheMisses)]
-public class TvpVsDataTableBench
+public sealed class TvpVsDataTableBench : IDisposable
 {
     private static readonly Faker<BenchmarkTvpItem> Faker = new Faker<BenchmarkTvpItem>()
         .CustomInstantiator(f => new BenchmarkTvpItem(
@@ -36,6 +36,12 @@ public class TvpVsDataTableBench
 
     [Params(10, 100, 1_000, 10_000, 50_000, 100_000)]
     public int RowCount { get; set; }
+
+    public void Dispose()
+    {
+        _dataTableSchema?.Dispose();
+        GC.SuppressFinalize(this);
+    }
 
     [GlobalSetup]
     public void Setup()
@@ -71,7 +77,7 @@ public class TvpVsDataTableBench
     [Benchmark(Description = "DataTable: one DataRow per item + boxing (O(N) alloc)")]
     public int DataTable_FillRows()
     {
-        var dt = _dataTableSchema.Clone(); // Clone schema (columns), no rows
+        using var dt = _dataTableSchema.Clone(); // Clone schema (columns), no rows
         foreach (var item in _items)
         {
             var row = dt.NewRow();
@@ -92,7 +98,7 @@ public class TvpVsDataTableBench
     [Benchmark(Description = "DataTable: BeginLoadData/EndLoadData optimised fill")]
     public int DataTable_FillRows_BeginLoadData()
     {
-        var dt = _dataTableSchema.Clone();
+        using var dt = _dataTableSchema.Clone();
         dt.BeginLoadData();
         foreach (var item in _items)
         {

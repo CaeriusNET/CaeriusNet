@@ -48,13 +48,14 @@ internal static class TvpEmitter
 
     private static void AppendBody(StringBuilder sb, TvpModel model)
     {
-        sb.Append("public sealed partial ").Append(model.TypeKindKeyword).Append(' ').Append(model.TypeName)
+        sb.Append(model.AccessibilityKeyword).Append(" sealed partial ").Append(model.TypeKindKeyword).Append(' ')
+            .Append(model.TypeName)
             .Append(" : ITvpMapper<").Append(model.TypeName).AppendLine(">");
         sb.AppendLine("{");
 
         sb.AppendLine("    /// <summary>Gets the SQL Server type name for this TVP.</summary>");
-        sb.Append("    public static string TvpTypeName => \"")
-            .Append(model.Schema).Append('.').Append(model.TvpName).AppendLine("\";");
+        sb.Append("    public static string TvpTypeName => ")
+            .Append(ToStringLiteral(model.Schema + "." + model.TvpName)).AppendLine(";");
         sb.AppendLine();
 
         AppendMetaDataField(sb, model.Columns);
@@ -88,14 +89,19 @@ internal static class TvpEmitter
         sb.Append("    public IEnumerable<SqlDataRecord> MapAsSqlDataRecords(IEnumerable<")
             .Append(model.TypeName).AppendLine("> items)");
         sb.AppendLine("    {");
-        sb.AppendLine("        var record = new SqlDataRecord(_tvpMetaData);");
-        sb.AppendLine("        foreach (var item in items)");
+        sb.AppendLine("        ArgumentNullException.ThrowIfNull(items);");
+        sb.AppendLine("        return MapAsSqlDataRecordsIterator(items);");
+        sb.AppendLine();
+        sb.AppendLine("        static IEnumerable<SqlDataRecord> MapAsSqlDataRecordsIterator(IEnumerable<")
+            .Append(model.TypeName).AppendLine("> items)");
         sb.AppendLine("        {");
-
+        sb.AppendLine("            var record = new SqlDataRecord(_tvpMetaData);");
+        sb.AppendLine("            foreach (var item in items)");
+        sb.AppendLine("            {");
         for (var i = 0; i < model.Columns.Count; i++)
-            sb.Append("            ").AppendLine(BuildSetCall(model.Columns[i]));
-
-        sb.AppendLine("            yield return record;");
+            sb.Append("                ").AppendLine(BuildSetCall(model.Columns[i]));
+        sb.AppendLine("                yield return record;");
+        sb.AppendLine("            }");
         sb.AppendLine("        }");
         sb.AppendLine("    }");
     }
@@ -131,5 +137,54 @@ internal static class TvpEmitter
         return column.IsNullable
             ? $"if ({assignmentTarget} is null) record.SetDBNull({ordinal}); else {setExpr};"
             : $"{setExpr};";
+    }
+
+    private static string ToStringLiteral(string value)
+    {
+        var sb = new StringBuilder(value.Length + 2);
+        sb.Append('"');
+        foreach (var ch in value)
+            switch (ch)
+            {
+                case '\\':
+                    sb.Append(@"\\");
+                    break;
+                case '"':
+                    sb.Append("\\\"");
+                    break;
+                case '\0':
+                    sb.Append(@"\0");
+                    break;
+                case '\a':
+                    sb.Append(@"\a");
+                    break;
+                case '\b':
+                    sb.Append(@"\b");
+                    break;
+                case '\f':
+                    sb.Append(@"\f");
+                    break;
+                case '\n':
+                    sb.Append(@"\n");
+                    break;
+                case '\r':
+                    sb.Append(@"\r");
+                    break;
+                case '\t':
+                    sb.Append(@"\t");
+                    break;
+                case '\v':
+                    sb.Append(@"\v");
+                    break;
+                default:
+                    if (char.IsControl(ch))
+                        sb.Append(@"\u").Append(((int)ch).ToString("x4"));
+                    else
+                        sb.Append(ch);
+                    break;
+            }
+
+        sb.Append('"');
+        return sb.ToString();
     }
 }

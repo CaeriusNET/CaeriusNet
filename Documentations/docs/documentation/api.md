@@ -1,8 +1,12 @@
 # API Reference
 
-This page is a practical reference for the public API exposed by CaeriusNet. All examples target **C# 14 / .NET 10** with `Microsoft.Data.SqlClient`. Namespaces are abbreviated below — add the matching `using` directives in your project.
+This page is a practical reference for the public API exposed by CaeriusNet. All examples target **C# 14 / .NET 10** with `Microsoft.Data.SqlClient`. Namespaces are abbreviated below — add the matching `using` directives in your project. C# 14 extension-block methods such as `QueryAsIEnumerableAsync`, `ExecuteNonQueryAsync`, and `BeginTransactionAsync` are available after importing their command namespaces.
 
 > Examples assume DI is configured via `CaeriusNetBuilder` (see [Installation & Setup](/quickstart/getting-started)).
+>
+> Common command namespaces: `CaeriusNet.Commands.Reads`, `CaeriusNet.Commands.Writes`, and `CaeriusNet.Commands.Transactions`.
+>
+> CaeriusNet targets SQL Server stored procedures. Parameter names passed to builder methods are identifiers without the SQL `@` prefix.
 
 ## Builders
 
@@ -39,13 +43,18 @@ CaeriusNetBuilder
 
 Fluent builder for Stored Procedure execution settings, parameters, and caching.
 
+::: tip Parameter identifiers
+Use the parameter name only when calling `AddParameter` or `AddTvpParameter`; do not include the SQL `@` prefix. This keeps C# call sites consistent while SQL definitions continue to use normal SQL Server parameter syntax.
+:::
+
 **Constructor:**
 
 ```csharp
 StoredProcedureParametersBuilder(
     string schemaName,
     string procedureName,
-    int    resultSetCapacity = 1);
+    int    ResultSetCapacity = 16,
+    int    CommandTimeout = 30);
 ```
 
 **Parameter methods:**
@@ -93,9 +102,9 @@ var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Tvp_Ids_And
 Configuration record consumed globally by every command pipeline.
 
 ```csharp
-public sealed record CaeriusTelemetryOptions
+public sealed class CaeriusTelemetryOptions
 {
-    public bool CaptureParameterValues { get; init; } = false;
+    public bool CaptureParameterValues { get; init; }
 }
 ```
 
@@ -156,6 +165,7 @@ Distributed cache adapter used when Redis is configured.
 ```csharp
 bool TryGet<T>(string cacheKey, out T? value);
 void Store<T> (string cacheKey, T value, TimeSpan? expiration) where T : notnull;
+void Remove(string cacheKey);
 ```
 
 ## Mappers

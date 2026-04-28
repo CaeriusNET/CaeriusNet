@@ -1,4 +1,6 @@
-﻿namespace CaeriusNet.Builders;
+﻿using System.Collections;
+
+namespace CaeriusNet.Builders;
 
 /// <summary>
 ///     A builder class for configuring and creating stored procedure parameter collections.
@@ -52,10 +54,10 @@ public sealed record StoredProcedureParametersBuilder(
     /// <exception cref="ArgumentNullException">
     ///     <paramref name="parameter" /> is null or empty.
     /// </exception>
-    public StoredProcedureParametersBuilder AddParameter(string parameter, object value, SqlDbType dbType)
+    public StoredProcedureParametersBuilder AddParameter(string parameter, object? value, SqlDbType dbType)
     {
         ArgumentException.ThrowIfNullOrEmpty(parameter);
-        Parameters.Add(new SqlParameter(parameter, dbType) { Value = value });
+        Parameters.Add(new SqlParameter(parameter, dbType) { Value = value ?? DBNull.Value });
         return this;
     }
 
@@ -74,15 +76,16 @@ public sealed record StoredProcedureParametersBuilder(
         where T : class, ITvpMapper<T>
     {
         ArgumentException.ThrowIfNullOrEmpty(parameter);
-        var tvpList = items as IList<T> ?? items.ToList();
-        if (tvpList.Count == 0)
+        ArgumentNullException.ThrowIfNull(items);
+        var tvpItems = items as T[] ?? items.ToArray();
+        if (tvpItems.Length == 0)
             throw new ArgumentException("No items found in the collection to map to a Table-Valued Parameter.");
 
-        var dataRecords = tvpList[0].MapAsSqlDataRecords(tvpList);
+        var mapper = tvpItems[0];
         var currentTvpParameter = new SqlParameter(parameter, SqlDbType.Structured)
         {
             TypeName = T.TvpTypeName,
-            Value = dataRecords
+            Value = new TvpParameterValue(() => mapper.MapAsSqlDataRecords(tvpItems))
         };
 
         Parameters.Add(currentTvpParameter);
@@ -161,6 +164,9 @@ public sealed record StoredProcedureParametersBuilder(
                 $"'{ProcedureName}' is not a valid SQL identifier. Use only letters, digits and underscores, starting with a letter or underscore.",
                 nameof(ProcedureName));
 
+        ArgumentOutOfRangeException.ThrowIfNegative(ResultSetCapacity);
+        ArgumentOutOfRangeException.ThrowIfNegative(CommandTimeout);
+
         var parameters = Parameters.Count > 0
             ? CollectionsMarshal.AsSpan(Parameters).ToArray()
             : [];
@@ -185,5 +191,18 @@ public sealed record StoredProcedureParametersBuilder(
         var span = identifier.AsSpan();
         return ValidIdentifierStartChars.Contains(span[0])
                && !span[1..].ContainsAnyExcept(ValidIdentifierChars);
+    }
+
+    private sealed class TvpParameterValue(Func<IEnumerable<SqlDataRecord>> factory) : IEnumerable<SqlDataRecord>
+    {
+        public IEnumerator<SqlDataRecord> GetEnumerator()
+        {
+            return factory().GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
     }
 }

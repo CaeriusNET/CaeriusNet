@@ -29,7 +29,7 @@ internal static class DtoEmitter
             sb.AppendLine();
         }
 
-        sb.Append("public sealed partial ").Append(model.TypeKindKeyword).Append(' ')
+        sb.Append(model.AccessibilityKeyword).Append(" sealed partial ").Append(model.TypeKindKeyword).Append(' ')
             .Append(model.TypeName).Append(" : ISpMapper<").Append(model.TypeName).AppendLine(">");
         sb.AppendLine("{");
 
@@ -81,11 +81,34 @@ internal static class DtoEmitter
         {
             ColumnKind.ByteArray => $"{prefix}reader.GetFieldValue<byte[]>({ordinal})",
             ColumnKind.DateOnly => $"{prefix}DateOnly.FromDateTime(reader.GetDateTime({ordinal}))",
-            ColumnKind.TimeOnly => $"{prefix}TimeOnly.FromDateTime(reader.GetDateTime({ordinal}))",
+            ColumnKind.TimeOnly => $"{prefix}TimeOnly.FromTimeSpan(reader.GetTimeSpan({ordinal}))",
             ColumnKind.Char => $"{prefix}reader.GetString({ordinal})[0]",
             ColumnKind.Half => $"{prefix}(Half)reader.GetFloat({ordinal})",
-            ColumnKind.Enum => $"{prefix}({column.TypeName.TrimEnd('?')})reader.{column.ReaderMethod}({ordinal})",
-            _ => $"{prefix}reader.{column.ReaderMethod}({ordinal})"
+            ColumnKind.Enum => BuildEnumReaderExpression(column, ordinal, prefix),
+            _ => $"{prefix}{BuildStandardReaderExpression(column, ordinal)}"
+        };
+    }
+
+    private static string BuildEnumReaderExpression(ColumnModel column, string ordinal, string prefix)
+    {
+        var typeName = column.TypeName.TrimEnd('?');
+        var valueExpression = $"reader.{column.ReaderMethod}({ordinal})";
+        if (column.EnumUnderlyingType is "ulong" or "System.UInt64")
+            valueExpression = $"(ulong){valueExpression}";
+
+        return $"{prefix}({typeName}){valueExpression}";
+    }
+
+    private static string BuildStandardReaderExpression(ColumnModel column, string ordinal)
+    {
+        var expression = $"reader.{column.ReaderMethod}({ordinal})";
+        return column.TypeName.TrimEnd('?') switch
+        {
+            "sbyte" or "System.SByte" => $"(sbyte){expression}",
+            "ushort" or "System.UInt16" => $"(ushort){expression}",
+            "uint" or "System.UInt32" => $"(uint){expression}",
+            "ulong" or "System.UInt64" => $"(ulong){expression}",
+            _ => expression
         };
     }
 

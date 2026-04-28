@@ -33,26 +33,26 @@ namespace CaeriusNet.Mappers;
 /// </example>
 public interface ISpMapper<out T> where T : class
 {
-	/// <summary>
-	///     Maps the current row of the specified <see cref="SqlDataReader" /> to a new instance of type
-	///     <typeparamref name="T" />.
-	/// </summary>
-	/// <param name="reader">
-	///     A <see cref="SqlDataReader" /> that contains the data to map. The reader
-	///     must be positioned at a valid row.
-	/// </param>
-	/// <returns>A new instance of <typeparamref name="T" /> populated with data from the current row of the reader.</returns>
-	/// <remarks>
-	///     <para>
-	///         This method performs ordinal-based mapping, where the column indices in the result set must match the order of
-	///         parameters
-	///         in the target type's constructor.
-	///     </para>
-	///     <para>
-	///         The mapping is performed using compile-time generated code for optimal performance.
-	///     </para>
-	/// </remarks>
-	/// <exception cref="System.InvalidOperationException">Thrown when the reader is not positioned on a valid row.</exception>
-	/// <exception cref="System.InvalidCastException">Thrown when data conversion between SQL and .NET types fails.</exception>
-	public static abstract T MapFromDataReader(SqlDataReader reader);
+    /// <summary>
+    ///     Maps the current row of the specified <see cref="SqlDataReader" /> to a new instance of type
+    ///     <typeparamref name="T" />.
+    /// </summary>
+    /// <param name="reader">
+    ///     A <see cref="SqlDataReader" /> that contains the data to map. The reader
+    ///     must be positioned at a valid row.
+    /// </param>
+    /// <returns>A new instance of <typeparamref name="T" /> populated with data from the current row of the reader.</returns>
+    /// <remarks>
+    ///     <para>
+    ///         This method performs ordinal-based mapping, where the column indices in the result set must match the order of
+    ///         parameters
+    ///         in the target type's constructor.
+    ///     </para>
+    ///     <para>
+    ///         The mapping is performed using compile-time generated code for optimal performance.
+    ///     </para>
+    /// </remarks>
+    /// <exception cref="System.InvalidOperationException">Thrown when the reader is not positioned on a valid row.</exception>
+    /// <exception cref="System.InvalidCastException">Thrown when data conversion between SQL and .NET types fails.</exception>
+    public static abstract T MapFromDataReader(SqlDataReader reader);
 }

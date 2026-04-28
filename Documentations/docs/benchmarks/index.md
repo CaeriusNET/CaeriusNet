@@ -5,12 +5,15 @@ description: CaeriusNet benchmark methodology, BDN configuration, CI vs local mo
 
 # Performance & Benchmarks
 
-CaeriusNet is designed from the ground up for high performance. This section documents the measured performance
-characteristics of all library operations, structured by concern, using [BenchmarkDotNet](https://benchmarkdotnet.org/) — the industry-standard .NET benchmarking framework.
+This section documents CaeriusNet benchmark suites by concern, using [BenchmarkDotNet](https://benchmarkdotnet.org/) to measure CPU, allocation, cache, and SQL Server roundtrip behavior.
 
 > **Benchmark environment:** All CI runs execute on **ubuntu-latest** GitHub Actions runners with **.NET 10**
 > and **SQL Server 2022 Developer** edition (Docker service container).
 > SQL benchmarks use a live TCP connection to measure real end-to-end latency including connection pooling, TDS framing, and SQL Server execution plans.
+
+::: warning Environment-specific results
+Benchmark results are diagnostic data, not performance guarantees. Compare trends and allocations, then run the suites against your own hardware, SQL Server edition, schema, query plans, indexes, network path, and payload sizes.
+:::
 
 ---
 
@@ -38,7 +41,7 @@ CaeriusNet uses a custom `BenchmarkConfig` class (see `Benchmark/Workshops/Bench
 | Toolchain | `InProcessEmitToolchain` | No child-process overhead; benchmarks run in the same process as the host |
 | WarmupCount | `1` | Minimal JIT warm-up — sufficient for in-process execution |
 | IterationCount | `5` | Enough statistical signal for median/mean without exceeding CI time budgets |
-| Exporters | `MarkdownExporter.GitHub`, `JsonExporter.Full` | Produces both the human-readable tables committed to this doc and the machine-readable JSON artifacts |
+| Exporters | `MarkdownExporter.GitHub`, `JsonExporter.Full` | Produces human-readable Markdown tables and machine-readable JSON artifacts |
 
 **Local Mode** (default when running `dotnet run -c Release`):
 
@@ -55,7 +58,7 @@ All benchmarks that generate data (collection, mapping, TVP) use either:
 - **`Randomizer.Seed = new Random(42)`** (Bogus-based SQL/mapping benchmarks) — ensures the same sequence of fake records on every run
 - **`new Random(42)` in `[GlobalSetup]`** (collection benchmarks) — for speed at 100 000-item param sizes where Bogus would add measurable setup cost
 
-This means two runs on the same hardware produce identical inputs and results should differ only from OS scheduling noise.
+This means two runs on the same hardware use identical generated inputs. Remaining differences can still come from OS scheduling, CPU frequency changes, background services, container state, SQL Server plan choices, and storage or network variability.
 
 ### Benchmark Class Architecture
 
@@ -84,7 +87,7 @@ The `[Params]` attribute drives a matrix run: BDN generates one independent meas
 
 ---
 
-## How to Read a BDN Result Table
+## How to read a BenchmarkDotNet result table
 
 A typical exported GitHub-Markdown table looks like:
 
@@ -107,7 +110,7 @@ A typical exported GitHub-Markdown table looks like:
 | **Allocated** | Total managed heap allocation per single invocation |
 
 > **What to focus on:** For throughput comparisons, look at **Ratio** and **Allocated**.
-> A method with Ratio < 1.00 is faster than the baseline; lower **Allocated** means less GC pressure.
+> A method with Ratio < 1.00 measured faster than the baseline in that run; lower **Allocated** usually means less GC pressure.
 > **Error** and **StdDev** indicate measurement confidence — high values suggest the benchmark needs more iterations or the operation is I/O-bound.
 
 ### Hardware Counters (Read / Collection Benchmarks)
@@ -160,13 +163,9 @@ Results are written to `Benchmark/BenchmarkDotNet.Artifacts/results/` (or to `BE
 
 ## CI/CD Integration
 
-Benchmarks run automatically on every [GitHub Release](https://github.com/CaeriusNET/CaeriusNet/releases) via
-the `benchmark.yml` GitHub Actions workflow, and can be triggered manually (requires `AriusII` approval via the `production` GitHub Environment).
+Benchmarks run from the repository's `benchmark.yml` GitHub Actions workflow for release-oriented runs and can be triggered manually by maintainers with the required environment approval.
 
-After each run, the workflow:
-1. Extracts GitHub-Markdown tables from BDN's `*-report-github.md` artefacts
-2. Writes one `results/ClassName.md` file per benchmark class to `Documentations/docs/benchmarks/results/`
-3. Commits and pushes the updated results, triggering a VitePress rebuild
+After each run, the workflow extracts GitHub-Markdown tables from BDN's `*-report-github.md` artefacts. If result files are committed under `Documentations/docs/benchmarks/results/`, VitePress can publish them alongside these methodology pages.
 
 The JSON artefacts (`*-report-full.json`) are uploaded as workflow artefacts with 90-day retention for deeper analysis.
 

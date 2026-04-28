@@ -1,3 +1,5 @@
+using Microsoft.Data.SqlClient;
+
 namespace CaeriusNet.Generator.Tests.Utilities;
 
 /// <summary>
@@ -20,6 +22,23 @@ internal static class SourceGeneratorTestHelper
             .WithUpdatedParseOptions(parseOptions);
 
         return driver.RunGenerators(compilation).GetRunResult();
+    }
+
+    internal static (GeneratorDriverRunResult RunResult, Compilation Compilation)
+        RunGeneratorWithCompilation<TGenerator>(
+            string source)
+        where TGenerator : IIncrementalGenerator, new()
+    {
+        var parseOptions = CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Latest);
+        var syntaxTree = CSharpSyntaxTree.ParseText(source, parseOptions);
+        var compilation = CreateCompilation(syntaxTree);
+
+        var generator = new TGenerator();
+        var driver = CSharpGeneratorDriver.Create(generator)
+            .WithUpdatedParseOptions(parseOptions);
+
+        driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out _);
+        return (driver.GetRunResult(), outputCompilation);
     }
 
     /// <summary>
@@ -68,6 +87,10 @@ internal static class SourceGeneratorTestHelper
         var caeriusNetLocation = typeof(ISpMapper<>).Assembly.Location;
         if (!string.IsNullOrEmpty(caeriusNetLocation))
             references.Add(MetadataReference.CreateFromFile(caeriusNetLocation));
+
+        var sqlClientLocation = typeof(SqlDataReader).Assembly.Location;
+        if (!string.IsNullOrEmpty(sqlClientLocation))
+            references.Add(MetadataReference.CreateFromFile(sqlClientLocation));
 
         return references;
     }

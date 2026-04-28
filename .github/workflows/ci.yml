@@ -60,13 +60,17 @@ jobs:
             -p:TreatWarningsAsErrors=true \
             -p:WarningLevel=4
 
+      - name: Validate NuGet package
+        shell: pwsh
+        run: ./eng/ValidatePackage.ps1 -Configuration Release
+
       - name: Run tests with coverage
         run: |
           dotnet test CaeriusNet.slnx \
             --configuration Release \
             --no-restore \
             --no-build \
-            --filter "FullyQualifiedName!~CaeriusNet.IntegrationTests" \
+            --filter "FullyQualifiedName!~IntegrationTests" \
             --collect:"XPlat Code Coverage" \
             --results-directory ./coverage \
             --logger "trx;LogFileName=test-results.trx" \

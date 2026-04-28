@@ -20,7 +20,7 @@ developers can reason about the library's intrinsic cost vs raw ADO.NET.
 
 ### What is measured
 
-CaeriusNet's source generator emits a `MapFromDataReader()` extension method for every `[CaeriusDto]`-annotated record.
+CaeriusNet's source generator emits a static `MapFromDataReader(SqlDataReader)` mapper for every `[GenerateDto]`-annotated record.
 The generated method constructs each DTO via a **positional record constructor** — the fastest C# construction pattern
 for immutable types because it initialises all fields in a single allocation with no property-setter dispatch overhead.
 
@@ -35,7 +35,7 @@ This benchmark compares three construction strategies against a simulated `IData
 ### Key insights
 
 - The positional constructor path is on-par with hand-written ADO.NET mapping code because the generator produces **identical IL**.
-- The pre-allocated array variant consistently saves ~20 % allocation at ≥ 1 000 rows by avoiding `List<T>`'s internal
+- The pre-allocated array variant can reduce allocation at higher row counts by avoiding `List<T>`'s internal
   capacity-doubling strategy (2× growth on each resize).
 - At 100 000 rows the difference between the pre-allocated array and `ToList()` is measurable in both allocations (bytes)
   and Gen0 collection count.
@@ -111,7 +111,7 @@ The builder pre-allocates an internal `List<SqlParameter>` with an initial capac
 
 ### Key insights
 
-- For typical stored procedures (3–8 parameters), the builder overhead is **sub-microsecond** — negligible vs the
+- For typical stored procedures (3–8 parameters), builder overhead is intended to be small relative to the
   SQL Server roundtrip.
 - Pre-allocation avoids resize overhead for the common case.  
   Beyond the pre-allocated capacity, each additional parameter triggers a standard `List<T>` 2× capacity growth.
@@ -142,8 +142,7 @@ This benchmark measures **the cost of passing a pre-materialised `List<T>` vs a 
 - The `IList<T>` fast path is **strictly O(1)** in allocation regardless of item count — only a type-check and
   reference assignment.
 - The `IEnumerable<T>` slow path allocates a new `List<T>` and copies every element — O(N) allocation.
-- The Ratio column will show that at small counts (≤ 100), the difference is negligible; at large counts
-  (10 000–100 000), the allocation gap becomes significant.
+- Use the generated Ratio and Allocated columns to decide where materialising a lazy sequence becomes meaningful for your workload.
 - **Best practice:** Always pass a `List<T>` (or any `IList<T>`) to `AddTvpParameter` — never a LINQ chain.
 
 ---
@@ -201,9 +200,9 @@ This benchmark puts both approaches head-to-head at the same row counts:
   `SqlDataRecord` streaming allocates **O(1)**.
 - `BeginLoadData/EndLoadData` reduces `DataTable` internal event overhead during load but does not change the
   fundamental O(N) allocation: every `DataRow` is still heap-allocated.
-- The allocation gap between CaeriusNet and `DataTable` widens proportionally with row count — at 100 000 rows,
-  the difference is several hundred megabytes.
-- This is the core reason CaeriusNet's TVP implementation significantly reduces Gen0/Gen1 GC pressure in
+- The allocation gap between CaeriusNet and `DataTable` widens proportionally with row count — at high row counts,
+  the difference can become large.
+- This is the core reason CaeriusNet's TVP implementation is designed to reduce Gen0/Gen1 GC pressure in
   high-throughput batch-insert workloads.
 
 ---

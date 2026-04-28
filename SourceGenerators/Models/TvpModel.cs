@@ -11,6 +11,7 @@
 internal sealed record TvpModel(
     string Namespace,
     string TypeName,
+    string AccessibilityKeyword,
     string TypeKindKeyword,
     string Schema,
     string TvpName,

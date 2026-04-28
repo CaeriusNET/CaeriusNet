@@ -25,9 +25,15 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.SqlServer;
 /// </remarks>
 [Config(typeof(BenchmarkConfig))]
 [MemoryDiagnoser]
-public class ConnectionPoolBench
+public sealed class ConnectionPoolBench : IDisposable
 {
     private SqlConnection? _persistentConnection;
+
+    public void Dispose()
+    {
+        _persistentConnection?.Dispose();
+        GC.SuppressFinalize(this);
+    }
 
     [GlobalSetup]
     public async Task Setup()
@@ -49,7 +55,10 @@ public class ConnectionPoolBench
     public async Task Cleanup()
     {
         if (_persistentConnection is not null)
+        {
             await _persistentConnection.DisposeAsync();
+            _persistentConnection = null;
+        }
     }
 
     /// <summary>

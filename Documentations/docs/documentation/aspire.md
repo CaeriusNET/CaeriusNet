@@ -158,7 +158,7 @@ public sealed record UserRepository(ICaeriusNetDbContext DbContext)
             .AddRedisCache("users:all", TimeSpan.FromMinutes(5))
             .Build();
 
-        return await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct) ?? [];
+        return await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct);
     }
 }
 ```

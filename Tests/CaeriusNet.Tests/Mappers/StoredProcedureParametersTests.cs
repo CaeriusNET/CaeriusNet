@@ -58,6 +58,20 @@ public sealed class StoredProcedureParametersTests
     }
 
     [Fact]
+    public void Constructor_Negative_Capacity_Throws()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new StoredProcedureParameters("dbo", "sp_Test", -1, [], null, null, null));
+    }
+
+    [Fact]
+    public void Constructor_Negative_CommandTimeout_Throws()
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new StoredProcedureParameters("dbo", "sp_Test", 16, [], null, null, null, -1));
+    }
+
+    [Fact]
     public void Constructor_No_Cache_Leaves_Cache_Properties_Null()
     {
         var sp = new StoredProcedureParameters("dbo", "sp_Test", 16, [], null, null, null);
@@ -111,5 +125,66 @@ public sealed class StoredProcedureParametersTests
 
         Assert.Equal("@Id", sp1.GetParametersSpan()[0].ParameterName);
         Assert.Equal("@Name", sp2.GetParametersSpan()[0].ParameterName);
+    }
+
+    [Fact]
+    public void AddParametersTo_Clones_Parameters_For_Each_Command()
+    {
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_Test")
+            .AddParameter("@Id", 42, SqlDbType.Int)
+            .Build();
+
+        using var command1 = new SqlCommand();
+        using var command2 = new SqlCommand();
+
+        sp.AddParametersTo(command1.Parameters);
+        sp.AddParametersTo(command2.Parameters);
+
+        Assert.NotSame(sp.GetParametersSpan()[0], command1.Parameters[0]);
+        Assert.NotSame(command1.Parameters[0], command2.Parameters[0]);
+        Assert.Equal(42, command1.Parameters[0].Value);
+        Assert.Equal(42, command2.Parameters[0].Value);
+    }
+
+    [Fact]
+    public void AddParametersTo_Preserves_DBNull_Null_Normalization()
+    {
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_Test")
+            .AddParameter("@Value", null, SqlDbType.NVarChar)
+            .Build();
+
+        using var command = new SqlCommand();
+
+        sp.AddParametersTo(command.Parameters);
+
+        Assert.Same(DBNull.Value, command.Parameters[0].Value);
+    }
+
+    [Fact]
+    public void AddParametersTo_Tvp_Clone_Creates_Reenumerable_Value()
+    {
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_Test")
+            .AddTvpParameter("@Ids", new[] { new TestTvpItem(1), new TestTvpItem(2) })
+            .Build();
+
+        using var command1 = new SqlCommand();
+        using var command2 = new SqlCommand();
+
+        sp.AddParametersTo(command1.Parameters);
+        sp.AddParametersTo(command2.Parameters);
+
+        Assert.NotSame(command1.Parameters[0], command2.Parameters[0]);
+
+        var tvp1 = Assert.IsAssignableFrom<IEnumerable<SqlDataRecord>>(command1.Parameters[0].Value);
+        var tvp2 = Assert.IsAssignableFrom<IEnumerable<SqlDataRecord>>(command2.Parameters[0].Value);
+
+        using var enumerator1 = tvp1.GetEnumerator();
+        using var enumerator2 = tvp2.GetEnumerator();
+
+        Assert.True(enumerator1.MoveNext());
+        Assert.True(enumerator2.MoveNext());
+        Assert.NotSame(enumerator1.Current, enumerator2.Current);
+        Assert.Equal(1, enumerator1.Current.GetInt32(0));
+        Assert.Equal(1, enumerator2.Current.GetInt32(0));
     }
 }

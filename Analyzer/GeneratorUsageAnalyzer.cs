@@ -15,7 +15,8 @@ public sealed class GeneratorUsageAnalyzer : DiagnosticAnalyzer
         DiagnosticDescriptors.MustBePartial,
         DiagnosticDescriptors.MustHavePrimaryConstructor,
         DiagnosticDescriptors.TvpNameMustNotBeEmpty,
-        DiagnosticDescriptors.UnsupportedSqlMapping
+        DiagnosticDescriptors.UnsupportedSqlMapping,
+        DiagnosticDescriptors.UnsupportedGeneratorTarget
     ];
 
     public override void Initialize(AnalysisContext context)
@@ -44,7 +45,6 @@ public sealed class GeneratorUsageAnalyzer : DiagnosticAnalyzer
     {
         if (context.Node is not TypeDeclarationSyntax declaration ||
             declaration.AttributeLists.Count == 0 ||
-            !MayContainRelevantAttribute(declaration) ||
             context.SemanticModel.GetDeclaredSymbol(declaration, context.CancellationToken) is not { } typeSymbol)
             return;
 
@@ -155,6 +155,17 @@ public sealed class GeneratorUsageAnalyzer : DiagnosticAnalyzer
             hasFatal = true;
         }
 
+        if (!validation.IsTopLevel || !validation.IsNonGeneric)
+        {
+            context.ReportDiagnostic(
+                Diagnostic.Create(
+                    DiagnosticDescriptors.UnsupportedGeneratorTarget,
+                    location,
+                    typeSymbol.Name,
+                    attributeDisplayName));
+            hasFatal = true;
+        }
+
         if (validation.PrimaryConstructorDeclaration is not null) return hasFatal;
         context.ReportDiagnostic(
             Diagnostic.Create(
@@ -205,25 +216,6 @@ public sealed class GeneratorUsageAnalyzer : DiagnosticAnalyzer
                     parameterType.ToDisplayString(),
                     typeSymbol.Name));
         }
-    }
-
-    private static bool MayContainRelevantAttribute(TypeDeclarationSyntax declaration)
-    {
-        foreach (var attribute in declaration.AttributeLists.SelectMany(static list => list.Attributes))
-        {
-            var name = attribute.Name switch
-            {
-                IdentifierNameSyntax identifierName => identifierName.Identifier.ValueText,
-                QualifiedNameSyntax qualifiedName => qualifiedName.Right.Identifier.ValueText,
-                AliasQualifiedNameSyntax aliasQualifiedName => aliasQualifiedName.Name.Identifier.ValueText,
-                _ => attribute.Name.ToString()
-            };
-
-            if (name is "GenerateDto" or "GenerateDtoAttribute" or "GenerateTvp" or "GenerateTvpAttribute")
-                return true;
-        }
-
-        return false;
     }
 
     private static AttributeData? TryGetDirectAttribute(INamedTypeSymbol typeSymbol, INamedTypeSymbol attributeSymbol)

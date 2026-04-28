@@ -11,6 +11,10 @@ next:
 
 This page walks through installing the package, configuring CaeriusNet for your hosting model, and running your first query end-to-end.
 
+::: info Scope
+CaeriusNet targets Microsoft SQL Server stored procedures. The quickstart assumes the SQL object already exists or can be created in your database.
+:::
+
 ## Prerequisites
 
 - **.NET 10.0 SDK** or higher
@@ -139,9 +143,14 @@ public sealed partial record UserDto(int Id, string Name, byte Age);
 
 ### c. Implement the repository
 
+::: tip Parameter naming
+When adding parameters in C#, pass the stored-procedure parameter identifier without the SQL `@` prefix. For example, use `"Age"` with `AddParameter(...)`.
+:::
+
 ```csharp
 using CaeriusNet.Abstractions;
 using CaeriusNet.Builders;
+using CaeriusNet.Commands.Reads;
 using System.Data;
 
 public sealed record UserRepository(ICaeriusNetDbContext DbContext)
@@ -150,11 +159,11 @@ public sealed record UserRepository(ICaeriusNetDbContext DbContext)
     public async Task<IEnumerable<UserDto>> GetUsersOlderThanAsync(
         int age, CancellationToken ct)
     {
-        var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Age", capacity: 128)
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Age", ResultSetCapacity: 128)
             .AddParameter("Age", age, SqlDbType.Int)
             .Build();
 
-        return await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct) ?? [];
+        return await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct);
     }
 }
 ```

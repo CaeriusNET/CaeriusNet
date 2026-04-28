@@ -7,38 +7,38 @@ namespace CaeriusNet.Caches;
 /// </summary>
 internal static class FrozenCacheManager
 {
-	/// <summary>
-	///     The frozen dictionary that serves as the cache storage.
-	/// </summary>
-	private static FrozenDictionary<string, object> _frozenCache = FrozenDictionary<string, object>.Empty;
+    /// <summary>
+    ///     The frozen dictionary that serves as the cache storage.
+    /// </summary>
+    private static FrozenDictionary<string, object> _frozenCache = FrozenDictionary<string, object>.Empty;
 
-	/// <summary>
-	///     A thread synchronization lock that manages access to the frozen cache.
-	///     Uses no recursion policy to prevent potential deadlocks.
-	/// </summary>
-	private static readonly ReaderWriterLockSlim LockSlim = new(LockRecursionPolicy.NoRecursion);
+    /// <summary>
+    ///     A thread synchronization lock that manages access to the frozen cache.
+    ///     Uses no recursion policy to prevent potential deadlocks.
+    /// </summary>
+    private static readonly ReaderWriterLockSlim LockSlim = new(LockRecursionPolicy.NoRecursion);
 
-	/// <summary>
-	///     Logger instance for cache operations.
-	/// </summary>
-	private static readonly ILogger? Logger = LoggerProvider.GetLogger();
+    /// <summary>
+    ///     Logger instance for cache operations.
+    /// </summary>
+    private static readonly ILogger? Logger = LoggerProvider.GetLogger();
 
-	/// <summary>
-	///     Flag indicating whether logging is enabled.
-	/// </summary>
-	private static readonly bool IsLoggingEnabled = Logger != null;
+    /// <summary>
+    ///     Flag indicating whether logging is enabled.
+    /// </summary>
+    private static readonly bool IsLoggingEnabled = Logger != null;
 
-	/// <summary>
-	///     Stores a value in the frozen dictionary-based cache if it is not already present.
-	/// </summary>
-	/// <typeparam name="T">The type of the value to be stored in the cache.</typeparam>
-	/// <param name="cacheKey">The unique key to associate with the value in the cache.</param>
-	/// <param name="value">The value to be stored in the cache.</param>
-	/// <remarks>
-	///     This method is thread-safe and uses double-checked locking pattern for thread synchronization.
-	///     The cache is immutable and a new frozen dictionary is created when adding new items.
-	/// </remarks>
-	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    /// <summary>
+    ///     Stores a value in the frozen dictionary-based cache if it is not already present.
+    /// </summary>
+    /// <typeparam name="T">The type of the value to be stored in the cache.</typeparam>
+    /// <param name="cacheKey">The unique key to associate with the value in the cache.</param>
+    /// <param name="value">The value to be stored in the cache.</param>
+    /// <remarks>
+    ///     This method is thread-safe and uses double-checked locking pattern for thread synchronization.
+    ///     The cache is immutable and a new frozen dictionary is created when adding new items.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     internal static void Store<T>(string cacheKey, T value)
     {
         // Fast path: lock-free check avoids write lock when key already exists.
@@ -76,18 +76,18 @@ internal static class FrozenCacheManager
         }
     }
 
-	/// <summary>
-	///     Stores multiple values in the frozen dictionary-based cache in a single atomic rebuild.
-	///     Prefer this over calling <see cref="Store{T}" /> in a loop: it freezes the dictionary only once,
-	///     avoiding the O(n²) rebuild cost of sequential single-item inserts.
-	/// </summary>
-	/// <typeparam name="T">The type of the values to be stored.</typeparam>
-	/// <param name="entries">The key-value pairs to add. Keys already present are overwritten.</param>
-	/// <remarks>
-	///     This method is intended for startup warm-up. <see cref="FrozenDictionary{TKey,TValue}" /> is
-	///     designed for "populate once, read many" scenarios; bulk insertion at startup is the ideal usage.
-	/// </remarks>
-	[MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    /// <summary>
+    ///     Stores multiple values in the frozen dictionary-based cache in a single atomic rebuild.
+    ///     Prefer this over calling <see cref="Store{T}" /> in a loop: it freezes the dictionary only once,
+    ///     avoiding the O(n²) rebuild cost of sequential single-item inserts.
+    /// </summary>
+    /// <typeparam name="T">The type of the values to be stored.</typeparam>
+    /// <param name="entries">The key-value pairs to add. Keys already present are overwritten.</param>
+    /// <remarks>
+    ///     This method is intended for startup warm-up. <see cref="FrozenDictionary{TKey,TValue}" /> is
+    ///     designed for "populate once, read many" scenarios; bulk insertion at startup is the ideal usage.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     internal static void StoreRange<T>(IEnumerable<KeyValuePair<string, T>> entries)
     {
         LockSlim.EnterWriteLock();
@@ -120,21 +120,21 @@ internal static class FrozenCacheManager
         }
     }
 
-	/// <summary>
-	///     Attempts to retrieve a value from the frozen dictionary-based cache.
-	/// </summary>
-	/// <typeparam name="T">The expected type of the cached value.</typeparam>
-	/// <param name="cacheKey">The unique key associated with the value in the cache.</param>
-	/// <param name="value">The output parameter where the cached value will be stored if found.</param>
-	/// <returns>
-	///     <c>true</c> if the value is found in the cache and its type matches the specified type <typeparamref name="T" />;
-	///     otherwise, <c>false</c>.
-	/// </returns>
-	/// <remarks>
-	///     This method is thread-safe and optimized for fast lookups using volatile reads.
-	///     It performs type checking to ensure type safety when retrieving cached values.
-	/// </remarks>
-	[MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
+    /// <summary>
+    ///     Attempts to retrieve a value from the frozen dictionary-based cache.
+    /// </summary>
+    /// <typeparam name="T">The expected type of the cached value.</typeparam>
+    /// <param name="cacheKey">The unique key associated with the value in the cache.</param>
+    /// <param name="value">The output parameter where the cached value will be stored if found.</param>
+    /// <returns>
+    ///     <c>true</c> if the value is found in the cache and its type matches the specified type <typeparamref name="T" />;
+    ///     otherwise, <c>false</c>.
+    /// </returns>
+    /// <remarks>
+    ///     This method is thread-safe and optimized for fast lookups using volatile reads.
+    ///     It performs type checking to ensure type safety when retrieving cached values.
+    /// </remarks>
+    [MethodImpl(MethodImplOptions.AggressiveInlining | MethodImplOptions.AggressiveOptimization)]
     internal static bool TryGet<T>(string cacheKey, out T? value)
     {
         // Lock-free read: FrozenDictionary is immutable and inherently thread-safe.
@@ -154,12 +154,12 @@ internal static class FrozenCacheManager
         return true;
     }
 
-	/// <summary>
-	///     Removes the entry associated with the specified key, if present.
-	///     Rebuilds a new <see cref="FrozenDictionary{TKey,TValue}" /> from the surviving entries.
-	///     This is intentionally O(N) — frozen caches are designed for "populate once, read many".
-	/// </summary>
-	internal static void Remove(string cacheKey)
+    /// <summary>
+    ///     Removes the entry associated with the specified key, if present.
+    ///     Rebuilds a new <see cref="FrozenDictionary{TKey,TValue}" /> from the surviving entries.
+    ///     This is intentionally O(N) — frozen caches are designed for "populate once, read many".
+    /// </summary>
+    internal static void Remove(string cacheKey)
     {
         // Fast path: lock-free check avoids write lock when key does not exist.
         if (!Volatile.Read(ref _frozenCache).ContainsKey(cacheKey))
@@ -187,11 +187,11 @@ internal static class FrozenCacheManager
         }
     }
 
-	/// <summary>
-	///     Resets the cache to its empty state. Primarily intended for tests and explicit cold restarts;
-	///     in production the frozen cache is meant to live for the lifetime of the process.
-	/// </summary>
-	internal static void Clear()
+    /// <summary>
+    ///     Resets the cache to its empty state. Primarily intended for tests and explicit cold restarts;
+    ///     in production the frozen cache is meant to live for the lifetime of the process.
+    /// </summary>
+    internal static void Clear()
     {
         LockSlim.EnterWriteLock();
         try

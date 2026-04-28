@@ -40,6 +40,26 @@ public sealed class TvpSourceGeneratorTests
     }
 
     [Fact]
+    public void TvpTypeName_Escapes_Generated_String_Literal()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Tvp;
+                              namespace Test.Models;
+                              [GenerateTvp(Schema = "db\"o", TvpName = "tvp\\int")]
+                              public sealed partial record UserIdTvp(int Id);
+                              """;
+
+        var (result, compilation) =
+            SourceGeneratorTestHelper.RunGeneratorWithCompilation<TvpSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText().ToString();
+        Assert.Contains("""public static string TvpTypeName => "db\"o.tvp\\int";""", generated);
+        Assert.Empty(compilation.GetDiagnostics().Where(static diagnostic =>
+            diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Id != "CS0009"));
+    }
+
+    [Fact]
     public void Generates_Static_MetaData_Array_Field()
     {
         const string source = """
@@ -196,6 +216,23 @@ public sealed class TvpSourceGeneratorTests
         var generated = result.GeneratedTrees[0].GetText().ToString();
         Assert.Contains("var record = new SqlDataRecord(_tvpMetaData);", generated);
         Assert.Contains("yield return record;", generated);
+    }
+
+    [Fact]
+    public void MapAsSqlDataRecords_Generates_Immediate_Null_Guard()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Tvp;
+                              namespace Test.Models;
+                              [GenerateTvp(Schema = "dbo", TvpName = "tvp_int")]
+                              public sealed partial record UserIdTvp(int Id);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
+
+        var generated = result.GeneratedTrees[0].GetText().ToString();
+        Assert.Contains("ArgumentNullException.ThrowIfNull(items);", generated);
+        Assert.Contains("return MapAsSqlDataRecordsIterator(items);", generated);
     }
 
     [Fact]
@@ -430,5 +467,45 @@ public sealed class TvpSourceGeneratorTests
         var generated = result.GeneratedTrees[0].GetText().ToString();
         Assert.Contains("partial class ClassTvp", generated);
         Assert.DoesNotContain("partial record ClassTvp", generated);
+    }
+
+    [Fact]
+    public void Internal_Type_Generates_Internal_Partial_Declaration_And_Compiles()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Tvp;
+                              namespace Test.Models;
+                              [GenerateTvp(Schema = "dbo", TvpName = "tvp_internal")]
+                              internal sealed partial record InternalTvp(int Id);
+                              """;
+
+        var (result, compilation) =
+            SourceGeneratorTestHelper.RunGeneratorWithCompilation<TvpSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText().ToString();
+        Assert.Contains("internal sealed partial record InternalTvp", generated);
+        Assert.Empty(compilation.GetDiagnostics().Where(static diagnostic =>
+            diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Id != "CS0009"));
+    }
+
+    [Fact]
+    public void Nested_And_Generic_Types_Do_Not_Generate()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Tvp;
+                              namespace Test.Models;
+                              public sealed partial class Container
+                              {
+                                  [GenerateTvp(Schema = "dbo", TvpName = "tvp_nested")]
+                                  public sealed partial record NestedTvp(int Id);
+                              }
+                              [GenerateTvp(Schema = "dbo", TvpName = "tvp_generic")]
+                              public sealed partial record GenericTvp<T>(int Id);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
+
+        Assert.Empty(result.GeneratedTrees);
     }
 }

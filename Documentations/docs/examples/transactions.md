@@ -101,16 +101,16 @@ public async Task<int> CreateUserWithFirstOrderAsync(
 
     // First write — create the user
     var createUser = new StoredProcedureParametersBuilder("Users", "usp_Create_User")
-        .AddParameter("@UserName", userName, SqlDbType.NVarChar)
+        .AddParameter("UserName", userName, SqlDbType.NVarChar)
         .Build();
 
     var newUserId = await tx.ExecuteScalarAsync<int>(createUser, ct);
 
     // Second write — create their first order, using the ID from the first call
     var createOrder = new StoredProcedureParametersBuilder("Users", "usp_Create_Order")
-        .AddParameter("@UserId", newUserId, SqlDbType.Int)
-        .AddParameter("@Label",  orderLabel, SqlDbType.NVarChar)
-        .AddParameter("@Amount", amount,     SqlDbType.Decimal)
+        .AddParameter("UserId", newUserId, SqlDbType.Int)
+        .AddParameter("Label",  orderLabel, SqlDbType.NVarChar)
+        .AddParameter("Amount", amount,     SqlDbType.Decimal)
         .Build();
 
     await tx.ExecuteScalarAsync<int>(createOrder, ct);
@@ -139,7 +139,7 @@ public async Task DemonstrateClientSideRollbackAsync(
         .BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
 
     var createUser = new StoredProcedureParametersBuilder("Users", "usp_Create_User")
-        .AddParameter("@UserName", userName, SqlDbType.NVarChar)
+        .AddParameter("UserName", userName, SqlDbType.NVarChar)
         .Build();
 
     await tx.ExecuteScalarAsync<int>(createUser, ct);
@@ -168,8 +168,8 @@ public async Task DemonstrateServerSideRollbackAsync(
     CancellationToken ct)
 {
     var sp = new StoredProcedureParametersBuilder("Users", "usp_Create_User_Tx_Safe")
-        .AddParameter("@UserName",     userName, SqlDbType.NVarChar)
-        .AddParameter("@ForceFailure", true,     SqlDbType.Bit)
+        .AddParameter("UserName",     userName, SqlDbType.NVarChar)
+        .AddParameter("ForceFailure", true,     SqlDbType.Bit)
         .Build();
 
     // This call throws CaeriusNetSqlException because the SP re-raises.

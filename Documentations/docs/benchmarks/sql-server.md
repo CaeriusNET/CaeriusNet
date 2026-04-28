@@ -7,7 +7,7 @@ description: CaeriusNet SQL Server end-to-end benchmarks — stored procedure ex
 
 These benchmarks measure **real end-to-end latency** of CaeriusNet operations against a live
 SQL Server 2022 instance running inside a Docker service container on Ubuntu.
-All metrics include: TCP connection setup (pooled), TDS framing, SQL Server execution plan evaluation,
+Metrics include: TCP connection setup (pooled), TDS framing, SQL Server execution plan evaluation,
 data serialization over the wire, and `SqlDataReader` deserialization on the .NET side.
 
 > ⚠️ **These benchmarks require SQL Server.**
@@ -17,8 +17,12 @@ data serialization over the wire, and `SqlDataReader` deserialization on the .NE
 > `SELECT TOP 100000 ... FROM sys.all_objects a CROSS JOIN sys.all_objects b` cross-join seed, ensuring
 > a realistic cardinality for all read benchmarks.
 
-> All benchmark results displayed on this page are **real measured values** produced by the CI benchmark workflow.
-> Tables are populated automatically after each [GitHub Release](https://github.com/CaeriusNET/CaeriusNet/releases).
+> This page explains what the SQL Server benchmark suite measures and how to interpret generated tables.
+> If no result table is shown, run the benchmark workflow or the local commands in the overview to produce fresh BenchmarkDotNet artifacts.
+
+::: warning Environment-specific results
+SQL Server benchmark results vary with server edition, CPU, memory, storage, indexes, query plans, network latency, container settings, and connection-pool state. Use these pages to understand methodology and trends, then measure your deployment scenario.
+:::
 
 ---
 
@@ -41,12 +45,11 @@ scales from 0 rows (no data, pure call overhead) to 50 000 rows (large result se
 - **At RowCount = 0**, the measurement isolates pure call overhead: TDS command framing + SQL Server parse/compile +
   empty result set return. This is the irreducible floor for any SP call.
 - **At small row counts (10–100)**, connection establishment and command preparation dominate over data transfer.
-  Connection pooling amortises the TCP handshake across calls — the warm-pool cost is dramatically lower
+  Connection pooling amortises the TCP handshake across calls — the warm-pool cost is lower
   than a cold-start `SqlConnection`.
 - **At large row counts (5 000–50 000)**, streaming throughput (rows per microsecond) becomes the binding factor.
   CaeriusNet's `SqlDataReader` iteration cost grows linearly with rows.
-- The **Ratio** column between `RowCount = 0` and large row counts quantifies how much of the measured time
-  is pure SQL Server work vs .NET deserialization overhead.
+- The **Ratio** column between `RowCount = 0` and larger row counts helps estimate how measured time shifts from call overhead to data transfer and deserialization.
 
 ---
 
@@ -56,7 +59,7 @@ scales from 0 rows (no data, pure call overhead) to 50 000 rows (large result se
 
 ### What is measured
 
-This benchmark is the **core value proposition** of CaeriusNet's TVP support.
+This benchmark compares per-row stored-procedure calls with a single TVP-based stored-procedure call.
 
 Two insertion strategies are compared at `[Params(10, 100, 500, 1_000, 5_000)]` items:
 
@@ -74,14 +77,13 @@ Two insertion strategies are compared at `[Params(10, 100, 500, 1_000, 5_000)]` 
 - **TVP batch strategy costs O(1) roundtrips.** The entire dataset is serialized into the TVP stream,
   transmitted in a single TDS message batch, and processed in one server-side INSERT.
 
-- The performance gap between the two strategies widens dramatically with item count:
+- The performance gap between the two strategies widens with item count:
   - At N = 10: the difference exists but is modest (TVP has a fixed setup overhead).
-  - At N = 1 000: TVP is multiple orders of magnitude faster.
-  - At N = 5 000: TVP's advantage is so large that single-call strategy is effectively unusable.
+- At N = 1 000: TVP avoids per-row roundtrip cost; confirm the measured ratio from your benchmark table.
+- At N = 5 000: per-row roundtrip cost often dominates; confirm suitability from your benchmark table and latency budget.
 
-- In **production environments with network latency > 1 ms**, the per-roundtrip cost is even higher —
-  the numbers on this page represent a local Docker loop with sub-millisecond latency.
-  Real-world latency multiplies every row's overhead for the single-call strategy.
+- In production environments, network latency increases the cost of every roundtrip.
+  Local Docker numbers should not be treated as remote database latency estimates.
 
 ---
 
@@ -131,9 +133,7 @@ Compared against a **manual ADO.NET TVP setup** without the builder — raw `Sql
 
 ### Key insights
 
-- The CaeriusNet builder adds **negligible overhead** vs raw ADO.NET assembly — the Ratio should be
-  within noise margin (< 1 % difference in mean) because the builder is a thin wrapper around
-  `List<SqlParameter>.Add()` + a type-check for TVP items.
+- Compare the CaeriusNet builder against raw ADO.NET assembly by using the **Ratio**, **Error**, and **StdDev** columns together. Small differences may be measurement noise.
 - The dominant cost at any row count > 100 is **network I/O + SQL Server execution** — not .NET-side work.
 - At RowCount = 10 000 the TVP pipeline throughput demonstrates that memory allocation stays constant
   (O(1) `SqlDataRecord` streaming) even as the SQL-side work grows linearly.
@@ -183,17 +183,17 @@ logical `Open/Close` calls. This benchmark quantifies the performance difference
 |---|---|
 | `Connect_WarmPool` *(Baseline)* | `Open()` returns a pooled physical connection — no TCP handshake |
 | `Connect_ColdStart` | `ClearPool(connection)` then `Open()` — forces a new TCP handshake + TDS login |
-| `Connect_Persistent` | Hold one physical connection open for the entire benchmark iteration — zero pool overhead |
+| `Connect_Persistent` | Hold one physical connection open for the entire benchmark iteration — bypasses pool checkout overhead |
 
 ### Key insights
 
 - **Warm pool** is the normal production scenario. `SqlConnection.Open()` dequeues an idle physical
-  connection, resetting its state (`sp_reset_connection`) — typically < 100 μs.
+  connection and resets its state (`sp_reset_connection`). Measure the expected cost in your environment.
 - **Cold start** forces a full TCP three-way handshake + TDS pre-login + TDS login sequence.
-  This is orders of magnitude more expensive than a warm pool checkout.
+  This is typically much more expensive than a warm pool checkout; use measured results for your environment.
   `ClearPool()` should **never be called in production** unless connection credentials change.
-- **Persistent connection** has zero checkout overhead — useful for understanding the irreducible
+- **Persistent connection** bypasses checkout overhead — useful for understanding the irreducible
   command-execution cost (no pool interaction at all), but not suitable for concurrent workloads.
 - The Ratio between Warm Pool and Cold Start quantifies the value of the connection pool.
-  In a typical Docker environment (sub-ms loopback), the cold-start cost is dominated by the TDS
-  handshake. Over a real network, cold-start latency is 10–100× higher.
+  In a local Docker environment, the cold-start cost is often dominated by the TDS handshake.
+  Remote database latency and authentication configuration can change the result substantially.

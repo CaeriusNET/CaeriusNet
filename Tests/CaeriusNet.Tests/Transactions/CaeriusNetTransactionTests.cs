@@ -85,6 +85,88 @@ public sealed class CaeriusNetTransactionTests
         Assert.Equal("dbContext", ex.ParamName);
     }
 
+    [Fact]
+    public async Task CommitAsync_With_Command_In_Flight_Throws_Deterministically()
+    {
+        var tx = CreateStateMachineOnlyTransaction();
+        tx.AcquireCommandSlot();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => tx.CommitAsync().AsTask());
+
+        Assert.Contains("command is already in flight", ex.Message);
+        tx.ReleaseCommandSlot();
+    }
+
+    [Fact]
+    public async Task RollbackAsync_With_Command_In_Flight_Throws_Deterministically()
+    {
+        var tx = CreateStateMachineOnlyTransaction();
+        tx.AcquireCommandSlot();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => tx.RollbackAsync().AsTask());
+
+        Assert.Contains("command is already in flight", ex.Message);
+        tx.ReleaseCommandSlot();
+    }
+
+    private static ICaeriusNetTransactionInternal CreateStateMachineOnlyTransaction()
+    {
+        var constructor = typeof(CaeriusNetTransaction).GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
+            .Single();
+        var connection = new SqlConnection();
+        var inner = (ICaeriusNetTransactionInternal)constructor.Invoke([connection, null, null]);
+        return new OwnedConnectionTransaction(inner, connection);
+    }
+
+    private sealed class OwnedConnectionTransaction : ICaeriusNetTransactionInternal
+    {
+        private readonly SqlConnection _connection;
+        private readonly ICaeriusNetTransactionInternal _inner;
+
+        public OwnedConnectionTransaction(ICaeriusNetTransactionInternal inner, SqlConnection connection)
+        {
+            _inner = inner;
+            _connection = connection;
+        }
+
+        public bool IsActive => _inner.IsActive;
+
+        public SqlConnection Connection => _inner.Connection;
+
+        public SqlTransaction Transaction => _inner.Transaction;
+
+        public void AcquireCommandSlot()
+        {
+            _inner.AcquireCommandSlot();
+        }
+
+        public void ReleaseCommandSlot()
+        {
+            _inner.ReleaseCommandSlot();
+        }
+
+        public void Poison()
+        {
+            _inner.Poison();
+        }
+
+        public ValueTask CommitAsync(CancellationToken cancellationToken = default)
+        {
+            return _inner.CommitAsync(cancellationToken);
+        }
+
+        public ValueTask RollbackAsync(CancellationToken cancellationToken = default)
+        {
+            return _inner.RollbackAsync(cancellationToken);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await _inner.DisposeAsync();
+            _connection.Dispose();
+        }
+    }
+
     private sealed class FakeTransaction : ICaeriusNetTransaction
     {
         public bool IsActive => true;
