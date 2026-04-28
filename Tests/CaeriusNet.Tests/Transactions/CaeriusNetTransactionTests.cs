@@ -120,8 +120,8 @@ public sealed class CaeriusNetTransactionTests
 
     private sealed class OwnedConnectionTransaction : ICaeriusNetTransactionInternal
     {
-        private readonly ICaeriusNetTransactionInternal _inner;
         private readonly SqlConnection _connection;
+        private readonly ICaeriusNetTransactionInternal _inner;
 
         public OwnedConnectionTransaction(ICaeriusNetTransactionInternal inner, SqlConnection connection)
         {
@@ -131,6 +131,10 @@ public sealed class CaeriusNetTransactionTests
 
         public bool IsActive => _inner.IsActive;
 
+        public SqlConnection Connection => _inner.Connection;
+
+        public SqlTransaction Transaction => _inner.Transaction;
+
         public void AcquireCommandSlot()
         {
             _inner.AcquireCommandSlot();
@@ -139,6 +143,11 @@ public sealed class CaeriusNetTransactionTests
         public void ReleaseCommandSlot()
         {
             _inner.ReleaseCommandSlot();
+        }
+
+        public void Poison()
+        {
+            _inner.Poison();
         }
 
         public ValueTask CommitAsync(CancellationToken cancellationToken = default)
