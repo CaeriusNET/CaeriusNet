@@ -54,6 +54,6 @@ public sealed partial class UsersRepository
             .AddTvpParameter("tvp", pairs)
             .Build();
 
-        return await dbContext.QueryAsIEnumerableAsync<UserDto>(sp, cancellationToken) ?? [];
+        return await dbContext.QueryAsIEnumerableAsync<UserDto>(sp, cancellationToken);
     }
 }

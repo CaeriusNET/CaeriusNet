@@ -88,7 +88,7 @@ public sealed class DtoSourceGeneratorTests
 
         Assert.Single(result.GeneratedTrees);
         var generated = result.GeneratedTrees[0].GetText().ToString();
-        Assert.Contains("TimeOnly.FromDateTime", generated);
+        Assert.Contains("TimeOnly.FromTimeSpan(reader.GetTimeSpan(1))", generated);
     }
 
     [Fact]
@@ -364,6 +364,66 @@ public sealed class DtoSourceGeneratorTests
         Assert.Single(result.GeneratedTrees);
         var generated = result.GeneratedTrees[0].GetText().ToString();
         Assert.Contains("reader.GetByte(1)", generated);
+    }
+
+    [Fact]
+    public void Unsigned_And_Narrow_Numeric_Fields_Generate_Explicit_Casts()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Dto;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record NumericDto(sbyte SByte, ushort UInt16, uint UInt32, ulong UInt64);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText().ToString();
+        Assert.Contains("(sbyte)reader.GetInt16(0)", generated);
+        Assert.Contains("(ushort)reader.GetInt32(1)", generated);
+        Assert.Contains("(uint)reader.GetInt64(2)", generated);
+        Assert.Contains("(ulong)reader.GetDecimal(3)", generated);
+    }
+
+    [Fact]
+    public void Internal_Type_Generates_Internal_Partial_Declaration_And_Compiles()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Dto;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              internal sealed partial record InternalDto(int Id, string Name);
+                              """;
+
+        var (result, compilation) =
+            SourceGeneratorTestHelper.RunGeneratorWithCompilation<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText().ToString();
+        Assert.Contains("internal sealed partial record InternalDto", generated);
+        Assert.Empty(compilation.GetDiagnostics().Where(static diagnostic =>
+            diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Id != "CS0009"));
+    }
+
+    [Fact]
+    public void Nested_And_Generic_Types_Do_Not_Generate()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Dto;
+                              namespace Test.Models;
+                              public sealed partial class Container
+                              {
+                                  [GenerateDto]
+                                  public sealed partial record NestedDto(int Id);
+                              }
+                              [GenerateDto]
+                              public sealed partial record GenericDto<T>(int Id);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Empty(result.GeneratedTrees);
     }
 
     [Fact]

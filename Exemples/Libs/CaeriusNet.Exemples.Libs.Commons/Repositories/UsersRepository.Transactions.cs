@@ -37,7 +37,7 @@ public sealed partial class UsersRepository
             .ConfigureAwait(false);
 
         var createUser = new StoredProcedureParametersBuilder("Users", "usp_Create_User")
-            .AddParameter("@UserName", userName, SqlDbType.NVarChar)
+            .AddParameter("UserName", userName, SqlDbType.NVarChar)
             .Build();
 
         var newUserId = await tx
@@ -49,9 +49,9 @@ public sealed partial class UsersRepository
                 $"usp_Create_User returned invalid user identifier ({newUserId}); cannot create the associated order.");
 
         var createOrder = new StoredProcedureParametersBuilder("Users", "usp_Create_Order")
-            .AddParameter("@UserId", newUserId, SqlDbType.Int)
-            .AddParameter("@Label", firstOrderLabel, SqlDbType.NVarChar)
-            .AddParameter("@Amount", amount, SqlDbType.Decimal)
+            .AddParameter("UserId", newUserId, SqlDbType.Int)
+            .AddParameter("Label", firstOrderLabel, SqlDbType.NVarChar)
+            .AddParameter("Amount", amount, SqlDbType.Decimal)
             .Build();
 
         await tx.ExecuteScalarAsync<int>(createOrder, cancellationToken).ConfigureAwait(false);
@@ -71,7 +71,7 @@ public sealed partial class UsersRepository
             .ConfigureAwait(false);
 
         var createUser = new StoredProcedureParametersBuilder("Users", "usp_Create_User")
-            .AddParameter("@UserName", userName, SqlDbType.NVarChar)
+            .AddParameter("UserName", userName, SqlDbType.NVarChar)
             .Build();
 
         // Write is performed but we deliberately decide not to keep it.
@@ -89,8 +89,8 @@ public sealed partial class UsersRepository
         CancellationToken cancellationToken = default)
     {
         var sp = new StoredProcedureParametersBuilder("Users", "usp_Create_User_Tx_Safe")
-            .AddParameter("@UserName", userName, SqlDbType.NVarChar)
-            .AddParameter("@ForceFailure", true, SqlDbType.Bit)
+            .AddParameter("UserName", userName, SqlDbType.NVarChar)
+            .AddParameter("ForceFailure", true, SqlDbType.Bit)
             .Build();
 
         // The stored procedure's BEGIN CATCH rolls back internally and re-throws.

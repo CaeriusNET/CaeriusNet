@@ -23,7 +23,7 @@
 | `SourceGenerators/` | Roslyn incremental source generators (`[GenerateDto]`, `[GenerateTvp]`) |
 | `Tests/` | Unit tests, generator tests, integration tests |
 | `Benchmark/` | BenchmarkDotNet performance benchmarks |
-| `Exemples/` | Example projects (Aspire + Console) |
+| `Exemples/` | Example projects (Aspire + Console); directory name retained for compatibility |
 | `Documentations/` | VitePress documentation site |
 
 ---
@@ -288,6 +288,22 @@ CaeriusNetBuilder.Create(builder)
 | .NET | 10 |
 | C# | 14 |
 | SQL Server | 2019 |
+
+---
+
+## Package Validation
+
+Before publishing, validate the NuGet package contents and smoke-test a consumer project:
+
+```bash
+pwsh ./eng/ValidatePackage.ps1 -Configuration Release
+```
+
+Trim/AOT analyzer validation is covered by the Release build. To run it directly:
+
+```bash
+dotnet build Src/CaeriusNet.csproj --configuration Release -p:IsAotCompatible=true -p:EnableTrimAnalyzer=true
+```
 
 ---
 

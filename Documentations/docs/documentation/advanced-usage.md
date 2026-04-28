@@ -32,12 +32,12 @@ public async Task<IEnumerable<UserDto>> GetUsersByIdsAndAgeAsync(
 
     var tvpItems = userIds.Select(id => new UserIdTvp(id));
 
-    var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Tvp_Ids_And_Age", capacity: 4096)
+    var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Tvp_Ids_And_Age", ResultSetCapacity: 4096)
         .AddTvpParameter("Ids", tvpItems)
         .AddParameter("Age", minAge, SqlDbType.Int)
         .Build();
 
-    return await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct) ?? [];
+    return await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct);
 }
 ```
 
@@ -56,7 +56,7 @@ public async Task<IEnumerable<UserDto>> GetUsersAsync(
     else
         builder.AddFrozenCache("users:all"); // only cache the unfiltered result
 
-    return await DbContext.QueryAsIEnumerableAsync<UserDto>(builder.Build(), ct) ?? [];
+    return await DbContext.QueryAsIEnumerableAsync<UserDto>(builder.Build(), ct);
 }
 ```
 

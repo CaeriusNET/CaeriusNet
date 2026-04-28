@@ -85,6 +85,37 @@ public sealed class CaeriusNetTransactionTests
         Assert.Equal("dbContext", ex.ParamName);
     }
 
+    [Fact]
+    public async Task CommitAsync_With_Command_In_Flight_Throws_Deterministically()
+    {
+        var tx = CreateStateMachineOnlyTransaction();
+        tx.AcquireCommandSlot();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => tx.CommitAsync().AsTask());
+
+        Assert.Contains("command is already in flight", ex.Message);
+        tx.ReleaseCommandSlot();
+    }
+
+    [Fact]
+    public async Task RollbackAsync_With_Command_In_Flight_Throws_Deterministically()
+    {
+        var tx = CreateStateMachineOnlyTransaction();
+        tx.AcquireCommandSlot();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => tx.RollbackAsync().AsTask());
+
+        Assert.Contains("command is already in flight", ex.Message);
+        tx.ReleaseCommandSlot();
+    }
+
+    private static ICaeriusNetTransactionInternal CreateStateMachineOnlyTransaction()
+    {
+        var constructor = typeof(CaeriusNetTransaction).GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
+            .Single();
+        return (ICaeriusNetTransactionInternal)constructor.Invoke([new SqlConnection(), null, null]);
+    }
+
     private sealed class FakeTransaction : ICaeriusNetTransaction
     {
         public bool IsActive => true;

@@ -47,11 +47,11 @@ Returns `IEnumerable<T>?` (`null` on empty result set). Best for LINQ-pipeline s
 public async Task<IEnumerable<UserDto>> GetUsersOlderThanAsync(
     byte age, CancellationToken ct)
 {
-    var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Age", capacity: 450)
+    var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Age", ResultSetCapacity: 450)
         .AddParameter("Age", age, SqlDbType.TinyInt)
         .Build();
 
-    return await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct) ?? [];
+    return await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct);
 }
 ```
 
@@ -105,7 +105,7 @@ The third constructor argument of `StoredProcedureParametersBuilder` is `resultS
 
 ```csharp
 // Expecting ~250 rows — pre-allocate to skip List<T> resizing
-new StoredProcedureParametersBuilder("dbo", "usp_Get_All_Users", capacity: 250);
+new StoredProcedureParametersBuilder("dbo", "usp_Get_All_Users", ResultSetCapacity: 250);
 ```
 
 ::: tip Capacity tuning
@@ -120,7 +120,7 @@ Every read method takes a `CancellationToken`. Propagate it from your controller
 public async Task<IEnumerable<UserDto>> GetAsync(CancellationToken ct)
 {
     var sp = new StoredProcedureParametersBuilder("dbo", "usp_Get_All_Users").Build();
-    return await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct) ?? [];
+    return await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct);
 }
 ```
 

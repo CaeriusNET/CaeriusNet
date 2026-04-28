@@ -61,6 +61,14 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
+      - name: Setup Node
+        if: hashFiles('Documentations/package.json') != ''
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: Documentations/package*.json
+
       - name: Cache NuGet packages
         uses: actions/cache@v5
         with:
@@ -90,6 +98,20 @@ jobs:
           echo "tag=v${NEW}"      >> "$GITHUB_OUTPUT"
           echo "🔖 Version bump: ${CURRENT} → ${NEW} (${{ github.event.inputs.version_bump }})"
 
+      - name: Validate release metadata
+        run: |
+          if [ ! -f CHANGELOG.md ]; then
+            echo "❌ CHANGELOG.md is required before publishing a release."
+            exit 1
+          fi
+          if ! grep -q '^## \[Unreleased\]' CHANGELOG.md; then
+            echo "❌ CHANGELOG.md must contain an [Unreleased] section before release."
+            exit 1
+          fi
+          if [ -z "${{ github.event.inputs.release_notes }}" ]; then
+            echo "ℹ️  No manual release notes supplied; GitHub release notes will be generated from commits."
+          fi
+
       # ── Build & Test (gates on the new version) ────────────────────────────────
       - name: Restore
         run: dotnet restore CaeriusNet.slnx
@@ -102,13 +124,37 @@ jobs:
             -p:TreatWarningsAsErrors=true \
             -p:WarningLevel=4
 
-      - name: Test
+      - name: Test (non-integration)
         run: |
           dotnet test CaeriusNet.slnx \
             --configuration Release \
             --no-restore \
             --no-build \
+            --filter "FullyQualifiedName!~IntegrationTests" \
             --logger "console;verbosity=normal"
+
+      - name: Test (integration, Docker)
+        run: |
+          dotnet test Tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj \
+            --configuration Release \
+            --no-restore \
+            --no-build \
+            --logger "console;verbosity=normal"
+
+      - name: Install docs dependencies
+        if: hashFiles('Documentations/package.json') != '' && hashFiles('Documentations/package-lock.json') == ''
+        working-directory: Documentations
+        run: npm install
+
+      - name: Install locked docs dependencies
+        if: hashFiles('Documentations/package-lock.json') != ''
+        working-directory: Documentations
+        run: npm ci
+
+      - name: Build docs
+        if: hashFiles('Documentations/package.json') != ''
+        working-directory: Documentations
+        run: npm run docs:build
 
       # ── Pack ────────────────────────────────────────────────────────────────────
       - name: Pack (nupkg + snupkg)
@@ -119,6 +165,10 @@ jobs:
             --output ./packages \
             -p:IncludeSymbols=true \
             -p:SymbolPackageFormat=snupkg
+
+      - name: Validate package contents
+        shell: pwsh
+        run: ./eng/ValidatePackage.ps1 -Configuration Release -OutputDirectory artifacts/package-validation
 
       - name: List packages
         run: ls -la ./packages/

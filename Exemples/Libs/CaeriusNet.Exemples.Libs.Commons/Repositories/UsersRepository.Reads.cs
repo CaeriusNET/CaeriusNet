@@ -14,7 +14,7 @@ public sealed partial class UsersRepository
         var sp = new StoredProcedureParametersBuilder("Users", "usp_Get_All_Users", 25)
             .Build();
 
-        return await dbContext.QueryAsIEnumerableAsync<UserDto>(sp, cancellationToken) ?? [];
+        return await dbContext.QueryAsIEnumerableAsync<UserDto>(sp, cancellationToken);
     }
 
     // ─── Frozen cache (immutable snapshot, lives for the process lifetime) ──
@@ -25,7 +25,7 @@ public sealed partial class UsersRepository
             .AddFrozenCache("all_users_frozen")
             .Build();
 
-        return await dbContext.QueryAsIEnumerableAsync<UserDto>(sp, cancellationToken) ?? [];
+        return await dbContext.QueryAsIEnumerableAsync<UserDto>(sp, cancellationToken);
     }
 
     // ─── In-memory cache (per-process, time-limited) ────────────────────────
@@ -36,7 +36,7 @@ public sealed partial class UsersRepository
             .AddInMemoryCache("all_users_memory", TimeSpan.FromMinutes(1))
             .Build();
 
-        return await dbContext.QueryAsIEnumerableAsync<UserDto>(sp, cancellationToken) ?? [];
+        return await dbContext.QueryAsIEnumerableAsync<UserDto>(sp, cancellationToken);
     }
 
     // ─── Redis distributed cache (shared across instances) ──────────────────
@@ -47,7 +47,7 @@ public sealed partial class UsersRepository
             .AddRedisCache("all_users_redis", TimeSpan.FromMinutes(2))
             .Build();
 
-        return await dbContext.QueryAsIEnumerableAsync<UserDto>(sp, cancellationToken) ?? [];
+        return await dbContext.QueryAsIEnumerableAsync<UserDto>(sp, cancellationToken);
     }
 
     // ─── Write ───────────────────────────────────────────────────────────────
@@ -55,7 +55,7 @@ public sealed partial class UsersRepository
     public async Task CreateNewUser(CancellationToken cancellationToken = default)
     {
         var sp = new StoredProcedureParametersBuilder("Users", "usp_Create_User")
-            .AddParameter("@UserName", $"demo-{Guid.NewGuid():N}"[..32], SqlDbType.NVarChar)
+            .AddParameter("UserName", $"demo-{Guid.NewGuid():N}"[..32], SqlDbType.NVarChar)
             .Build();
 
         await dbContext.ExecuteAsync(sp, cancellationToken);

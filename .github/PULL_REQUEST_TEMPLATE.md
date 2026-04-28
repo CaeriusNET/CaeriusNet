@@ -24,6 +24,9 @@
 - [ ] I have added or updated tests covering my change.
 - [ ] `dotnet build CaeriusNet.slnx -c Release -p:TreatWarningsAsErrors=true` succeeds locally.
 - [ ] `dotnet test CaeriusNet.slnx -c Release --filter "FullyQualifiedName!~IntegrationTests"` is green.
+- [ ] `pwsh ./eng/ValidatePackage.ps1 -Configuration Release` succeeds for package/public API changes.
+- [ ] `cd Documentations && npm install && npm run docs:build` succeeds for documentation changes (or `npm ci` when a lockfile exists).
+- [ ] Docker-backed integration tests were run when storage, transactions, SQL, or TVP behaviour changed.
 - [ ] I have updated [`CHANGELOG.md`](../CHANGELOG.md) under `[Unreleased]` if user-visible.
 - [ ] I have updated public XML documentation comments for any public API change.
 - [ ] No new dependencies introduced (or discussed in an issue first).

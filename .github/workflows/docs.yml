@@ -1,0 +1,52 @@
+name: Docs
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Documentations/**'
+      - '.github/workflows/docs.yml'
+  push:
+    branches: [main, 'feature/**']
+    paths:
+      - 'Documentations/**'
+      - '.github/workflows/docs.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
+jobs:
+  build-docs:
+    name: Build documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: Documentations/package*.json
+
+      - name: Install dependencies
+        if: hashFiles('Documentations/package-lock.json') == ''
+        working-directory: Documentations
+        run: npm install
+
+      - name: Install locked dependencies
+        if: hashFiles('Documentations/package-lock.json') != ''
+        working-directory: Documentations
+        run: npm ci
+
+      - name: Build docs
+        working-directory: Documentations
+        run: npm run docs:build

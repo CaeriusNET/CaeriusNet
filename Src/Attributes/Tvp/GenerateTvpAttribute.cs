@@ -41,13 +41,13 @@
 [AttributeUsage(AttributeTargets.Class, Inherited = false)]
 public sealed class GenerateTvpAttribute : Attribute
 {
-	/// <summary>
-	///     Gets or sets the SQL Server schema name to use for this TVP. (default: "dbo")
-	/// </summary>
-	public required string Schema { get; init; } = "dbo";
+    /// <summary>
+    ///     Gets or sets the SQL Server schema name to use for this TVP. (default: "dbo")
+    /// </summary>
+    public required string Schema { get; init; } = "dbo";
 
-	/// <summary>
-	///     Gets or sets the SQL Server table type name (without schema) to use for this TVP.
-	/// </summary>
-	public required string TvpName { get; init; }
+    /// <summary>
+    ///     Gets or sets the SQL Server table type name (without schema) to use for this TVP.
+    /// </summary>
+    public required string TvpName { get; init; }
 }

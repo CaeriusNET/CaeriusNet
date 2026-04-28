@@ -227,13 +227,13 @@ public sealed class StoredProcedureParametersBuilderTests
     }
 
     [Fact]
-    public void AddParameter_NullValue_SetsValueToNull()
+    public void AddParameter_NullValue_SetsValueToDBNull()
     {
         var sp = new StoredProcedureParametersBuilder("dbo", "sp_Test")
             .AddParameter("@OptName", null!, SqlDbType.NVarChar)
             .Build();
 
-        Assert.Null(sp.GetParametersSpan()[0].Value);
+        Assert.Same(DBNull.Value, sp.GetParametersSpan()[0].Value);
     }
 
     [Fact]
@@ -260,6 +260,22 @@ public sealed class StoredProcedureParametersBuilderTests
         var sp = new StoredProcedureParametersBuilder("dbo", "sp_Test", 16, 0).Build();
 
         Assert.Equal(0, sp.CommandTimeout);
+    }
+
+    [Fact]
+    public void Builder_Negative_Capacity_Throws()
+    {
+        var builder = new StoredProcedureParametersBuilder("dbo", "sp_Test", -1);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => builder.Build());
+    }
+
+    [Fact]
+    public void Builder_Negative_Timeout_Throws()
+    {
+        var builder = new StoredProcedureParametersBuilder("dbo", "sp_Test", 16, -1);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => builder.Build());
     }
 
     [Fact]

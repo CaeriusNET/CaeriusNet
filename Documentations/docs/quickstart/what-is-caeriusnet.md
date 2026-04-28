@@ -1,20 +1,24 @@
 # What is CaeriusNet?
 
-CaeriusNet is a focused, high-performance **micro-ORM** for **C# 14 / .NET 10** that turns SQL Server Stored Procedure result sets into strongly typed C# DTOs — in microseconds, with no reflection.
+CaeriusNet is a focused **micro-ORM** for **C# 14 / .NET 10** that turns SQL Server Stored Procedure result sets into strongly typed C# DTOs without runtime reflection.
 
-It is unapologetically specialized: CaeriusNet targets **Microsoft SQL Server** and **Stored Procedures**. That clarity lets it optimize deeply for T-SQL, `SqlDataReader`, and SQL Server features such as Table-Valued Parameters and multi-result-sets.
+It is intentionally specialized: CaeriusNet targets **Microsoft SQL Server** and **Stored Procedures**. That scope lets the library optimize for T-SQL, `SqlDataReader`, Table-Valued Parameters, and multi-result sets without trying to model every database provider.
+
+::: info Supported data-access model
+CaeriusNet executes stored procedures only. It does not translate LINQ, generate ad hoc SQL, track entities, or provide migrations.
+:::
 
 ## Why CaeriusNet?
 
-### 1. Performance you can feel
+### 1. Predictable hot-path behavior
 
 CaeriusNet is engineered to keep the hot path hot:
 
-- **Ordinal, allocation-aware mapping.** DTOs implement `ISpMapper<T>` (manual or source-generated) and read columns by index — zero name lookups, fewer string allocations.
+- **Ordinal, allocation-aware mapping.** DTOs implement `ISpMapper<T>` (manual or source-generated) and read columns by index to avoid per-row name lookups.
 - **Compiler-guided optimizations.** Hot mappers carry `[MethodImpl(AggressiveInlining)]`; TVP iterators carry `[MethodImpl(AggressiveOptimization)]`.
 - **Low-level buffers and spans.** `CollectionsMarshal.SetCount` + `AsSpan(list)` populate result lists in place; `ArrayPool<T>.Shared` rents/returns buffers for `ImmutableArray<T>` without extra copies.
 - **Streaming reads.** Every `SqlCommand` runs with `CommandBehavior.SequentialAccess` to consume rows directly off the TDS stream.
-- **Right-sized collections.** You declare an expected capacity per call; CaeriusNet pre-allocates so `List<T>` never resizes mid-fill.
+- **Right-sized collections.** You declare an expected capacity per call so CaeriusNet can pre-size result lists.
 - **Caching tiers built in.** Frozen (immutable in-process), InMemory (TTL), and Redis (distributed) — opt in per call via the builder.
 
 In short: no runtime reflection, no expression-tree compilation on the hot path, and minimal allocations.
@@ -27,10 +31,10 @@ In short: no runtime reflection, no expression-tree compilation on the hot path,
 
 Prefer manual control? You can still implement `ISpMapper<T>` / `ITvpMapper<T>` by hand.
 
-### 3. SQL Server expertise, not a kitchen sink
+### 3. SQL Server scope, not a kitchen sink
 
 - **Stored Procedures first.** TVP, multi-result-sets, scalar reads, and write commands (`ExecuteNonQueryAsync`, `ExecuteScalarAsync<T>`, fire-and-forget `ExecuteAsync`).
-- **Fluent builder.** `StoredProcedureParametersBuilder` composes parameters, TVPs, and caching for each call.
+- **Fluent builder.** `StoredProcedureParametersBuilder` composes parameters, TVPs, and caching for each call. Pass parameter identifiers without the SQL `@` prefix; CaeriusNet applies provider-specific parameter handling internally.
 - **Atomic transactions.** `BeginTransactionAsync` provides a thread-safe scope with a strict state machine, automatic rollback on dispose, and a parent `TX` activity for cohesive tracing.
 - **Works with the schema you already have.** No migrations, no shadow tables, no surprise columns.
 
@@ -79,7 +83,7 @@ It may not be the best fit when you require ORM features such as change tracking
 | Query model | Stored Procedures | LINQ → SQL translation | Raw SQL strings |
 | Mapping | Compile-time, ordinal, no reflection | Runtime, expression-tree compilation | Runtime reflection or hand-rolled |
 | Change tracking | None | Full | None |
-| TVP support | Source-generated, zero-copy | Manual `DataTable` | Manual `DataTable` |
+| TVP support | Source-generated streaming mapper | Manual `DataTable` | Manual `DataTable` |
 | Multi-result-set | Up to 5, typed tuple | Manual `ExecuteReader` + `NextResult` | `QueryMultiple` (typed by call) |
 | Built-in caching | Frozen / InMemory / Redis | Second-level cache via extensions | None |
 | OpenTelemetry | Built-in source + meter | Via instrumentation package | None |
@@ -94,7 +98,7 @@ Pick the tool that matches your architecture — CaeriusNet excels when SPs, TVP
 4. Results are materialized using pre-sized collections and pooling helpers; the optional cache is read or written via the chosen tier.
 5. Throughout, an `Activity` records the SP execution and the `Meter` records duration, executions, errors, and cache lookups.
 
-## A taste — one SP, one cache, zero ceremony
+## A quick example — one SP, one cache
 
 ```csharp
 var sp = new StoredProcedureParametersBuilder("Users", "usp_Get_All_Users", 250)
@@ -119,7 +123,9 @@ var (adults, seniors) = await dbContext
 
 ## Benchmarks and realism
 
-CaeriusNet publishes BenchmarkDotNet suites covering the mapping path, collection construction, TVP serialization, cache layers, and full SQL Server round-trips — all reproducible with a fixed seed (`Random(42)`) and run on every release. As always, **measure in your own environment**: network, SQL plans, and payload size dominate end-to-end latency. CaeriusNet minimizes client-side cost so your time is spent where it matters — on the database.
+CaeriusNet publishes BenchmarkDotNet suites covering the mapping path, collection construction, TVP serialization, cache layers, and full SQL Server round-trips. The suites use fixed seeds where generated data is involved so repeated runs on the same machine are easier to compare.
+
+Treat benchmark numbers as environment-specific. Network latency, SQL Server edition, hardware, schema design, query plans, indexes, row counts, and payload size can dominate end-to-end latency. Use the published methodology to reproduce measurements against your own workload before making performance decisions.
 
 ## Next steps
 

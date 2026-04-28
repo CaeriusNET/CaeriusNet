@@ -5,9 +5,9 @@ Thank you for using **CaeriusNet**! Here is where to look for help, in order of 
 ## 1. Documentation
 
 - [README](./README.md) — installation, quick start, public API surface.
-- [Documentation site](https://caeriusnet.github.io/CaeriusNet/) (MkDocs) — long-form guides, examples, benchmarks.
+- [Documentation site](https://caerius.net) (VitePress) — long-form guides, examples, benchmarks.
 - [CHANGELOG](./CHANGELOG.md) — what changed and when.
-- [Source-generator diagnostics](./Documentations/diagnostics/) — `CAERIUS001…CAERIUS004` reference.
+- [Source-generator diagnostics](https://caerius.net/documentation/diagnostics) — `CAERIUS001…CAERIUS005` reference.
 
 ## 2. Search existing issues
 

@@ -13,6 +13,8 @@ internal static class TypeStructureValidator
     {
         var isSealed = typeSymbol.IsSealed;
         var isPartial = false;
+        var isTopLevel = typeSymbol.ContainingType is null;
+        var isNonGeneric = typeSymbol.TypeParameters.Length == 0;
         TypeDeclarationSyntax? primaryCtorDeclaration = null;
 
         foreach (var declRef in typeSymbol.DeclaringSyntaxReferences)
@@ -44,7 +46,7 @@ internal static class TypeStructureValidator
                 primaryCtorDeclaration = decl;
         }
 
-        return new ValidationResult(isSealed, isPartial, primaryCtorDeclaration);
+        return new ValidationResult(isSealed, isPartial, isTopLevel, isNonGeneric, primaryCtorDeclaration);
     }
 
     internal static Location GetIdentifierLocation(INamedTypeSymbol typeSymbol)
@@ -61,16 +63,24 @@ internal static class TypeStructureValidator
         internal ValidationResult(
             bool isSealed,
             bool isPartial,
+            bool isTopLevel,
+            bool isNonGeneric,
             TypeDeclarationSyntax? primaryConstructorDeclaration)
         {
             IsSealed = isSealed;
             IsPartial = isPartial;
+            IsTopLevel = isTopLevel;
+            IsNonGeneric = isNonGeneric;
             PrimaryConstructorDeclaration = primaryConstructorDeclaration;
         }
 
         internal bool IsSealed { get; }
 
         internal bool IsPartial { get; }
+
+        internal bool IsTopLevel { get; }
+
+        internal bool IsNonGeneric { get; }
 
         internal TypeDeclarationSyntax? PrimaryConstructorDeclaration { get; }
     }

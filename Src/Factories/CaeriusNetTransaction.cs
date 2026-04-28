@@ -42,13 +42,15 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransactionInternal
 
     public async ValueTask CommitAsync(CancellationToken cancellationToken = default)
     {
-        var prev = Interlocked.CompareExchange(ref _state, StateCommitted, StateActive);
-        if (prev != StateActive)
-            throw new InvalidOperationException(
-                $"Cannot commit: transaction is in state '{StateName(prev)}'.");
+        AcquireCompletionSlot("commit");
 
         try
         {
+            var prev = Interlocked.CompareExchange(ref _state, StateCommitted, StateActive);
+            if (prev != StateActive)
+                throw new InvalidOperationException(
+                    $"Cannot commit: transaction is in state '{StateName(prev)}'.");
+
             await Transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
             CaeriusActivityExtensions.RecordTransactionOutcome(_txActivity, "committed");
             _txActivity = null;
@@ -61,17 +63,23 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransactionInternal
             _txActivity = null;
             throw new CaeriusNetSqlException("Failed to commit SQL Server transaction.", ex);
         }
+        finally
+        {
+            ReleaseCommandSlot();
+        }
     }
 
     public async ValueTask RollbackAsync(CancellationToken cancellationToken = default)
     {
-        var current = Volatile.Read(ref _state);
-        if (current is StateCommitted or StateRolledBack or StateDisposed)
-            throw new InvalidOperationException(
-                $"Cannot rollback: transaction is in state '{StateName(current)}'.");
+        AcquireCompletionSlot("rollback");
 
         try
         {
+            var current = Volatile.Read(ref _state);
+            if (current is StateCommitted or StateRolledBack or StateDisposed)
+                throw new InvalidOperationException(
+                    $"Cannot rollback: transaction is in state '{StateName(current)}'.");
+
             await Transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
             Volatile.Write(ref _state, StateRolledBack);
             CaeriusActivityExtensions.RecordTransactionOutcome(_txActivity, "rolled-back");
@@ -84,6 +92,10 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransactionInternal
             CaeriusActivityExtensions.RecordTransactionOutcome(_txActivity, "rollback-failed", true);
             _txActivity = null;
             throw new CaeriusNetSqlException("Failed to rollback SQL Server transaction.", ex);
+        }
+        finally
+        {
+            ReleaseCommandSlot();
         }
     }
 
@@ -144,6 +156,13 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransactionInternal
             await _connection.DisposeAsync().ConfigureAwait(false);
             _connection = null;
         }
+    }
+
+    private void AcquireCompletionSlot(string operation)
+    {
+        if (Interlocked.CompareExchange(ref _commandInFlight, 1, 0) != 0)
+            throw new InvalidOperationException(
+                $"Cannot {operation}: a command is already in flight on this transaction scope.");
     }
 
     /// <summary>

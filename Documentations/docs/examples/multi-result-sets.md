@@ -87,7 +87,7 @@ A 3-tuple destructures the three sets directly at the call site. The DTO type at
 public async Task<DashboardSnapshot> GetDashboardAsync(CancellationToken ct)
 {
     var sp = new StoredProcedureParametersBuilder(
-            "Users", "usp_Get_Dashboard", capacity: 25)
+            "Users", "usp_Get_Dashboard", ResultSetCapacity: 25)
         .Build();
 
     var (users, orders, stats) = await DbContext
@@ -116,7 +116,7 @@ public async Task<(IReadOnlyCollection<UserDto> Users, IReadOnlyCollection<Order
     IEnumerable<UsersIntTvp> tvp = userIds.Select(id => new UsersIntTvp(id));
 
     var sp = new StoredProcedureParametersBuilder(
-            "Users", "usp_Get_Users_With_Orders_By_Tvp", capacity: 25)
+            "Users", "usp_Get_Users_With_Orders_By_Tvp", ResultSetCapacity: 25)
         .AddTvpParameter("tvp", tvp)
         .Build();
 

@@ -80,7 +80,7 @@ Pass the TVP collection via `AddTvpParameter`:
 ```csharp
 var ids = users.Select(u => new UserIdTvp(u.Id)).ToList();
 
-var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Tvp_Ids", capacity: 1024)
+var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Tvp_Ids", ResultSetCapacity: 1024)
     .AddTvpParameter("Ids", ids)
     .Build();
 

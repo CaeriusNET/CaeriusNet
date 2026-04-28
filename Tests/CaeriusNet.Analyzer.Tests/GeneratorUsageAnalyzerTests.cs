@@ -165,6 +165,60 @@ public sealed class GeneratorUsageAnalyzerTests
         Assert.Empty(FilterCaeriusDiagnostics(diagnostics));
     }
 
+    [Fact]
+    public void GenerateDto_GenericTarget_Reports_CAERIUS006()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Dto;
+
+                              namespace TestNs;
+
+                              [GenerateDto]
+                              public sealed partial record FooDto<T>(int Id);
+                              """;
+
+        var diagnostics = AnalyzerTestHelper.RunAnalyzer(source);
+
+        AssertDiagnostic(diagnostics, "CAERIUS006", DiagnosticSeverity.Error);
+    }
+
+    [Fact]
+    public void GenerateTvp_NestedTarget_Reports_CAERIUS006()
+    {
+        const string source = """
+                              using CaeriusNet.Attributes.Tvp;
+
+                              namespace TestNs;
+
+                              public sealed partial class Container
+                              {
+                                  [GenerateTvp(TvpName = "tvp_Foo")]
+                                  public sealed partial record FooTvp(int Id);
+                              }
+                              """;
+
+        var diagnostics = AnalyzerTestHelper.RunAnalyzer(source);
+
+        AssertDiagnostic(diagnostics, "CAERIUS006", DiagnosticSeverity.Error);
+    }
+
+    [Fact]
+    public void AttributeAlias_Is_Analyzed()
+    {
+        const string source = """
+                              using DtoAlias = CaeriusNet.Attributes.Dto.GenerateDtoAttribute;
+
+                              namespace TestNs;
+
+                              [DtoAlias]
+                              public partial record FooDto(int Id);
+                              """;
+
+        var diagnostics = AnalyzerTestHelper.RunAnalyzer(source);
+
+        AssertDiagnostic(diagnostics, "CAERIUS001", DiagnosticSeverity.Error);
+    }
+
     private static IEnumerable<Diagnostic> FilterCaeriusDiagnostics(IEnumerable<Diagnostic> diagnostics)
     {
         return diagnostics.Where(diagnostic => diagnostic.Id.StartsWith("CAERIUS", StringComparison.Ordinal));

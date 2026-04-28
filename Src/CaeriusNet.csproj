@@ -11,7 +11,6 @@
     </PropertyGroup>
 
     <PropertyGroup>
-        <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
         <Version>11.0.2</Version>
         <Title>CaeriusNet</Title>
         <Authors>AriusII &amp; CaeriusNet</Authors>
@@ -36,6 +35,7 @@
     <PropertyGroup>
         <Deterministic>true</Deterministic>
         <EmbedUntrackedSources>true</EmbedUntrackedSources>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
         <IncludeSymbols>true</IncludeSymbols>
         <SymbolPackageFormat>snupkg</SymbolPackageFormat>
@@ -57,7 +57,7 @@
         <IsAotCompatible>true</IsAotCompatible>
         <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
         <!-- Suppress trim/AOT warnings until RedisCacheManager adopts source-generated JSON. -->
-        <NoWarn>$(NoWarn);IL2026;IL3050</NoWarn>
+        <NoWarn>$(NoWarn);IL2026;IL3050;CS0419;CS1574;CS1591</NoWarn>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -82,6 +82,14 @@
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </Content>
         <None Include="..\LICENSE" Pack="true" PackagePath="\" Visible="false"/>
+        <None Include="..\SourceGenerators\bin\$(Configuration)\netstandard2.0\CaeriusNet.Generator.dll"
+              Pack="true"
+              PackagePath="analyzers/dotnet/cs/"
+              Visible="false"/>
+        <None Include="..\Analyzer\bin\$(Configuration)\netstandard2.0\CaeriusNet.Analyzer.dll"
+              Pack="true"
+              PackagePath="analyzers/dotnet/cs/"
+              Visible="false"/>
     </ItemGroup>
 
     <ItemGroup>

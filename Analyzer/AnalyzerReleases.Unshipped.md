@@ -7,3 +7,4 @@
  CAERIUS003 | CaeriusNet.Generator | Error    | Type must declare a primary constructor with parameters. 
  CAERIUS004 | CaeriusNet.Generator | Error    | [GenerateTvp] requires a non-empty TvpName.              
  CAERIUS005 | CaeriusNet.Generator | Warning  | Parameter type falls back to sql_variant.                
+ CAERIUS006 | CaeriusNet.Generator | Error    | Generator target must be a non-generic top-level type.   

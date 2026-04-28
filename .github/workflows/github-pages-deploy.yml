@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths:
       - 'Documentations/**'
+      - '.github/workflows/github-pages-deploy.yml'
   workflow_dispatch:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
@@ -39,12 +40,17 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: Documentations/package.json
+          cache-dependency-path: Documentations/package*.json
       - name: Setup Pages
         uses: actions/configure-pages@v4
       - name: Install dependencies
+        if: hashFiles('Documentations/package-lock.json') == ''
         working-directory: Documentations
         run: npm install
+      - name: Install locked dependencies
+        if: hashFiles('Documentations/package-lock.json') != ''
+        working-directory: Documentations
+        run: npm ci
       - name: Build with VitePress
         working-directory: Documentations
         run: npm run docs:build

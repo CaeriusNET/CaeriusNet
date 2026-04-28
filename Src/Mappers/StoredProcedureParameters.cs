@@ -31,6 +31,9 @@ public sealed record StoredProcedureParameters
         CacheType? cacheType,
         int commandTimeout = 30)
     {
+        ArgumentOutOfRangeException.ThrowIfNegative(capacity);
+        ArgumentOutOfRangeException.ThrowIfNegative(commandTimeout);
+
         SchemaName = schemaName;
         ProcedureName = procedureName;
         Capacity = capacity;
@@ -60,5 +63,22 @@ public sealed record StoredProcedureParameters
     public ReadOnlySpan<SqlParameter> GetParametersSpan()
     {
         return _parameters;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    internal void AddParametersTo(SqlParameterCollection parameters)
+    {
+        var paramsSpan = GetParametersSpan();
+        ref var searchSpace = ref MemoryMarshal.GetReference(paramsSpan);
+
+        for (var i = 0; i < paramsSpan.Length; i++)
+            parameters.Add(CloneParameter(Unsafe.Add(ref searchSpace, i)));
+    }
+
+    private static SqlParameter CloneParameter(SqlParameter parameter)
+    {
+        var clone = (SqlParameter)((ICloneable)parameter).Clone();
+        clone.Value ??= DBNull.Value;
+        return clone;
     }
 }

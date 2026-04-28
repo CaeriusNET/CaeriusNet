@@ -21,6 +21,8 @@ internal static class TypeStructureValidator
     {
         var isSealed = typeSymbol.IsSealed;
         var isPartial = false;
+        var isTopLevel = typeSymbol.ContainingType is null;
+        var isNonGeneric = typeSymbol.TypeParameters.Length == 0;
         TypeDeclarationSyntax? primaryCtorDeclaration = null;
 
         foreach (var declRef in typeSymbol.DeclaringSyntaxReferences)
@@ -48,7 +50,7 @@ internal static class TypeStructureValidator
                 primaryCtorDeclaration = decl;
         }
 
-        return new ValidationResult(isSealed, isPartial, primaryCtorDeclaration);
+        return new ValidationResult(isSealed, isPartial, isTopLevel, isNonGeneric, primaryCtorDeclaration);
     }
 
     /// <summary>
@@ -58,5 +60,7 @@ internal static class TypeStructureValidator
     internal readonly record struct ValidationResult(
         bool IsSealed,
         bool IsPartial,
+        bool IsTopLevel,
+        bool IsNonGeneric,
         TypeDeclarationSyntax? PrimaryConstructorDeclaration);
 }

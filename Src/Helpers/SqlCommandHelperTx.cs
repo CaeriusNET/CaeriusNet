@@ -22,12 +22,21 @@ internal static class SqlCommandHelperTx
             Transaction = transaction
         };
 
-        var paramsSpan = spParameters.GetParametersSpan();
-        ref var searchSpace = ref MemoryMarshal.GetReference(paramsSpan);
-        for (var i = 0; i < paramsSpan.Length; i++)
-            command.Parameters.Add(Unsafe.Add(ref searchSpace, i));
+        spParameters.AddParametersTo(command.Parameters);
 
         return command;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int NormalizeCapacity(int capacity)
+    {
+        return Math.Max(capacity, 1);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static int GrowCapacity(int capacity)
+    {
+        return capacity <= 1 ? 2 : capacity * 3 / 2;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
@@ -84,8 +93,7 @@ internal static class SqlCommandHelperTx
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             var item = TResultSet.MapFromDataReader(reader);
-            CollectionsMarshal.SetCount(results, results.Count + 1);
-            CollectionsMarshal.AsSpan(results)[^1] = item;
+            results.Add(item);
         }
 
         return results.AsReadOnly();
@@ -99,7 +107,7 @@ internal static class SqlCommandHelperTx
         CancellationToken cancellationToken)
         where TResultSet : class, ISpMapper<TResultSet>
     {
-        var buffer = ArrayPool<TResultSet>.Shared.Rent(spParameters.Capacity);
+        var buffer = ArrayPool<TResultSet>.Shared.Rent(NormalizeCapacity(spParameters.Capacity));
         var count = 0;
 
         try
@@ -113,7 +121,7 @@ internal static class SqlCommandHelperTx
             {
                 if (count >= buffer.Length)
                 {
-                    var newBuffer = ArrayPool<TResultSet>.Shared.Rent(buffer.Length * 3 / 2);
+                    var newBuffer = ArrayPool<TResultSet>.Shared.Rent(GrowCapacity(buffer.Length));
                     buffer.AsSpan(0, count).CopyTo(newBuffer);
                     ArrayPool<TResultSet>.Shared.Return(buffer);
                     buffer = newBuffer;

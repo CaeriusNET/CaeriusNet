@@ -62,7 +62,7 @@ public sealed record ProductDto(int Id, string Name, decimal Price) : ISpMapper<
 ### 3. Execute a Stored Procedure
 
 ```csharp
-var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetProducts", capacity: 1)
+var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetProducts", ResultSetCapacity: 1)
     .AddParameter("CategoryId", categoryId, SqlDbType.Int)
     .Build();
 
@@ -86,7 +86,7 @@ public sealed record OrderLineDto(int ProductId, int Qty) : ITvpMapper<OrderLine
 {
     public static string TvpTypeName => "dbo.tvp_OrderLine";
 
-    public static IEnumerable<SqlDataRecord> MapAsSqlDataRecords(IEnumerable<OrderLineDto> items)
+    public IEnumerable<SqlDataRecord> MapAsSqlDataRecords(IEnumerable<OrderLineDto> items)
     {
         var meta = new[] { new SqlMetaData("ProductId", SqlDbType.Int), new SqlMetaData("Qty", SqlDbType.Int) };
         foreach (var item in items)
@@ -103,17 +103,17 @@ public sealed record OrderLineDto(int ProductId, int Qty) : ITvpMapper<OrderLine
 **Usage:**
 
 ```csharp
-var sp = new StoredProcedureParametersBuilder("dbo", "sp_BulkInsert", capacity: 1)
+var sp = new StoredProcedureParametersBuilder("dbo", "sp_BulkInsert", ResultSetCapacity: 1)
     .AddTvpParameter("OrderLines", orderLines)
     .Build();
 
-await dbContext.ExecuteNonQueryAsync(sp, ct);
+int rows = await dbContext.ExecuteNonQueryAsync(sp, ct);
 ```
 
 ## Caching
 
 ```csharp
-var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetProducts", capacity: 2)
+var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetProducts", ResultSetCapacity: 2)
     .AddParameter("CategoryId", categoryId, SqlDbType.Int)
     .AddFrozenCache("products:all")                          // immutable, process-lifetime
     // .AddInMemoryCache("products:all", TimeSpan.FromMinutes(5))
@@ -143,9 +143,10 @@ distributed cache from a single service is almost never what you want.
 To bound the in-memory tier, configure it explicitly at startup:
 
 ```csharp
-services.AddCaeriusNet(b => b
-    .WithSqlServerConnection(connectionString)
-    .WithInMemoryCacheOptions(new MemoryCacheOptions { SizeLimit = 50_000 }));
+CaeriusNetBuilder.Create(services)
+    .WithSqlServer(connectionString)
+    .WithInMemoryCacheOptions(new MemoryCacheOptions { SizeLimit = 50_000 })
+    .Build();
 ```
 
 When `SizeLimit` is set, every cached entry is sized as `1` so the limit acts as a **maximum entry
@@ -159,12 +160,12 @@ underlying `SqlTransaction` to every command. Caching is bypassed inside a trans
 ```csharp
 await using var tx = await dbContext.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
 
-var debit = new StoredProcedureParametersBuilder("dbo", "sp_DebitAccount", capacity: 2)
+var debit = new StoredProcedureParametersBuilder("dbo", "sp_DebitAccount", ResultSetCapacity: 2)
     .AddParameter("AccountId", fromId, SqlDbType.Int)
     .AddParameter("Amount", amount, SqlDbType.Decimal)
     .Build();
 
-var credit = new StoredProcedureParametersBuilder("dbo", "sp_CreditAccount", capacity: 2)
+var credit = new StoredProcedureParametersBuilder("dbo", "sp_CreditAccount", ResultSetCapacity: 2)
     .AddParameter("AccountId", toId, SqlDbType.Int)
     .AddParameter("Amount", amount, SqlDbType.Decimal)
     .Build();
@@ -189,12 +190,12 @@ await tx.CommitAsync(ct);   // omit -> auto-rollback on dispose
 ## Write Operations
 
 ```csharp
-var sp = new StoredProcedureParametersBuilder("dbo", "sp_CreateProduct", capacity: 2)
+var sp = new StoredProcedureParametersBuilder("dbo", "sp_CreateProduct", ResultSetCapacity: 2)
     .AddParameter("Name", name, SqlDbType.NVarChar)
     .AddParameter("Price", price, SqlDbType.Decimal)
     .Build();
 
-await dbContext.ExecuteNonQueryAsync(sp, ct);
+int rows = await dbContext.ExecuteNonQueryAsync(sp, ct);
 
 // Or retrieve a scalar return value
 int newId = await dbContext.ExecuteScalarAsync<int>(sp, ct);
@@ -203,7 +204,7 @@ int newId = await dbContext.ExecuteScalarAsync<int>(sp, ct);
 ## Multi-Result Sets
 
 ```csharp
-var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetDashboard", capacity: 0).Build();
+var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetDashboard", ResultSetCapacity: 0).Build();
 
 (IEnumerable<ProductDto> products, IEnumerable<CategoryDto> categories) =
     await dbContext.QueryMultipleIEnumerableAsync<ProductDto, CategoryDto>(sp, ct);
@@ -220,7 +221,7 @@ Supported up to 5 result sets: `QueryMultipleIEnumerableAsync<T1,T2>` through
 | `QueryAsReadOnlyCollectionAsync<T>` | `ReadOnlyCollection<T>`  |
 | `QueryAsIEnumerableAsync<T>`        | `IEnumerable<T>`         |
 | `QueryAsImmutableArrayAsync<T>`     | `ImmutableArray<T>`      |
-| `ExecuteNonQueryAsync`              | `void`                   |
+| `ExecuteNonQueryAsync`              | `int` (rows affected)    |
 | `ExecuteAsync`                      | `void`                   |
 | `ExecuteScalarAsync<T>`             | `T`                      |
 
@@ -250,7 +251,7 @@ The source generator maps C# types to SQL Server types and generates the correct
 | `byte[]`         | `varbinary`        | `GetFieldValue<byte[]>` |
 | Enums            | (underlying type)  | (underlying reader)     |
 
-Types without a native mapping fall back to `sql_variant` with a compile-time warning (CAERIUS005/006).
+Types without a native mapping fall back to `sql_variant` with compile-time warning `CAERIUS005`.
 
 ## Observability
 

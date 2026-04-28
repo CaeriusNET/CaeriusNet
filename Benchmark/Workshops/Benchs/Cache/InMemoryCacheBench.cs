@@ -53,7 +53,7 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.Cache;
 /// </remarks>
 [Config(typeof(BenchmarkConfig))]
 [MemoryDiagnoser]
-public class InMemoryCacheBench
+public sealed class InMemoryCacheBench : IDisposable
 {
     private IMemoryCache _cache = null!;
     private BenchmarkItemDto[] _entries = null!;
@@ -63,6 +63,12 @@ public class InMemoryCacheBench
     /// <summary>Number of entries pre-populated in the cache.</summary>
     [Params(100, 1_000, 10_000)]
     public int CacheSize { get; set; }
+
+    public void Dispose()
+    {
+        _cache?.Dispose();
+        GC.SuppressFinalize(this);
+    }
 
     [GlobalSetup]
     public void Setup()
@@ -91,7 +97,7 @@ public class InMemoryCacheBench
     [GlobalCleanup]
     public void Cleanup()
     {
-        _cache.Dispose();
+        Dispose();
     }
 
     /// <summary>

@@ -3,50 +3,69 @@ layout: home
 
 hero:
   name: "CaeriusNet"
-  text: "SQL Server Stored Procedures to C# DTOs"
-  tagline: A focused, high-performance micro-ORM for C# 14 / .NET 10. Compile-time safe mapping, zero reflection, first-class observability.
+  text: "SQL Server stored procedures to C# DTOs"
+  tagline: A focused .NET data-access library for teams that standardize on SQL Server stored procedures, compile-time DTO mapping, and observable database calls.
   image:
     alt: CaeriusNet Logo
   actions:
     - theme: brand
+      text: Start with the quickstart
+      link: /quickstart/getting-started
+    - theme: alt
       text: What is CaeriusNet?
       link: /quickstart/what-is-caeriusnet
     - theme: alt
-      text: Get Started
-      link: /quickstart/getting-started
-    - theme: alt
-      text: Examples
-      link: /examples/
+      text: API reference
+      link: /documentation/api
     - theme: alt
       text: GitHub
       link: https://github.com/CaeriusNET/CaeriusNet
 
 features:
   - icon: 🛠️
-    title: Stored Procedures, first and only
-    details: Data access lives in T-SQL where it belongs. CaeriusNet binds Stored Procedure result sets to typed C# DTOs with a fluent builder, DI-first design, and a deliberately small API surface — no LINQ translation, no change tracking, no surprises.
-  - icon: ⚡
-    title: Compile-time mapping via Roslyn generators
-    details: <code>[GenerateDto]</code> and <code>[GenerateTvp]</code> emit <code>ISpMapper&lt;T&gt;</code> / <code>ITvpMapper&lt;T&gt;</code> at build time. A dedicated analyzer enforces the <code>sealed partial</code> + primary-constructor shape, so contract drift surfaces in your IDE — never at runtime.
-  - icon: 🚀
-    title: Ordinal, allocation-aware reads
-    details: Columns are read by index — never by name — through <code>SqlDataReader</code> with <code>SequentialAccess</code>. Result lists are pre-sized via your declared capacity, populated through <code>CollectionsMarshal</code>, and pooled with <code>ArrayPool&lt;T&gt;</code> for <code>ImmutableArray</code> outputs.
+    title: SQL Server stored procedures only
+    details: CaeriusNet intentionally targets Microsoft SQL Server and stored procedures. It does not translate LINQ, generate SQL text, track entities, or abstract multiple database providers.
+  - icon: ⚙️
+    title: Compile-time mapper generation
+    details: <code>[GenerateDto]</code> and <code>[GenerateTvp]</code> emit <code>ISpMapper&lt;T&gt;</code> and <code>ITvpMapper&lt;T&gt;</code> implementations at build time. Analyzer rules validate the <code>sealed partial</code> primary-constructor contract.
+  - icon: 📖
+    title: Ordinal data-reader mapping
+    details: Result columns are read by index through <code>SqlDataReader</code> with <code>SequentialAccess</code>. Declared result-set capacity lets CaeriusNet pre-size collections for predictable materialization.
   - icon: 📦
-    title: Table-Valued Parameters, zero-copy
-    details: Pass thousands of IDs, GUIDs, or composite keys in a single round-trip. The generator emits a streaming <code>IEnumerable&lt;SqlDataRecord&gt;</code> that reuses a single record instance across rows — no <code>DataTable</code>, no boxing, no IN-list size limits.
+    title: Table-valued parameters
+    details: Pass large identifier or composite-key sets with SQL Server TVPs. Generated TVP mappers stream <code>SqlDataRecord</code> values without requiring callers to build <code>DataTable</code> instances.
   - icon: 🔀
-    title: Multiple result sets in one call
-    details: Return up to five typed result sets from a single Stored Procedure execution. Helpers come in three collection flavours — <code>IEnumerable</code>, <code>ReadOnlyCollection</code>, <code>ImmutableArray</code> — destructured straight into a tuple at the call site.
+    title: Multiple result sets
+    details: Read up to five typed result sets from one stored-procedure execution. Return shapes are available for <code>IEnumerable</code>, <code>ReadOnlyCollection</code>, and <code>ImmutableArray</code>.
   - icon: 🧊
-    title: Three-tier opt-in caching
-    details: Pick the right tier per call directly on the parameters builder. <strong>Frozen</strong> for static reference data, <strong>InMemory</strong> for short-TTL hot paths, <strong>Redis</strong> for shared distributed cache — zero overhead when not used, zero allocation on cache hits.
+    title: Per-call caching
+    details: Choose a cache tier on the parameters builder when a call is safe to cache: Frozen for process-lifetime reference data, InMemory for expiring local entries, or Redis for shared distributed cache.
   - icon: 🔐
-    title: Atomic transactions with safety nets
-    details: <code>BeginTransactionAsync</code> returns a thread-safe scope with a strict state machine (Active → Committed / RolledBack / Poisoned). Failures auto-poison and rollback on dispose; child SP spans nest under a parent <code>TX</code> activity for one cohesive trace per unit of work.
+    title: Transaction scopes
+    details: <code>BeginTransactionAsync</code> returns an explicit async scope with commit, rollback, poisoned-state handling, and tracing that groups child stored-procedure calls under a transaction activity.
   - icon: 📡
-    title: OpenTelemetry & Aspire, native
-    details: A built-in <code>ActivitySource</code> and <code>Meter</code> emit OTel-compliant spans (<code>db.system</code>, <code>db.operation</code>, <code>db.statement</code>) and metrics (duration, executions, errors, cache lookups). <code>WithAspireSqlServer</code> / <code>WithAspireRedis</code> wire it into the Aspire dashboard in two lines.
+    title: Diagnostics and telemetry
+    details: Built-in <code>ActivitySource</code>, <code>Meter</code>, and source-generated logging expose stored-procedure metadata, durations, failures, cache events, and optional parameter-value capture.
 ---
+
+::: info Important scope
+CaeriusNet is for SQL Server stored procedures. Parameter names passed to <code>StoredProcedureParametersBuilder</code> methods use the identifier only, without the SQL <code>@</code> prefix.
+:::
+
+::: tip Benchmarks
+Benchmark pages document the suites and methodology. Treat any published numbers as environment-specific; SQL Server edition, hardware, network latency, schema, query plans, and payload shape can change results.
+:::
+
+## Documentation map
+
+| Area | Start here | Use it for |
+|---|---|---|
+| Quickstart | [Installation & Setup](/quickstart/getting-started) | Install the package, register DI, and run the first stored-procedure query. |
+| Guides | [Reading Data](/documentation/reading-data) | Learn DTO mapping, TVPs, result-set shapes, caching, transactions, logging, and Aspire integration. |
+| Reference | [API Reference](/documentation/api) | Look up public builders, abstractions, commands, mapper contracts, and exception behavior. |
+| Diagnostics | [Diagnostic rules](/diagnostics/) | Resolve analyzer errors and warnings emitted by the source generators. |
+| Examples | [Examples overview](/examples/) | Follow end-to-end stored procedure, TVP, multi-result, and transaction scenarios. |
+| Benchmarks | [Performance & Benchmarks](/benchmarks/) | Understand the benchmark suites, configuration, limitations, and local run commands. |
 
 <style>
 :root {

@@ -16,7 +16,8 @@ internal static class DtoExtractor
             return null;
 
         var validation = TypeStructureValidator.Validate(typeSymbol);
-        if (!validation.IsSealed || !validation.IsPartial || validation.PrimaryConstructorDeclaration is null)
+        if (!validation.IsSealed || !validation.IsPartial || !validation.IsTopLevel || !validation.IsNonGeneric ||
+            validation.PrimaryConstructorDeclaration is null)
             return null;
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -31,8 +32,14 @@ internal static class DtoExtractor
         return new DtoModel(
             NamespaceHelper.GetNamespace(typeSymbol),
             typeSymbol.Name,
+            GetAccessibilityKeyword(typeSymbol.DeclaredAccessibility),
             typeKindKeyword,
             columns);
+    }
+
+    private static string GetAccessibilityKeyword(Accessibility accessibility)
+    {
+        return accessibility == Accessibility.Public ? "public" : "internal";
     }
 
     /// <summary>

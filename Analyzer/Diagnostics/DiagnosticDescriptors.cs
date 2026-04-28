@@ -59,4 +59,14 @@ internal static class DiagnosticDescriptors
         true,
         "Falling back to sql_variant works but carries performance, indexing, and type-safety penalties.",
         HelpLinkBase + "CAERIUS005.md");
+
+    internal static readonly DiagnosticDescriptor UnsupportedGeneratorTarget = new(
+        "CAERIUS006",
+        "Generator target shape is not supported",
+        "'{0}' is decorated with '{1}' but generator targets must be non-generic top-level types",
+        Category,
+        DiagnosticSeverity.Error,
+        true,
+        "CaeriusNet generators emit companion partial declarations and currently support only non-generic top-level types.",
+        HelpLinkBase + "CAERIUS006.md");
 }
