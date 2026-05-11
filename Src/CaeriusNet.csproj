@@ -94,8 +94,9 @@
 
     <ItemGroup>
         <!-- Microsoft Data Access -->
-        <PackageReference Include="Aspire.Microsoft.Data.SqlClient" Version="13.2.4"/>
-        <PackageReference Include="Aspire.StackExchange.Redis.DistributedCaching" Version="13.2.4"/>
+        <PackageReference Include="Aspire.Microsoft.Data.SqlClient" Version="13.3.0"/>
+    <PackageReference Include="Aspire.StackExchange.Redis" Version="13.3.0" />
+        <PackageReference Include="Aspire.StackExchange.Redis.DistributedCaching" Version="13.3.0"/>
         <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.1"/>
 
         <!-- Microsoft Extensions -->
