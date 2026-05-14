@@ -22,6 +22,10 @@ switch (category)
     case "cache":
         RunningBenchmarks.Run_Cache_Benchmarks();
         break;
+    case "auto-contracts":
+    case "autocontracts":
+        RunningBenchmarks.Run_AutoContracts_Benchmarks();
+        break;
     default:
         RunningBenchmarks.Run_All_Benchmarks();
         break;

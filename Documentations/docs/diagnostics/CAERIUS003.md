@@ -1,7 +1,7 @@
 # CAERIUS003 — Type must declare a primary constructor
 
 **Severity**: Error
-**Category**: CaeriusNet.Generator
+**Category**: CaeriusNet.Analyzer
 **Applies to**: `[GenerateDto]`, `[GenerateTvp]`
 
 ## Cause

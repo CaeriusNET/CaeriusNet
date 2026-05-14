@@ -1,4 +1,5 @@
 ﻿using CaeriusNet.Benchmark.Workshops;
+using CaeriusNet.Benchmark.Workshops.Benchs.AutoContracts;
 using CaeriusNet.Benchmark.Workshops.Benchs.Cache;
 using CaeriusNet.Benchmark.Workshops.Benchs.CreateCollections;
 using CaeriusNet.Benchmark.Workshops.Benchs.ListCapacity;
@@ -21,7 +22,7 @@ public static class RunningBenchmarks
         return new BenchmarkConfig();
     }
 
-    /// <summary>Runs ALL benchmarks (in-memory + TVP + collection + cache + SQL Server).</summary>
+    /// <summary>Runs ALL benchmarks (in-memory + AutoContracts + TVP + collection + cache + SQL Server).</summary>
     public static void Run_All_Benchmarks()
     {
         BenchmarkRunner.Run([
@@ -29,6 +30,9 @@ public static class RunningBenchmarks
             typeof(DtoMappingBench),
             typeof(WideRowDtoMappingBench),
             typeof(NullableColumnMappingBench),
+            // AutoContracts: generated stored-procedure contract hot paths
+            typeof(AutoContractsBuilderBenchmarks),
+            typeof(AutoContractsGeneratedHotPathBenchmarks),
             // In-memory: StoredProcedureParametersBuilder overhead
             typeof(SpParameterBuilderBench),
             typeof(AddTvpParameterBench),
@@ -71,6 +75,8 @@ public static class RunningBenchmarks
             typeof(DtoMappingBench),
             typeof(WideRowDtoMappingBench),
             typeof(NullableColumnMappingBench),
+            typeof(AutoContractsBuilderBenchmarks),
+            typeof(AutoContractsGeneratedHotPathBenchmarks),
             typeof(SpParameterBuilderBench),
             typeof(AddTvpParameterBench),
             typeof(TvpSerializationBench),
@@ -137,6 +143,15 @@ public static class RunningBenchmarks
         BenchmarkRunner.Run([
             typeof(FrozenCacheBench),
             typeof(InMemoryCacheBench)
+        ], GetConfig());
+    }
+
+    /// <summary>Runs generated AutoContracts benchmarks only.</summary>
+    public static void Run_AutoContracts_Benchmarks()
+    {
+        BenchmarkRunner.Run([
+            typeof(AutoContractsBuilderBenchmarks),
+            typeof(AutoContractsGeneratedHotPathBenchmarks)
         ], GetConfig());
     }
 }

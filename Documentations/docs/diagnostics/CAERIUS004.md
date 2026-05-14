@@ -1,7 +1,7 @@
 # CAERIUS004 — `TvpName` must not be empty
 
 **Severity**: Error
-**Category**: CaeriusNet.Generator
+**Category**: CaeriusNet.Analyzer
 **Applies to**: `[GenerateTvp]`
 
 ## Cause

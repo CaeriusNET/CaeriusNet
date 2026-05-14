@@ -49,9 +49,11 @@ dotnet test Tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj
 
 ```
 Src/                       # Public runtime API (the NuGet package)
-SourceGenerators/          # Roslyn source generators (DTO + TVP mappers, diagnostics)
+SourceGenerators/          # Roslyn incremental generators (DTO, TVP, AutoContracts emission)
+Analyzer/                  # Roslyn analyzers and user-facing CAERIUS diagnostics
 Tests/CaeriusNet.Tests/                # Pure unit tests (no IO)
-Tests/CaeriusNet.Generator.Tests/      # Source-generator emit & diagnostic tests
+Tests/CaeriusNet.Generator.Tests/      # Source-generator emit and caching tests
+Tests/CaeriusNet.Analyzer.Tests/       # Analyzer diagnostic tests
 Tests/CaeriusNet.IntegrationTests/     # End-to-end tests (Testcontainers MSSQL)
 Benchmark/                 # BenchmarkDotNet suites
 Exemples/                  # Example consumer apps (directory name retained for compatibility)
@@ -89,7 +91,7 @@ migration path in the PR description.
 | `dotnet build CaeriusNet.slnx -c Release -p:TreatWarningsAsErrors=true` | Mirrors CI. |
 | `dotnet test CaeriusNet.slnx -c Release --filter "FullyQualifiedName!~IntegrationTests"` | Unit + generator tests (fast, no Docker). |
 | `dotnet test Tests/CaeriusNet.IntegrationTests` | End-to-end tests; needs Docker. |
-| `pwsh ./eng/ValidatePackage.ps1 -Configuration Release` | Packs the NuGet package and smoke-tests a consumer project. |
+| `pwsh ./.github/scripts/ValidatePackage.ps1 -Configuration Release -OutputDirectory .work/package-validation` | Packs the NuGet package and smoke-tests a consumer project. |
 | `cd Documentations && npm install && npm run docs:build` | Builds the VitePress docs when npm is available; use `npm ci` if a lockfile exists. |
 | `dotnet test --collect:"XPlat Code Coverage"` | Generates Cobertura coverage. |
 

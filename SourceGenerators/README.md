@@ -1,22 +1,26 @@
 # CaeriusNet Source Generators
 
-Roslyn incremental source generators that emit compile-time mappers for DTOs and TVPs. Targets `netstandard2.0` (Roslyn
-analyzer constraint). Uses `Microsoft.CodeAnalysis.CSharp 5.3.0`.
+Roslyn incremental source generators that emit compile-time mappers for DTOs, TVPs, and SQL Server AutoContracts.
+Targets `netstandard2.0` (Roslyn analyzer constraint). Uses `Microsoft.CodeAnalysis.CSharp 5.3.0`.
 
 ## Architecture
 
 ### Pipeline
 
 ```
-ForAttributeWithMetadataName → Extract (value-equatable models) → Emit (pure string transforms)
+ForAttributeWithMetadataName / AdditionalTextsProvider -> Extract -> Emit
 ```
 
 Each generator follows the same three-stage pipeline:
 
-1. **Filter** — `ForAttributeWithMetadataName` selects types annotated with `[GenerateDto]` or `[GenerateTvp]`.
+1. **Filter** — `ForAttributeWithMetadataName` selects types annotated with `[GenerateDto]` or `[GenerateTvp]`;
+   AutoContracts selects only `caerius.contracts.json` from `AdditionalTextsProvider`.
 2. **Extract** — Transforms syntax/semantic model into a value-equatable model (`DtoModel` / `TvpModel`). No Roslyn
    types flow past this stage.
 3. **Emit** — Pure function that converts the model into generated C# source via `StringBuilder`.
+
+User-facing diagnostics are owned by `CaeriusNet.Analyzer`. Generators silently skip invalid inputs so Roslyn's
+incremental pipeline stays focused on deterministic source production.
 
 Generated files use stable, generator-specific hint names so outputs remain distinct when type names repeat across
 namespaces or generator kinds.
@@ -32,25 +36,26 @@ namespaces or generator kinds.
 
 ## Project Structure
 
-| File / Directory                          | Purpose                                                             |
-|-------------------------------------------|---------------------------------------------------------------------|
-| `Dto/DtoSourceGenerator.cs`               | `IIncrementalGenerator` for `[GenerateDto]` — emits `ISpMapper<T>`  |
-| `Dto/DtoExtractor.cs`                     | Extracts `DtoModel` from syntax/semantic model                      |
-| `Dto/DtoEmitter.cs`                       | Emits `MapFromDataReader` source code                               |
-| `Tvp/TvpSourceGenerator.cs`               | `IIncrementalGenerator` for `[GenerateTvp]` — emits `ITvpMapper<T>` |
-| `Tvp/TvpExtractor.cs`                     | Extracts `TvpModel` from syntax/semantic model                      |
-| `Tvp/TvpEmitter.cs`                       | Emits `MapAsSqlDataRecords` + `TvpTypeName` source code             |
-| `Helpers/TypeDetector.cs`                 | C# type → SQL type mapping and reader method resolution             |
-| `Helpers/ColumnExtractor.cs`              | Shared column extraction from primary constructor parameters        |
-| `Helpers/HintNameBuilder.cs`              | Stable unique hint names for generated source files                 |
-| `Helpers/NamespaceHelper.cs`              | Namespace resolution for generated files                            |
-| `Helpers/TypeStructureValidator.cs`       | Validates sealed, partial, primary constructor constraints          |
-| `Helpers/SqlMetaDataExpressionBuilder.cs` | Builds `SqlMetaData` constructor expressions for TVPs               |
-| `Models/DtoModel.cs`                      | Value-equatable DTO pipeline model                                  |
-| `Models/TvpModel.cs`                      | Value-equatable TVP pipeline model                                  |
-| `Models/ColumnModel.cs`                   | Describes a single primary constructor parameter                    |
-| `Models/ColumnKind.cs`                    | Enum classifying parameter mapping behavior                         |
-| `Models/EquatableArray.cs`                | `ImmutableArray<T>` wrapper with element equality                   |
+| File / Directory                                | Purpose                                                                    |
+|-------------------------------------------------|----------------------------------------------------------------------------|
+| `Dto/DtoSourceGenerator.cs`                     | `IIncrementalGenerator` for `[GenerateDto]` — emits `ISpMapper<T>`         |
+| `Dto/DtoExtractor.cs`                           | Extracts `DtoModel` from syntax/semantic model                             |
+| `Dto/DtoEmitter.cs`                             | Emits `MapFromDataReader` source code                                      |
+| `Tvp/TvpSourceGenerator.cs`                     | `IIncrementalGenerator` for `[GenerateTvp]` — emits `ITvpMapper<T>`        |
+| `Tvp/TvpExtractor.cs`                           | Extracts `TvpModel` from syntax/semantic model                             |
+| `Tvp/TvpEmitter.cs`                             | Emits `MapAsSqlDataRecords` + `TvpTypeName` source code                    |
+| `AutoContracts/AutoContractsSourceGenerator.cs` | `IIncrementalGenerator` for `caerius.contracts.json` via `AdditionalFiles` |
+| `Helpers/TypeDetector.cs`                       | C# type → SQL type mapping and reader method resolution                    |
+| `Helpers/ColumnExtractor.cs`                    | Shared column extraction from primary constructor parameters               |
+| `Helpers/HintNameBuilder.cs`                    | Stable unique hint names for generated source files                        |
+| `Helpers/NamespaceHelper.cs`                    | Namespace resolution for generated files                                   |
+| `Helpers/TypeStructureValidator.cs`             | Validates sealed, partial, primary constructor constraints                 |
+| `Helpers/SqlMetaDataExpressionBuilder.cs`       | Builds `SqlMetaData` constructor expressions for TVPs                      |
+| `Models/DtoModel.cs`                            | Value-equatable DTO pipeline model                                         |
+| `Models/TvpModel.cs`                            | Value-equatable TVP pipeline model                                         |
+| `Models/ColumnModel.cs`                         | Describes a single primary constructor parameter                           |
+| `Models/ColumnKind.cs`                          | Enum classifying parameter mapping behavior                                |
+| `Models/EquatableArray.cs`                      | `ImmutableArray<T>` wrapper with element equality                          |
 
 ## Supported Type Mappings
 
@@ -90,7 +95,7 @@ CAERIUS005 on those parameters.
 | CAERIUS005 | Warning  | No native SQL mapping → `sql_variant` fallback |
 
 User-facing diagnostics are emitted by `CaeriusNet.Analyzer`, not by the incremental generators themselves. All
-diagnostics use category `CaeriusNet.Generator` and link to
+diagnostics link to
 `https://github.com/CaeriusNET/CaeriusNet/blob/main/Documentations/diagnostics/`.
 
 ## Generated Code Features

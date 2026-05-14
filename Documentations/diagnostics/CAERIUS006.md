@@ -1,7 +1,7 @@
 # CAERIUS006 — Generator target shape is not supported
 
 **Severity**: Error
-**Category**: CaeriusNet.Generator
+**Category**: CaeriusNet.Analyzer
 
 ## Cause
 

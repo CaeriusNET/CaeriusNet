@@ -21,7 +21,7 @@ Benchmark results are diagnostic data, not performance guarantees. Compare trend
 
 | Page | Scope |
 |---|---|
-| [In-Memory Benchmarks](./in-memory) | DTO mapping, TVP serialization, parameter builder — pure CPU/allocation, no I/O |
+| [In-Memory Benchmarks](./in-memory) | DTO mapping, AutoContracts generated hot paths, TVP serialization, parameter builder — pure CPU/allocation, no I/O |
 | [Collection Benchmarks](./collections) | Read / create performance of `List<T>`, `ReadOnlyCollection<T>`, `IEnumerable<T>`, `ImmutableArray<T>` |
 | [SQL Server Benchmarks](./sql-server) | End-to-end stored procedure execution, batched vs single inserts, TVP full roundtrip |
 | [Cache Benchmarks](./cache) | `FrozenDictionary<K,V>` (frozen cache) and `IMemoryCache` (in-memory cache) throughput |
@@ -148,6 +148,9 @@ dotnet run -c Release -- collections
 
 # Cache layer benchmarks (FrozenDictionary + IMemoryCache)
 dotnet run -c Release -- cache
+
+# AutoContracts generated-contract hot paths
+dotnet run -c Release -- auto-contracts
 
 # SQL Server end-to-end (requires BENCHMARK_SQL_CONNECTION)
 export BENCHMARK_SQL_CONNECTION="Server=localhost,1433;Database=master;User Id=sa;Password=YourP@ssword!;TrustServerCertificate=True"

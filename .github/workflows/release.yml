@@ -76,7 +76,7 @@ jobs:
           key: nuget-release-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/*.slnx') }}
           restore-keys: nuget-release-${{ runner.os }}-
 
-      # ── Bump version in .csproj ─────────────────────────────────────────────────
+      # ── Bump package versions ───────────────────────────────────────────────────
       - name: Bump version
         id: bump
         run: |
@@ -92,6 +92,7 @@ jobs:
           esac
 
           sed -i "s|<Version>${CURRENT}</Version>|<Version>${NEW}</Version>|g" Src/CaeriusNet.csproj
+          sed -i "s|<Version>${CURRENT}</Version>|<Version>${NEW}</Version>|g" Tools/CaeriusNet.SqlServer.Contracts/CaeriusNet.SqlServer.Contracts.csproj
 
           echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
           echo "new=$NEW"         >> "$GITHUB_OUTPUT"
@@ -166,9 +167,16 @@ jobs:
             -p:IncludeSymbols=true \
             -p:SymbolPackageFormat=snupkg
 
+          dotnet pack Tools/CaeriusNet.SqlServer.Contracts/CaeriusNet.SqlServer.Contracts.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./packages \
+            -p:IncludeSymbols=true \
+            -p:SymbolPackageFormat=snupkg
+
       - name: Validate package contents
         shell: pwsh
-        run: ./eng/ValidatePackage.ps1 -Configuration Release -OutputDirectory artifacts/package-validation
+        run: ./.github/scripts/ValidatePackage.ps1 -Configuration Release -OutputDirectory "${{ runner.temp }}/caerius-package-validation"
 
       - name: List packages
         run: ls -la ./packages/
@@ -202,7 +210,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Src/CaeriusNet.csproj
+          git add Src/CaeriusNet.csproj Tools/CaeriusNet.SqlServer.Contracts/CaeriusNet.SqlServer.Contracts.csproj
           git commit -m "chore: release v${{ steps.bump.outputs.new }} [skip ci]"
           git push
           echo "✅ Version bump committed: ${{ steps.bump.outputs.new }}"

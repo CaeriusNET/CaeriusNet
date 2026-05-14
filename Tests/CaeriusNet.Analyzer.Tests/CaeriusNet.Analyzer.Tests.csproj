@@ -28,4 +28,8 @@
         <ProjectReference Include="..\..\Analyzer\CaeriusNet.Analyzer.csproj"/>
     </ItemGroup>
 
+    <ItemGroup>
+        <None Include="..\..\Analyzer\AnalyzerReleases.Unshipped.md" CopyToOutputDirectory="PreserveNewest"/>
+    </ItemGroup>
+
 </Project>

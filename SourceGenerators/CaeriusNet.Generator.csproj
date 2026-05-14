@@ -1,4 +1,5 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk"
+         TreatAsLocalProperty="IsAotCompatible;IsTrimmable;EnableAotAnalyzer;EnableTrimAnalyzer;EnableSingleFileAnalyzer;PublishAot;PublishTrimmed;PublishSingleFile">
 
     <PropertyGroup>
         <TargetFramework>netstandard2.0</TargetFramework>
@@ -11,6 +12,11 @@
         <IsRoslynComponent>true</IsRoslynComponent>
         <RootNamespace>CaeriusNet.Generator</RootNamespace>
         <Deterministic>true</Deterministic>
+        <IsAotCompatible>false</IsAotCompatible>
+        <IsTrimmable>false</IsTrimmable>
+        <EnableAotAnalyzer>false</EnableAotAnalyzer>
+        <EnableTrimAnalyzer>false</EnableTrimAnalyzer>
+        <EnableSingleFileAnalyzer>false</EnableSingleFileAnalyzer>
         <!-- RS2008 enforces analyzer release-tracking files; not necessary for an internal source generator. -->
         <NoWarn>$(NoWarn);RS2008</NoWarn>
     </PropertyGroup>

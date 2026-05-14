@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Caching.Distributed;
+﻿using System.Text.Json.Serialization;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace CaeriusNet.Tests.Caches;
@@ -35,6 +36,22 @@ public sealed class RedisCacheManagerTests
         Assert.NotNull(result);
         Assert.Equal("world", result.Name);
         Assert.Equal(99, result.Value);
+    }
+
+    [Fact]
+    public void JsonTypeInfo_Overloads_Serialize_And_Deserialize()
+    {
+        var fake = new FakeDistributedCache();
+        var manager = new RedisCacheManager(fake);
+        var original = new TestPayload("source-generated", 123);
+        var jsonTypeInfo = RedisCacheManagerTestsJsonContext.Default.TestPayload;
+
+        manager.Store("key-json-type-info", original, null, jsonTypeInfo);
+        var found = manager.TryGet("key-json-type-info", jsonTypeInfo, out var result);
+
+        Assert.True(found);
+        Assert.NotNull(result);
+        Assert.Equal(original, result);
     }
 
     [Fact]
@@ -198,5 +215,8 @@ public sealed class RedisCacheManagerTests
     /// <summary>
     ///     Simple record used as serialization target in Redis cache tests.
     /// </summary>
-    private sealed record TestPayload(string Name, int Value);
+    internal sealed record TestPayload(string Name, int Value);
 }
+
+[JsonSerializable(typeof(RedisCacheManagerTests.TestPayload))]
+internal sealed partial class RedisCacheManagerTestsJsonContext : JsonSerializerContext;

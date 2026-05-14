@@ -105,10 +105,10 @@ public sealed class FrozenCacheManagerTests
 
         FrozenCacheManager.StoreRange<string>(entries);
 
-        Assert.True(FrozenCacheManager.TryGet<string>(key1, out var v1));
+        Assert.True(FrozenCacheManager.TryGet<string>(key1, out var valueOne));
         Assert.True(FrozenCacheManager.TryGet<string>(key2, out var v2));
         Assert.True(FrozenCacheManager.TryGet<string>(key3, out var v3));
-        Assert.Equal("value1", v1);
+        Assert.Equal("value1", valueOne);
         Assert.Equal("value2", v2);
         Assert.Equal("value3", v3);
     }

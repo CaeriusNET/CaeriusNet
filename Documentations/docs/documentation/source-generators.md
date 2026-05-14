@@ -1,6 +1,6 @@
 # Source Generators
 
-CaeriusNet ships two Roslyn **incremental source generators** that eliminate mapping boilerplate at compile time. They run as part of your build, produce zero runtime overhead, and are fully AOT- and trim-compatible.
+CaeriusNet ships Roslyn **incremental source generators** that eliminate mapping boilerplate at compile time. They run as part of your build, produce zero runtime overhead, and are fully AOT- and trim-compatible.
 
 ## Overview
 
@@ -8,8 +8,14 @@ CaeriusNet ships two Roslyn **incremental source generators** that eliminate map
 |---|---|---|
 | `DtoSourceGenerator` | `[GenerateDto]` | `ISpMapper<T>` |
 | `TvpSourceGenerator` | `[GenerateTvp]` | `ITvpMapper<T>` |
+| `AutoContractsSourceGenerator` | `caerius.contracts.json` supplied as `AdditionalFiles` | typed stored procedure descriptors and DTO/TVP contracts |
 
-Both generators target **sealed partial records or classes** with a primary constructor. The `partial` keyword lets the generator add the interface implementation as a second declaration alongside your type. Constraints are enforced at compile time by the [CaeriusNet analyzer](/documentation/diagnostics) (`CAERIUS001`–`CAERIUS005`).
+The DTO and TVP generators target **sealed partial records or classes** with a primary constructor. The `partial` keyword lets the generator add the interface implementation as a second declaration alongside your type. Constraints are enforced at compile time by the [CaeriusNet analyzer](/documentation/diagnostics) (`CAERIUS001` through `CAERIUS006`).
+
+The AutoContracts generator is different: it does not connect to SQL Server and it does not inspect
+the database during compilation. It reads only the `caerius.contracts.json` manifest provided as a
+Roslyn `AdditionalFiles` item. The SQL Server metadata read happens earlier in the CLI/MSBuild
+AutoContracts phase.
 
 ## `[GenerateDto]` — DTO mapper
 

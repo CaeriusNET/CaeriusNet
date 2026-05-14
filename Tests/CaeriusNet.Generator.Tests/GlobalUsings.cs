@@ -8,5 +8,6 @@ global using Microsoft.CodeAnalysis.CSharp;
 global using CaeriusNet.Mappers;
 global using CaeriusNet.Generator.Dto;
 global using CaeriusNet.Generator.Tvp;
+global using CaeriusNet.Generator.AutoContracts;
 global using CaeriusNet.Generator.Helpers;
 global using CaeriusNet.Generator.Tests.Utilities;
