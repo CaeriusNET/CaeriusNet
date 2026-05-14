@@ -23,24 +23,25 @@ public static class MultiReadOnlyCollectionReadSqlAsyncCommands
             return CaeriusActivityExtensions
                 .InstrumentMultiResultSetAsync<(ReadOnlyCollection<TResultSet1>, ReadOnlyCollection<TResultSet2>)>(
                     context, spParameters, 2,
-                nameof(QueryMultipleReadOnlyCollectionAsync), async command =>
-                {
-                    await using var reader = await command.ExecuteReaderAsync(
-                        CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
+                    nameof(QueryMultipleReadOnlyCollectionAsync), async command =>
+                    {
+                        await using var reader = await command.ExecuteReaderAsync(
+                            CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
 
-                    var l1 = await MultiResultSetHelper.ReadResultSetAsync<TResultSet1>(
-                        reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
-                    var r1 = l1.AsReadOnly();
+                        var l1 = await MultiResultSetHelper.ReadResultSetAsync<TResultSet1>(
+                            reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
+                        var r1 = l1.AsReadOnly();
 
-                    if (!await MultiResultSetHelper.TryMoveNextAsync(reader, cancellationToken).ConfigureAwait(false))
-                        return (r1, []);
+                        if (!await MultiResultSetHelper.TryMoveNextAsync(reader, cancellationToken)
+                                .ConfigureAwait(false))
+                            return (r1, []);
 
-                    var l2 = await MultiResultSetHelper.ReadResultSetAsync<TResultSet2>(
-                        reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
-                    var r2 = l2.AsReadOnly();
+                        var l2 = await MultiResultSetHelper.ReadResultSetAsync<TResultSet2>(
+                            reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
+                        var r2 = l2.AsReadOnly();
 
-                    return (r1, r2);
-                }, cancellationToken);
+                        return (r1, r2);
+                    }, cancellationToken);
         }
     }
 }

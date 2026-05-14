@@ -24,22 +24,23 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
             return CaeriusActivityExtensions
                 .InstrumentMultiResultSetAsync<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>)>(
                     context, spParameters, 2,
-                nameof(QueryMultipleImmutableArrayAsync), async command =>
-                {
-                    await using var reader = await command.ExecuteReaderAsync(
-                        CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
+                    nameof(QueryMultipleImmutableArrayAsync), async command =>
+                    {
+                        await using var reader = await command.ExecuteReaderAsync(
+                            CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
 
-                    var a1 = await MultiResultSetHelper.ReadResultSetAsImmutableArrayAsync<TResultSet1>(
-                        reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
+                        var a1 = await MultiResultSetHelper.ReadResultSetAsImmutableArrayAsync<TResultSet1>(
+                            reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
 
-                    if (!await MultiResultSetHelper.TryMoveNextAsync(reader, cancellationToken).ConfigureAwait(false))
-                        return (a1, ImmutableArray<TResultSet2>.Empty);
+                        if (!await MultiResultSetHelper.TryMoveNextAsync(reader, cancellationToken)
+                                .ConfigureAwait(false))
+                            return (a1, ImmutableArray<TResultSet2>.Empty);
 
-                    var a2 = await MultiResultSetHelper.ReadResultSetAsImmutableArrayAsync<TResultSet2>(
-                        reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
+                        var a2 = await MultiResultSetHelper.ReadResultSetAsImmutableArrayAsync<TResultSet2>(
+                            reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
 
-                    return (a1, a2);
-                }, cancellationToken);
+                        return (a1, a2);
+                    }, cancellationToken);
         }
     }
 }

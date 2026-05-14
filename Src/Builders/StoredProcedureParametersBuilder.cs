@@ -60,10 +60,7 @@ public sealed record StoredProcedureParametersBuilder(
             parameter,
             value,
             dbType,
-            null,
-            null,
-            null,
-            ParameterDirection.Input);
+            null);
     }
 
     /// <summary>

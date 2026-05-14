@@ -17,7 +17,8 @@ public sealed class MultiResultSetSignaturesSourceGeneratorTests
         Assert.Contains("public static class GeneratedMultiIEnumerableReadSqlAsyncCommands", generated);
         Assert.Contains("public static class GeneratedMultiReadOnlyCollectionReadSqlAsyncCommands", generated);
         Assert.Contains("public static class GeneratedMultiImmutableArrayReadSqlAsyncCommands", generated);
-        Assert.Contains("public ValueTask<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>)>",
+        Assert.Contains(
+            "public ValueTask<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>, IEnumerable<TResultSet3>)>",
             generated);
         Assert.Contains(
             "public ValueTask<(ReadOnlyCollection<TResultSet1>, ReadOnlyCollection<TResultSet2>, ReadOnlyCollection<TResultSet3>, ReadOnlyCollection<TResultSet4>)>",

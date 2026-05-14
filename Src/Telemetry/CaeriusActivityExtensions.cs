@@ -258,9 +258,9 @@ internal static class CaeriusActivityExtensions
     {
         return tier switch
         {
-            CacheType.Frozen => "Frozen",
-            CacheType.InMemory => "InMemory",
-            CacheType.Redis => "Redis",
+            Frozen => "Frozen",
+            InMemory => "InMemory",
+            Redis => "Redis",
             _ => tier.ToString()
         };
     }

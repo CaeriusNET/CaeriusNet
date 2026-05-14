@@ -88,7 +88,8 @@ internal static class MultiResultSetSignaturesEmitter
         sb.AppendLine("        /// </summary>");
         sb.AppendLine("        /// <param name=\"spParameters\">Stored procedure metadata and parameters.</param>");
         sb.AppendLine("        /// <param name=\"cancellationToken\">Token to cancel the operation.</param>");
-        sb.AppendLine("        /// <returns>A tuple containing the materialized result sets. Missing trailing result sets are empty.</returns>");
+        sb.AppendLine(
+            "        /// <returns>A tuple containing the materialized result sets. Missing trailing result sets are empty.</returns>");
         AppendGeneratedCodeAttribute(sb, "        ");
         sb.AppendLine("        [MethodImpl(MethodImplOptions.AggressiveOptimization)]");
         sb.Append("        public ValueTask<(").Append(BuildTupleType(collectionType, arity)).AppendLine(")>");
@@ -105,15 +106,18 @@ internal static class MultiResultSetSignaturesEmitter
         sb.Append("                nameof(").Append(methodName).AppendLine("), async command =>");
         sb.AppendLine("                {");
         sb.AppendLine("                    await using var reader = await command.ExecuteReaderAsync(");
-        sb.AppendLine("                        CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);");
+        sb.AppendLine(
+            "                        CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);");
         sb.AppendLine();
 
         for (var index = 1; index <= arity; index++)
         {
             if (index > 1)
             {
-                sb.AppendLine("                    if (!await MultiResultSetHelper.TryMoveNextAsync(reader, cancellationToken).ConfigureAwait(false))");
-                sb.Append("                        return (").Append(BuildReturnTuple(shape, arity, index - 1)).AppendLine(");");
+                sb.AppendLine(
+                    "                    if (!await MultiResultSetHelper.TryMoveNextAsync(reader, cancellationToken).ConfigureAwait(false))");
+                sb.Append("                        return (").Append(BuildReturnTuple(shape, arity, index - 1))
+                    .AppendLine(");");
                 sb.AppendLine();
             }
 
@@ -149,7 +153,8 @@ internal static class MultiResultSetSignaturesEmitter
                 .Append(" = await MultiResultSetHelper.ReadResultSetAsImmutableArrayAsync<")
                 .Append(typeName)
                 .AppendLine(">(");
-            sb.AppendLine("                        reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);");
+            sb.AppendLine(
+                "                        reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);");
             return;
         }
 
@@ -157,10 +162,12 @@ internal static class MultiResultSetSignaturesEmitter
             .Append(" = await MultiResultSetHelper.ReadResultSetAsync<")
             .Append(typeName)
             .AppendLine(">(");
-        sb.AppendLine("                        reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);");
+        sb.AppendLine(
+            "                        reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);");
 
         if (shape == ResultShape.ReadOnlyCollection)
-            sb.Append("                    var ").Append(resultName).Append(" = l").Append(index).AppendLine(".AsReadOnly();");
+            sb.Append("                    var ").Append(resultName).Append(" = l").Append(index)
+                .AppendLine(".AsReadOnly();");
     }
 
     private static void AppendConstraints(StringBuilder sb, int arity)

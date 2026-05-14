@@ -38,28 +38,28 @@ namespaces or generator kinds.
 
 ## Project Structure
 
-| File / Directory                                | Purpose                                                                    |
-|-------------------------------------------------|----------------------------------------------------------------------------|
-| `Dto/DtoSourceGenerator.cs`                     | `IIncrementalGenerator` for `[GenerateDto]` — emits `ISpMapper<T>`         |
-| `Dto/DtoExtractor.cs`                           | Extracts `DtoModel` from syntax/semantic model                             |
-| `Dto/DtoEmitter.cs`                             | Emits `MapFromDataReader` source code                                      |
-| `Tvp/TvpSourceGenerator.cs`                     | `IIncrementalGenerator` for `[GenerateTvp]` — emits `ITvpMapper<T>`        |
-| `Tvp/TvpExtractor.cs`                           | Extracts `TvpModel` from syntax/semantic model                             |
-| `Tvp/TvpEmitter.cs`                             | Emits `MapAsSqlDataRecords` + `TvpTypeName` source code                    |
-| `AutoContracts/AutoContractsSourceGenerator.cs` | `IIncrementalGenerator` for `caerius.contracts.json` via `AdditionalFiles` |
-| `MultiResults/MultiResultSetSignaturesSourceGenerator.cs` | Emits package-internal multi-result overloads for arities 3 through 5 |
-| `MultiResults/MultiResultSetSignaturesEmitter.cs` | Pure source emitter for generated multi-result extension classes        |
-| `Helpers/TypeDetector.cs`                       | C# type → SQL type mapping and reader method resolution                    |
-| `Helpers/ColumnExtractor.cs`                    | Shared column extraction from primary constructor parameters               |
-| `Helpers/HintNameBuilder.cs`                    | Stable unique hint names for generated source files                        |
-| `Helpers/NamespaceHelper.cs`                    | Namespace resolution for generated files                                   |
-| `Helpers/TypeStructureValidator.cs`             | Validates sealed, partial, primary constructor constraints                 |
-| `Helpers/SqlMetaDataExpressionBuilder.cs`       | Builds `SqlMetaData` constructor expressions for TVPs                      |
-| `Models/DtoModel.cs`                            | Value-equatable DTO pipeline model                                         |
-| `Models/TvpModel.cs`                            | Value-equatable TVP pipeline model                                         |
-| `Models/ColumnModel.cs`                         | Describes a single primary constructor parameter                           |
-| `Models/ColumnKind.cs`                          | Enum classifying parameter mapping behavior                                |
-| `Models/EquatableArray.cs`                      | `ImmutableArray<T>` wrapper with element equality                          |
+| File / Directory                                          | Purpose                                                                    |
+|-----------------------------------------------------------|----------------------------------------------------------------------------|
+| `Dto/DtoSourceGenerator.cs`                               | `IIncrementalGenerator` for `[GenerateDto]` — emits `ISpMapper<T>`         |
+| `Dto/DtoExtractor.cs`                                     | Extracts `DtoModel` from syntax/semantic model                             |
+| `Dto/DtoEmitter.cs`                                       | Emits `MapFromDataReader` source code                                      |
+| `Tvp/TvpSourceGenerator.cs`                               | `IIncrementalGenerator` for `[GenerateTvp]` — emits `ITvpMapper<T>`        |
+| `Tvp/TvpExtractor.cs`                                     | Extracts `TvpModel` from syntax/semantic model                             |
+| `Tvp/TvpEmitter.cs`                                       | Emits `MapAsSqlDataRecords` + `TvpTypeName` source code                    |
+| `AutoContracts/AutoContractsSourceGenerator.cs`           | `IIncrementalGenerator` for `caerius.contracts.json` via `AdditionalFiles` |
+| `MultiResults/MultiResultSetSignaturesSourceGenerator.cs` | Emits package-internal multi-result overloads for arities 3 through 5      |
+| `MultiResults/MultiResultSetSignaturesEmitter.cs`         | Pure source emitter for generated multi-result extension classes           |
+| `Helpers/TypeDetector.cs`                                 | C# type → SQL type mapping and reader method resolution                    |
+| `Helpers/ColumnExtractor.cs`                              | Shared column extraction from primary constructor parameters               |
+| `Helpers/HintNameBuilder.cs`                              | Stable unique hint names for generated source files                        |
+| `Helpers/NamespaceHelper.cs`                              | Namespace resolution for generated files                                   |
+| `Helpers/TypeStructureValidator.cs`                       | Validates sealed, partial, primary constructor constraints                 |
+| `Helpers/SqlMetaDataExpressionBuilder.cs`                 | Builds `SqlMetaData` constructor expressions for TVPs                      |
+| `Models/DtoModel.cs`                                      | Value-equatable DTO pipeline model                                         |
+| `Models/TvpModel.cs`                                      | Value-equatable TVP pipeline model                                         |
+| `Models/ColumnModel.cs`                                   | Describes a single primary constructor parameter                           |
+| `Models/ColumnKind.cs`                                    | Enum classifying parameter mapping behavior                                |
+| `Models/EquatableArray.cs`                                | `ImmutableArray<T>` wrapper with element equality                          |
 
 ## Supported Type Mappings
 

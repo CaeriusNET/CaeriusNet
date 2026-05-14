@@ -1,3 +1,5 @@
+using CaeriusNet.Commands.Reads;
+
 namespace CaeriusNet.Tests.Commands;
 
 public sealed class MultiResultApiSurfaceTests
@@ -8,18 +10,18 @@ public sealed class MultiResultApiSurfaceTests
     {
         return new TheoryData<Type, string, int>
         {
-            { typeof(CaeriusNet.Commands.Reads.MultiIEnumerableReadSqlAsyncCommands), "QueryMultipleIEnumerableAsync", 2 },
-            { typeof(CaeriusNet.Commands.Reads.MultiReadOnlyCollectionReadSqlAsyncCommands), "QueryMultipleReadOnlyCollectionAsync", 2 },
-            { typeof(CaeriusNet.Commands.Reads.MultiImmutableArrayReadSqlAsyncCommands), "QueryMultipleImmutableArrayAsync", 2 },
-            { typeof(CaeriusNet.Commands.Reads.GeneratedMultiIEnumerableReadSqlAsyncCommands), "QueryMultipleIEnumerableAsync", 3 },
-            { typeof(CaeriusNet.Commands.Reads.GeneratedMultiIEnumerableReadSqlAsyncCommands), "QueryMultipleIEnumerableAsync", 4 },
-            { typeof(CaeriusNet.Commands.Reads.GeneratedMultiIEnumerableReadSqlAsyncCommands), "QueryMultipleIEnumerableAsync", 5 },
-            { typeof(CaeriusNet.Commands.Reads.GeneratedMultiReadOnlyCollectionReadSqlAsyncCommands), "QueryMultipleReadOnlyCollectionAsync", 3 },
-            { typeof(CaeriusNet.Commands.Reads.GeneratedMultiReadOnlyCollectionReadSqlAsyncCommands), "QueryMultipleReadOnlyCollectionAsync", 4 },
-            { typeof(CaeriusNet.Commands.Reads.GeneratedMultiReadOnlyCollectionReadSqlAsyncCommands), "QueryMultipleReadOnlyCollectionAsync", 5 },
-            { typeof(CaeriusNet.Commands.Reads.GeneratedMultiImmutableArrayReadSqlAsyncCommands), "QueryMultipleImmutableArrayAsync", 3 },
-            { typeof(CaeriusNet.Commands.Reads.GeneratedMultiImmutableArrayReadSqlAsyncCommands), "QueryMultipleImmutableArrayAsync", 4 },
-            { typeof(CaeriusNet.Commands.Reads.GeneratedMultiImmutableArrayReadSqlAsyncCommands), "QueryMultipleImmutableArrayAsync", 5 }
+            { typeof(MultiIEnumerableReadSqlAsyncCommands), "QueryMultipleIEnumerableAsync", 2 },
+            { typeof(MultiReadOnlyCollectionReadSqlAsyncCommands), "QueryMultipleReadOnlyCollectionAsync", 2 },
+            { typeof(MultiImmutableArrayReadSqlAsyncCommands), "QueryMultipleImmutableArrayAsync", 2 },
+            { typeof(GeneratedMultiIEnumerableReadSqlAsyncCommands), "QueryMultipleIEnumerableAsync", 3 },
+            { typeof(GeneratedMultiIEnumerableReadSqlAsyncCommands), "QueryMultipleIEnumerableAsync", 4 },
+            { typeof(GeneratedMultiIEnumerableReadSqlAsyncCommands), "QueryMultipleIEnumerableAsync", 5 },
+            { typeof(GeneratedMultiReadOnlyCollectionReadSqlAsyncCommands), "QueryMultipleReadOnlyCollectionAsync", 3 },
+            { typeof(GeneratedMultiReadOnlyCollectionReadSqlAsyncCommands), "QueryMultipleReadOnlyCollectionAsync", 4 },
+            { typeof(GeneratedMultiReadOnlyCollectionReadSqlAsyncCommands), "QueryMultipleReadOnlyCollectionAsync", 5 },
+            { typeof(GeneratedMultiImmutableArrayReadSqlAsyncCommands), "QueryMultipleImmutableArrayAsync", 3 },
+            { typeof(GeneratedMultiImmutableArrayReadSqlAsyncCommands), "QueryMultipleImmutableArrayAsync", 4 },
+            { typeof(GeneratedMultiImmutableArrayReadSqlAsyncCommands), "QueryMultipleImmutableArrayAsync", 5 }
         };
     }
 

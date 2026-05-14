@@ -50,8 +50,7 @@ internal static class ResultSetMaterializer
                     buffer = GrowBuffer(buffer, count);
 
                 buffer[count++] = T.MapFromDataReader(reader);
-            }
-            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false));
+            } while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false));
 
             return [..buffer.AsSpan(0, count)];
         }

@@ -23,22 +23,23 @@ public static class MultiIEnumerableReadSqlAsyncCommands
             return CaeriusActivityExtensions
                 .InstrumentMultiResultSetAsync<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>)>(
                     context, spParameters, 2,
-                nameof(QueryMultipleIEnumerableAsync), async command =>
-                {
-                    await using var reader = await command.ExecuteReaderAsync(
-                        CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
+                    nameof(QueryMultipleIEnumerableAsync), async command =>
+                    {
+                        await using var reader = await command.ExecuteReaderAsync(
+                            CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
 
-                    var l1 = await MultiResultSetHelper.ReadResultSetAsync<TResultSet1>(
-                        reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
+                        var l1 = await MultiResultSetHelper.ReadResultSetAsync<TResultSet1>(
+                            reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
 
-                    if (!await MultiResultSetHelper.TryMoveNextAsync(reader, cancellationToken).ConfigureAwait(false))
-                        return (l1, []);
+                        if (!await MultiResultSetHelper.TryMoveNextAsync(reader, cancellationToken)
+                                .ConfigureAwait(false))
+                            return (l1, []);
 
-                    var l2 = await MultiResultSetHelper.ReadResultSetAsync<TResultSet2>(
-                        reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
+                        var l2 = await MultiResultSetHelper.ReadResultSetAsync<TResultSet2>(
+                            reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
 
-                    return (l1, l2);
-                }, cancellationToken);
+                        return (l1, l2);
+                    }, cancellationToken);
         }
     }
 }
