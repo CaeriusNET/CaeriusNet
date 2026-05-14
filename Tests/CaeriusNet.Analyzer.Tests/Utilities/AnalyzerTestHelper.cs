@@ -29,7 +29,7 @@ internal static class AnalyzerTestHelper
 
     internal static IReadOnlyList<Diagnostic> RunAnalyzer(string source, params AdditionalText[] additionalTexts)
     {
-        return RunAnalyzer(source, globalOptions: null, additionalTexts);
+        return RunAnalyzer(source, null, additionalTexts);
     }
 
     internal static IReadOnlyList<Diagnostic> RunAnalyzer(

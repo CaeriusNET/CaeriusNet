@@ -93,25 +93,25 @@ dotnet test CaeriusNet.slnx --configuration Release
 
 ### Generator tests (`CaeriusNet.Generator.Tests`)
 
-| Category    | What is tested                                                                                  |
-|-------------|-------------------------------------------------------------------------------------------------|
-| DTO         | Type mappings, nullable members, special conversions, `Half`, ordinal constants, and attributes |
-| TVP         | Supported SQL types, multi-column generation, nullable members, and `class` generation          |
-| Helpers     | `TypeDetector` and `ColumnExtractor` helper logic                                               |
+| Category | What is tested                                                                                  |
+|----------|-------------------------------------------------------------------------------------------------|
+| DTO      | Type mappings, nullable members, special conversions, `Half`, ordinal constants, and attributes |
+| TVP      | Supported SQL types, multi-column generation, nullable members, and `class` generation          |
+| Helpers  | `TypeDetector` and `ColumnExtractor` helper logic                                               |
 
 These tests use `CSharpSourceGeneratorTest` to compile source in memory and verify generated output.
 
 ### Analyzer tests (`CaeriusNet.Analyzer.Tests`)
 
-| Category      | What is tested                                      |
-|---------------|-----------------------------------------------------|
-| Attributes    | `CAERIUS001` through `CAERIUS006` target diagnostics |
+| Category      | What is tested                                         |
+|---------------|--------------------------------------------------------|
+| Attributes    | `CAERIUS001` through `CAERIUS006` target diagnostics   |
 | AutoContracts | `CAERIUS200` through `CAERIUS210` manifest diagnostics |
 
 ### Packaging tests (`CaeriusNet.Packaging.Tests`)
 
 | Category      | What is tested                                                       |
-|---------------|-----------------------------------------------------------------------|
+|---------------|----------------------------------------------------------------------|
 | AutoContracts | NuGet `buildTransitive`, `AdditionalFiles`, and non-versioned naming |
 
 ### Integration tests (`CaeriusNet.IntegrationTests`)

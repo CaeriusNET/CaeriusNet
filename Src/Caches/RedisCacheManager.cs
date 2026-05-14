@@ -57,11 +57,13 @@ internal sealed class RedisCacheManager : IRedisCacheManager
     [UnconditionalSuppressMessage(
         "Trimming",
         "IL2026",
-        Justification = "Legacy Redis cache overload keeps existing API behavior; source-generated JsonTypeInfo overload is available for trim-safe callers.")]
+        Justification =
+            "Legacy Redis cache overload keeps existing API behavior; source-generated JsonTypeInfo overload is available for trim-safe callers.")]
     [UnconditionalSuppressMessage(
         "AOT",
         "IL3050",
-        Justification = "Legacy Redis cache overload keeps existing API behavior; source-generated JsonTypeInfo overload is available for Native AOT callers.")]
+        Justification =
+            "Legacy Redis cache overload keeps existing API behavior; source-generated JsonTypeInfo overload is available for Native AOT callers.")]
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public void Store<T>(string cacheKey, T value, TimeSpan? expiration) where T : notnull
     {
@@ -144,11 +146,13 @@ internal sealed class RedisCacheManager : IRedisCacheManager
     [UnconditionalSuppressMessage(
         "Trimming",
         "IL2026",
-        Justification = "Legacy Redis cache overload keeps existing API behavior; source-generated JsonTypeInfo overload is available for trim-safe callers.")]
+        Justification =
+            "Legacy Redis cache overload keeps existing API behavior; source-generated JsonTypeInfo overload is available for trim-safe callers.")]
     [UnconditionalSuppressMessage(
         "AOT",
         "IL3050",
-        Justification = "Legacy Redis cache overload keeps existing API behavior; source-generated JsonTypeInfo overload is available for Native AOT callers.")]
+        Justification =
+            "Legacy Redis cache overload keeps existing API behavior; source-generated JsonTypeInfo overload is available for Native AOT callers.")]
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public bool TryGet<T>(string cacheKey, out T? value)
     {

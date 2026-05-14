@@ -1,4 +1,5 @@
 ﻿using CaeriusNet.Benchmark;
+
 // In CI: runs all benchmarks (category controlled by CI workflow args)
 // Locally: same — use RunningBenchmarks.Run_InMemory_Benchmarks() etc. directly
 var category = args.Length > 0 ? args[0].ToLowerInvariant() : "all";

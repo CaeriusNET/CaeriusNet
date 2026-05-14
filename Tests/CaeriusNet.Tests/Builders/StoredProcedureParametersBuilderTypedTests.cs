@@ -56,7 +56,7 @@ public sealed class StoredProcedureParametersBuilderTypedTests
     public void Create_With_Generated_Parameters_Binds_In_One_Call()
     {
         var sp = StoredProcedureParametersBuilder<TestScalarProcedure>
-            .Create(new TestScalarParameters(42), resultSetCapacity: 16)
+            .Create(new TestScalarParameters(42), 16)
             .Build();
 
         var parameters = sp.GetParametersSpan();

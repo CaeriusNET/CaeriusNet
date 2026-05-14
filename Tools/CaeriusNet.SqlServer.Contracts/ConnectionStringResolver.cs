@@ -63,13 +63,13 @@ internal static class ConnectionStringResolver
         var environment = ResolveEnvironment(options.ConfigurationEnvironment);
         var builder = new ConfigurationBuilder()
             .SetBasePath(basePath)
-            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false);
+            .AddJsonFile("appsettings.json", true, false);
 
         if (!string.IsNullOrWhiteSpace(environment))
-            builder.AddJsonFile($"appsettings.{environment}.json", optional: true, reloadOnChange: false);
+            builder.AddJsonFile($"appsettings.{environment}.json", true, false);
 
         if (!string.IsNullOrWhiteSpace(options.UserSecretsId))
-            builder.AddJsonFile(GetUserSecretsPath(options.UserSecretsId), optional: true, reloadOnChange: false);
+            builder.AddJsonFile(GetUserSecretsPath(options.UserSecretsId), true, false);
 
         builder.AddEnvironmentVariables();
 

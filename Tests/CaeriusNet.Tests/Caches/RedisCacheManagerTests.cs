@@ -1,6 +1,6 @@
-﻿using Microsoft.Extensions.Caching.Distributed;
+﻿using System.Text.Json.Serialization;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Logging.Abstractions;
-using System.Text.Json.Serialization;
 
 namespace CaeriusNet.Tests.Caches;
 

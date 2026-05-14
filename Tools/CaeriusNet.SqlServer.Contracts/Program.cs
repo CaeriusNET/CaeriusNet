@@ -119,13 +119,11 @@ internal static class Program
         }
 
         foreach (var procedureName in existingProcedures.Keys)
-        {
             if (!discoveredProcedures.ContainsKey(procedureName))
             {
                 emittedHashMismatch = true;
                 Console.Error.WriteLine($"CAERIUS209 error: Contract hash mismatch for '{procedureName}'.");
             }
-        }
 
         if (!emittedHashMismatch)
             Console.Error.WriteLine("CAERIUS209 error: Contract hash mismatch for 'caerius.contracts.json'.");
