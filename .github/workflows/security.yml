@@ -77,7 +77,7 @@ jobs:
             echo "=== Scanning ${project} for vulnerabilities ==="
             result=$(dotnet list "$project" package --vulnerable --include-transitive --format json 2>&1)
             echo "$result"
-            count=$(echo "$result" | jq '[.projects[].frameworks[] | ((.topLevelPackages // [])[], (.transitivePackages // [])[]) | select((.vulnerabilities // []) | length > 0)] | length')
+            count=$(echo "$result" | jq '[.projects[]? | (.frameworks // [])[] | ((.topLevelPackages // [])[], (.transitivePackages // [])[]) | select((.vulnerabilities // []) | length > 0)] | length')
             if [ "$count" -gt 0 ]; then
               echo "::error title=Vulnerable Packages::${count} vulnerable NuGet package(s) detected in ${label}. See log for details."
               total_vulnerabilities=$((total_vulnerabilities + count))
