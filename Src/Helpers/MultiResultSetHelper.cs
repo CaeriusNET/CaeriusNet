@@ -60,5 +60,4 @@ internal static class MultiResultSetHelper
             ? new ValueTask<bool>(task.Result)
             : new ValueTask<bool>(task);
     }
-
 }

@@ -249,7 +249,8 @@ public sealed class AutoContractsManifestAnalyzer : DiagnosticAnalyzer
         foreach (var tableType in manifest.TableTypes.Items)
         {
             ReportIfInvalidIdentifier(context, manifestPath, location, tableType.ClrName, "table type CLR name");
-            ReportIfDuplicate(context, manifestPath, location, tableSqlNames, BuildFullName(tableType.Schema, tableType.Name));
+            ReportIfDuplicate(context, manifestPath, location, tableSqlNames,
+                BuildFullName(tableType.Schema, tableType.Name));
             ReportIfDuplicate(context, manifestPath, location, generatedTypes, tableType.ClrName);
             ValidateUniqueMembers(context, manifestPath, location, tableType.ClrName, tableType.Columns.Items);
         }
@@ -258,17 +259,21 @@ public sealed class AutoContractsManifestAnalyzer : DiagnosticAnalyzer
         foreach (var procedure in manifest.Procedures.Items)
         {
             ReportIfInvalidIdentifier(context, manifestPath, location, procedure.ClrName, "procedure CLR name");
-            ReportIfInvalidIdentifier(context, manifestPath, location, procedure.ParametersClrName, "parameters CLR name");
-            ReportIfDuplicate(context, manifestPath, location, procedureSqlNames, BuildFullName(procedure.Schema, procedure.Name));
+            ReportIfInvalidIdentifier(context, manifestPath, location, procedure.ParametersClrName,
+                "parameters CLR name");
+            ReportIfDuplicate(context, manifestPath, location, procedureSqlNames,
+                BuildFullName(procedure.Schema, procedure.Name));
             ReportIfDuplicate(context, manifestPath, location, generatedTypes, procedure.ClrName);
             ReportIfDuplicate(context, manifestPath, location, generatedTypes, procedure.ParametersClrName);
-            ValidateUniqueMembers(context, manifestPath, location, procedure.ParametersClrName, procedure.Parameters.Items);
+            ValidateUniqueMembers(context, manifestPath, location, procedure.ParametersClrName,
+                procedure.Parameters.Items);
 
             if (procedure.ResultClrName is { Length: > 0 } resultClrName)
             {
                 ReportIfInvalidIdentifier(context, manifestPath, location, resultClrName, "result CLR name");
                 ReportIfDuplicate(context, manifestPath, location, generatedTypes, resultClrName);
-                ValidateUniqueMembers(context, manifestPath, location, resultClrName, procedure.ResultSet.Columns.Items);
+                ValidateUniqueMembers(context, manifestPath, location, resultClrName,
+                    procedure.ResultSet.Columns.Items);
             }
         }
     }
@@ -282,7 +287,8 @@ public sealed class AutoContractsManifestAnalyzer : DiagnosticAnalyzer
     {
         var identifiers = new HashSet<string>(StringComparer.Ordinal);
         foreach (var column in columns)
-            ReportIfDuplicate(context, manifestPath, location, identifiers, NormalizeIdentifier(column.Name), containerName);
+            ReportIfDuplicate(context, manifestPath, location, identifiers, NormalizeIdentifier(column.Name),
+                containerName);
     }
 
     private static void ValidateUniqueMembers(
@@ -294,7 +300,8 @@ public sealed class AutoContractsManifestAnalyzer : DiagnosticAnalyzer
     {
         var identifiers = new HashSet<string>(StringComparer.Ordinal);
         foreach (var parameter in parameters)
-            ReportIfDuplicate(context, manifestPath, location, identifiers, NormalizeIdentifier(parameter.Name), containerName);
+            ReportIfDuplicate(context, manifestPath, location, identifiers, NormalizeIdentifier(parameter.Name),
+                containerName);
     }
 
     private static void ReportIfInvalidIdentifier(

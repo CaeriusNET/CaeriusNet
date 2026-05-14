@@ -4,11 +4,12 @@ CaeriusNet ships Roslyn **incremental source generators** that eliminate mapping
 
 ## Overview
 
-| Generator | Attribute | Generated interface |
+| Generator | Input | Output |
 |---|---|---|
 | `DtoSourceGenerator` | `[GenerateDto]` | `ISpMapper<T>` |
 | `TvpSourceGenerator` | `[GenerateTvp]` | `ITvpMapper<T>` |
 | `AutoContractsSourceGenerator` | `caerius.contracts.json` supplied as `AdditionalFiles` | typed stored procedure descriptors and DTO/TVP contracts |
+| `MultiResultSetSignaturesSourceGenerator` | none | package-internal overloads for multi-result-set arities 3 through 5 |
 
 The DTO and TVP generators target **sealed partial records or classes** with a primary constructor. The `partial` keyword lets the generator add the interface implementation as a second declaration alongside your type. Constraints are enforced at compile time by the [CaeriusNet analyzer](/documentation/diagnostics) (`CAERIUS001` through `CAERIUS006`).
 
@@ -16,6 +17,11 @@ The AutoContracts generator is different: it does not connect to SQL Server and 
 the database during compilation. It reads only the `caerius.contracts.json` manifest provided as a
 Roslyn `AdditionalFiles` item. The SQL Server metadata read happens earlier in the CLI/MSBuild
 AutoContracts phase.
+
+The multi-result-set signature generator is an internal package build detail. It runs only while
+compiling the `CaeriusNet` runtime assembly, keeps the hand-written runtime source limited to the
+base two-result-set overloads, and emits the public `T1..T3` through `T1..T5` extension overloads into
+the packaged assembly. Consumer projects do not receive duplicate generated methods.
 
 ## `[GenerateDto]` — DTO mapper
 
@@ -46,7 +52,7 @@ public sealed partial record UserDto(int Id, string Username, byte Age);
 using System.CodeDom.Compiler;
 using System.Runtime.CompilerServices;
 
-[GeneratedCode("CaeriusNet.Generator", "11.0.0")]
+[GeneratedCode("CaeriusNet.Generator", "11.0.3")]
 partial record UserDto : ISpMapper<UserDto>
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -179,7 +185,7 @@ public sealed partial record UserIdTvp(int Id);
 using System.CodeDom.Compiler;
 using System.Runtime.CompilerServices;
 
-[GeneratedCode("CaeriusNet.Generator", "11.0.0")]
+[GeneratedCode("CaeriusNet.Generator", "11.0.3")]
 partial record UserIdTvp : ITvpMapper<UserIdTvp>
 {
     public static string TvpTypeName => "dbo.tvp_int";

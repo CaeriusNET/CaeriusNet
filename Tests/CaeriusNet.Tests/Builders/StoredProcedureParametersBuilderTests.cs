@@ -1,3 +1,5 @@
+using System.Collections;
+
 namespace CaeriusNet.Tests.Builders;
 
 public sealed class StoredProcedureParametersBuilderTests
@@ -297,7 +299,7 @@ public sealed class StoredProcedureParametersBuilderTests
     public void AddParameter_With_Size_Preserves_Metadata()
     {
         var sp = new StoredProcedureParametersBuilder("dbo", "sp_Test")
-            .AddParameter("@Name", "ari", SqlDbType.NVarChar, size: 64)
+            .AddParameter("@Name", "ari", SqlDbType.NVarChar, 64)
             .Build();
 
         Assert.Equal(64, sp.GetParametersSpan()[0].Size);
@@ -507,7 +509,7 @@ public sealed class StoredProcedureParametersBuilderTests
             return items.GetEnumerator();
         }
 
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+        IEnumerator IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
         }

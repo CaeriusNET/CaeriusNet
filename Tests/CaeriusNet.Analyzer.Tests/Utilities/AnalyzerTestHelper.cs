@@ -108,6 +108,7 @@ internal sealed class TestAnalyzerConfigOptionsProvider(
     IReadOnlyList<AdditionalText>? additionalTexts = null) : AnalyzerConfigOptionsProvider
 {
     private static readonly AnalyzerConfigOptions EmptyOptions = new TestAnalyzerConfigOptions(null);
+
     private readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> _additionalOptions =
         BuildAdditionalOptions(additionalTexts);
 
@@ -163,6 +164,7 @@ internal sealed class TestAdditionalText(
     IReadOnlyDictionary<string, string>? options = null) : AdditionalText
 {
     public override string Path { get; } = path;
+
     internal IReadOnlyDictionary<string, string> Options { get; } =
         options ?? new Dictionary<string, string>(StringComparer.Ordinal);
 

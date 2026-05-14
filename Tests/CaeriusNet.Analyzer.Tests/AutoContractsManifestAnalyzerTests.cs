@@ -3,13 +3,13 @@ namespace CaeriusNet.Analyzer.Tests;
 public sealed class AutoContractsManifestAnalyzerTests
 {
     private const string ValidEmptyManifest = """
-                                             {
-                                               "version": 1,
-                                               "namespace": "Consumer.Contracts",
-                                               "tableTypes": [],
-                                               "procedures": []
-                                             }
-                                             """;
+                                              {
+                                                "version": 1,
+                                                "namespace": "Consumer.Contracts",
+                                                "tableTypes": [],
+                                                "procedures": []
+                                              }
+                                              """;
 
     [Fact]
     public void EmptyManifest_Reports_CAERIUS200()
@@ -30,7 +30,7 @@ public sealed class AutoContractsManifestAnalyzerTests
             {
                 ["build_property.CaeriusContractsMode"] = " Pull "
             },
-            Manifest(ValidEmptyManifest, "generated.contracts.json", isManifest: true));
+            Manifest(ValidEmptyManifest, "generated.contracts.json", true));
 
         Assert.DoesNotContain(diagnostics,
             diagnostic => diagnostic.Id.StartsWith("CAERIUS2", StringComparison.Ordinal));
@@ -229,7 +229,7 @@ public sealed class AutoContractsManifestAnalyzerTests
                        ],
                        "procedures": []
                      }
-                     """, "contracts/custom.contracts.json", isManifest: true));
+                     """, "contracts/custom.contracts.json", true));
 
         var diagnostic = Assert.Single(diagnostics, diagnostic => diagnostic.Id == "CAERIUS203");
         Assert.NotEqual(Location.None, diagnostic.Location);

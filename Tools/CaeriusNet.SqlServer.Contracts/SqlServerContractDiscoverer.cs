@@ -17,7 +17,8 @@ internal static class SqlServerContractDiscoverer
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
         var database = await DiscoverDatabaseAsync(connection, cancellationToken).ConfigureAwait(false);
-        var tableTypes = await DiscoverTableTypesAsync(connection, diagnostics, cancellationToken).ConfigureAwait(false);
+        var tableTypes =
+            await DiscoverTableTypesAsync(connection, diagnostics, cancellationToken).ConfigureAwait(false);
         var procedures = await DiscoverProceduresAsync(connection, tableTypes, diagnostics, cancellationToken)
             .ConfigureAwait(false);
 

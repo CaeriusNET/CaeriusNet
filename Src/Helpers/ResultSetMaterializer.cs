@@ -80,6 +80,6 @@ internal static class ResultSetMaterializer
     private static void ReturnBuffer<T>(T[] buffer)
         where T : class
     {
-        ArrayPool<T>.Shared.Return(buffer, clearArray: true);
+        ArrayPool<T>.Shared.Return(buffer, true);
     }
 }

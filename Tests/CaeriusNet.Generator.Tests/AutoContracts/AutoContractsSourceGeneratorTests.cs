@@ -143,7 +143,7 @@ public sealed class AutoContractsSourceGeneratorTests
     {
         var result = SourceGeneratorTestHelper.RunGenerator<AutoContractsSourceGenerator>(
             "namespace Consumer;",
-            Manifest(ValidManifest, "generated.contracts.json", isManifest: true));
+            Manifest(ValidManifest, "generated.contracts.json", true));
 
         Assert.Single(result.GeneratedTrees);
     }

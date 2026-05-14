@@ -211,5 +211,4 @@ internal static class TypeDetector
             _ => "GetValue"
         };
     }
-
 }

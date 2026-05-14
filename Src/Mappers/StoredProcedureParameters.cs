@@ -118,11 +118,9 @@ internal static class SqlParameterName
             throw new ArgumentException("SQL parameter names must use a single leading '@'.", nameof(parameterName));
 
         for (var i = 0; i < normalized.Length; i++)
-        {
             if (char.IsControl(normalized[i]))
                 throw new ArgumentException("SQL parameter names cannot contain control characters.",
                     nameof(parameterName));
-        }
 
         return normalized;
     }

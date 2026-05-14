@@ -20,7 +20,7 @@
 | Directory | Description |
 |-----------|-------------|
 | `Src/` | Core library — CaeriusNet NuGet package source |
-| `SourceGenerators/` | Roslyn incremental source generators (`[GenerateDto]`, `[GenerateTvp]`) |
+| `SourceGenerators/` | Roslyn incremental source generators (`[GenerateDto]`, `[GenerateTvp]`, AutoContracts, package-internal multi-result signatures) |
 | `Tests/` | Unit tests, generator tests, integration tests |
 | `Benchmark/` | BenchmarkDotNet performance benchmarks |
 | `Exemples/` | Example projects (Aspire + Console); directory name retained for compatibility |
@@ -157,7 +157,7 @@ var (users, orders) = await dbContext.QueryMultipleIEnumerableAsync<UserDto, Ord
     sp, cancellationToken);
 ```
 
-You can query up to five result sets: `QueryMultipleIEnumerableAsync<T1, T2, T3, T4, T5>`.
+You can query up to five result sets: `QueryMultipleIEnumerableAsync<T1, T2, T3, T4, T5>`. The two-result-set overload is the runtime baseline; higher arities are emitted into the package by the CaeriusNet source generator.
 
 ---
 

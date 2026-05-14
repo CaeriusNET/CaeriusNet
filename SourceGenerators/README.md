@@ -1,6 +1,7 @@
 # CaeriusNet Source Generators
 
-Roslyn incremental source generators that emit compile-time mappers for DTOs, TVPs, and SQL Server AutoContracts.
+Roslyn incremental source generators that emit compile-time mappers for DTOs, TVPs, SQL Server AutoContracts,
+and the runtime multi-result-set overload signatures used by the main package.
 Targets `netstandard2.0` (Roslyn analyzer constraint). Uses `Microsoft.CodeAnalysis.CSharp 5.3.0`.
 
 ## Architecture
@@ -8,13 +9,14 @@ Targets `netstandard2.0` (Roslyn analyzer constraint). Uses `Microsoft.CodeAnaly
 ### Pipeline
 
 ```
-ForAttributeWithMetadataName / AdditionalTextsProvider -> Extract -> Emit
+ForAttributeWithMetadataName / AdditionalTextsProvider / CompilationProvider -> Extract -> Emit
 ```
 
 Each generator follows the same three-stage pipeline:
 
 1. **Filter** — `ForAttributeWithMetadataName` selects types annotated with `[GenerateDto]` or `[GenerateTvp]`;
-   AutoContracts selects only `caerius.contracts.json` from `AdditionalTextsProvider`.
+   AutoContracts selects only `caerius.contracts.json` from `AdditionalTextsProvider`; the multi-result signature
+   generator checks `CompilationProvider` and emits only when the target assembly is `CaeriusNet`.
 2. **Extract** — Transforms syntax/semantic model into a value-equatable model (`DtoModel` / `TvpModel`). No Roslyn
    types flow past this stage.
 3. **Emit** — Pure function that converts the model into generated C# source via `StringBuilder`.
@@ -45,6 +47,8 @@ namespaces or generator kinds.
 | `Tvp/TvpExtractor.cs`                           | Extracts `TvpModel` from syntax/semantic model                             |
 | `Tvp/TvpEmitter.cs`                             | Emits `MapAsSqlDataRecords` + `TvpTypeName` source code                    |
 | `AutoContracts/AutoContractsSourceGenerator.cs` | `IIncrementalGenerator` for `caerius.contracts.json` via `AdditionalFiles` |
+| `MultiResults/MultiResultSetSignaturesSourceGenerator.cs` | Emits package-internal multi-result overloads for arities 3 through 5 |
+| `MultiResults/MultiResultSetSignaturesEmitter.cs` | Pure source emitter for generated multi-result extension classes        |
 | `Helpers/TypeDetector.cs`                       | C# type → SQL type mapping and reader method resolution                    |
 | `Helpers/ColumnExtractor.cs`                    | Shared column extraction from primary constructor parameters               |
 | `Helpers/HintNameBuilder.cs`                    | Stable unique hint names for generated source files                        |
@@ -100,7 +104,7 @@ diagnostics link to
 
 ## Generated Code Features
 
-- `[GeneratedCode("CaeriusNet.Generator", "11.0.0")]` attribute on generated types
+- `[GeneratedCode("CaeriusNet.Generator", "11.0.3")]` attribute on generated types/members
 - `[MethodImpl(MethodImplOptions.AggressiveInlining)]` on `MapFromDataReader`
 - `[MethodImpl(MethodImplOptions.AggressiveOptimization)]` on `MapAsSqlDataRecords`
 - `#pragma warning disable CS1591` (suppresses missing XML docs warning)

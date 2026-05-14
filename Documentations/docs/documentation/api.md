@@ -315,7 +315,7 @@ await dbContext.ExecuteAsync(sp, ct);
 
 Up to **5 result sets** per call. Each return type maps positionally to a `SELECT` statement in the SP.
 
-Namespace: `CaeriusNet.Commands.Reads.MultiIEnumerableReadSqlAsyncCommands` (similar shapes exist for `ReadOnlyCollection` and `ImmutableArray`).
+Namespace: `CaeriusNet.Commands.Reads`. The `T1,T2` overloads are maintained as the runtime source baseline; overloads for arities 3 through 5 are generated into the `CaeriusNet` assembly during package build.
 
 ```csharp
 Task<(IEnumerable<T1>, IEnumerable<T2>)>
@@ -330,6 +330,8 @@ Task<(IEnumerable<T1>, IEnumerable<T2>, IEnumerable<T3>, IEnumerable<T4>)>
 Task<(IEnumerable<T1>, IEnumerable<T2>, IEnumerable<T3>, IEnumerable<T4>, IEnumerable<T5>)>
     QueryMultipleIEnumerableAsync<T1, T2, T3, T4, T5>(/* ... */);
 ```
+
+The same arities are available for `QueryMultipleReadOnlyCollectionAsync` and `QueryMultipleImmutableArrayAsync`.
 
 Example:
 

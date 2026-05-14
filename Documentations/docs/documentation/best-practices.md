@@ -81,7 +81,7 @@ See [Caching](/documentation/cache) for the full guide.
 - **Set `resultSetCapacity` accurately.** It pre-allocates the `List<T>` and avoids resize churn for large reads.
 - **Return only required columns.** Less data = fewer allocations and faster TDS framing.
 - **Pick the right collection.** `ImmutableArray<T>` for frozen / shared data; `ReadOnlyCollection<T>` for public APIs; `IEnumerable<T>` for LINQ pipelines.
-- **Stream multi-result-sets** with the `QueryMultipleIEnumerableAsync` family rather than chaining separate calls.
+- **Combine related result sets** with the `QueryMultiple*Async` families rather than chaining separate stored-procedure calls.
 - **Benchmark critical flows.** CaeriusNet's own [BenchmarkDotNet suites](/benchmarks/) are reproducible (`Random(42)`); use them as a baseline.
 
 Internal performance levers worth knowing about:

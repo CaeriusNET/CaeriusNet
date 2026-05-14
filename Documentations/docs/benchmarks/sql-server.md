@@ -93,8 +93,8 @@ Two insertion strategies are compared at `[Params(10, 100, 500, 1_000, 5_000)]` 
 
 ### What is measured
 
-CaeriusNet supports `IAsyncEnumerable<(T1, T2, ...)>` multi-result-set SPs — a single SP call that returns
-multiple independent result sets, read via successive `reader.NextResultAsync()` calls.
+CaeriusNet supports typed tuple multi-result-set SP calls — a single SP call that returns
+multiple independent result sets, materialized via successive `reader.NextResultAsync()` calls.
 
 This benchmark compares:
 - **Single SP, multiple result sets**: one TDS roundtrip, one connection checkout from pool, N result set reads.

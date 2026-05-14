@@ -153,7 +153,7 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransactionInternal
             if (prev == StateDisposed) return;
 
             var transaction = _transaction;
-            if ((prev is StateActive or StatePoisoned) && transaction is not null)
+            if (prev is StateActive or StatePoisoned && transaction is not null)
                 try
                 {
                     await transaction.RollbackAsync().ConfigureAwait(false);
@@ -169,7 +169,7 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransactionInternal
                     _txActivity = null;
                 }
 
-            await DisposeOwnedResourcesAsync(suppressExceptions: false).ConfigureAwait(false);
+            await DisposeOwnedResourcesAsync(false).ConfigureAwait(false);
         }
         finally
         {
@@ -221,12 +221,12 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransactionInternal
         }
         catch (SqlException ex)
         {
-            await DisposeResourcesAsync(transaction, connection, suppressExceptions: true).ConfigureAwait(false);
+            await DisposeResourcesAsync(transaction, connection, true).ConfigureAwait(false);
             throw new CaeriusNetSqlException("Failed to open SQL Server transaction.", ex);
         }
         catch
         {
-            await DisposeResourcesAsync(transaction, connection, suppressExceptions: true).ConfigureAwait(false);
+            await DisposeResourcesAsync(transaction, connection, true).ConfigureAwait(false);
             throw;
         }
     }

@@ -135,14 +135,11 @@ public async Task<(IReadOnlyCollection<UserDto> Users, IReadOnlyCollection<Order
 
 | Method | Sets | Return type |
 |---|---|---|
-| `QueryMultipleReadOnlyCollectionAsync<T1, T2>` | 2 | `(ReadOnlyCollection<T1>, ReadOnlyCollection<T2>)` |
-| `QueryMultipleReadOnlyCollectionAsync<T1, T2, T3>` | 3 | `(ReadOnlyCollection<T1>, …, ReadOnlyCollection<T3>)` |
-| `QueryMultipleImmutableArrayAsync<T1, T2>` | 2 | `(ImmutableArray<T1>, ImmutableArray<T2>)` |
-| `QueryMultipleImmutableArrayAsync<T1, T2, T3>` | 3 | `(ImmutableArray<T1>, …, ImmutableArray<T3>)` |
-| `QueryMultipleIEnumerableAsync<T1, T2>` | 2 | `(IEnumerable<T1>, IEnumerable<T2>)` |
-| `QueryMultipleIEnumerableAsync<T1, T2, T3>` | 3 | `(IEnumerable<T1>, …, IEnumerable<T3>)` |
+| `QueryMultipleReadOnlyCollectionAsync<T1, T2>` through `<T1, T2, T3, T4, T5>` | 2-5 | tuple of `ReadOnlyCollection<T>` |
+| `QueryMultipleImmutableArrayAsync<T1, T2>` through `<T1, T2, T3, T4, T5>` | 2-5 | tuple of `ImmutableArray<T>` |
+| `QueryMultipleIEnumerableAsync<T1, T2>` through `<T1, T2, T3, T4, T5>` | 2-5 | tuple of `IEnumerable<T>` |
 
-The `IEnumerable`, `ReadOnlyCollection`, and `ImmutableArray` families are all available with arities **2 → 5**.
+The two-result-set signatures are the runtime source baseline; higher arities are emitted into the package by the CaeriusNet source generator during the package build.
 
 ::: warning Result-set order is the contract
 CaeriusNet maps result sets **positionally** — the first `SELECT` becomes `T1`, the second becomes `T2`, and so on. The DTO type passed at each position must match the columns of the corresponding `SELECT`. There is no runtime name-matching; misalignment produces an `InvalidCastException` (best case) or silently wrong values.

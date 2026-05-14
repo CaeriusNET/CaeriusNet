@@ -35,7 +35,7 @@ GO
 
 ## Available overloads
 
-CaeriusNet offers three collection-type families, each with overloads for **2 to 5** result sets. Pick the family that matches your storage, mutation, and allocation needs:
+CaeriusNet offers three collection-type families, each with overloads for **2 to 5** result sets. Pick the family that matches your storage, mutation, and allocation needs. The two-result-set overloads are the hand-written base signatures in the runtime source; arities 3 through 5 are generated into the package at build time from the same implementation template.
 
 ### `QueryMultipleIEnumerableAsync`
 
@@ -58,6 +58,8 @@ Returns a tuple of `ReadOnlyCollection<T>`:
 ```csharp
 Task<(ReadOnlyCollection<T1>, ReadOnlyCollection<T2>)>
     QueryMultipleReadOnlyCollectionAsync<T1, T2>(/* ... */);
+
+// ... up to T5
 ```
 
 ### `QueryMultipleImmutableArrayAsync`
@@ -67,6 +69,8 @@ Returns a tuple of `ImmutableArray<T>`:
 ```csharp
 Task<(ImmutableArray<T1>, ImmutableArray<T2>)>
     QueryMultipleImmutableArrayAsync<T1, T2>(/* ... */);
+
+// ... up to T5
 ```
 
 ## Example — two result sets

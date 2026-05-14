@@ -211,7 +211,8 @@ var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetDashboard", ResultSe
 ```
 
 Supported up to 5 result sets: `QueryMultipleIEnumerableAsync<T1,T2>` through
-`QueryMultipleIEnumerableAsync<T1,T2,T3,T4,T5>`.
+`QueryMultipleIEnumerableAsync<T1,T2,T3,T4,T5>`. The two-result-set overload is the hand-written baseline;
+arities 3 through 5 are generated into the package assembly during build.
 
 ## Available Query Methods
 

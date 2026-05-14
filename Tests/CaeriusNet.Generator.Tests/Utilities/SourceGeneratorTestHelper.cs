@@ -25,9 +25,18 @@ internal static class SourceGeneratorTestHelper
         params AdditionalText[] additionalTexts)
         where TGenerator : IIncrementalGenerator, new()
     {
+        return RunGeneratorForAssembly<TGenerator>(source, "TestAssembly", additionalTexts);
+    }
+
+    internal static GeneratorDriverRunResult RunGeneratorForAssembly<TGenerator>(
+        string source,
+        string assemblyName,
+        params AdditionalText[] additionalTexts)
+        where TGenerator : IIncrementalGenerator, new()
+    {
         var parseOptions = CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Latest);
         var syntaxTree = CSharpSyntaxTree.ParseText(source, parseOptions);
-        var compilation = CreateCompilation(syntaxTree);
+        var compilation = CreateCompilation(syntaxTree, assemblyName);
 
         var generator = new TGenerator();
         var driver = CSharpGeneratorDriver.Create(generator)
@@ -77,10 +86,15 @@ internal static class SourceGeneratorTestHelper
 
     private static CSharpCompilation CreateCompilation(SyntaxTree syntaxTree)
     {
+        return CreateCompilation(syntaxTree, "TestAssembly");
+    }
+
+    private static CSharpCompilation CreateCompilation(SyntaxTree syntaxTree, string assemblyName)
+    {
         var references = BuildMetadataReferences();
 
         return CSharpCompilation.Create(
-            "TestAssembly",
+            assemblyName,
             [syntaxTree],
             references,
             new CSharpCompilationOptions(
@@ -125,6 +139,7 @@ internal sealed class TestAnalyzerConfigOptionsProvider(
     IReadOnlyList<AdditionalText>? additionalTexts = null) : AnalyzerConfigOptionsProvider
 {
     private static readonly AnalyzerConfigOptions EmptyOptions = new TestAnalyzerConfigOptions(null);
+
     private readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> _additionalOptions =
         BuildAdditionalOptions(additionalTexts);
 
@@ -179,6 +194,7 @@ internal sealed class TestAdditionalText(
     IReadOnlyDictionary<string, string>? options = null) : AdditionalText
 {
     public override string Path { get; } = path;
+
     internal IReadOnlyDictionary<string, string> Options { get; } =
         options ?? new Dictionary<string, string>(StringComparer.Ordinal);
 
