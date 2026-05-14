@@ -1,7 +1,7 @@
 # CAERIUS001 — Type must be `sealed`
 
 **Severity**: Error
-**Category**: CaeriusNet.Generator
+**Category**: CaeriusNet.Analyzer
 **Applies to**: `[GenerateDto]`, `[GenerateTvp]`
 
 ## Cause

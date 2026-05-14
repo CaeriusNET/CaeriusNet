@@ -19,6 +19,7 @@ public sealed record UserRepository(ICaeriusNetDbContext DbContext)
 |---|---|
 | [DTO Mapping](/documentation/dto-mapping) | Ordinal-based mapping, nullability, special types |
 | [Source Generators](/documentation/source-generators) | `[GenerateDto]` and `[GenerateTvp]` |
+| [AutoContracts](/documentation/auto-contracts) | SQL Server read-only contract snapshots with `caerius.contracts.json` |
 | [Reading Data](/documentation/reading-data) | `QueryAsIEnumerableAsync`, `FirstQueryAsync`, capacity |
 | [Multiple Result Sets](/documentation/multi-results) | Fetch 2–5 result sets in one round-trip |
 

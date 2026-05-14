@@ -1,7 +1,7 @@
 # CAERIUS005 — Unmapped CLR type falls back to `sql_variant`
 
 **Severity**: Warning
-**Category**: CaeriusNet.Generator
+**Category**: CaeriusNet.Analyzer
 **Applies to**: `[GenerateDto]`, `[GenerateTvp]`
 
 ## Cause

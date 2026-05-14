@@ -296,7 +296,7 @@ CaeriusNetBuilder.Create(builder)
 Before publishing, validate the NuGet package contents and smoke-test a consumer project:
 
 ```bash
-pwsh ./eng/ValidatePackage.ps1 -Configuration Release
+pwsh ./.github/scripts/ValidatePackage.ps1 -Configuration Release -OutputDirectory .work/package-validation
 ```
 
 Trim/AOT analyzer validation is covered by the Release build. To run it directly:

@@ -2,16 +2,18 @@
 
 ## Overview
 
-Three test projects cover unit behavior, source generator verification, and end-to-end integration tests against a real
-SQL Server instance.
+Test projects cover unit behavior, analyzer diagnostics, source generator verification, packaging, and end-to-end
+integration tests against a real SQL Server instance.
 
 ## Test Projects
 
 | Project                     | Type        | Count | Framework              |
 |-----------------------------|-------------|-------|------------------------|
-| CaeriusNet.Tests            | Unit        | ~142  | xUnit                  |
-| CaeriusNet.Generator.Tests  | Generator   | ~135  | xUnit + Roslyn Testing |
-| CaeriusNet.IntegrationTests | Integration | ~48   | xUnit + Testcontainers |
+| CaeriusNet.Tests            | Unit        | ~186  | xUnit                  |
+| CaeriusNet.Analyzer.Tests   | Analyzer    | ~23   | xUnit + Roslyn         |
+| CaeriusNet.Generator.Tests  | Generator   | ~149  | xUnit + Roslyn Testing |
+| CaeriusNet.IntegrationTests | Integration | ~51   | xUnit + Testcontainers |
+| CaeriusNet.Packaging.Tests  | Packaging   | ~4    | xUnit + local NuGet    |
 
 ## Prerequisites
 
@@ -59,6 +61,12 @@ dotnet test Tests/CaeriusNet.Tests --configuration Release
 dotnet test Tests/CaeriusNet.Generator.Tests --configuration Release
 ```
 
+### Analyzer tests only
+
+```bash
+dotnet test Tests/CaeriusNet.Analyzer.Tests --configuration Release
+```
+
 ### Integration tests
 
 ```bash
@@ -89,10 +97,22 @@ dotnet test CaeriusNet.slnx --configuration Release
 |-------------|-------------------------------------------------------------------------------------------------|
 | DTO         | Type mappings, nullable members, special conversions, `Half`, ordinal constants, and attributes |
 | TVP         | Supported SQL types, multi-column generation, nullable members, and `class` generation          |
-| Diagnostics | `CAERIUS001` through `CAERIUS005` diagnostics                                                   |
 | Helpers     | `TypeDetector` and `ColumnExtractor` helper logic                                               |
 
 These tests use `CSharpSourceGeneratorTest` to compile source in memory and verify generated output.
+
+### Analyzer tests (`CaeriusNet.Analyzer.Tests`)
+
+| Category      | What is tested                                      |
+|---------------|-----------------------------------------------------|
+| Attributes    | `CAERIUS001` through `CAERIUS006` target diagnostics |
+| AutoContracts | `CAERIUS200` through `CAERIUS210` manifest diagnostics |
+
+### Packaging tests (`CaeriusNet.Packaging.Tests`)
+
+| Category      | What is tested                                                       |
+|---------------|-----------------------------------------------------------------------|
+| AutoContracts | NuGet `buildTransitive`, `AdditionalFiles`, and non-versioned naming |
 
 ### Integration tests (`CaeriusNet.IntegrationTests`)
 

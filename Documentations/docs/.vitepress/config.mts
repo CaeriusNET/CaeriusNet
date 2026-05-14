@@ -22,6 +22,7 @@ export default defineConfig({
         items: [
           { text: 'DTO Mapping', link: '/documentation/dto-mapping' },
           { text: 'Source Generators', link: '/documentation/source-generators' },
+          { text: 'AutoContracts', link: '/documentation/auto-contracts' },
           { text: 'Reading Data', link: '/documentation/reading-data' },
           { text: 'Writing Data', link: '/documentation/writing-data' },
           { text: 'Table-Valued Parameters', link: '/documentation/tvp' },
@@ -61,6 +62,7 @@ export default defineConfig({
         items: [
           { text: 'DTO Mapping', link: '/documentation/dto-mapping' },
           { text: 'Source Generators', link: '/documentation/source-generators' },
+          { text: 'AutoContracts', link: '/documentation/auto-contracts' },
           { text: 'Table-Valued Parameters', link: '/documentation/tvp' }
         ]
       },
@@ -97,7 +99,19 @@ export default defineConfig({
            { text: 'CAERIUS002', link: '/diagnostics/CAERIUS002' },
            { text: 'CAERIUS003', link: '/diagnostics/CAERIUS003' },
            { text: 'CAERIUS004', link: '/diagnostics/CAERIUS004' },
-           { text: 'CAERIUS005', link: '/diagnostics/CAERIUS005' }
+           { text: 'CAERIUS005', link: '/diagnostics/CAERIUS005' },
+           { text: 'CAERIUS006', link: '/diagnostics/CAERIUS006' },
+           { text: 'CAERIUS200', link: '/diagnostics/CAERIUS200' },
+           { text: 'CAERIUS201', link: '/diagnostics/CAERIUS201' },
+           { text: 'CAERIUS202', link: '/diagnostics/CAERIUS202' },
+           { text: 'CAERIUS203', link: '/diagnostics/CAERIUS203' },
+           { text: 'CAERIUS204', link: '/diagnostics/CAERIUS204' },
+           { text: 'CAERIUS205', link: '/diagnostics/CAERIUS205' },
+           { text: 'CAERIUS206', link: '/diagnostics/CAERIUS206' },
+           { text: 'CAERIUS207', link: '/diagnostics/CAERIUS207' },
+           { text: 'CAERIUS208', link: '/diagnostics/CAERIUS208' },
+           { text: 'CAERIUS209', link: '/diagnostics/CAERIUS209' },
+           { text: 'CAERIUS210', link: '/diagnostics/CAERIUS210' }
          ]
        },
       {

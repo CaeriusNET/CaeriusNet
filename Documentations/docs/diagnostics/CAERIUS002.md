@@ -1,7 +1,7 @@
 # CAERIUS002 — Type must be `partial`
 
 **Severity**: Error
-**Category**: CaeriusNet.Generator
+**Category**: CaeriusNet.Analyzer
 **Applies to**: `[GenerateDto]`, `[GenerateTvp]`
 
 ## Cause
