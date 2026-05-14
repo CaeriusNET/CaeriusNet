@@ -14,5 +14,4 @@ contract.
 Create the expected user-defined table type, correct the schema-qualified TVP name, or update the
 procedure so it references the intended type.
 
-After an intentional database change, run `Pull` so `caerius.contracts.json` contains the current
-TVP shape before the source generator reads it as `AdditionalFiles`.
+After an intentional database change, set `CaeriusContractsMode` to `Pull` and run `dotnet build` so `caerius.contracts.json` contains the current TVP shape.

@@ -94,12 +94,10 @@ jobs:
           esac
 
           sed -i -E "s|<Version>[0-9]+\.[0-9]+\.[0-9]+</Version>|<Version>${NEW}</Version>|" Src/CaeriusNet.csproj
-          sed -i -E "s|<Version>[0-9]+\.[0-9]+\.[0-9]+</Version>|<Version>${NEW}</Version>|" Tools/CaeriusNet.SqlServer.Contracts/CaeriusNet.SqlServer.Contracts.csproj
 
           SRC_VERSION=$(grep -oP '(?<=<Version>)\d+\.\d+\.\d+(?=</Version>)' Src/CaeriusNet.csproj)
-          TOOLS_VERSION=$(grep -oP '(?<=<Version>)\d+\.\d+\.\d+(?=</Version>)' Tools/CaeriusNet.SqlServer.Contracts/CaeriusNet.SqlServer.Contracts.csproj)
-          if [ "$SRC_VERSION" != "$NEW" ] || [ "$TOOLS_VERSION" != "$NEW" ]; then
-            echo "❌ Version bump did not update all published packages. Src=${SRC_VERSION}; Tools=${TOOLS_VERSION}; expected=${NEW}."
+          if [ "$SRC_VERSION" != "$NEW" ]; then
+            echo "❌ Version bump did not update CaeriusNet. Src=${SRC_VERSION}; expected=${NEW}."
             exit 1
           fi
 
@@ -168,14 +166,10 @@ jobs:
       # ── Pack ────────────────────────────────────────────────────────────────────
       - name: Pack (nupkg + snupkg)
         run: |
-          dotnet pack Src/CaeriusNet.csproj \
-            --configuration Release \
-            --no-build \
-            --output ./packages \
-            -p:IncludeSymbols=true \
-            -p:SymbolPackageFormat=snupkg
+          rm -rf ./packages
+          mkdir -p ./packages
 
-          dotnet pack Tools/CaeriusNet.SqlServer.Contracts/CaeriusNet.SqlServer.Contracts.csproj \
+          dotnet pack Src/CaeriusNet.csproj \
             --configuration Release \
             --no-build \
             --output ./packages \
@@ -218,7 +212,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Src/CaeriusNet.csproj Tools/CaeriusNet.SqlServer.Contracts/CaeriusNet.SqlServer.Contracts.csproj
+          git add Src/CaeriusNet.csproj
           git commit -m "chore: release v${{ steps.bump.outputs.new }} [skip ci]"
           git push
           echo "✅ Version bump committed: ${{ steps.bump.outputs.new }}"

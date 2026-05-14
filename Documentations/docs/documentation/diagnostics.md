@@ -14,7 +14,7 @@ Use this page to decide whether a diagnostic must be fixed, can be suppressed, o
 | [CAERIUS004](/diagnostics/CAERIUS004) | Error | `[GenerateTvp]` requires a non-empty `TvpName` | The attribute sets `TvpName` to an empty or whitespace-only string |
 | [CAERIUS005](/diagnostics/CAERIUS005) | Warning | Unmapped CLR type falls back to `sql_variant` | A constructor parameter has a type with no native SQL Server mapping |
 | [CAERIUS006](/diagnostics/CAERIUS006) | Error | Generator target shape is not supported | A generator target cannot be represented safely |
-| [CAERIUS200](/diagnostics/CAERIUS200) | Error | AutoContracts manifest is missing | AutoContracts generation is enabled, but no `caerius.contracts.json` `AdditionalFiles` item is available |
+| [CAERIUS200](/diagnostics/CAERIUS200) | Error | AutoContracts manifest is missing | AutoContracts is enabled, but `caerius.contracts.json` has not been generated or restored |
 | [CAERIUS201](/diagnostics/CAERIUS201) | Error | Stored procedure could not be found | The manifest references a procedure that is missing from the inspected SQL Server database |
 | [CAERIUS202](/diagnostics/CAERIUS202) | Error | Referenced TVP type is missing | A procedure parameter references a TVP type that is missing from SQL Server metadata |
 | [CAERIUS203](/diagnostics/CAERIUS203) | Error | TVP SQL type is not supported | A referenced TVP column uses a SQL Server type AutoContracts cannot generate safely |

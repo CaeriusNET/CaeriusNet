@@ -17,6 +17,8 @@ passes Table-Valued Parameters, and caches results — all in a single package, 
 dotnet add package CaeriusNet
 ```
 
+AutoContracts is included in `CaeriusNet`. Set the MSBuild properties when you want build-time SQL Server contract discovery; there is no additional install step.
+
 ## Prerequisites
 
 - .NET 10 or later
@@ -109,6 +111,23 @@ var sp = new StoredProcedureParametersBuilder("dbo", "sp_BulkInsert", ResultSetC
 
 int rows = await dbContext.ExecuteNonQueryAsync(sp, ct);
 ```
+
+## AutoContracts
+
+AutoContracts validates stored procedure contracts from SQL Server metadata during normal builds. Add `CaeriusNet` to the project that owns your data-access code, then use MSBuild properties to pull or verify the manifest.
+
+```xml
+<PropertyGroup>
+  <CaeriusContractsMode>Pull</CaeriusContractsMode>
+  <CaeriusContractsConnectionName>DefaultConnection</CaeriusContractsConnectionName>
+</PropertyGroup>
+```
+
+```bash
+dotnet build
+```
+
+`Pull` creates or refreshes `caerius.contracts.json`. Commit that file with your code. In CI, switch to `Verify` so the build fails if SQL Server metadata drifts from the committed manifest.
 
 ## Caching
 

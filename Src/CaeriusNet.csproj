@@ -14,16 +14,17 @@
         <Version>11.0.3</Version>
         <Title>CaeriusNet</Title>
         <Authors>AriusII &amp; CaeriusNet</Authors>
-        <Description>High-performance micro-ORM for C# 14 / .NET 10 and SQL Server. Execute Stored Procedures, map DTOs at compile-time ([GenerateDto]), pass Table-Valued Parameters ([GenerateTvp]), and cache results — all in a single package.</Description>
+        <Description>High-performance micro-ORM for C# 14 / .NET 10 and SQL Server. Execute Stored Procedures, map DTOs at compile-time ([GenerateDto]), pass Table-Valued Parameters ([GenerateTvp]), cache results, and verify SQL contracts at build time - all in a single package.</Description>
         <Copyright>2026</Copyright>
         <PackageProjectUrl>https://caerius.net</PackageProjectUrl>
         <RepositoryUrl>https://github.com/CaeriusNET/CaeriusNet</RepositoryUrl>
-        <PackageTags>orm;micro-orm;sql-server;stored-procedures;source-generator;roslyn;tvp;dto;caching;aspire;performance;adonet</PackageTags>
+        <PackageTags>orm;micro-orm;sql-server;stored-procedures;source-generator;roslyn;tvp;dto;caching;contracts;autocontracts;aspire;performance;adonet</PackageTags>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <PackageReleaseNotes>See https://github.com/CaeriusNET/CaeriusNet/releases for release notes.</PackageReleaseNotes>
         <RepositoryType>git</RepositoryType>
         <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+        <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);CaeriusPackContractsTool</TargetsForTfmSpecificContentInPackage>
     </PropertyGroup>
 
     <PropertyGroup>
@@ -89,6 +90,14 @@
               Pack="true"
               PackagePath="analyzers/dotnet/cs/"
               Visible="false"/>
+        <None Include="buildTransitive\CaeriusNet.props"
+              Pack="true"
+              PackagePath="buildTransitive\"
+              Visible="false"/>
+        <None Include="buildTransitive\CaeriusNet.targets"
+              Pack="true"
+              PackagePath="buildTransitive\"
+              Visible="false"/>
     </ItemGroup>
 
     <ItemGroup>
@@ -116,4 +125,28 @@
                           PrivateAssets="all"
                           GlobalPropertiesToRemove="IsAotCompatible;IsTrimmable;EnableAotAnalyzer;EnableTrimAnalyzer;EnableSingleFileAnalyzer;PublishAot;PublishTrimmed;PublishSingleFile"/>
     </ItemGroup>
+
+    <Target Name="BuildCaeriusContractsToolForPackage"
+            Condition="'$(NoBuild)' != 'true'">
+        <MSBuild Projects="../Tools/CaeriusNet.SqlServer.Contracts/CaeriusNet.SqlServer.Contracts.csproj"
+                 Targets="Build"
+                 Properties="Configuration=$(Configuration);NoRestore=$(NoRestore)"/>
+    </Target>
+
+    <Target Name="CaeriusPackContractsTool"
+            DependsOnTargets="BuildCaeriusContractsToolForPackage">
+        <PropertyGroup>
+            <CaeriusContractsToolOutputDirectory>$(MSBuildProjectDirectory)/../Tools/CaeriusNet.SqlServer.Contracts/bin/$(Configuration)/net10.0/</CaeriusContractsToolOutputDirectory>
+            <CaeriusContractsToolAssembly>$(CaeriusContractsToolOutputDirectory)CaeriusNet.SqlServer.Contracts.dll</CaeriusContractsToolAssembly>
+        </PropertyGroup>
+
+        <Error Condition="!Exists('$(CaeriusContractsToolAssembly)')"
+               Text="AutoContracts tool output is missing. Build Tools\CaeriusNet.SqlServer.Contracts\CaeriusNet.SqlServer.Contracts.csproj before packing CaeriusNet, or run dotnet pack without --no-build."/>
+
+        <ItemGroup>
+            <TfmSpecificPackageFile Include="$(CaeriusContractsToolOutputDirectory)**/*.*"
+                                    Exclude="$(CaeriusContractsToolOutputDirectory)publish/**/*.*"
+                                    PackagePath="tools/net10.0/any/%(RecursiveDir)%(Filename)%(Extension)"/>
+        </ItemGroup>
+    </Target>
 </Project>

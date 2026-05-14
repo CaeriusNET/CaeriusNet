@@ -66,7 +66,7 @@ jobs:
 
           projects=(
             "Src/CaeriusNet.csproj|CaeriusNet"
-            "Tools/CaeriusNet.SqlServer.Contracts/CaeriusNet.SqlServer.Contracts.csproj|CaeriusNet.SqlServer.Contracts"
+            "Tools/CaeriusNet.SqlServer.Contracts/CaeriusNet.SqlServer.Contracts.csproj|CaeriusNet AutoContracts tool"
             "Analyzer/CaeriusNet.Analyzer.csproj|CaeriusNet.Analyzer"
             "SourceGenerators/CaeriusNet.Generator.csproj|CaeriusNet.Generator"
           )

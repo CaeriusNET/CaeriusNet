@@ -8,20 +8,8 @@
         <Nullable>enable</Nullable>
         <RootNamespace>CaeriusNet.SqlServer.Contracts</RootNamespace>
         <AssemblyName>CaeriusNet.SqlServer.Contracts</AssemblyName>
-        <IsPackable>true</IsPackable>
-        <IncludeBuildOutput>false</IncludeBuildOutput>
-        <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
-        <PackageId>CaeriusNet.SqlServer.Contracts</PackageId>
-        <Version>11.0.3</Version>
-        <Authors>AriusII &amp; CaeriusNet</Authors>
-        <Description>SQL Server read-only contract discovery tool for CaeriusNet generated stored procedure contracts.</Description>
-        <PackageReadmeFile>README.md</PackageReadmeFile>
-        <PackageLicenseExpression>MIT</PackageLicenseExpression>
-        <RepositoryUrl>https://github.com/CaeriusNET/CaeriusNet</RepositoryUrl>
-        <RepositoryType>git</RepositoryType>
-        <PackageTags>caeriusnet;sql-server;stored-procedures;contracts;source-generator</PackageTags>
+        <IsPackable>false</IsPackable>
         <Deterministic>true</Deterministic>
-        <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);CaeriusPackContractsTool</TargetsForTfmSpecificContentInPackage>
     </PropertyGroup>
 
     <ItemGroup>
@@ -29,25 +17,5 @@
         <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.8"/>
         <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.8"/>
     </ItemGroup>
-
-    <ItemGroup>
-        <None Include="buildTransitive\CaeriusNet.SqlServer.Contracts.props"
-              Pack="true"
-              PackagePath="buildTransitive\"/>
-        <None Include="buildTransitive\CaeriusNet.SqlServer.Contracts.targets"
-              Pack="true"
-              PackagePath="buildTransitive\"/>
-        <None Include="README.md"
-              Pack="true"
-              PackagePath="\"/>
-    </ItemGroup>
-
-    <Target Name="CaeriusPackContractsTool">
-        <ItemGroup>
-            <TfmSpecificPackageFile Include="$(TargetDir)**/*.*"
-                                    Exclude="$(TargetDir)publish/**/*.*"
-                                    PackagePath="tools/$(TargetFramework)/any/%(RecursiveDir)%(Filename)%(Extension)"/>
-        </ItemGroup>
-    </Target>
 
 </Project>

@@ -1,14 +1,20 @@
-# CaeriusNet.SqlServer.Contracts
+# AutoContracts tool
 
-Build-time SQL Server contract discovery package for CaeriusNet AutoContracts.
+This project builds the internal AutoContracts SQL Server discovery tool that ships inside the main `CaeriusNet` NuGet package.
 
-The package contributes MSBuild `buildTransitive` imports and an embedded CLI used to pull or verify
-`caerius.contracts.json` from SQL Server metadata. The source generator itself reads only `AdditionalFiles` and does not
-connect to SQL Server.
+It is not a standalone public package. Consumers install only `CaeriusNet`; the package imports the MSBuild targets and invokes this tool from its embedded `tools/net10.0/any` assets during normal `dotnet build` commands.
 
-## Connection strings
+## Consumer usage
 
-The preferred project setup is to resolve the SQL Server connection by .NET configuration name:
+Add the main package to the project that owns your CaeriusNet data-access code.
+
+```bash
+dotnet add package CaeriusNet
+```
+
+## Pull contracts
+
+Use `Pull` when you intentionally change stored procedure contracts.
 
 ```xml
 <PropertyGroup>
@@ -17,21 +23,48 @@ The preferred project setup is to resolve the SQL Server connection by .NET conf
 </PropertyGroup>
 ```
 
-The embedded CLI reads `ConnectionStrings:DefaultConnection` from `appsettings.json`,
-`appsettings.{environment}.json`, user secrets, and environment variables. This matches manual
-configuration and Aspire-provided `ConnectionStrings__DefaultConnection` values.
-
-The database is selected by the SQL Server connection string. AutoContracts scans all application
-schemas in that database, including `dbo`, and ignores SQL Server system schemas such as `sys` and
-`INFORMATION_SCHEMA`.
-
-Direct CLI usage:
-
-```powershell
-dotnet CaeriusNet.SqlServer.Contracts.dll pull `
-  --connection-name DefaultConnection `
-  --configuration-base-path . `
-  --output caerius.contracts.json
+```bash
+dotnet build
 ```
 
-`--connection-env` and `--connection-string` remain available for CI and explicit scripting.
+The package reads `ConnectionStrings:DefaultConnection` from .NET configuration and writes:
+
+```text
+caerius.contracts.json
+```
+
+Commit that file with the application code that depends on it.
+
+## Verify contracts
+
+Use `Verify` in CI or release validation.
+
+```xml
+<PropertyGroup>
+  <CaeriusContractsMode>Verify</CaeriusContractsMode>
+  <CaeriusContractsConnectionStringEnv>SQLSERVER_CONNECTION_STRING</CaeriusContractsConnectionStringEnv>
+</PropertyGroup>
+```
+
+```bash
+dotnet build --configuration Release
+```
+
+If SQL Server metadata no longer matches `caerius.contracts.json`, the build fails with AutoContracts diagnostics.
+
+## Configuration
+
+| Property | Default | Purpose |
+|---|---|---|
+| `CaeriusContractsMode` | `Off` | Enables `Pull`, `Verify`, or disables AutoContracts. |
+| `CaeriusContractsOutput` | `$(ProjectDir)caerius.contracts.json` | Manifest path. |
+| `CaeriusContractsConnectionName` | `DefaultConnection` | Named connection string from .NET configuration. |
+| `CaeriusContractsConnectionStringEnv` | Empty | Environment variable that contains the SQL Server connection string. |
+| `CaeriusContractsConnectionString` | Empty | Inline connection string. Prefer configuration or secrets instead. |
+| `CaeriusContractsConfigurationBasePath` | `$(MSBuildProjectDirectory)` | Directory used to load configuration files. |
+| `CaeriusContractsConfigurationEnvironment` | Empty | Environment suffix for `appsettings.{environment}.json`. |
+| `CaeriusContractsUserSecretsId` | Project `UserSecretsId` | User secrets ID override. |
+
+## Read-only behavior
+
+AutoContracts reads SQL Server metadata only. It does not create, update, or delete database objects, and it does not inspect table data.

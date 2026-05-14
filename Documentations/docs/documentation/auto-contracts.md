@@ -1,56 +1,40 @@
 # AutoContracts
 
-AutoContracts helps keep CaeriusNet call sites aligned with SQL Server stored procedure metadata. It reads stored procedure contracts from SQL Server, stores them in a local manifest, and can verify that the database still matches the contract your application expects.
+AutoContracts keeps CaeriusNet stored procedure contracts aligned with SQL Server metadata. It is built into the `CaeriusNet` NuGet package. You install one package, configure MSBuild properties, and run `dotnet build`.
 
-Use AutoContracts when stored procedures are shared across teams, deployed separately from application code, or validated in CI.
+Use AutoContracts when stored procedures are deployed separately from application code, reviewed by another team, or validated in CI before release.
 
-## What AutoContracts checks
+## Install CaeriusNet
 
-AutoContracts tracks the public contract shape used by typed stored procedure calls:
+Install the main package in the project that owns your CaeriusNet data-access code.
 
-- Stored procedure schema and name
-- Parameter names, SQL types, direction, and nullability
-- Result-set columns when SQL Server can expose them through metadata
-- Typed call contracts used by `StoredProcedureParametersBuilder<TProcedure>`
+```bash
+dotnet add package CaeriusNet
+```
 
-AutoContracts does not inspect data rows and does not execute business logic. It only reads SQL Server metadata.
+No additional package is required. `CaeriusNet` includes the runtime, analyzers, source generators, build integration, and SQL Server contract discovery support.
 
-## Manifest file
+## How AutoContracts fits in your build
 
-The contract snapshot is stored in `caerius.contracts.json`.
+AutoContracts uses normal `dotnet build` commands.
 
-When AutoContracts runs through MSBuild, the default path is:
+1. Set `CaeriusContractsMode` in your project file.
+2. Build the project.
+3. In `Pull` mode, CaeriusNet reads SQL Server metadata and writes `caerius.contracts.json`.
+4. In `Verify` mode, CaeriusNet compares SQL Server metadata with the committed manifest.
+5. The compiler uses the manifest to emit typed contract helpers for procedures, parameters, result rows, and table-valued parameters.
+
+The default manifest path is:
 
 ```xml
 $(ProjectDir)caerius.contracts.json
 ```
 
-Override `CaeriusContractsOutput` when a project needs a different manifest path:
+Commit this file with the code that depends on it.
 
-```xml
-<PropertyGroup>
-  <CaeriusContractsOutput>Contracts\caerius.contracts.json</CaeriusContractsOutput>
-</PropertyGroup>
-```
+## Configure AutoContracts
 
-When you run the CLI directly:
-
-- `pull` writes to `--output` when provided, then `--manifest` when provided, and otherwise `caerius.contracts.json` in the current directory.
-- `verify` reads from `--manifest` when provided, then `--output` when provided, and otherwise `caerius.contracts.json` in the current directory.
-
-## Modes
-
-Set `CaeriusContractsMode` to control how AutoContracts behaves.
-
-| Mode | Behavior |
-|---|---|
-| `Pull` | Reads SQL Server metadata and refreshes `caerius.contracts.json`. Use this after an intentional stored procedure contract change. |
-| `Verify` | Reads SQL Server metadata and compares it with `caerius.contracts.json`. Use this in validation workflows to detect drift. |
-| `Off` | Skips AutoContracts. Use this when contract checks are not needed for a run. |
-
-## Configure the connection string
-
-Prefer resolving the discovery connection string by name so AutoContracts follows the same configuration model as your application.
+Add the MSBuild properties to your application `.csproj`.
 
 ```xml
 <PropertyGroup>
@@ -59,53 +43,143 @@ Prefer resolving the discovery connection string by name so AutoContracts follow
 </PropertyGroup>
 ```
 
-AutoContracts reads `ConnectionStrings:DefaultConnection` from .NET configuration. It supports `appsettings.json`, optional `appsettings.{environment}.json`, user secrets, and environment variables from the project directory.
+Then build the project:
 
-Use these properties when you need to control configuration resolution:
+```bash
+dotnet build
+```
 
-| Property | Purpose |
+AutoContracts resolves `ConnectionStrings:DefaultConnection` from standard .NET configuration sources:
+
+- `appsettings.json`
+- `appsettings.{environment}.json`
+- User secrets
+- Environment variables such as `ConnectionStrings__DefaultConnection`
+
+For Aspire projects, use the same connection-string name that your app uses.
+
+## Modes
+
+Set `CaeriusContractsMode` to one of these values.
+
+| Mode | Build behavior |
 |---|---|
-| `CaeriusContractsConfigurationEnvironment` | Selects the environment-specific configuration file. |
-| `CaeriusContractsUserSecretsId` | Overrides the project `UserSecretsId`. |
-| `CaeriusContractsConnectionName` | Selects the named connection string. |
+| `Off` | Does nothing. This is the default. |
+| `Pull` | Reads SQL Server metadata and refreshes `caerius.contracts.json` before compilation. |
+| `Verify` | Reads SQL Server metadata and fails the build if the database no longer matches `caerius.contracts.json`. |
 
-For Aspire-driven projects, the same configuration path works with `ConnectionStrings__DefaultConnection`. For local manual databases, store the value in `appsettings.Development.json` or user secrets. Do not commit production secrets.
+Use `Pull` during intentional database contract changes. Use `Verify` in CI and release validation.
 
-## CLI examples
+## Pull contracts
 
-Refresh a manifest from a named connection:
+Use `Pull` when you add or change stored procedures, table-valued parameter types, parameters, or result shapes.
 
-```powershell
-dotnet run --project Tools/CaeriusNet.SqlServer.Contracts -- `
-  pull `
-  --connection-name DefaultConnection `
-  --configuration-base-path .\src\MyApp `
-  --output .\src\MyApp\caerius.contracts.json
+```xml
+<PropertyGroup>
+  <CaeriusContractsMode>Pull</CaeriusContractsMode>
+  <CaeriusContractsConnectionName>DefaultConnection</CaeriusContractsConnectionName>
+</PropertyGroup>
 ```
 
-Verify an existing manifest with a connection string from the environment:
-
-```powershell
-dotnet run --project Tools/CaeriusNet.SqlServer.Contracts -- `
-  verify `
-  --connection-env SQLSERVER_CONNECTION_STRING `
-  --manifest .\src\MyApp\caerius.contracts.json
+```bash
+dotnet build
 ```
+
+Review the updated `caerius.contracts.json`, then commit it with the related C# and SQL changes.
+
+## Verify contracts in CI
+
+Use `Verify` when the manifest already exists and the build should fail on contract drift.
+
+```xml
+<PropertyGroup>
+  <CaeriusContractsMode>Verify</CaeriusContractsMode>
+  <CaeriusContractsConnectionName>DefaultConnection</CaeriusContractsConnectionName>
+</PropertyGroup>
+```
+
+```bash
+dotnet build --configuration Release
+```
+
+If SQL Server metadata differs from the manifest, AutoContracts reports diagnostics such as `CAERIUS201` through `CAERIUS210`.
+
+## Use a CI connection string
+
+CI systems usually provide connection strings through environment variables. Configure the property once:
+
+```xml
+<PropertyGroup>
+  <CaeriusContractsMode>Verify</CaeriusContractsMode>
+  <CaeriusContractsConnectionStringEnv>SQLSERVER_CONNECTION_STRING</CaeriusContractsConnectionStringEnv>
+</PropertyGroup>
+```
+
+Then set `SQLSERVER_CONNECTION_STRING` in your CI secret store.
+
+## Override the manifest path
+
+Use the default path unless your project has a specific layout requirement.
+
+```xml
+<PropertyGroup>
+  <CaeriusContractsOutput>Contracts\caerius.contracts.json</CaeriusContractsOutput>
+</PropertyGroup>
+```
+
+CaeriusNet automatically supplies that file to the compiler when it exists.
+
+## Use generated contracts
+
+After `caerius.contracts.json` exists, CaeriusNet generates typed helpers from the stored procedure metadata.
+
+```csharp
+ReadOnlyMemory<CustomerIdRowsTvp> ids = new[]
+{
+    new CustomerIdRowsTvp(1),
+    new CustomerIdRowsTvp(2)
+};
+
+var parameters = new CustomerSearchParameters(ids, IncludeDisabled: false);
+
+var storedProcedure = StoredProcedureParametersBuilder<CustomerSearchProcedure>
+    .Create(parameters, resultSetCapacity: ids.Length)
+    .Build();
+
+var results = await dbContext.QueryAsReadOnlyCollectionAsync<CustomerSearchResult>(
+    storedProcedure,
+    cancellationToken);
+```
+
+The generated names come from the manifest produced by `Pull`. Review the manifest when database objects are renamed so the generated API remains clear.
+
+## Configuration reference
+
+| Property | Default | Purpose |
+|---|---|---|
+| `CaeriusContractsMode` | `Off` | Enables `Pull`, `Verify`, or disables AutoContracts. |
+| `CaeriusContractsOutput` | `$(ProjectDir)caerius.contracts.json` | Manifest path. |
+| `CaeriusContractsConnectionName` | `DefaultConnection` | Named connection string from .NET configuration. |
+| `CaeriusContractsConnectionStringEnv` | Empty | Environment variable that contains the SQL Server connection string. |
+| `CaeriusContractsConnectionString` | Empty | Inline connection string. Prefer configuration or secrets instead. |
+| `CaeriusContractsConfigurationBasePath` | `$(MSBuildProjectDirectory)` | Directory used to load configuration files. |
+| `CaeriusContractsConfigurationEnvironment` | Empty | Environment suffix for `appsettings.{environment}.json`. |
+| `CaeriusContractsUserSecretsId` | Project `UserSecretsId` | User secrets ID override. |
 
 ## Recommended workflow
 
-1. Change the stored procedure contract intentionally.
-2. Run AutoContracts with `Pull`.
-3. Review the updated `caerius.contracts.json`.
-4. Commit the application change and the refreshed contract snapshot together.
-5. Run AutoContracts with `Verify` in CI to catch unexpected SQL Server drift.
+1. Install `CaeriusNet`.
+2. Set `CaeriusContractsMode` to `Pull`.
+3. Run `dotnet build` to create or refresh `caerius.contracts.json`.
+4. Review and commit the manifest.
+5. Change CI to `CaeriusContractsMode=Verify`.
+6. Let CaeriusNet validate and generate contracts during normal builds.
 
 ## Read-only guarantees
 
-AutoContracts uses SQL Server metadata reads only.
+AutoContracts reads SQL Server metadata only.
 
-- `Pull` updates `caerius.contracts.json` in the application workspace. It does not apply SQL changes back to the database.
-- `Verify` reports mismatches and leaves both SQL Server and the snapshot unchanged.
-- `Off` disables the check for local scenarios where SQL Server is unavailable.
-
-Prefer `Verify` wherever a real database is part of validation.
+- It does not create, update, or delete SQL Server objects.
+- It does not inspect table data.
+- `Pull` writes only the manifest file in your project.
+- `Verify` reports drift and leaves both SQL Server and the manifest unchanged.

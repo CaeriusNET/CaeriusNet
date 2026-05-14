@@ -196,5 +196,6 @@ On a cache hit, CaeriusNet returns the cached value and does not execute the sto
 - [Reading data](/documentation/reading-data)
 - [Writing data](/documentation/writing-data)
 - [DTO mapping](/documentation/dto-mapping)
+- [AutoContracts](/documentation/auto-contracts)
 - [Table-valued parameters](/documentation/tvp)
 - [Multiple result sets](/documentation/multi-results)

@@ -35,6 +35,7 @@
 - **Three caching layers** — Frozen (immutable in-process), In-Memory (TTL), and Redis (distributed).
 - **Multi-result sets** — retrieve up to 5 strongly-typed result sets in a single database round-trip.
 - **TVP support** — pass structured data to SQL Server efficiently without any DataTable overhead.
+- **AutoContracts** — optionally pull and verify stored procedure contracts during `dotnet build` from the same NuGet package.
 - **Aspire-ready** — first-class integration with .NET Aspire for cloud-native scenarios.
 
 ---
@@ -45,7 +46,7 @@
 dotnet add package CaeriusNet
 ```
 
-The source generator is bundled inside the package — no separate analyzer package is required.
+The runtime, analyzers, source generators, and AutoContracts MSBuild integration are bundled in this single package.
 
 ---
 

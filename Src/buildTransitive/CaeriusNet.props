@@ -14,5 +14,6 @@
     <ItemGroup>
         <CompilerVisibleProperty Include="CaeriusContractsMode"/>
         <CompilerVisibleProperty Include="CaeriusContractsOutput"/>
+        <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="CaeriusContractManifest"/>
     </ItemGroup>
 </Project>

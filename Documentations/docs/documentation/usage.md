@@ -29,6 +29,7 @@ var users = await dbContext.QueryAsReadOnlyCollectionAsync<UserDto>(sp, ct);
 | Install the package and register services | [Install and configure](/quickstart/getting-started) |
 | Map stored procedure result rows to DTOs | [DTO mapping](/documentation/dto-mapping) |
 | Generate DTO or TVP mapper code | [Source generators](/documentation/source-generators) |
+| Generate or verify stored procedure contracts | [AutoContracts](/documentation/auto-contracts) |
 | Read a result set | [Reading data](/documentation/reading-data) |
 | Execute writes, deletes, updates, or scalar commands | [Writing data](/documentation/writing-data) |
 | Send a list of values to SQL Server | [Table-valued parameters](/documentation/tvp) |

@@ -194,7 +194,10 @@ function Write-PackageHashes {
 }
 
 function Validate-CaeriusNetPackage {
-    param([Parameter(Mandatory = $true)][System.IO.FileInfo]$Package)
+    param(
+        [Parameter(Mandatory = $true)][System.IO.FileInfo]$Package,
+        [Parameter(Mandatory = $true)][string]$ExtractDirectory
+    )
 
     Assert-PackageEntries -Package $Package -RequiredEntries @(
         "CaeriusNet.nuspec",
@@ -203,28 +206,9 @@ function Validate-CaeriusNetPackage {
         "lib/net10.0/CaeriusNet.dll",
         "lib/net10.0/CaeriusNet.xml",
         "analyzers/dotnet/cs/CaeriusNet.Generator.dll",
-        "analyzers/dotnet/cs/CaeriusNet.Analyzer.dll"
-    )
-
-    Assert-PackageTextContains -Package $Package -EntryName "CaeriusNet.nuspec" -ExpectedText @(
-        "<id>CaeriusNet</id>",
-        "<license type=`"expression`">MIT</license>",
-        "<readme>README.md</readme>",
-        "<repository type=`"git`" url=`"https://github.com/CaeriusNET/CaeriusNet`""
-    )
-}
-
-function Validate-ContractsPackage {
-    param(
-        [Parameter(Mandatory = $true)][System.IO.FileInfo]$Package,
-        [Parameter(Mandatory = $true)][string]$ExtractDirectory
-    )
-
-    Assert-PackageEntries -Package $Package -RequiredEntries @(
-        "CaeriusNet.SqlServer.Contracts.nuspec",
-        "README.md",
-        "buildTransitive/CaeriusNet.SqlServer.Contracts.props",
-        "buildTransitive/CaeriusNet.SqlServer.Contracts.targets",
+        "analyzers/dotnet/cs/CaeriusNet.Analyzer.dll",
+        "buildTransitive/CaeriusNet.props",
+        "buildTransitive/CaeriusNet.targets",
         "tools/net10.0/any/CaeriusNet.SqlServer.Contracts.dll",
         "tools/net10.0/any/CaeriusNet.SqlServer.Contracts.deps.json",
         "tools/net10.0/any/CaeriusNet.SqlServer.Contracts.runtimeconfig.json",
@@ -233,14 +217,15 @@ function Validate-ContractsPackage {
         "tools/net10.0/any/Microsoft.Extensions.Configuration.Json.dll"
     )
 
-    Assert-PackageTextContains -Package $Package -EntryName "CaeriusNet.SqlServer.Contracts.nuspec" -ExpectedText @(
-        "<id>CaeriusNet.SqlServer.Contracts</id>",
+    Assert-PackageTextContains -Package $Package -EntryName "CaeriusNet.nuspec" -ExpectedText @(
+        "<id>CaeriusNet</id>",
         "<license type=`"expression`">MIT</license>",
         "<readme>README.md</readme>",
         "<repository type=`"git`" url=`"https://github.com/CaeriusNET/CaeriusNet`""
     )
 
-    Assert-PackageTextDoesNotContain -Package $Package -EntryName "CaeriusNet.SqlServer.Contracts.nuspec" -DisallowedText @(
+    Assert-PackageTextDoesNotContain -Package $Package -EntryName "CaeriusNet.nuspec" -DisallowedText @(
+        "<id>CaeriusNet.SqlServer.Contracts</id>",
         "DotnetTool",
         "<packageTypes"
     )
@@ -253,7 +238,7 @@ function Validate-ContractsPackage {
     [System.IO.Compression.ZipFile]::ExtractToDirectory($Package.FullName, $ExtractDirectory)
     $toolPath = Join-Path $ExtractDirectory "tools/net10.0/any/CaeriusNet.SqlServer.Contracts.dll"
     if (-not (Test-Path $toolPath)) {
-        throw "Extracted tool package is missing '$toolPath'."
+        throw "Extracted CaeriusNet package is missing '$toolPath'."
     }
 
     Invoke-DotNet -Arguments @($toolPath, "--help") -FailureMessage "Contracts tool smoke test failed."
@@ -271,7 +256,7 @@ else {
 }
 
 $consumerDirectory = Join-Path $outputRoot "consumer"
-$contractsExtractDirectory = Join-Path $outputRoot "contracts-package"
+$packageExtractDirectory = Join-Path $outputRoot "caeriusnet-package"
 $previousNuGetPackages = $env:NUGET_PACKAGES
 
 Push-Location $repoRoot
@@ -292,17 +277,14 @@ try {
     else {
         New-Item -ItemType Directory -Path $packageDirectory -Force | Out-Null
 
-        Invoke-DotNet -Arguments @("build", "Src\CaeriusNet.csproj", "--configuration", $Configuration, "--no-incremental") `
-            -FailureMessage "dotnet build failed for CaeriusNet."
-
         Invoke-DotNet -Arguments @("build", "Tools\CaeriusNet.SqlServer.Contracts\CaeriusNet.SqlServer.Contracts.csproj", "--configuration", $Configuration, "--no-incremental") `
             -FailureMessage "dotnet build failed for CaeriusNet.SqlServer.Contracts."
 
+        Invoke-DotNet -Arguments @("build", "Src\CaeriusNet.csproj", "--configuration", $Configuration, "--no-incremental") `
+            -FailureMessage "dotnet build failed for CaeriusNet."
+
         Invoke-DotNet -Arguments @("pack", "Src\CaeriusNet.csproj", "--configuration", $Configuration, "--no-build", "--output", $packageDirectory) `
             -FailureMessage "dotnet pack failed for CaeriusNet."
-
-        Invoke-DotNet -Arguments @("pack", "Tools\CaeriusNet.SqlServer.Contracts\CaeriusNet.SqlServer.Contracts.csproj", "--configuration", $Configuration, "--no-build", "--output", $packageDirectory, "-p:IncludeSymbols=true", "-p:SymbolPackageFormat=snupkg") `
-            -FailureMessage "dotnet pack failed for CaeriusNet.SqlServer.Contracts."
     }
 
     $mainPackage = Get-RequiredPackage `
@@ -311,14 +293,12 @@ try {
         -Filter { $_.Name -match '^CaeriusNet\.[0-9]' -and $_.Name -notlike "*.symbols.nupkg" } `
         -Description "CaeriusNet .nupkg"
 
-    $contractsPackage = Get-RequiredPackage `
-        -Directory $packageDirectory `
-        -Pattern "CaeriusNet.SqlServer.Contracts.*.nupkg" `
-        -Filter { $_.Name -match '^CaeriusNet\.SqlServer\.Contracts\..+\.nupkg$' -and $_.Name -notlike "*.symbols.nupkg" } `
-        -Description "CaeriusNet.SqlServer.Contracts .nupkg"
+    $legacyContractsPackages = @(Get-ChildItem $packageDirectory -Filter "CaeriusNet.SqlServer.Contracts.*.nupkg" -File)
+    if ($legacyContractsPackages.Count -gt 0) {
+        throw "Found legacy standalone AutoContracts package(s) in '$packageDirectory': $($legacyContractsPackages.Name -join ', '). Publish only the CaeriusNet package."
+    }
 
-    Validate-CaeriusNetPackage -Package $mainPackage
-    Validate-ContractsPackage -Package $contractsPackage -ExtractDirectory $contractsExtractDirectory
+    Validate-CaeriusNetPackage -Package $mainPackage -ExtractDirectory $packageExtractDirectory
     Write-PackageHashes -Directory $packageDirectory
 
     $version = Get-PackageVersion -Package $mainPackage -PackageId "CaeriusNet"
@@ -335,6 +315,14 @@ try {
     <add key="local-caeriusnet" value="$packageSource" />
     <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
   </packageSources>
+  <packageSourceMapping>
+    <packageSource key="local-caeriusnet">
+      <package pattern="CaeriusNet" />
+    </packageSource>
+    <packageSource key="nuget.org">
+      <package pattern="*" />
+    </packageSource>
+  </packageSourceMapping>
 </configuration>
 "@ | Set-Content -Path (Join-Path $consumerDirectory "NuGet.config") -Encoding UTF8
 
@@ -350,7 +338,6 @@ try {
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="CaeriusNet" Version="$version" />
-    <AdditionalFiles Include="caerius.contracts.json" />
   </ItemGroup>
 </Project>
 "@ | Set-Content -Path (Join-Path $consumerDirectory "PackageSmoke.Consumer.csproj") -Encoding UTF8
@@ -475,7 +462,7 @@ internal static class Program
     Invoke-DotNet -Arguments @("run", "--project", (Join-Path $consumerDirectory "PackageSmoke.Consumer.csproj"), "--configuration", "Release") `
         -FailureMessage "Package smoke consumer failed."
 
-    Write-Host "Package validation succeeded for $($mainPackage.Name) and $($contractsPackage.Name)."
+    Write-Host "Package validation succeeded for $($mainPackage.Name)."
 }
 finally {
     if ($null -eq $previousNuGetPackages) {

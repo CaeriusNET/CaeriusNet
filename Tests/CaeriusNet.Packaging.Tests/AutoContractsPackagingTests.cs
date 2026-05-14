@@ -11,39 +11,30 @@ public sealed class AutoContractsPackagingTests
     public async Task PackageContainsBuildTransitiveImports()
     {
         var repoRoot = FindRepoRoot();
-        var toolSource = Path.Combine(repoRoot, "Tools", "CaeriusNet.SqlServer.Contracts");
 
         using var temp = new TemporaryDirectory();
-        var toolCopy = Path.Combine(temp.Path, "tool");
         var packageOutput = Path.Combine(temp.Path, "packages");
-        CopyToolProject(toolSource, toolCopy);
-        Directory.CreateDirectory(packageOutput);
+        var (package, _) = await PackMainPackageAsync(repoRoot, packageOutput);
 
-        var result = await RunDotnetAsync(
-            toolCopy,
-            "pack",
-            "CaeriusNet.SqlServer.Contracts.csproj",
-            "--configuration",
-            "Release",
-            "--output",
-            packageOutput);
-
-        Assert.True(result.ExitCode == 0, result.ToString());
-
-        var package = Assert.Single(Directory.EnumerateFiles(packageOutput, "CaeriusNet.SqlServer.Contracts.*.nupkg"));
         await using var archive = await ZipFile.OpenReadAsync(package);
 
         Assert.DoesNotContain(archive.Entries, entry => entry.FullName.Contains('\\', StringComparison.Ordinal));
-        Assert.NotNull(archive.GetEntry("buildTransitive/CaeriusNet.SqlServer.Contracts.props"));
-        Assert.NotNull(archive.GetEntry("buildTransitive/CaeriusNet.SqlServer.Contracts.targets"));
+        Assert.NotNull(archive.GetEntry("CaeriusNet.nuspec"));
+        Assert.NotNull(archive.GetEntry("buildTransitive/CaeriusNet.props"));
+        Assert.NotNull(archive.GetEntry("buildTransitive/CaeriusNet.targets"));
         Assert.NotNull(archive.GetEntry("tools/net10.0/any/CaeriusNet.SqlServer.Contracts.dll"));
         Assert.NotNull(archive.GetEntry("tools/net10.0/any/CaeriusNet.SqlServer.Contracts.deps.json"));
         Assert.NotNull(archive.GetEntry("tools/net10.0/any/CaeriusNet.SqlServer.Contracts.runtimeconfig.json"));
+        Assert.NotNull(archive.GetEntry("tools/net10.0/any/Microsoft.Data.SqlClient.dll"));
+        Assert.NotNull(archive.GetEntry("tools/net10.0/any/Microsoft.Extensions.Configuration.EnvironmentVariables.dll"));
+        Assert.NotNull(archive.GetEntry("tools/net10.0/any/Microsoft.Extensions.Configuration.Json.dll"));
 
         var nuspec = archive.Entries.Single(entry => entry.FullName.EndsWith(".nuspec", StringComparison.Ordinal));
         await using var stream = await nuspec.OpenAsync();
         using var reader = new StreamReader(stream);
         var nuspecText = await reader.ReadToEndAsync();
+        Assert.Contains("<id>CaeriusNet</id>", nuspecText, StringComparison.Ordinal);
+        Assert.DoesNotContain("<id>CaeriusNet.SqlServer.Contracts</id>", nuspecText, StringComparison.Ordinal);
         Assert.DoesNotContain("DotnetTool", nuspecText, StringComparison.Ordinal);
         Assert.DoesNotContain("<packageTypes", nuspecText, StringComparison.Ordinal);
     }
@@ -52,31 +43,16 @@ public sealed class AutoContractsPackagingTests
     public async Task PackageCanBeConsumedAsBuildTransitivePackageReference()
     {
         var repoRoot = FindRepoRoot();
-        var toolSource = Path.Combine(repoRoot, "Tools", "CaeriusNet.SqlServer.Contracts");
 
         using var temp = new TemporaryDirectory();
-        var toolCopy = Path.Combine(temp.Path, "tool");
         var packageOutput = Path.Combine(temp.Path, "packages");
         var consumerProject = Path.Combine(temp.Path, "consumer", "Consumer.csproj");
         var toolCommandOutput = Path.Combine(temp.Path, "consumer", "tool-command.txt");
         var packageCache = Path.Combine(temp.Path, "nuget-packages");
-        CopyToolProject(toolSource, toolCopy);
-        Directory.CreateDirectory(packageOutput);
         Directory.CreateDirectory(Path.GetDirectoryName(consumerProject)!);
 
-        var packResult = await RunDotnetAsync(
-            toolCopy,
-            "pack",
-            "CaeriusNet.SqlServer.Contracts.csproj",
-            "--configuration",
-            "Release",
-            "--output",
-            packageOutput);
-
-        Assert.True(packResult.ExitCode == 0, packResult.ToString());
-
-        var package = Assert.Single(Directory.EnumerateFiles(packageOutput, "CaeriusNet.SqlServer.Contracts.*.nupkg"));
-        var packageVersion = GetToolPackageVersion(package);
+        var (_, packageVersion) = await PackMainPackageAsync(repoRoot, packageOutput, packageCache);
+        await WriteNuGetConfigAsync(Path.GetDirectoryName(consumerProject)!, packageOutput);
 
         await File.WriteAllTextAsync(
             consumerProject,
@@ -88,9 +64,8 @@ public sealed class AutoContractsPackagingTests
                   </PropertyGroup>
 
                   <ItemGroup>
-                      <PackageReference Include="CaeriusNet.SqlServer.Contracts"
-                                        Version="{{packageVersion}}"
-                                        PrivateAssets="all"/>
+                      <PackageReference Include="CaeriusNet"
+                                        Version="{{packageVersion}}"/>
                   </ItemGroup>
 
                   <Target Name="WriteContractsToolCommand">
@@ -110,9 +85,7 @@ public sealed class AutoContractsPackagingTests
             "build",
             consumerProject,
             "--configuration",
-            "Release",
-            "--source",
-            packageOutput);
+            "Release");
 
         Assert.True(buildResult.ExitCode == 0, buildResult.ToString());
 
@@ -124,9 +97,8 @@ public sealed class AutoContractsPackagingTests
             },
             "msbuild",
             consumerProject,
-            "/t:WriteContractsToolCommand",
-            "/p:RestoreSources=" + packageOutput,
             "/restore",
+            "/t:WriteContractsToolCommand",
             "/nologo",
             "/v:minimal");
 
@@ -143,10 +115,8 @@ public sealed class AutoContractsPackagingTests
     public async Task PackageReferencePullHonorsProjectDefinedModeAndOutput()
     {
         var repoRoot = FindRepoRoot();
-        var toolSource = Path.Combine(repoRoot, "Tools", "CaeriusNet.SqlServer.Contracts");
 
         using var temp = new TemporaryDirectory();
-        var toolCopy = Path.Combine(temp.Path, "tool");
         var packageOutput = Path.Combine(temp.Path, "packages");
         var consumerDirectory = Path.Combine(temp.Path, "consumer");
         var consumerProject = Path.Combine(consumerDirectory, "Consumer.csproj");
@@ -154,23 +124,10 @@ public sealed class AutoContractsPackagingTests
         var manifest = Path.Combine(consumerDirectory, "generated.contracts.json");
         var stateOutput = Path.Combine(consumerDirectory, "contracts-state.txt");
         var invocationLog = Path.Combine(consumerDirectory, "fake-tool.log");
-        CopyToolProject(toolSource, toolCopy);
-        Directory.CreateDirectory(packageOutput);
         Directory.CreateDirectory(consumerDirectory);
 
-        var packResult = await RunDotnetAsync(
-            toolCopy,
-            "pack",
-            "CaeriusNet.SqlServer.Contracts.csproj",
-            "--configuration",
-            "Release",
-            "--output",
-            packageOutput);
-
-        Assert.True(packResult.ExitCode == 0, packResult.ToString());
-
-        var package = Assert.Single(Directory.EnumerateFiles(packageOutput, "CaeriusNet.SqlServer.Contracts.*.nupkg"));
-        var packageVersion = GetToolPackageVersion(package);
+        var (_, packageVersion) = await PackMainPackageAsync(repoRoot, packageOutput, packageCache);
+        await WriteNuGetConfigAsync(consumerDirectory, packageOutput);
         var fakeTool = await CreateFakeContractsToolAsync(temp.Path);
 
         await File.WriteAllTextAsync(
@@ -185,9 +142,8 @@ public sealed class AutoContractsPackagingTests
                   </PropertyGroup>
 
                   <ItemGroup>
-                      <PackageReference Include="CaeriusNet.SqlServer.Contracts"
-                                        Version="{{packageVersion}}"
-                                        PrivateAssets="all"/>
+                      <PackageReference Include="CaeriusNet"
+                                        Version="{{packageVersion}}"/>
                   </ItemGroup>
 
                   <Target Name="WriteContractsState" AfterTargets="CoreCompile">
@@ -211,9 +167,7 @@ public sealed class AutoContractsPackagingTests
             "build",
             consumerProject,
             "--configuration",
-            "Release",
-            "--source",
-            packageOutput);
+            "Release");
 
         Assert.True(buildResult.ExitCode == 0, buildResult.ToString());
         Assert.True(File.Exists(manifest), $"Expected generated manifest at {manifest}.");
@@ -232,10 +186,8 @@ public sealed class AutoContractsPackagingTests
     public async Task TargetsAddManifestCreatedDuringMsbuildExecution()
     {
         var repoRoot = FindRepoRoot();
-        var props = Path.Combine(repoRoot, "Tools", "CaeriusNet.SqlServer.Contracts", "buildTransitive",
-            "CaeriusNet.SqlServer.Contracts.props");
-        var targets = Path.Combine(repoRoot, "Tools", "CaeriusNet.SqlServer.Contracts", "buildTransitive",
-            "CaeriusNet.SqlServer.Contracts.targets");
+        var props = Path.Combine(repoRoot, "Src", "buildTransitive", "CaeriusNet.props");
+        var targets = Path.Combine(repoRoot, "Src", "buildTransitive", "CaeriusNet.targets");
 
         using var temp = new TemporaryDirectory();
         var project = Path.Combine(temp.Path, "Smoke.proj");
@@ -277,10 +229,8 @@ public sealed class AutoContractsPackagingTests
     public async Task TargetsCanUseConnectionNameConfigurationArguments()
     {
         var repoRoot = FindRepoRoot();
-        var props = Path.Combine(repoRoot, "Tools", "CaeriusNet.SqlServer.Contracts", "buildTransitive",
-            "CaeriusNet.SqlServer.Contracts.props");
-        var targets = Path.Combine(repoRoot, "Tools", "CaeriusNet.SqlServer.Contracts", "buildTransitive",
-            "CaeriusNet.SqlServer.Contracts.targets");
+        var props = Path.Combine(repoRoot, "Src", "buildTransitive", "CaeriusNet.props");
+        var targets = Path.Combine(repoRoot, "Src", "buildTransitive", "CaeriusNet.targets");
 
         using var temp = new TemporaryDirectory();
         var project = Path.Combine(temp.Path, "Smoke.proj");
@@ -322,7 +272,7 @@ public sealed class AutoContractsPackagingTests
     public void AutoContractsMsbuildFilesDoNotUseVersionedNames()
     {
         var repoRoot = FindRepoRoot();
-        var buildTransitive = Path.Combine(repoRoot, "Tools", "CaeriusNet.SqlServer.Contracts", "buildTransitive");
+        var buildTransitive = Path.Combine(repoRoot, "Src", "buildTransitive");
 
         foreach (var file in Directory.EnumerateFiles(buildTransitive, "*", SearchOption.AllDirectories))
         {
@@ -336,6 +286,63 @@ public sealed class AutoContractsPackagingTests
     private static Task<CommandResult> RunDotnetAsync(string workingDirectory, params string[] arguments)
     {
         return RunDotnetAsync(workingDirectory, null, arguments);
+    }
+
+    private static async Task<(string Package, string Version)> PackMainPackageAsync(
+        string repoRoot,
+        string packageOutput,
+        string? packageCache = null)
+    {
+        Directory.CreateDirectory(packageOutput);
+
+        var environment = packageCache is null
+            ? null
+            : new Dictionary<string, string>
+            {
+                ["NUGET_PACKAGES"] = packageCache
+            };
+
+        var toolBuild = await RunDotnetAsync(
+            repoRoot,
+            environment,
+            "build",
+            Path.Combine("Tools", "CaeriusNet.SqlServer.Contracts", "CaeriusNet.SqlServer.Contracts.csproj"),
+            "--configuration",
+            "Release",
+            "--no-incremental");
+
+        Assert.True(toolBuild.ExitCode == 0, toolBuild.ToString());
+
+        var packageBuild = await RunDotnetAsync(
+            repoRoot,
+            environment,
+            "build",
+            Path.Combine("Src", "CaeriusNet.csproj"),
+            "--configuration",
+            "Release",
+            "--no-incremental");
+
+        Assert.True(packageBuild.ExitCode == 0, packageBuild.ToString());
+
+        var packResult = await RunDotnetAsync(
+            repoRoot,
+            environment,
+            "pack",
+            Path.Combine("Src", "CaeriusNet.csproj"),
+            "--configuration",
+            "Release",
+            "--no-build",
+            "--output",
+            packageOutput);
+
+        Assert.True(packResult.ExitCode == 0, packResult.ToString());
+
+        var package = Assert.Single(
+            Directory.EnumerateFiles(packageOutput, "CaeriusNet.*.nupkg"),
+            file => Path.GetFileName(file).StartsWith("CaeriusNet.", StringComparison.Ordinal) &&
+                    !Path.GetFileName(file).StartsWith("CaeriusNet.SqlServer.Contracts.", StringComparison.Ordinal));
+
+        return (package, GetMainPackageVersion(package));
     }
 
     private static async Task<CommandResult> RunDotnetAsync(
@@ -389,10 +396,36 @@ public sealed class AutoContractsPackagingTests
         return SecurityElement.Escape(value) ?? value;
     }
 
-    private static string GetToolPackageVersion(string package)
+    private static Task WriteNuGetConfigAsync(string directory, string packageOutput)
+    {
+        var localSource = Escape(Path.GetFullPath(packageOutput));
+
+        return File.WriteAllTextAsync(
+            Path.Combine(directory, "NuGet.config"),
+            $$"""
+              <?xml version="1.0" encoding="utf-8"?>
+              <configuration>
+                <packageSources>
+                  <clear />
+                  <add key="local-caeriusnet" value="{{localSource}}" />
+                  <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+                </packageSources>
+                <packageSourceMapping>
+                  <packageSource key="local-caeriusnet">
+                    <package pattern="CaeriusNet" />
+                  </packageSource>
+                  <packageSource key="nuget.org">
+                    <package pattern="*" />
+                  </packageSource>
+                </packageSourceMapping>
+              </configuration>
+              """);
+    }
+
+    private static string GetMainPackageVersion(string package)
     {
         var fileName = Path.GetFileNameWithoutExtension(package);
-        const string packagePrefix = "CaeriusNet.SqlServer.Contracts.";
+        const string packagePrefix = "CaeriusNet.";
         Assert.True(fileName.StartsWith(packagePrefix, StringComparison.Ordinal), fileName);
         return fileName[packagePrefix.Length..];
     }
@@ -451,25 +484,6 @@ public sealed class AutoContractsPackagingTests
 
         Assert.True(result.ExitCode == 0, result.ToString());
         return Path.Combine(projectDirectory, "bin", "Release", "net10.0", "FakeContractsTool.dll");
-    }
-
-    private static void CopyToolProject(string source, string destination)
-    {
-        Directory.CreateDirectory(destination);
-        Directory.CreateDirectory(Path.Combine(destination, "buildTransitive"));
-
-        File.Copy(
-            Path.Combine(source, "CaeriusNet.SqlServer.Contracts.csproj"),
-            Path.Combine(destination, "CaeriusNet.SqlServer.Contracts.csproj"));
-
-        foreach (var file in Directory.EnumerateFiles(source, "*.cs"))
-            File.Copy(file, Path.Combine(destination, Path.GetFileName(file)));
-
-        foreach (var file in Directory.EnumerateFiles(source, "*.md"))
-            File.Copy(file, Path.Combine(destination, Path.GetFileName(file)));
-
-        foreach (var file in Directory.EnumerateFiles(Path.Combine(source, "buildTransitive")))
-            File.Copy(file, Path.Combine(destination, "buildTransitive", Path.GetFileName(file)));
     }
 
     private sealed record CommandResult(int ExitCode, string StandardOutput, string StandardError)

@@ -32,7 +32,6 @@
     </Target>
 
     <Target Name="CaeriusPullContracts"
-            BeforeTargets="CoreCompile"
             DependsOnTargets="CaeriusValidateContractsMode"
             Condition="'$(DesignTimeBuild)' != 'true'">
 
@@ -43,7 +42,6 @@
     </Target>
 
     <Target Name="CaeriusVerifyContracts"
-            BeforeTargets="CoreCompile"
             DependsOnTargets="CaeriusValidateContractsMode"
             Condition="'$(DesignTimeBuild)' != 'true'">
 
@@ -57,11 +55,11 @@
     </Target>
 
     <Target Name="CaeriusAddContractsManifest"
-            BeforeTargets="CoreCompile"
+            BeforeTargets="GenerateMSBuildEditorConfigFileCore;CoreCompile"
             DependsOnTargets="CaeriusPullContracts;CaeriusVerifyContracts"
-            Condition="'$(DesignTimeBuild)' != 'true' and Exists('$(CaeriusContractsOutput)')">
+            Condition="'$(DesignTimeBuild)' != 'true'">
 
-        <ItemGroup>
+        <ItemGroup Condition="Exists('$(CaeriusContractsOutput)')">
             <AdditionalFiles Remove="$(CaeriusContractsOutput)"/>
             <AdditionalFiles Include="$(CaeriusContractsOutput)" CaeriusContractManifest="true"/>
         </ItemGroup>
