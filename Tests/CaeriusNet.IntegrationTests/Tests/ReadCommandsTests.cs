@@ -76,6 +76,19 @@ public sealed class ReadCommandsTests(SqlServerFixture fixture) : IAsyncLifetime
     }
 
     [Fact]
+    public async Task QueryAsIEnumerable_Returns_Empty_Sequence_When_NoRows()
+    {
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
+
+        var p = new StoredProcedureParametersBuilder("dbo", "usp_ListWidgets").Build();
+        var widgets = await db.QueryAsIEnumerableAsync<WidgetDto>(p);
+
+        Assert.NotNull(widgets);
+        Assert.Empty(widgets);
+    }
+
+    [Fact]
     public async Task QueryAsImmutableArray_Pre_Allocates_With_Capacity_Hint()
     {
         using var scope = fixture.CreateScope();

@@ -13,13 +13,16 @@ public static class MultiIEnumerableReadSqlAsyncCommands
         /// <param name="spParameters">Stored procedure metadata and parameters.</param>
         /// <param name="cancellationToken">Token to cancel the operation.</param>
         /// <returns>A tuple containing the materialized result sets. Missing trailing result sets are empty.</returns>
-        public async Task<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>)>
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public ValueTask<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>)>
             QueryMultipleIEnumerableAsync<TResultSet1, TResultSet2>(StoredProcedureParameters spParameters,
                 CancellationToken cancellationToken = default)
             where TResultSet1 : class, ISpMapper<TResultSet1>
             where TResultSet2 : class, ISpMapper<TResultSet2>
         {
-            return await CaeriusActivityExtensions.InstrumentMultiResultSetAsync(context, spParameters, 2,
+            return CaeriusActivityExtensions
+                .InstrumentMultiResultSetAsync<(IEnumerable<TResultSet1>, IEnumerable<TResultSet2>)>(
+                    context, spParameters, 2,
                 nameof(QueryMultipleIEnumerableAsync), async command =>
                 {
                     await using var reader = await command.ExecuteReaderAsync(
@@ -35,7 +38,7 @@ public static class MultiIEnumerableReadSqlAsyncCommands
                         reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
 
                     return (l1, l2);
-                }, cancellationToken).ConfigureAwait(false);
+                }, cancellationToken);
         }
     }
 }

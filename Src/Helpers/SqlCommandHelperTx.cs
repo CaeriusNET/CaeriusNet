@@ -9,25 +9,6 @@ namespace CaeriusNet.Helpers;
 internal static class SqlCommandHelperTx
 {
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-    private static SqlCommand BuildCommand(
-        StoredProcedureParameters spParameters,
-        SqlConnection connection,
-        SqlTransaction transaction)
-    {
-        var command = new SqlCommand(string.Concat(spParameters.SchemaName, ".", spParameters.ProcedureName),
-            connection)
-        {
-            CommandType = CommandType.StoredProcedure,
-            CommandTimeout = spParameters.CommandTimeout,
-            Transaction = transaction
-        };
-
-        spParameters.AddParametersTo(command.Parameters);
-
-        return command;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     internal static async ValueTask<TResultSet?> ScalarQueryTxAsync<TResultSet>(
         StoredProcedureParameters spParameters,
         SqlConnection connection,
@@ -35,7 +16,7 @@ internal static class SqlCommandHelperTx
         CancellationToken cancellationToken)
         where TResultSet : class, ISpMapper<TResultSet>
     {
-        await using var command = BuildCommand(spParameters, connection, transaction);
+        await using var command = SqlCommandHelper.BuildCommand(spParameters, connection, transaction);
         await using var reader = await command
             .ExecuteReaderAsync(
                 CommandBehavior.SingleResult | CommandBehavior.SingleRow | CommandBehavior.SequentialAccess,
@@ -54,7 +35,7 @@ internal static class SqlCommandHelperTx
         [EnumeratorCancellation] CancellationToken cancellationToken)
         where TResultSet : class, ISpMapper<TResultSet>
     {
-        await using var command = BuildCommand(spParameters, connection, transaction);
+        await using var command = SqlCommandHelper.BuildCommand(spParameters, connection, transaction);
         await using var reader = await command
             .ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken)
             .ConfigureAwait(false);
@@ -71,7 +52,7 @@ internal static class SqlCommandHelperTx
         CancellationToken cancellationToken)
         where TResultSet : class, ISpMapper<TResultSet>
     {
-        await using var command = BuildCommand(spParameters, connection, transaction);
+        await using var command = SqlCommandHelper.BuildCommand(spParameters, connection, transaction);
         await using var reader = await command
             .ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken)
             .ConfigureAwait(false);
@@ -89,7 +70,7 @@ internal static class SqlCommandHelperTx
         CancellationToken cancellationToken)
         where TResultSet : class, ISpMapper<TResultSet>
     {
-        await using var command = BuildCommand(spParameters, connection, transaction);
+        await using var command = SqlCommandHelper.BuildCommand(spParameters, connection, transaction);
         await using var reader = await command
             .ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken)
             .ConfigureAwait(false);
@@ -112,7 +93,7 @@ internal static class SqlCommandHelperTx
     {
         try
         {
-            await using var command = BuildCommand(spParameters, connection, transaction);
+            await using var command = SqlCommandHelper.BuildCommand(spParameters, connection, transaction);
             return await execute(command).ConfigureAwait(false);
         }
         catch (SqlException ex)

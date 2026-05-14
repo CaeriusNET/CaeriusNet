@@ -304,11 +304,20 @@ internal static class SqlCommandHelper
         if (sqlConnection.State != ConnectionState.Open)
             await sqlConnection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        var command = new SqlCommand(string.Concat(spParameters.SchemaName, ".", spParameters.ProcedureName),
-            sqlConnection)
+        return BuildCommand(spParameters, sqlConnection);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    internal static SqlCommand BuildCommand(
+        StoredProcedureParameters spParameters,
+        SqlConnection connection,
+        SqlTransaction? transaction = null)
+    {
+        var command = new SqlCommand(spParameters.FullName, connection)
         {
             CommandType = CommandType.StoredProcedure,
-            CommandTimeout = spParameters.CommandTimeout
+            CommandTimeout = spParameters.CommandTimeout,
+            Transaction = transaction
         };
 
         spParameters.AddParametersTo(command.Parameters);

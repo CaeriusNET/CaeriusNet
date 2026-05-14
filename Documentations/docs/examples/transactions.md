@@ -1,10 +1,10 @@
 # Transactions
 
-CaeriusNet wraps SQL Server transactions in an `ICaeriusNetTransaction` scope obtained from `BeginTransactionAsync`. Every command executed on the scope reuses the same connection and is enlisted in the same transaction. This page walks through the three transactional outcomes you will encounter in production: **commit**, **C#-side rollback**, and **SQL-side rollback** (when the SP wraps its own `BEGIN TRY / BEGIN CATCH`).
+CaeriusNet wraps SQL Server transactions in an `ICaeriusNetTransaction` scope obtained from `BeginTransactionAsync`. Every command executed on the scope reuses the same connection and is enlisted in the same transaction. This page walks through the three transactional outcomes you will encounter in production: **commit**, **C#-side rollback**, and **SQL-side rollback** (when the stored procedure wraps its own `BEGIN TRY / BEGIN CATCH`).
 
 ## Tracing
 
-Every scope emits a parent **`TX` span** (kind = Internal) that wraps all child SP spans. The trace stays a single cohesive workflow in the Aspire dashboard:
+Every scope emits a parent **`TX` span** (kind = Internal) that wraps all child stored procedure spans. The trace stays a single cohesive workflow in the Aspire dashboard:
 
 ```text
 TX  (caerius.tx.isolation_level=ReadCommitted, caerius.tx.outcome=committed)
@@ -12,7 +12,7 @@ TX  (caerius.tx.isolation_level=ReadCommitted, caerius.tx.outcome=committed)
 └── SP Users.usp_Create_Order (caerius.tx=true)
 ```
 
-Without the parent `TX` span, each child SP would appear as an orphaned trace. The TX activity is what stitches them into a single unit of work.
+The parent `TX` span groups the child stored procedure spans into one unit of work in the Aspire dashboard.
 
 ## SQL Server objects
 
@@ -49,7 +49,7 @@ BEGIN
 END
 GO
 
--- Self-contained transactional SP using BEGIN TRY / BEGIN CATCH
+-- Self-contained transactional stored procedure using BEGIN TRY / BEGIN CATCH
 CREATE PROCEDURE Users.usp_Create_User_Tx_Safe
     @UserName     NVARCHAR(64),
     @ForceFailure BIT = 0
@@ -84,7 +84,7 @@ END
 GO
 ```
 
-## Scenario 1 — Commit
+## Scenario 1: Commit
 
 Two writes are committed atomically. If anything fails before `CommitAsync`, `await using` disposes the scope and rolls back automatically.
 
@@ -126,7 +126,7 @@ public async Task<int> CreateUserWithFirstOrderAsync(
 `caerius.tx.outcome = committed`
 :::
 
-## Scenario 2 — C#-side rollback
+## Scenario 2: C#-side rollback
 
 The application decides to discard the work after inspecting business rules:
 
@@ -158,9 +158,9 @@ public async Task DemonstrateClientSideRollbackAsync(
 If neither `CommitAsync` nor `RollbackAsync` is called and the `await using` scope exits (even due to an exception), the transaction rolls back automatically in `DisposeAsync`. The TX outcome is `auto-rollback` (clean exit) or `poisoned-auto-rollback` (a command had already failed).
 :::
 
-## Scenario 3 — SQL-side rollback (`BEGIN CATCH`)
+## Scenario 3: SQL-side rollback (`BEGIN CATCH`)
 
-The Stored Procedure handles its own transaction. When `@ForceFailure = 1`, it rolls back inside `BEGIN CATCH` and re-throws. CaeriusNet wraps the resulting `SqlException` as `CaeriusNetSqlException` and marks the SP span with `ActivityStatusCode.Error`:
+The stored procedure handles its own transaction. When `@ForceFailure = 1`, it rolls back inside `BEGIN CATCH` and re-throws. CaeriusNet wraps the resulting `SqlException` as `CaeriusNetSqlException` and marks the stored procedure span with `ActivityStatusCode.Error`:
 
 ```csharp
 public async Task DemonstrateServerSideRollbackAsync(
@@ -172,7 +172,7 @@ public async Task DemonstrateServerSideRollbackAsync(
         .AddParameter("ForceFailure", true,     SqlDbType.Bit)
         .Build();
 
-    // This call throws CaeriusNetSqlException because the SP re-raises.
+    // This call throws CaeriusNetSqlException because the stored procedure re-raises.
     // The span is tagged ActivityStatusCode.Error — this is expected.
     await DbContext.ExecuteAsync(sp, ct);
 }
@@ -198,7 +198,7 @@ catch (CaeriusNetSqlException ex)
 ```
 
 ::: warning Error span in the dashboard
-The `SP Users.usp_Create_User_Tx_Safe` trace appears in red (Error) in the Aspire **Traces** tab. This is **intentional** — the span accurately reflects that the SQL command failed. It is not a CaeriusNet defect.
+The `SP Users.usp_Create_User_Tx_Safe` trace appears in red (Error) in the Aspire **Traces** tab. This is intentional. The span accurately reflects that the SQL command failed.
 :::
 
 ## Commands available on `ICaeriusNetTransaction`
@@ -207,16 +207,16 @@ The transaction scope exposes the same `Execute*` / `Query*` surface as `ICaeriu
 
 | Method | Description |
 |---|---|
-| `ExecuteAsync` | Execute a SP and ignore the result |
-| `ExecuteNonQueryAsync` | Execute a SP and return the affected-row count |
-| `ExecuteScalarAsync<T>` | Execute a SP and return the first column of the first row |
+| `ExecuteAsync` | Execute a stored procedure and ignore the result |
+| `ExecuteNonQueryAsync` | Execute a stored procedure and return the affected-row count |
+| `ExecuteScalarAsync<T>` | Execute a stored procedure and return the first column of the first row |
 | `FirstQueryAsync<T>` | Read a single row and map it to a DTO |
 | `QueryAsIEnumerableAsync<T>` | Read all rows into an `IEnumerable<T>` |
 | `QueryAsReadOnlyCollectionAsync<T>` | Read all rows into a `ReadOnlyCollection<T>` |
 | `QueryAsImmutableArrayAsync<T>` | Read all rows into an `ImmutableArray<T>` |
 
 ::: danger Nested transactions are not supported
-Calling `BeginTransactionAsync` on an `ICaeriusNetTransaction` throws `NotSupportedException`. SQL Server only supports one local transaction per connection — use `SAVEPOINT` inside the SP for partial-rollback semantics.
+Calling `BeginTransactionAsync` on an `ICaeriusNetTransaction` throws `NotSupportedException`. SQL Server only supports one local transaction per connection. Use `SAVEPOINT` inside the stored procedure for partial-rollback semantics.
 :::
 
 ---

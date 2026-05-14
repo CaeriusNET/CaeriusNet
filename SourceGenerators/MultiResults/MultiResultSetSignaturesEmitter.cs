@@ -91,13 +91,15 @@ internal static class MultiResultSetSignaturesEmitter
         sb.AppendLine("        /// <returns>A tuple containing the materialized result sets. Missing trailing result sets are empty.</returns>");
         AppendGeneratedCodeAttribute(sb, "        ");
         sb.AppendLine("        [MethodImpl(MethodImplOptions.AggressiveOptimization)]");
-        sb.Append("        public async Task<(").Append(BuildTupleType(collectionType, arity)).AppendLine(")>");
+        sb.Append("        public ValueTask<(").Append(BuildTupleType(collectionType, arity)).AppendLine(")>");
         sb.Append("            ").Append(methodName).Append('<').Append(typeParameters).AppendLine(">(");
         sb.AppendLine("                StoredProcedureParameters spParameters,");
         sb.AppendLine("                CancellationToken cancellationToken = default)");
         AppendConstraints(sb, arity);
         sb.AppendLine("        {");
-        sb.Append("            return await CaeriusActivityExtensions.InstrumentMultiResultSetAsync(context, spParameters, ")
+        sb.Append("            return CaeriusActivityExtensions.InstrumentMultiResultSetAsync<(")
+            .Append(BuildTupleType(collectionType, arity))
+            .Append(")>(context, spParameters, ")
             .Append(arity)
             .AppendLine(",");
         sb.Append("                nameof(").Append(methodName).AppendLine("), async command =>");
@@ -122,7 +124,7 @@ internal static class MultiResultSetSignaturesEmitter
 
         sb.AppendLine();
         sb.Append("                    return (").Append(BuildReturnTuple(shape, arity, arity)).AppendLine(");");
-        sb.AppendLine("                }, cancellationToken).ConfigureAwait(false);");
+        sb.AppendLine("                }, cancellationToken);");
         sb.AppendLine("        }");
     }
 

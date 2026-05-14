@@ -44,4 +44,4 @@ If you intentionally want `sql_variant`, suppress the warning with
 ## See also
 
 - [Compiler Diagnostics](/documentation/diagnostics#suppressing-diagnostics)
-- [Table-Valued Parameters](/documentation/tvp)
+- [table-valued parameters](/documentation/tvp)

@@ -1,4 +1,4 @@
-# Aspire Integration
+# Aspire integration
 
 CaeriusNet provides first-class integration with [.NET Aspire](https://learn.microsoft.com/en-us/dotnet/aspire/get-started/aspire-overview) through `WithAspireSqlServer` and `WithAspireRedis`. Aspire manages SQL Server and Redis as named resources in the AppHost; CaeriusNet resolves their connection strings automatically.
 
@@ -67,7 +67,7 @@ app.Run();
 ```
 :::
 
-## Console / Worker Service pattern
+## Console and worker service pattern
 
 For console apps or background workers running under Aspire:
 
@@ -189,7 +189,7 @@ CaeriusNetBuilder.Create(builder)
 `CaptureParameterValues = true` is convenient in staging or development to correlate a trace with the exact parameters that produced it. In production, parameter values can contain sensitive data (user IDs, emails, amounts …) and should generally **not** be emitted to a shared telemetry backend.
 :::
 
-## Tracing & telemetry {#tracing-telemetry}
+## Tracing and telemetry {#tracing-telemetry}
 
 CaeriusNet emits OpenTelemetry-compatible signals through the BCL primitives — no OpenTelemetry SDK package is added to the library itself. Consumers (typically the Aspire `ServiceDefaults` project) opt in by registering the source and meter:
 
@@ -206,21 +206,21 @@ When no listener is subscribed, no allocation is performed.
 
 ### Spans
 
-Every Stored Procedure call creates an `Activity` of `ActivityKind.Client` named `SP {schema}.{procedure}`. Failures set `ActivityStatusCode.Error` and attach the SQL exception via `Activity.AddException`.
+Every stored procedure call creates an `Activity` of `ActivityKind.Client` named `SP {schema}.{procedure}`. Failures set `ActivityStatusCode.Error` and attach the SQL exception via `Activity.AddException`.
 
 | Tag | Description |
 |---|---|
 | `db.system` | Always `mssql` (OpenTelemetry semantic convention) |
 | `db.operation` | The calling command (`FirstQueryAsync`, `QueryMultipleImmutableArrayAsync`, `ExecuteNonQueryAsync`, …) |
 | `db.statement` | `{schema}.{procedure}` |
-| `caerius.sp.schema` | Schema of the Stored Procedure |
-| `caerius.sp.name` | Name of the Stored Procedure |
+| `caerius.sp.schema` | Schema of the stored procedure |
+| `caerius.sp.name` | Name of the stored procedure |
 | `caerius.sp.parameters` | Comma-separated parameter names (e.g. `@id,@tvp`); shows `@name=value` when `CaptureParameterValues = true`. TVP values always render as `[TVP]`. |
 | `caerius.sp.command` | Same as `db.operation` (kept for filter convenience) |
 | `caerius.tvp.used` | `true` when at least one TVP is attached |
 | `caerius.tvp.type_name` | TVP type name (e.g. `dbo.tvp_int`); comma-separated when several TVPs are used |
 | `caerius.resultset.multi` | `true` when more than one result set is requested |
-| `caerius.resultset.expected_count` | Number of result sets requested (1 by default; 2/3/4/5 for the multi-RS overloads) |
+| `caerius.resultset.expected_count` | Number of result sets requested (1 by default; 2/3/4/5 for multiple-result overloads) |
 | `caerius.cache.tier` / `caerius.cache.hit` | Set on the active span when a cache lookup happens during the call |
 | `caerius.tx` | `true` when the call runs inside an `ICaeriusNetTransaction` |
 | `caerius.rows_returned` / `caerius.rows_affected` | Set on success |
@@ -231,7 +231,7 @@ Four instruments are exposed by the `CaeriusNet` meter, all tagged with the same
 
 | Instrument | Type | Unit | Purpose |
 |---|---|---|---|
-| `caerius.sp.duration` | Histogram | ms | Stored Procedure execution duration |
+| `caerius.sp.duration` | Histogram | ms | Stored procedure execution duration |
 | `caerius.sp.executions` | Counter | calls | Number of executions started (success or failure) |
 | `caerius.sp.errors` | Counter | calls | Number of executions that failed with a SQL error |
 | `caerius.cache.lookups` | Counter | lookups | Cache lookups, tagged with `caerius.cache.tier` (`Frozen` / `InMemory` / `Redis`) and `caerius.cache.hit` (`true` / `false`) |
@@ -240,7 +240,7 @@ When a cache hit short-circuits the SQL call, **no DB span is created** and only
 
 ## Transaction tracing {#transaction-tracing}
 
-Every `ICaeriusNetTransaction` scope emits a parent **`TX` span** (kind = Internal) that wraps all child SP spans. This produces a single cohesive trace in the Aspire dashboard instead of one orphaned span per command:
+Every `ICaeriusNetTransaction` scope emits a parent **`TX` span** (kind = Internal) that wraps all child stored procedure spans. This produces a single cohesive trace in the Aspire dashboard:
 
 ```text
 TX  (kind=Internal, caerius.tx.isolation_level=ReadCommitted, caerius.tx.outcome=committed)
@@ -254,9 +254,9 @@ TX  (kind=Internal, caerius.tx.isolation_level=ReadCommitted, caerius.tx.outcome
 | `caerius.tx.outcome` | `committed`, `rolled-back`, `auto-rollback`, `poisoned-auto-rollback`, `commit-failed`, `rollback-failed` |
 
 ::: tip SQL-side rollback in the dashboard
-A Stored Procedure that wraps its own `BEGIN TRY / BEGIN CATCH` rolls back internally and re-throws, which surfaces as a `CaeriusNetSqlException`. The corresponding SP span is tagged `ActivityStatusCode.Error` — this is **expected** and intentional, not a CaeriusNet bug.
+A stored procedure that wraps its own `BEGIN TRY / BEGIN CATCH` rolls back internally and re-throws, which surfaces as a `CaeriusNetSqlException`. The corresponding stored procedure span is tagged `ActivityStatusCode.Error`. This is expected behavior, not a CaeriusNet bug.
 :::
 
 ---
 
-**Next:** [API Reference](/documentation/api) — full surface of all public types and methods.
+**Next:** [API reference](/documentation/api) - full surface of all public types and methods.

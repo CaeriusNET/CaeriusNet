@@ -37,6 +37,7 @@ public sealed record StoredProcedureParameters
 
         SchemaName = schemaName;
         ProcedureName = procedureName;
+        FullName = string.Concat(schemaName, ".", procedureName);
         Capacity = capacity;
         _parameters = CloneParameters(parameters);
         CacheKey = cacheKey;
@@ -47,6 +48,7 @@ public sealed record StoredProcedureParameters
 
     public string SchemaName { get; }
     public string ProcedureName { get; }
+    public string FullName { get; }
     public int Capacity { get; }
     public string? CacheKey { get; }
     public TimeSpan? CacheExpiration { get; }
@@ -62,6 +64,12 @@ public sealed record StoredProcedureParameters
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ReadOnlySpan<SqlParameter> GetParametersSpan()
+    {
+        return _parameters;
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal SqlParameter[] GetParametersArray()
     {
         return _parameters;
     }

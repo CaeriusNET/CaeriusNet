@@ -1,10 +1,10 @@
-# Table-Valued Parameters
+# Table-valued parameters
 
-Table-Valued Parameters (TVP) let you pass an entire **set of rows** — IDs, GUIDs, composite keys, or wider row shapes — as a single typed parameter to a SQL Server Stored Procedure. CaeriusNet implements TVP transport via streaming `IEnumerable<SqlDataRecord>`, which avoids `DataTable` allocations and feeds rows directly to the TDS protocol layer.
+Table-valued parameters (TVPs) let you pass an entire **set of rows** as a single typed parameter to a SQL Server stored procedure. Use them for IDs, GUIDs, composite keys, or wider row shapes when one stored procedure call should operate on many rows.
 
 ## Why TVPs?
 
-A TVP is a SQL Server **user-defined table type** that you pass as a `READONLY` parameter. Instead of sending 1 000 IDs one by one (or padding a dynamic SQL `IN`-list), you send a single structured table with 1 000 rows in one round-trip.
+A TVP is a SQL Server **user-defined table type** that you pass as a `READONLY` parameter. Instead of sending 1,000 IDs one by one or building dynamic SQL, you send one structured table in a single round trip.
 
 ```sql
 -- 1. Create the SQL Server type
@@ -14,7 +14,7 @@ CREATE TYPE dbo.tvp_int AS TABLE
 );
 GO
 
--- 2. Use it in a Stored Procedure
+-- 2. Use it in a stored procedure
 CREATE PROCEDURE dbo.sp_GetUsers_By_Tvp_Ids
     @Ids dbo.tvp_int READONLY
 AS
@@ -40,7 +40,7 @@ using CaeriusNet.Attributes.Tvp;
 public sealed partial record UserIdTvp(int Id);
 ```
 
-The generator emits `ITvpMapper<UserIdTvp>` with a zero-allocation `SqlDataRecord` streaming implementation. See [Source Generators](/documentation/source-generators#generatetvp-tvp-mapper) for the generated shape.
+The generator emits the `ITvpMapper<UserIdTvp>` implementation. See [source generators](/documentation/source-generators#generatetvp-tvp-mapper) for the supported type rules.
 
 ### Manual implementation
 
@@ -97,7 +97,7 @@ if (ids.Count == 0) return [];
 
 ## Combining a TVP with regular parameters
 
-`AddTvpParameter` and `AddParameter` mix freely. Order does not matter for SQL Server, but parameter names must match the SP definition exactly:
+`AddTvpParameter` and `AddParameter` mix freely. Order does not matter for SQL Server, but parameter names must match the stored procedure definition exactly:
 
 ```sql
 CREATE PROCEDURE dbo.sp_GetUsers_By_Tvp_Ids_And_Age
@@ -138,19 +138,19 @@ CREATE TYPE dbo.tvp_user_key AS TABLE
 public sealed partial record UserKeyTvp(int Id, Guid Guid);
 ```
 
-## Performance characteristics
+## Usage guidance
 
-| Aspect | Detail |
+| Recommendation | Reason |
 |---|---|
-| Allocation | Single `SqlDataRecord` allocated per call, reused for every row |
-| Protocol | TDS-native structured parameter — no XML, no JSON, no `DataTable` |
-| Throughput | Scales to tens of thousands of rows efficiently |
-| Boxing | Strongly-typed `Set*` calls (`SetInt32`, `SetGuid`, …) — no `object[]` row materialization |
-| Empty input | `ArgumentException` prevents an invalid call (SQL Server requires ≥ 1 row) |
+| Validate input before calling | SQL Server rejects empty TVPs; return early when the input set is empty. |
+| Keep TVP row types focused | Include only the columns the stored procedure actually needs. |
+| Match SQL order exactly | `[GenerateTvp]` maps constructor parameters by position. |
+| Prefer TVPs over dynamic `IN` lists | TVPs keep SQL parameterized and avoid query text growth. |
+| Batch very large inputs | Large sets can increase command time and transaction duration. |
 
 ## Telemetry
 
-When a TVP is attached, the corresponding SP span is tagged accordingly:
+When a TVP is attached, the corresponding stored procedure span is tagged accordingly:
 
 | Tag | Value |
 |---|---|
@@ -160,4 +160,4 @@ When a TVP is attached, the corresponding SP span is tagged accordingly:
 
 ---
 
-**Next:** [Reading Data](/documentation/reading-data) — fetch result sets as `IEnumerable`, `ReadOnlyCollection`, or `ImmutableArray`.
+**Next:** [Reading data](/documentation/reading-data) - fetch result sets as `IEnumerable`, `ReadOnlyCollection`, or `ImmutableArray`.

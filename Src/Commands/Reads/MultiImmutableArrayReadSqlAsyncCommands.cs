@@ -14,13 +14,16 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
         /// <param name="spParameters">Stored procedure metadata and parameters.</param>
         /// <param name="cancellationToken">Token to cancel the operation.</param>
         /// <returns>A tuple containing the materialized result sets. Missing trailing result sets are empty.</returns>
-        public async Task<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>)>
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+        public ValueTask<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>)>
             QueryMultipleImmutableArrayAsync<TResultSet1, TResultSet2>(StoredProcedureParameters spParameters,
                 CancellationToken cancellationToken = default)
             where TResultSet1 : class, ISpMapper<TResultSet1>
             where TResultSet2 : class, ISpMapper<TResultSet2>
         {
-            return await CaeriusActivityExtensions.InstrumentMultiResultSetAsync(context, spParameters, 2,
+            return CaeriusActivityExtensions
+                .InstrumentMultiResultSetAsync<(ImmutableArray<TResultSet1>, ImmutableArray<TResultSet2>)>(
+                    context, spParameters, 2,
                 nameof(QueryMultipleImmutableArrayAsync), async command =>
                 {
                     await using var reader = await command.ExecuteReaderAsync(
@@ -36,7 +39,7 @@ public static class MultiImmutableArrayReadSqlAsyncCommands
                         reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
 
                     return (a1, a2);
-                }, cancellationToken).ConfigureAwait(false);
+                }, cancellationToken);
         }
     }
 }

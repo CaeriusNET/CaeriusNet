@@ -24,4 +24,4 @@ public sealed partial record FooDto(int Id, string Name, DateTime CreatedAt);
 ## See also
 
 - [DTO Mapping](/documentation/dto-mapping)
-- [Source Generators](/documentation/source-generators)
+- [source generators](/documentation/source-generators)

@@ -1,18 +1,21 @@
-# Multiple Result Sets
+# Multiple result sets
 
-A SQL Server Stored Procedure can return more than one `SELECT` result. CaeriusNet exposes dedicated helpers that read up to **five typed result sets** from a single command execution — one round-trip, one connection, one telemetry span.
+Use a multiple-result-set query when one stored procedure returns related data in separate `SELECT` statements. CaeriusNet reads those result sets in order and returns a typed tuple.
 
-## When to use
+Multiple result sets are useful for dashboards, detail pages, reports, and API responses that need related data from one database round trip.
 
-Multiple result sets are the right tool whenever you need logically related data fetched together:
+## When to use multiple result sets
 
-- A **dashboard** query returning users + orders + summary totals
-- A **paginated** response returning a data page + a total count
-- A **report** combining header + line items in one call
+Use multiple result sets when:
 
-Compared to multiple separate SP calls, a single multi-result SP reduces round-trips, connection-pool pressure, and total latency — and it nests under a single span instead of fragmenting your trace.
+- The data is requested together by the same use case.
+- The stored procedure can return each shape with a clear `SELECT`.
+- You want one database round trip instead of several calls.
+- The result-set order is stable and versioned with the stored procedure contract.
 
-## SQL Server setup
+Do not use multiple result sets when each data set has a different cache lifetime or authorization rule. In those cases, separate calls can be clearer.
+
+## SQL Server example
 
 ```sql
 CREATE PROCEDURE dbo.sp_Get_Dashboard_Data
@@ -20,120 +23,113 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Result set 1: recent users
-    SELECT Id, Username, Age
-    FROM   dbo.Users
-    ORDER BY Id DESC;
+    SELECT Id, Name, Age
+    FROM dbo.Users
+    ORDER BY Id;
 
-    -- Result set 2: recent orders
     SELECT OrderId, UserId, Total
-    FROM   dbo.Orders
-    ORDER BY OrderId DESC;
+    FROM dbo.Orders
+    ORDER BY OrderId;
 END
 GO
 ```
 
-## Available overloads
+The first `SELECT` maps to the first generic type argument. The second `SELECT` maps to the second generic type argument.
 
-CaeriusNet offers three collection-type families, each with overloads for **2 to 5** result sets. Pick the family that matches your storage, mutation, and allocation needs. The two-result-set overloads are the hand-written base signatures in the runtime source; arities 3 through 5 are generated into the package at build time from the same implementation template.
-
-### `QueryMultipleIEnumerableAsync`
-
-Returns a tuple of `IEnumerable<T>`:
+## Call the stored procedure
 
 ```csharp
-Task<(IEnumerable<T1>, IEnumerable<T2>)>
-    QueryMultipleIEnumerableAsync<T1, T2>(/* ... */);
-
-Task<(IEnumerable<T1>, IEnumerable<T2>, IEnumerable<T3>)>
-    QueryMultipleIEnumerableAsync<T1, T2, T3>(/* ... */);
-
-// ... up to T5
-```
-
-### `QueryMultipleReadOnlyCollectionAsync`
-
-Returns a tuple of `ReadOnlyCollection<T>`:
-
-```csharp
-Task<(ReadOnlyCollection<T1>, ReadOnlyCollection<T2>)>
-    QueryMultipleReadOnlyCollectionAsync<T1, T2>(/* ... */);
-
-// ... up to T5
-```
-
-### `QueryMultipleImmutableArrayAsync`
-
-Returns a tuple of `ImmutableArray<T>`:
-
-```csharp
-Task<(ImmutableArray<T1>, ImmutableArray<T2>)>
-    QueryMultipleImmutableArrayAsync<T1, T2>(/* ... */);
-
-// ... up to T5
-```
-
-## Example — two result sets
-
-```csharp
-public sealed record DashboardRepository(ICaeriusNetDbContext DbContext)
-    : IDashboardRepository
-{
-    public async Task<(IEnumerable<UserDto> Users, IEnumerable<OrderDto> Orders)>
-        GetDashboardAsync(CancellationToken ct)
-    {
-        var sp = new StoredProcedureParametersBuilder("dbo", "sp_Get_Dashboard_Data", 128)
-            .Build();
-
-        return await DbContext.QueryMultipleIEnumerableAsync<UserDto, OrderDto>(sp, ct);
-    }
-}
-```
-
-Destructure at the call site:
-
-```csharp
-var (users, orders) = await repository.GetDashboardAsync(ct);
-```
-
-## Example — three result sets
-
-```csharp
-var sp = new StoredProcedureParametersBuilder("dbo", "sp_Get_Report_Data", 500)
-    .AddParameter("Month", month, SqlDbType.TinyInt)
+var sp = new StoredProcedureParametersBuilder("dbo", "sp_Get_Dashboard_Data", 128)
     .Build();
 
-var (users, orders, products) = await DbContext
-    .QueryMultipleIEnumerableAsync<UserDto, OrderDto, ProductDto>(sp, ct);
+var (users, orders) = await dbContext
+    .QueryMultipleReadOnlyCollectionAsync<UserDto, OrderDto>(sp, ct);
 ```
+
+## Available method families
+
+Each method family supports two to five result sets.
+
+| Method family | Returns |
+|---|---|
+| `QueryMultipleIEnumerableAsync<T1, T2>(...)` through `QueryMultipleIEnumerableAsync<T1, T2, T3, T4, T5>(...)` | Tuple of `IEnumerable<T>` values |
+| `QueryMultipleReadOnlyCollectionAsync<T1, T2>(...)` through `QueryMultipleReadOnlyCollectionAsync<T1, T2, T3, T4, T5>(...)` | Tuple of `ReadOnlyCollection<T>` values |
+| `QueryMultipleImmutableArrayAsync<T1, T2>(...)` through `QueryMultipleImmutableArrayAsync<T1, T2, T3, T4, T5>(...)` | Tuple of `ImmutableArray<T>` values |
+
+## Choose a return shape
+
+| Shape | Use when |
+|---|---|
+| `IEnumerable<T>` | You want a simple materialized sequence for LINQ operations. |
+| `ReadOnlyCollection<T>` | You expose the result through an API and want an indexable read-only contract. |
+| `ImmutableArray<T>` | You want a compact immutable value that is efficient to pass around. |
 
 ## Result-set order is the contract
 
-The type parameters `T1`, `T2`, … must match the **order** in which the SP returns its `SELECT` statements. The first type maps to the first result set, the second to the second, and so on. There is no runtime name matching — sets are consumed sequentially from the `SqlDataReader`.
+The type parameters must match the SQL `SELECT` order.
 
-::: warning Order is strict
-If the SP changes its `SELECT` order, update the type parameters accordingly. Misaligning them produces an `InvalidCastException` (best case) or silently wrong values (worst case) at runtime.
+```csharp
+var (users, orders, stats) = await dbContext
+    .QueryMultipleImmutableArrayAsync<UserDto, OrderDto, UserStatsDto>(sp, ct);
+```
+
+In this example:
+
+1. The first result set maps to `UserDto`.
+2. The second result set maps to `OrderDto`.
+3. The third result set maps to `UserStatsDto`.
+
+CaeriusNet does not match result sets by name. It consumes the `SqlDataReader` sequentially.
+
+::: warning Keep the SQL contract stable
+If you reorder, add, or remove `SELECT` statements in the stored procedure, update the C# call site and DTOs at the same time.
 :::
 
-## DTO requirements
+## Missing trailing result sets
 
-Every type parameter must implement `ISpMapper<T>` (manual or generated with `[GenerateDto]`). The same ordinal-mapping rules described in [DTO Mapping](/documentation/dto-mapping) apply per result set.
+If the stored procedure returns fewer result sets than the method expects, CaeriusNet returns empty collections for the missing trailing sets.
+
+```csharp
+var (users, counts, optionalDetails) = await dbContext
+    .QueryMultipleImmutableArrayAsync<UserDto, CountDto, DetailDto>(sp, ct);
+
+if (optionalDetails.IsEmpty)
+{
+    // The procedure did not return the optional trailing detail set.
+}
+```
+
+## Combine with TVPs
+
+You can combine TVP inputs with multiple result-set outputs.
+
+```csharp
+var ids = userIds.Select(id => new UserIdTvp(id));
+
+var sp = new StoredProcedureParametersBuilder("dbo", "sp_Get_Users_And_Orders_By_Ids", 256)
+    .AddTvpParameter("Ids", ids)
+    .Build();
+
+var (users, orders) = await dbContext
+    .QueryMultipleReadOnlyCollectionAsync<UserDto, OrderDto>(sp, ct);
+```
+
+## Caching behavior
+
+`QueryMultiple*Async` methods do not apply `StoredProcedureParametersBuilder` cache policies. If you need to cache a multi-result response, cache the complete repository-level tuple in your application layer.
 
 ## Telemetry
 
-Multi-result-set calls produce a single span tagged with:
+Multiple result-set calls emit a single stored procedure span. The span includes the expected result-set count.
 
 | Tag | Value |
 |---|---|
 | `caerius.resultset.multi` | `true` |
-| `caerius.resultset.expected_count` | The number of result sets requested (2, 3, 4, or 5) |
+| `caerius.resultset.expected_count` | `2`, `3`, `4`, or `5` |
 
-The single span keeps the trace cohesive — there is no fan-out into one span per `SELECT`.
+## Related content
 
-## Combining with TVPs and caching
-
-Multi-result-set calls accept the same builder features as single-result calls — TVPs, scalar parameters, and any of the cache tiers. See [Advanced Usage](/documentation/advanced-usage#multiple-result-sets-with-tvp) for combined examples.
-
----
-
-**Next:** [Caching](/documentation/cache) — reduce database load with per-call Frozen, InMemory, or Redis caching.
+- [Reading data](/documentation/reading-data)
+- [Table-valued parameters](/documentation/tvp)
+- [Multi-result set examples](/examples/multi-result-sets)
+- [API reference](/documentation/api#multiple-result-sets)

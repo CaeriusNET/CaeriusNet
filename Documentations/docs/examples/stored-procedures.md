@@ -1,6 +1,6 @@
-# Stored Procedures
+# Stored procedures
 
-This page walks through calling Stored Procedures with CaeriusNet — from the simplest read to error handling with a graceful fallback. Every snippet uses the source generator so DTOs implement `ISpMapper<T>` automatically.
+This page walks through calling stored procedures with CaeriusNet, from the simplest read to error handling with a graceful fallback. Every snippet uses the source generator so DTOs implement `ISpMapper<T>` automatically.
 
 ## SQL Server objects
 
@@ -70,7 +70,7 @@ public sealed record UsersRepository(
 }
 ```
 
-## 1. Basic read — no cache
+## 1. Basic read without cache
 
 ```csharp
 public async Task<IEnumerable<UserDto>> GetAllUsersAsync(CancellationToken ct)
@@ -121,9 +121,9 @@ return await DbContext.QueryAsReadOnlyCollectionAsync<UserDto>(sp, ct);
 On a cache hit, **no SQL command runs and no DB span is created** — only the `caerius.cache.lookups{hit=true}` counter ticks. The Aspire dashboard accurately shows the database was not contacted.
 :::
 
-## 3. Write — scalar return
+## 3. Write with scalar return
 
-`ExecuteScalarAsync<T>` executes the SP and returns the first column of the first row — perfect for `SCOPE_IDENTITY()`, counts, or status codes:
+`ExecuteScalarAsync<T>` executes the stored procedure and returns the first column of the first row. Use it for `SCOPE_IDENTITY()`, counts, or status codes:
 
 ```csharp
 public async Task<int> CreateUserAsync(string userName, CancellationToken ct)
@@ -136,7 +136,7 @@ public async Task<int> CreateUserAsync(string userName, CancellationToken ct)
 }
 ```
 
-## 4. Error handling — graceful fallback
+## 4. Error handling with fallback
 
 Wrap calls in `try`/`catch` to degrade gracefully when a transient SQL error occurs. `CaeriusNetSqlException` always wraps the original `SqlException` in `InnerException`, and the active OTel span is already tagged `ActivityStatusCode.Error` before the exception bubbles up:
 
@@ -163,21 +163,21 @@ public async Task<IEnumerable<UserDto>> GetAllUsersSafeAsync(CancellationToken c
 `StoredProcedureParametersBuilder` is independent of the return type. Choose the collection that fits your scenario:
 
 ```csharp
-// IEnumerable<T> — lazy, forward-only, lowest allocation; null on empty.
+// IEnumerable<T>: materialized sequence; empty sequence on empty.
 var lazy = await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct);
 
-// IReadOnlyCollection<T> — materialized list, indexable, immutable contract.
+// IReadOnlyCollection<T>: materialized list, indexable, immutable contract.
 var collection = await DbContext.QueryAsReadOnlyCollectionAsync<UserDto>(sp, ct);
 
-// ImmutableArray<T> — struct-wrapped array, ideal for cached / shared data.
+// ImmutableArray<T>: ideal for cached or shared data.
 var array = await DbContext.QueryAsImmutableArrayAsync<UserDto>(sp, ct);
 
-// T? — single-row lookup; null when the result set is empty.
+// T?: single-row lookup; null when the result set is empty.
 var first = await DbContext.FirstQueryAsync<UserDto>(sp, ct);
 ```
 
-See [Reading Data](/documentation/reading-data) for guidance on choosing between them.
+See [Reading data](/documentation/reading-data) for guidance on choosing a result shape.
 
 ---
 
-**Next:** [Table-Valued Parameters](/examples/tvp) — pass sets of identifiers into a SP without dynamic SQL.
+**Next:** [table-valued parameters](/examples/tvp) - pass sets of identifiers into a stored procedure without dynamic SQL.

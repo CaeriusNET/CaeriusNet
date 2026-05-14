@@ -107,6 +107,7 @@ diagnostics link to
 - `[GeneratedCode("CaeriusNet.Generator", "11.0.3")]` attribute on generated types/members
 - `[MethodImpl(MethodImplOptions.AggressiveInlining)]` on `MapFromDataReader`
 - `[MethodImpl(MethodImplOptions.AggressiveOptimization)]` on `MapAsSqlDataRecords`
+- Package-internal multi-result-set overloads return `ValueTask` and relay the runtime instrumentation pipeline directly
 - `#pragma warning disable CS1591` (suppresses missing XML docs warning)
 - `#nullable enable`
 - XML doc comments on generated methods

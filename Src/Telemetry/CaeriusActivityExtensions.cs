@@ -39,9 +39,7 @@ internal static class CaeriusActivityExtensions
         if (!source.HasListeners())
             return null;
 
-        var activity = source.StartActivity(
-            string.Concat("SP ", spParameters.SchemaName, ".", spParameters.ProcedureName),
-            ActivityKind.Client);
+        var activity = source.StartActivity(string.Concat("SP ", spParameters.FullName), ActivityKind.Client);
 
         if (activity is null)
             return null;
@@ -49,22 +47,21 @@ internal static class CaeriusActivityExtensions
         activity.SetTag(CaeriusDiagnostics.AttributeNames.DbSystem,
             CaeriusDiagnostics.AttributeValues.DbSystemMsSql);
         activity.SetTag(CaeriusDiagnostics.AttributeNames.DbOperation, operation);
-        activity.SetTag(CaeriusDiagnostics.AttributeNames.DbStatement,
-            string.Concat(spParameters.SchemaName, ".", spParameters.ProcedureName));
+        activity.SetTag(CaeriusDiagnostics.AttributeNames.DbStatement, spParameters.FullName);
 
         activity.SetTag(CaeriusDiagnostics.AttributeNames.SpSchema, spParameters.SchemaName);
         activity.SetTag(CaeriusDiagnostics.AttributeNames.SpName, spParameters.ProcedureName);
         activity.SetTag(CaeriusDiagnostics.AttributeNames.SpCommand, operation);
 
-        var paramsSpan = spParameters.GetParametersSpan();
-        if (paramsSpan.Length > 0)
+        var parameters = spParameters.GetParametersArray();
+        if (parameters.Length > 0)
             activity.SetTag(CaeriusDiagnostics.AttributeNames.SpParameters,
                 CaeriusDiagnostics.TelemetryOptions.CaptureParameterValues
-                    ? JoinParameterNamesAndValues(paramsSpan)
-                    : JoinParameterNames(paramsSpan));
+                    ? JoinParameterNamesAndValues(parameters)
+                    : JoinParameterNames(parameters));
 
         // Detect TVP usage by scanning the parameter array — no need to store it separately.
-        var tvpNames = ExtractTvpTypeNames(paramsSpan);
+        var tvpNames = ExtractTvpTypeNames(parameters);
         var tvpUsed = tvpNames.Count > 0;
         activity.SetTag(CaeriusDiagnostics.AttributeNames.TvpUsed, tvpUsed);
         if (tvpUsed)
@@ -95,7 +92,7 @@ internal static class CaeriusActivityExtensions
         bool transactional = false,
         int expectedResultSetCount = 1)
     {
-        var tvpUsed = ExtractTvpTypeNames(spParameters.GetParametersSpan()).Count > 0;
+        var tvpUsed = HasTvpParameter(spParameters.GetParametersSpan());
         return new TagList
         {
             { CaeriusDiagnostics.AttributeNames.SpSchema, spParameters.SchemaName },
@@ -155,10 +152,11 @@ internal static class CaeriusActivityExtensions
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static void RecordCacheLookup(StoredProcedureParameters spParameters, CacheType tier, bool hit)
     {
+        var tierName = GetCacheTierName(tier);
         var current = Activity.Current;
         if (current is not null && current.Source == CaeriusDiagnostics.ActivitySource)
         {
-            current.SetTag(CaeriusDiagnostics.AttributeNames.CacheTier, tier.ToString());
+            current.SetTag(CaeriusDiagnostics.AttributeNames.CacheTier, tierName);
             current.SetTag(CaeriusDiagnostics.AttributeNames.CacheHit, hit);
         }
 
@@ -166,13 +164,13 @@ internal static class CaeriusActivityExtensions
         {
             { CaeriusDiagnostics.AttributeNames.SpSchema, spParameters.SchemaName },
             { CaeriusDiagnostics.AttributeNames.SpName, spParameters.ProcedureName },
-            { CaeriusDiagnostics.AttributeNames.CacheTier, tier.ToString() },
+            { CaeriusDiagnostics.AttributeNames.CacheTier, tierName },
             { CaeriusDiagnostics.AttributeNames.CacheHit, hit }
         };
         CaeriusDiagnostics.CacheLookups.Add(1, tags);
     }
 
-    private static string JoinParameterNames(ReadOnlySpan<SqlParameter> parameters)
+    private static string JoinParameterNames(SqlParameter[] parameters)
     {
         if (parameters.Length == 1)
             return parameters[0].ParameterName;
@@ -181,7 +179,7 @@ internal static class CaeriusActivityExtensions
         for (var i = 0; i < parameters.Length; i++)
             capacity += parameters[i].ParameterName.Length + 1;
 
-        return string.Create(capacity - 1, parameters.ToArray(), static (span, src) =>
+        return string.Create(capacity - 1, parameters, static (span, src) =>
         {
             var pos = 0;
             for (var i = 0; i < src.Length; i++)
@@ -200,7 +198,7 @@ internal static class CaeriusActivityExtensions
     ///     TVP parameters show <c>[TVP]</c> instead of the row data. Used only when
     ///     <see cref="CaeriusTelemetryOptions.CaptureParameterValues" /> is enabled.
     /// </summary>
-    private static string JoinParameterNamesAndValues(ReadOnlySpan<SqlParameter> parameters)
+    private static string JoinParameterNamesAndValues(SqlParameter[] parameters)
     {
         var sb = new StringBuilder();
         for (var i = 0; i < parameters.Length; i++)
@@ -242,6 +240,29 @@ internal static class CaeriusActivityExtensions
         }
 
         return result ?? [];
+    }
+
+    private static bool HasTvpParameter(ReadOnlySpan<SqlParameter> parameters)
+    {
+        for (var i = 0; i < parameters.Length; i++)
+        {
+            ref readonly var p = ref parameters[i];
+            if (p.SqlDbType == SqlDbType.Structured && !string.IsNullOrEmpty(p.TypeName))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static string GetCacheTierName(CacheType tier)
+    {
+        return tier switch
+        {
+            CacheType.Frozen => "Frozen",
+            CacheType.InMemory => "InMemory",
+            CacheType.Redis => "Redis",
+            _ => tier.ToString()
+        };
     }
 
     /// <summary>

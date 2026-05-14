@@ -8,9 +8,9 @@ The examples use SQL Server stored procedures and TVPs. C# parameter builder cal
 
 | Page | Scope |
 |---|---|
-| [Stored Procedures](/examples/stored-procedures) | Basic reads, writes, cache tiers, error handling, return-type variants |
-| [Table-Valued Parameters](/examples/tvp) | `tvp_int`, `tvp_guid`, composite-key TVPs, TVP combined with scalar writes |
-| [Multi-Result Sets](/examples/multi-result-sets) | 2-set / 3-set reads, TVP + multi-RS in one round-trip |
+| [Stored procedures](/examples/stored-procedures) | Basic reads, writes, cache tiers, error handling, return-type variants |
+| [table-valued parameters](/examples/tvp) | `tvp_int`, `tvp_guid`, composite-key TVPs, TVP combined with scalar writes |
+| [Multi-result sets](/examples/multi-result-sets) | Two-set and three-set reads, including a TVP filter |
 | [Transactions](/examples/transactions) | Commit, C#-side rollback, SQL-side rollback (`BEGIN CATCH`), poison handling |
 
 ## Conventions used in this section
@@ -23,12 +23,12 @@ The examples use SQL Server stored procedures and TVPs. C# parameter builder cal
 
 ## Running the examples
 
-The full schema and Stored Procedures are created by the `init.sql` script bundled with the runnable example projects:
+The full schema and stored procedures are created by the `init.sql` script bundled with the runnable example projects:
 
 - `Exemples/Default/CaeriusNet.Exemples.Default.Console/` — traditional connection-string setup
 - `Exemples/Aspire/CaeriusNet.Exemples.Aspire.AppHost/` — cloud-native Aspire orchestration (SQL Server + Redis containers, `init.sql` applied automatically via `WithCreationScript`)
 
-Both projects exercise the same `IUsersService` and demonstrate seven distinct scenarios — including caches, TVPs, multi-result-sets, and the three transaction outcomes (commit, C#-side rollback, SQL-side rollback).
+Both projects exercise the same `IUsersService` and demonstrate seven distinct scenarios, including caches, TVPs, multiple result sets, and the three transaction outcomes: commit, C#-side rollback, and SQL-side rollback.
 
 ---
 

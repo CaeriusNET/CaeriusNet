@@ -20,7 +20,7 @@
 | Directory | Description |
 |-----------|-------------|
 | `Src/` | Core library — CaeriusNet NuGet package source |
-| `SourceGenerators/` | Roslyn incremental source generators (`[GenerateDto]`, `[GenerateTvp]`, AutoContracts, package-internal multi-result signatures) |
+| `SourceGenerators/` | Roslyn incremental source generators and analyzers used by the package |
 | `Tests/` | Unit tests, generator tests, integration tests |
 | `Benchmark/` | BenchmarkDotNet performance benchmarks |
 | `Exemples/` | Example projects (Aspire + Console); directory name retained for compatibility |
@@ -149,6 +149,7 @@ var users = await dbContext.QueryAsIEnumerableAsync<UserDto>(sp, cancellationTok
 ## Multi-Result Sets
 
 Retrieve multiple strongly-typed result sets in a single round-trip using `QueryMultipleIEnumerableAsync`.
+The multi-result APIs follow the same `ValueTask` async shape as the rest of the read/write API.
 
 ```csharp
 var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetDashboard", 512).Build();
@@ -157,7 +158,7 @@ var (users, orders) = await dbContext.QueryMultipleIEnumerableAsync<UserDto, Ord
     sp, cancellationToken);
 ```
 
-You can query up to five result sets: `QueryMultipleIEnumerableAsync<T1, T2, T3, T4, T5>`. The two-result-set overload is the runtime baseline; higher arities are emitted into the package by the CaeriusNet source generator.
+You can query up to five result sets: `QueryMultipleIEnumerableAsync<T1, T2, T3, T4, T5>`.
 
 ---
 

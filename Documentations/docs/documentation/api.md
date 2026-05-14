@@ -1,6 +1,6 @@
-# API Reference
+# API reference
 
-This page is a practical reference for the public API exposed by CaeriusNet. All examples target **C# 14 / .NET 10** with `Microsoft.Data.SqlClient`. Namespaces are abbreviated below — add the matching `using` directives in your project. C# 14 extension-block methods such as `QueryAsIEnumerableAsync`, `ExecuteNonQueryAsync`, and `BeginTransactionAsync` are available after importing their command namespaces.
+This page is a practical reference for the public API exposed by CaeriusNet. All examples target **C# 14 / .NET 10** with `Microsoft.Data.SqlClient`. Namespaces are abbreviated below. Add the matching `using` directives in your project. C# 14 extension-block methods such as `QueryAsIEnumerableAsync`, `ExecuteNonQueryAsync`, and `BeginTransactionAsync` are available after you import their command namespaces.
 
 > Examples assume DI is configured via `CaeriusNetBuilder` (see [Installation & Setup](/quickstart/getting-started)).
 >
@@ -41,7 +41,7 @@ CaeriusNetBuilder
 
 ### `CaeriusNet.Builders.StoredProcedureParametersBuilder`
 
-Fluent builder for Stored Procedure execution settings, parameters, and caching.
+Fluent builder for stored procedure execution settings, parameters, and caching.
 
 ::: tip Parameter identifiers
 Use the parameter name only when calling `AddParameter` or `AddTvpParameter`; do not include the SQL `@` prefix. This keeps C# call sites consistent while SQL definitions continue to use normal SQL Server parameter syntax.
@@ -133,7 +133,7 @@ builder.Services.AddOpenTelemetry()
     .WithMetrics(m => m.AddMeter (CaeriusDiagnostics.SourceName));
 ```
 
-See [Aspire Integration — Tracing & Telemetry](/documentation/aspire#tracing-telemetry) for the complete tag and metric reference.
+See [Aspire integration](/documentation/aspire#tracing-telemetry) for the complete tag and metric reference.
 
 ## Abstractions
 
@@ -224,7 +224,7 @@ public sealed record UserIdsTvp(int Id) : ITvpMapper<UserIdsTvp>
 }
 ```
 
-## Attributes (Source Generators)
+## Attributes and source generators
 
 ### `CaeriusNet.Attributes.Dto.GenerateDtoAttribute`
 
@@ -253,7 +253,7 @@ Example:
 public sealed partial record UsersIntTvp(int UserId);
 ```
 
-See [Source Generators](/documentation/source-generators) for the complete generator behaviour and [Compiler Diagnostics](/documentation/diagnostics) for the analyzer rules.
+See [source generators](/documentation/source-generators) for the complete generator behavior and [compiler diagnostics](/documentation/diagnostics) for the analyzer rules.
 
 ## Read commands
 
@@ -268,7 +268,7 @@ ValueTask<TResult?>
 ValueTask<ReadOnlyCollection<TResult>>
     QueryAsReadOnlyCollectionAsync<TResult>(this ICaeriusNetDbContext, StoredProcedureParameters, CancellationToken);
 
-ValueTask<IEnumerable<TResult>?>
+ValueTask<IEnumerable<TResult>>
     QueryAsIEnumerableAsync<TResult>(this ICaeriusNetDbContext, StoredProcedureParameters, CancellationToken);
 
 ValueTask<ImmutableArray<TResult>>
@@ -313,25 +313,25 @@ await dbContext.ExecuteAsync(sp, ct);
 
 ## Multiple result sets
 
-Up to **5 result sets** per call. Each return type maps positionally to a `SELECT` statement in the SP.
+Up to **5 result sets** per call. Each return type maps positionally to a `SELECT` statement in the stored procedure.
 
-Namespace: `CaeriusNet.Commands.Reads`. The `T1,T2` overloads are maintained as the runtime source baseline; overloads for arities 3 through 5 are generated into the `CaeriusNet` assembly during package build.
+Namespace: `CaeriusNet.Commands.Reads`.
 
 ```csharp
-Task<(IEnumerable<T1>, IEnumerable<T2>)>
+ValueTask<(IEnumerable<T1>, IEnumerable<T2>)>
     QueryMultipleIEnumerableAsync<T1, T2>(this ICaeriusNetDbContext, StoredProcedureParameters, CancellationToken);
 
-Task<(IEnumerable<T1>, IEnumerable<T2>, IEnumerable<T3>)>
+ValueTask<(IEnumerable<T1>, IEnumerable<T2>, IEnumerable<T3>)>
     QueryMultipleIEnumerableAsync<T1, T2, T3>(/* ... */);
 
-Task<(IEnumerable<T1>, IEnumerable<T2>, IEnumerable<T3>, IEnumerable<T4>)>
+ValueTask<(IEnumerable<T1>, IEnumerable<T2>, IEnumerable<T3>, IEnumerable<T4>)>
     QueryMultipleIEnumerableAsync<T1, T2, T3, T4>(/* ... */);
 
-Task<(IEnumerable<T1>, IEnumerable<T2>, IEnumerable<T3>, IEnumerable<T4>, IEnumerable<T5>)>
+ValueTask<(IEnumerable<T1>, IEnumerable<T2>, IEnumerable<T3>, IEnumerable<T4>, IEnumerable<T5>)>
     QueryMultipleIEnumerableAsync<T1, T2, T3, T4, T5>(/* ... */);
 ```
 
-The same arities are available for `QueryMultipleReadOnlyCollectionAsync` and `QueryMultipleImmutableArrayAsync`.
+The same overload range is available for `QueryMultipleReadOnlyCollectionAsync` and `QueryMultipleImmutableArrayAsync`.
 
 Example:
 
@@ -393,7 +393,7 @@ try
 }
 catch (CaeriusNetSqlException ex) when (ex.InnerException is SqlException sqlEx)
 {
-    logger.LogError(ex, "SP {Procedure} failed (error {Number})", ex.ProcedureName, sqlEx.Number);
+    logger.LogError(ex, "Stored procedure {Procedure} failed (error {Number})", ex.ProcedureName, sqlEx.Number);
 }
 ```
 

@@ -1,6 +1,6 @@
-# Reading Data
+# Reading data
 
-CaeriusNet exposes four read methods on `ICaeriusNetDbContext`, each returning a different collection type so you can match your performance, allocation, and API-shape requirements. All methods are `async`, accept a `CancellationToken`, and use `CommandBehavior.SequentialAccess` internally for efficient TDS streaming.
+CaeriusNet exposes four read methods on `ICaeriusNetDbContext`. Each method returns a different shape so you can choose the contract that fits your application.
 
 ## Prerequisites
 
@@ -12,7 +12,7 @@ CaeriusNet exposes four read methods on `ICaeriusNetDbContext`, each returning a
 
 | Method | Return type | When to use |
 |---|---|---|
-| `QueryAsIEnumerableAsync<T>` | `IEnumerable<T>?` | Deferred enumeration, LINQ pipelines |
+| `QueryAsIEnumerableAsync<T>` | `IEnumerable<T>` | Materialized sequence for LINQ pipelines |
 | `QueryAsReadOnlyCollectionAsync<T>` | `ReadOnlyCollection<T>` | Public APIs that expose an immutable contract |
 | `QueryAsImmutableArrayAsync<T>` | `ImmutableArray<T>` | Frozen, struct-backed, allocation-efficient data |
 | `FirstQueryAsync<T>` | `T?` | Single-row lookups (returns `null` when empty) |
@@ -41,7 +41,7 @@ public sealed record UserRepository(ICaeriusNetDbContext DbContext)
 
 ## `QueryAsIEnumerableAsync`
 
-Returns `IEnumerable<T>?` (`null` on empty result set). Best for LINQ-pipeline scenarios or when downstream code materializes the collection later.
+Returns `IEnumerable<T>`. Empty result sets return an empty sequence. Use this shape when callers want LINQ operations and do not need an indexable collection contract.
 
 ```csharp
 public async Task<IEnumerable<UserDto>> GetUsersOlderThanAsync(
@@ -57,7 +57,7 @@ public async Task<IEnumerable<UserDto>> GetUsersOlderThanAsync(
 
 ## `QueryAsReadOnlyCollectionAsync`
 
-Returns a `ReadOnlyCollection<T>` — empty when the SP returns no rows. Ideal for public APIs where the caller should see an immutable contract.
+Returns a `ReadOnlyCollection<T>`, empty when the stored procedure returns no rows. Ideal for public APIs where the caller should see an immutable contract.
 
 ```csharp
 public async Task<ReadOnlyCollection<UserDto>> GetAllUsersAsync(CancellationToken ct)
@@ -101,7 +101,7 @@ public async Task<UserDto?> GetUserByGuidAsync(Guid guid, CancellationToken ct)
 
 ## Result-set capacity
 
-The third constructor argument of `StoredProcedureParametersBuilder` is `resultSetCapacity`. It pre-allocates the internal `List<T>` to the expected row count, avoiding reallocations as rows are added:
+The third constructor argument of `StoredProcedureParametersBuilder` is `resultSetCapacity`. Use it to tell CaeriusNet the expected row count for materialized result sets.
 
 ```csharp
 // Expecting ~250 rows — pre-allocate to skip List<T> resizing
@@ -138,4 +138,4 @@ On a cache hit, **no SQL command is executed and no DB span is created** — onl
 
 ---
 
-**Next:** [Writing Data](/documentation/writing-data) — execute INSERT, UPDATE, DELETE, and scalar returns.
+**Next:** [Writing data](/documentation/writing-data) - execute INSERT, UPDATE, DELETE, and scalar returns.

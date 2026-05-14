@@ -9,7 +9,13 @@ internal static class ResultSetMaterializer
         CancellationToken cancellationToken)
         where T : class, ISpMapper<T>
     {
-        var list = new List<T>(capacity);
+        if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            return [];
+
+        var list = new List<T>(NormalizeCapacity(capacity))
+        {
+            T.MapFromDataReader(reader)
+        };
 
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             list.Add(T.MapFromDataReader(reader));
@@ -24,18 +30,28 @@ internal static class ResultSetMaterializer
         CancellationToken cancellationToken)
         where T : class, ISpMapper<T>
     {
-        var buffer = ArrayPool<T>.Shared.Rent(NormalizeCapacity(capacity));
+        if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            return ImmutableArray<T>.Empty;
+
+        var first = T.MapFromDataReader(reader);
+        if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            return ImmutableArray.Create(first);
+
+        var buffer = ArrayPool<T>.Shared.Rent(Math.Max(NormalizeCapacity(capacity), 2));
         var count = 0;
 
         try
         {
-            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            buffer[count++] = first;
+
+            do
             {
                 if (count >= buffer.Length)
                     buffer = GrowBuffer(buffer, count);
 
                 buffer[count++] = T.MapFromDataReader(reader);
             }
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false));
 
             return [..buffer.AsSpan(0, count)];
         }
