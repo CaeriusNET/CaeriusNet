@@ -1,3 +1,5 @@
+using System.Text;
+
 namespace CaeriusNet.Analyzer.Tests.Utilities;
 
 internal static class AnalyzerTestHelper
@@ -25,21 +27,38 @@ internal static class AnalyzerTestHelper
                                                 }
                                                 """;
 
-    internal static IReadOnlyList<Diagnostic> RunAnalyzer(string source)
+    internal static IReadOnlyList<Diagnostic> RunAnalyzer(string source, params AdditionalText[] additionalTexts)
+    {
+        return RunAnalyzer(source, globalOptions: null, additionalTexts);
+    }
+
+    internal static IReadOnlyList<Diagnostic> RunAnalyzer(
+        string source,
+        IReadOnlyDictionary<string, string>? globalOptions,
+        params AdditionalText[] additionalTexts)
     {
         var parseOptions = CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Latest);
         var attributeTree = CSharpSyntaxTree.ParseText(AttributeDefinitions, parseOptions);
         var sourceTree = CSharpSyntaxTree.ParseText(source, parseOptions);
         var compilation = CreateCompilation(attributeTree, sourceTree);
 
+        var analyzerOptions = new AnalyzerOptions(
+            additionalTexts.ToImmutableArray(),
+            new TestAnalyzerConfigOptionsProvider(globalOptions));
         var diagnostics = compilation.WithAnalyzers(
-                ImmutableArray.Create<DiagnosticAnalyzer>(new GeneratorUsageAnalyzer()))
+                ImmutableArray.Create<DiagnosticAnalyzer>(
+                    new GeneratorUsageAnalyzer(),
+                    new AutoContractsManifestAnalyzer()),
+                analyzerOptions)
             .GetAnalyzerDiagnosticsAsync()
             .GetAwaiter()
             .GetResult();
 
         return diagnostics
-            .Where(diagnostic => ReferenceEquals(diagnostic.Location.SourceTree, sourceTree))
+            .Where(diagnostic =>
+                additionalTexts.Length > 0 ||
+                globalOptions is not null ||
+                ReferenceEquals(diagnostic.Location.SourceTree, sourceTree))
             .OrderBy(diagnostic => diagnostic.Location.SourceSpan.Start)
             .ThenBy(diagnostic => diagnostic.Id, StringComparer.Ordinal)
             .ToArray();
@@ -81,5 +100,50 @@ internal static class AnalyzerTestHelper
             }
 
         return references;
+    }
+}
+
+internal sealed class TestAnalyzerConfigOptionsProvider(
+    IReadOnlyDictionary<string, string>? globalOptions) : AnalyzerConfigOptionsProvider
+{
+    private static readonly AnalyzerConfigOptions EmptyOptions = new TestAnalyzerConfigOptions(null);
+
+    public override AnalyzerConfigOptions GlobalOptions { get; } =
+        new TestAnalyzerConfigOptions(globalOptions);
+
+    public override AnalyzerConfigOptions GetOptions(SyntaxTree tree)
+    {
+        return EmptyOptions;
+    }
+
+    public override AnalyzerConfigOptions GetOptions(AdditionalText textFile)
+    {
+        return EmptyOptions;
+    }
+}
+
+internal sealed class TestAnalyzerConfigOptions(
+    IReadOnlyDictionary<string, string>? options) : AnalyzerConfigOptions
+{
+    public override bool TryGetValue(string key, out string value)
+    {
+        if (options is not null && options.TryGetValue(key, out var found))
+        {
+            value = found;
+            return true;
+        }
+
+        value = string.Empty;
+        return false;
+    }
+}
+
+internal sealed class TestAdditionalText(string path, string text) : AdditionalText
+{
+    public override string Path { get; } = path;
+
+    public override SourceText GetText(CancellationToken cancellationToken = default)
+    {
+        return SourceText.From(text, Encoding.UTF8);
     }
 }

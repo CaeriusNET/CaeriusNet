@@ -1,0 +1,20 @@
+<Project>
+    <PropertyGroup>
+        <CaeriusContractsMode Condition="'$(CaeriusContractsMode)' == ''">Off</CaeriusContractsMode>
+        <CaeriusContractsModeNormalized>$([System.String]::Copy('$(CaeriusContractsMode)').Trim().ToUpperInvariant())</CaeriusContractsModeNormalized>
+        <CaeriusContractsSchemas Condition="'$(CaeriusContractsSchemas)' == ''">dbo</CaeriusContractsSchemas>
+        <CaeriusContractsOutput Condition="'$(CaeriusContractsOutput)' == ''">$(ProjectDir)caerius.contracts.json</CaeriusContractsOutput>
+        <CaeriusContractsConnectionStringEnv Condition="'$(CaeriusContractsConnectionStringEnv)' == ''">CAERIUS_SQLSERVER</CaeriusContractsConnectionStringEnv>
+        <CaeriusContractsToolPath Condition="'$(CaeriusContractsToolPath)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\tools\net10.0\any\CaeriusNet.SqlServer.Contracts.dll'))</CaeriusContractsToolPath>
+        <CaeriusContractsToolCommand Condition="'$(CaeriusContractsToolCommand)' == ''">dotnet &quot;$(CaeriusContractsToolPath)&quot;</CaeriusContractsToolCommand>
+    </PropertyGroup>
+
+    <ItemGroup Condition="Exists('$(CaeriusContractsOutput)')">
+        <AdditionalFiles Include="$(CaeriusContractsOutput)" CaeriusContractManifest="true"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <CompilerVisibleProperty Include="CaeriusContractsMode"/>
+        <CompilerVisibleProperty Include="CaeriusContractsOutput"/>
+    </ItemGroup>
+</Project>
