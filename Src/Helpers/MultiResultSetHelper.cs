@@ -14,22 +14,13 @@ internal static class MultiResultSetHelper
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>A List containing the mapped rows</returns>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-    internal static async ValueTask<List<T>> ReadResultSetAsync<T>(
+    internal static ValueTask<List<T>> ReadResultSetAsync<T>(
         SqlDataReader reader,
         int capacity,
         CancellationToken cancellationToken)
         where T : class, ISpMapper<T>
     {
-        var list = new List<T>(capacity);
-
-        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-        {
-            var item = T.MapFromDataReader(reader);
-
-            list.Add(item);
-        }
-
-        return list;
+        return ResultSetMaterializer.ReadListAsync<T>(reader, capacity, cancellationToken);
     }
 
     /// <summary>
@@ -44,37 +35,13 @@ internal static class MultiResultSetHelper
     ///     Uses direct creation of ImmutableArray to avoid an extra allocation compared to Builder + ToImmutable
     /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-    internal static async ValueTask<ImmutableArray<T>> ReadResultSetAsImmutableArrayAsync<T>(
+    internal static ValueTask<ImmutableArray<T>> ReadResultSetAsImmutableArrayAsync<T>(
         SqlDataReader reader,
         int capacity,
         CancellationToken cancellationToken)
         where T : class, ISpMapper<T>
     {
-        var buffer = ArrayPool<T>.Shared.Rent(NormalizeCapacity(capacity));
-        var count = 0;
-
-        try
-        {
-            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-            {
-                if (count >= buffer.Length)
-                {
-                    var newCapacity = GrowCapacity(buffer.Length);
-                    var newBuffer = ArrayPool<T>.Shared.Rent(newCapacity);
-                    buffer.AsSpan(0, count).CopyTo(newBuffer);
-                    ArrayPool<T>.Shared.Return(buffer);
-                    buffer = newBuffer;
-                }
-
-                buffer[count++] = T.MapFromDataReader(reader);
-            }
-
-            return [..buffer.AsSpan(0, count)];
-        }
-        finally
-        {
-            ArrayPool<T>.Shared.Return(buffer);
-        }
+        return ResultSetMaterializer.ReadImmutableArrayAsync<T>(reader, capacity, cancellationToken);
     }
 
     /// <summary>
@@ -94,15 +61,4 @@ internal static class MultiResultSetHelper
             : new ValueTask<bool>(task);
     }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int NormalizeCapacity(int capacity)
-    {
-        return Math.Max(capacity, 1);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int GrowCapacity(int capacity)
-    {
-        return capacity <= 1 ? 2 : capacity * 3 / 2;
-    }
 }

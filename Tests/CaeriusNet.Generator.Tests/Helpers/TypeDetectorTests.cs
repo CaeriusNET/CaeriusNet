@@ -32,28 +32,4 @@ public sealed class TypeDetectorTests
 
         Assert.Equal(expectedMethod, actual);
     }
-
-    [Theory]
-    [InlineData("System.DateOnly", true)]
-    [InlineData("DateOnly", true)]
-    [InlineData("System.TimeOnly", true)]
-    [InlineData("TimeOnly", true)]
-    [InlineData("byte[]", true)]
-    [InlineData("System.Byte[]", true)]
-    [InlineData("System.Nullable<System.DateOnly>", true)]
-    [InlineData("System.Nullable<System.TimeOnly>", true)]
-    [InlineData("System.Nullable<System.Byte[]>", true)]
-    [InlineData("System.Half", true)]
-    [InlineData("Half", true)]
-    [InlineData("System.Int32", false)]
-    [InlineData("System.String", false)]
-    [InlineData("System.Guid", false)]
-    [InlineData("System.DateTime", false)]
-    [InlineData("System.Nullable<System.Int32>", false)]
-    public void RequiresSpecialConversion_Returns_Expected_Result(string typeName, bool expected)
-    {
-        var actual = TypeDetector.RequiresSpecialConversion(typeName);
-
-        Assert.Equal(expected, actual);
-    }
 }

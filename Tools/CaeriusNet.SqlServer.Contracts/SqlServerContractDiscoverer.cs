@@ -8,16 +8,17 @@ internal static class SqlServerContractDiscoverer
 {
     internal static async Task<ContractManifest> DiscoverAsync(
         CommandLineOptions options,
-        ContractDiagnosticSink diagnostics)
+        ContractDiagnosticSink diagnostics,
+        CancellationToken cancellationToken = default)
     {
         var connectionString = ConnectionStringResolver.Resolve(options);
 
         await using var connection = new SqlConnection(connectionString);
-        await connection.OpenAsync().ConfigureAwait(false);
+        await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
 
-        var database = await DiscoverDatabaseAsync(connection).ConfigureAwait(false);
-        var tableTypes = await DiscoverTableTypesAsync(connection, diagnostics).ConfigureAwait(false);
-        var procedures = await DiscoverProceduresAsync(connection, tableTypes, diagnostics)
+        var database = await DiscoverDatabaseAsync(connection, cancellationToken).ConfigureAwait(false);
+        var tableTypes = await DiscoverTableTypesAsync(connection, diagnostics, cancellationToken).ConfigureAwait(false);
+        var procedures = await DiscoverProceduresAsync(connection, tableTypes, diagnostics, cancellationToken)
             .ConfigureAwait(false);
 
         return new ContractManifest(
@@ -28,7 +29,9 @@ internal static class SqlServerContractDiscoverer
             procedures);
     }
 
-    private static async Task<DatabaseInfo> DiscoverDatabaseAsync(SqlConnection connection)
+    private static async Task<DatabaseInfo> DiscoverDatabaseAsync(
+        SqlConnection connection,
+        CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
         command.CommandText = """
@@ -40,8 +43,9 @@ internal static class SqlServerContractDiscoverer
                               WHERE database_id = DB_ID();
                               """;
 
-        await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SingleRow).ConfigureAwait(false);
-        if (!await reader.ReadAsync().ConfigureAwait(false))
+        await using var reader = await command.ExecuteReaderAsync(CommandBehavior.SingleRow, cancellationToken)
+            .ConfigureAwait(false);
+        if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             throw new InvalidOperationException("Could not read SQL Server database metadata.");
 
         return new DatabaseInfo(
@@ -52,7 +56,8 @@ internal static class SqlServerContractDiscoverer
 
     private static async Task<IReadOnlyList<TableTypeContract>> DiscoverTableTypesAsync(
         SqlConnection connection,
-        ContractDiagnosticSink diagnostics)
+        ContractDiagnosticSink diagnostics,
+        CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
         command.CommandText = """
@@ -98,8 +103,8 @@ internal static class SqlServerContractDiscoverer
                               """;
 
         var tableTypes = new Dictionary<string, MutableTableType>(StringComparer.OrdinalIgnoreCase);
-        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-        while (await reader.ReadAsync().ConfigureAwait(false))
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             var schema = reader.GetString(0);
             var name = reader.GetString(1);
@@ -152,9 +157,10 @@ internal static class SqlServerContractDiscoverer
     private static async Task<IReadOnlyList<ProcedureContract>> DiscoverProceduresAsync(
         SqlConnection connection,
         IReadOnlyList<TableTypeContract> tableTypes,
-        ContractDiagnosticSink diagnostics)
+        ContractDiagnosticSink diagnostics,
+        CancellationToken cancellationToken)
     {
-        var procedures = await DiscoverProcedureHeadersAsync(connection).ConfigureAwait(false);
+        var procedures = await DiscoverProcedureHeadersAsync(connection, cancellationToken).ConfigureAwait(false);
         var tableTypesBySqlName = tableTypes.ToDictionary(
             tableType => tableType.Schema + "." + tableType.Name,
             StringComparer.OrdinalIgnoreCase);
@@ -166,8 +172,10 @@ internal static class SqlServerContractDiscoverer
                 connection,
                 procedure,
                 tableTypesBySqlName,
-                diagnostics).ConfigureAwait(false);
-            var resultSet = await DiscoverResultSetAsync(connection, procedure, diagnostics).ConfigureAwait(false);
+                diagnostics,
+                cancellationToken).ConfigureAwait(false);
+            var resultSet = await DiscoverResultSetAsync(connection, procedure, diagnostics, cancellationToken)
+                .ConfigureAwait(false);
 
             var clrName = CSharpName.FromSqlName(procedure.Name) + "Procedure";
             var contractHash = ContractHasher.HashProcedure(procedure.Schema, procedure.Name, parameters, resultSet);
@@ -190,7 +198,8 @@ internal static class SqlServerContractDiscoverer
     }
 
     private static async Task<List<ProcedureHeader>> DiscoverProcedureHeadersAsync(
-        SqlConnection connection)
+        SqlConnection connection,
+        CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
         command.CommandText = """
@@ -222,8 +231,8 @@ internal static class SqlServerContractDiscoverer
                               """;
 
         var procedures = new List<ProcedureHeader>();
-        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-        while (await reader.ReadAsync().ConfigureAwait(false))
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
             procedures.Add(new ProcedureHeader(reader.GetInt32(0), reader.GetString(1), reader.GetString(2)));
 
         return procedures;
@@ -233,7 +242,8 @@ internal static class SqlServerContractDiscoverer
         SqlConnection connection,
         ProcedureHeader procedure,
         Dictionary<string, TableTypeContract> tableTypesBySqlName,
-        ContractDiagnosticSink diagnostics)
+        ContractDiagnosticSink diagnostics,
+        CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
         command.CommandText = """
@@ -261,8 +271,8 @@ internal static class SqlServerContractDiscoverer
         command.Parameters.Add(new SqlParameter("@ProcedureObjectId", SqlDbType.Int) { Value = procedure.ObjectId });
 
         var parameters = new List<ParameterContract>();
-        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-        while (await reader.ReadAsync().ConfigureAwait(false))
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             var maxLength = reader.GetInt16(4);
             var precision = reader.GetByte(5);
@@ -317,7 +327,8 @@ internal static class SqlServerContractDiscoverer
     private static async Task<ResultSetContract> DiscoverResultSetAsync(
         SqlConnection connection,
         ProcedureHeader procedure,
-        ContractDiagnosticSink diagnostics)
+        ContractDiagnosticSink diagnostics,
+        CancellationToken cancellationToken)
     {
         await using var command = connection.CreateCommand();
         command.CommandText = """
@@ -335,7 +346,7 @@ internal static class SqlServerContractDiscoverer
                                   @ProcedureObjectId,
                                   0
                               )
-                              WHERE is_hidden = 0
+                              WHERE is_hidden = 0 OR error_number IS NOT NULL
                               ORDER BY column_ordinal;
                               """;
         command.Parameters.Add(new SqlParameter("@ProcedureObjectId", SqlDbType.Int) { Value = procedure.ObjectId });
@@ -344,8 +355,8 @@ internal static class SqlServerContractDiscoverer
         string? errorMessage = null;
         var procedureName = procedure.Schema + "." + procedure.Name;
 
-        await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
-        while (await reader.ReadAsync().ConfigureAwait(false))
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             if (!reader.IsDBNull(7))
             {
@@ -370,7 +381,9 @@ internal static class SqlServerContractDiscoverer
             var maxLength = reader.GetInt16(4);
             var precision = reader.GetByte(5);
             var scale = reader.GetByte(6);
-            var sqlType = SqlServerTypeName.Format(reader.GetString(3), maxLength, precision, scale);
+            var sqlType = reader.IsDBNull(3)
+                ? "unknown"
+                : SqlServerTypeName.Format(reader.GetString(3), maxLength, precision, scale);
             var nullable = reader.GetBoolean(2);
 
             if (!SqlServerTypeMapper.IsSupported(sqlType))

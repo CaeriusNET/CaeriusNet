@@ -85,9 +85,7 @@ public sealed class StoredProcedureParametersBuilder<TProcedure>
         byte? precision = null,
         byte? scale = null)
     {
-        ArgumentException.ThrowIfNullOrEmpty(name);
-
-        var parameter = new SqlParameter(name, dbType) { Value = value ?? DBNull.Value };
+        var parameter = new SqlParameter(SqlParameterName.Normalize(name), dbType) { Value = value ?? DBNull.Value };
         if (size is { } actualSize)
             parameter.Size = actualSize;
         if (precision is { } actualPrecision)
@@ -119,16 +117,16 @@ public sealed class StoredProcedureParametersBuilder<TProcedure>
         ReadOnlyMemory<T> rows,
         GeneratedTvpRowMapper<T> mapRow)
     {
-        ArgumentException.ThrowIfNullOrEmpty(name);
-        ArgumentException.ThrowIfNullOrEmpty(typeName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(typeName);
         ArgumentNullException.ThrowIfNull(metadata);
         ArgumentNullException.ThrowIfNull(mapRow);
+        var parameterName = SqlParameterName.Normalize(name);
         if (metadata.Length == 0)
             throw new ArgumentException(
                 $"Generated TVP parameter '{name}' for procedure '{TProcedure.FullName}' must declare at least one column.",
                 nameof(metadata));
 
-        var parameter = new SqlParameter(name, SqlDbType.Structured)
+        var parameter = new SqlParameter(parameterName, SqlDbType.Structured)
         {
             TypeName = typeName,
             Value = new ReadOnlyMemoryTvpParameterValue<T>(metadata, rows, mapRow)
@@ -215,9 +213,7 @@ public sealed class StoredProcedureParametersBuilder<TProcedure>
     {
         ValidateGeneratedOrdinal(ordinal);
         ArgumentNullException.ThrowIfNull(parameter);
-        ArgumentException.ThrowIfNullOrEmpty(parameter.ParameterName);
 
-        parameter.Value ??= DBNull.Value;
         _inner.AddParameter(parameter);
         _generatedParameterCount++;
         _generatedParametersBound = false;

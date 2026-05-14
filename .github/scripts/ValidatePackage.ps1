@@ -1,93 +1,332 @@
 [CmdletBinding()]
 param(
     [string]$Configuration = "Release",
-    [string]$OutputDirectory = ".work\package-validation"
+    [string]$OutputDirectory = ".work\package-validation",
+    [string]$PackageDirectory = ""
 )
 
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$outputRoot = if ([System.IO.Path]::IsPathRooted($OutputDirectory)) {
-    $OutputDirectory
+
+function Resolve-RepositoryPath {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    if ([System.IO.Path]::IsPathRooted($Path)) {
+        return [System.IO.Path]::GetFullPath($Path)
+    }
+
+    return [System.IO.Path]::GetFullPath((Join-Path $repoRoot $Path))
 }
-else {
-    Join-Path $repoRoot $OutputDirectory
+
+function Normalize-DirectoryPath {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    return ([System.IO.Path]::GetFullPath($Path)).TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar)
 }
 
-$packageDirectory = Join-Path $outputRoot "packages"
-$consumerDirectory = Join-Path $outputRoot "consumer"
+function Assert-SafeOutputDirectory {
+    param([Parameter(Mandatory = $true)][string]$Path)
 
-Push-Location $repoRoot
-try {
-    if (Test-Path $outputRoot) {
-        Remove-Item $outputRoot -Recurse -Force
+    $normalized = Normalize-DirectoryPath $Path
+    $root = (Normalize-DirectoryPath ([System.IO.Path]::GetPathRoot($normalized)))
+    $repo = Normalize-DirectoryPath $repoRoot
+
+    if ([string]::IsNullOrWhiteSpace($normalized) -or $normalized -eq $root -or $normalized -eq $repo) {
+        throw "Refusing to clear unsafe output directory '$Path'."
     }
+}
 
-    New-Item -ItemType Directory -Path $packageDirectory -Force | Out-Null
+function Invoke-DotNet {
+    param(
+        [Parameter(Mandatory = $true)][string[]]$Arguments,
+        [Parameter(Mandatory = $true)][string]$FailureMessage
+    )
 
-    dotnet build "Src\CaeriusNet.csproj" --configuration $Configuration --no-incremental
+    & dotnet @Arguments
     if ($LASTEXITCODE -ne 0) {
-        throw "dotnet build failed with exit code $LASTEXITCODE."
+        throw "$FailureMessage Exit code: $LASTEXITCODE."
+    }
+}
+
+function Get-RequiredPackage {
+    param(
+        [Parameter(Mandatory = $true)][string]$Directory,
+        [Parameter(Mandatory = $true)][string]$Pattern,
+        [Parameter(Mandatory = $true)][scriptblock]$Filter,
+        [Parameter(Mandatory = $true)][string]$Description
+    )
+
+    $packages = @(Get-ChildItem $Directory -Filter $Pattern -File |
+        Where-Object $Filter |
+        Sort-Object LastWriteTime -Descending)
+
+    if ($packages.Count -eq 0) {
+        throw "No $Description was found in '$Directory'."
     }
 
-    dotnet pack "Src\CaeriusNet.csproj" --configuration $Configuration --no-build --output $packageDirectory
-    if ($LASTEXITCODE -ne 0) {
-        throw "dotnet pack failed with exit code $LASTEXITCODE."
+    if ($packages.Count -gt 1) {
+        Write-Warning "Multiple $Description files were found in '$Directory'. Validating newest: $($packages[0].Name)."
     }
 
-    $package = Get-ChildItem $packageDirectory -Filter "CaeriusNet.*.nupkg" |
-        Where-Object { $_.Name -notlike "*.symbols.nupkg" } |
-        Sort-Object LastWriteTime -Descending |
-        Select-Object -First 1
+    return $packages[0]
+}
 
-    if (-not $package) {
-        throw "No CaeriusNet .nupkg was produced in '$packageDirectory'."
+function Get-PackageVersion {
+    param(
+        [Parameter(Mandatory = $true)][System.IO.FileInfo]$Package,
+        [Parameter(Mandatory = $true)][string]$PackageId
+    )
+
+    $escapedId = [regex]::Escape($PackageId)
+    $match = [regex]::Match($Package.Name, "^$escapedId\.(?<version>.+)\.nupkg$")
+    if (-not $match.Success -or [string]::IsNullOrWhiteSpace($match.Groups["version"].Value)) {
+        throw "Could not infer package version from '$($Package.Name)'."
     }
 
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
-    $archive = [System.IO.Compression.ZipFile]::OpenRead($package.FullName)
+    return $match.Groups["version"].Value
+}
+
+function Assert-PackageEntries {
+    param(
+        [Parameter(Mandatory = $true)][System.IO.FileInfo]$Package,
+        [Parameter(Mandatory = $true)][string[]]$RequiredEntries
+    )
+
+    $archive = [System.IO.Compression.ZipFile]::OpenRead($Package.FullName)
     try {
         $entries = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
         foreach ($entry in $archive.Entries) {
+            if ($entry.FullName.Contains('\')) {
+                throw "Package '$($Package.Name)' contains a non-portable ZIP entry '$($entry.FullName)'."
+            }
+
             [void]$entries.Add($entry.FullName)
         }
 
-        $requiredEntries = @(
-            "lib/net10.0/CaeriusNet.dll",
-            "lib/net10.0/CaeriusNet.xml",
-            "analyzers/dotnet/cs/CaeriusNet.Generator.dll",
-            "analyzers/dotnet/cs/CaeriusNet.Analyzer.dll"
-        )
-
-        foreach ($requiredEntry in $requiredEntries) {
+        foreach ($requiredEntry in $RequiredEntries) {
             if (-not $entries.Contains($requiredEntry)) {
-                throw "Package '$($package.Name)' is missing required entry '$requiredEntry'."
+                throw "Package '$($Package.Name)' is missing required entry '$requiredEntry'."
             }
         }
     }
     finally {
         $archive.Dispose()
     }
+}
 
-    $version = [regex]::Match($package.Name, "^CaeriusNet\.(?<version>.+)\.nupkg$").Groups["version"].Value
-    if ([string]::IsNullOrWhiteSpace($version)) {
-        throw "Could not infer package version from '$($package.Name)'."
+function Get-PackageEntryText {
+    param(
+        [Parameter(Mandatory = $true)][System.IO.FileInfo]$Package,
+        [Parameter(Mandatory = $true)][string]$EntryName
+    )
+
+    $archive = [System.IO.Compression.ZipFile]::OpenRead($Package.FullName)
+    try {
+        $entry = $archive.GetEntry($EntryName)
+        if (-not $entry) {
+            throw "Package '$($Package.Name)' is missing required entry '$EntryName'."
+        }
+
+        $stream = $entry.Open()
+        $reader = [System.IO.StreamReader]::new($stream, [System.Text.Encoding]::UTF8, $true)
+        try {
+            return $reader.ReadToEnd()
+        }
+        finally {
+            $reader.Dispose()
+            $stream.Dispose()
+        }
+    }
+    finally {
+        $archive.Dispose()
+    }
+}
+
+function Assert-PackageTextContains {
+    param(
+        [Parameter(Mandatory = $true)][System.IO.FileInfo]$Package,
+        [Parameter(Mandatory = $true)][string]$EntryName,
+        [Parameter(Mandatory = $true)][string[]]$ExpectedText
+    )
+
+    $text = Get-PackageEntryText -Package $Package -EntryName $EntryName
+    foreach ($expected in $ExpectedText) {
+        if (-not $text.Contains($expected)) {
+            throw "Package '$($Package.Name)' entry '$EntryName' does not contain expected text '$expected'."
+        }
+    }
+}
+
+function Assert-PackageTextDoesNotContain {
+    param(
+        [Parameter(Mandatory = $true)][System.IO.FileInfo]$Package,
+        [Parameter(Mandatory = $true)][string]$EntryName,
+        [Parameter(Mandatory = $true)][string[]]$DisallowedText
+    )
+
+    $text = Get-PackageEntryText -Package $Package -EntryName $EntryName
+    foreach ($disallowed in $DisallowedText) {
+        if ($text.Contains($disallowed)) {
+            throw "Package '$($Package.Name)' entry '$EntryName' contains disallowed text '$disallowed'."
+        }
+    }
+}
+
+function Write-PackageHashes {
+    param([Parameter(Mandatory = $true)][string]$Directory)
+
+    $packages = @(Get-ChildItem $Directory -File |
+        Where-Object { $_.Extension -in ".nupkg", ".snupkg" } |
+        Sort-Object Name)
+
+    if ($packages.Count -eq 0) {
+        return
     }
 
-    $globalPackagesLine = dotnet nuget locals global-packages --list
-    if ($LASTEXITCODE -ne 0) {
-        throw "Could not locate NuGet global packages cache."
+    Write-Host "Package SHA256 hashes:"
+    foreach ($package in $packages) {
+        $hash = Get-FileHash -Algorithm SHA256 -Path $package.FullName
+        Write-Host ("  {0}  {1}" -f $hash.Hash.ToLowerInvariant(), $package.Name)
+    }
+}
+
+function Validate-CaeriusNetPackage {
+    param([Parameter(Mandatory = $true)][System.IO.FileInfo]$Package)
+
+    Assert-PackageEntries -Package $Package -RequiredEntries @(
+        "CaeriusNet.nuspec",
+        "README.md",
+        "LICENSE",
+        "lib/net10.0/CaeriusNet.dll",
+        "lib/net10.0/CaeriusNet.xml",
+        "analyzers/dotnet/cs/CaeriusNet.Generator.dll",
+        "analyzers/dotnet/cs/CaeriusNet.Analyzer.dll"
+    )
+
+    Assert-PackageTextContains -Package $Package -EntryName "CaeriusNet.nuspec" -ExpectedText @(
+        "<id>CaeriusNet</id>",
+        "<license type=`"expression`">MIT</license>",
+        "<readme>README.md</readme>",
+        "<repository type=`"git`" url=`"https://github.com/CaeriusNET/CaeriusNet`""
+    )
+}
+
+function Validate-ContractsPackage {
+    param(
+        [Parameter(Mandatory = $true)][System.IO.FileInfo]$Package,
+        [Parameter(Mandatory = $true)][string]$ExtractDirectory
+    )
+
+    Assert-PackageEntries -Package $Package -RequiredEntries @(
+        "CaeriusNet.SqlServer.Contracts.nuspec",
+        "README.md",
+        "buildTransitive/CaeriusNet.SqlServer.Contracts.props",
+        "buildTransitive/CaeriusNet.SqlServer.Contracts.targets",
+        "tools/net10.0/any/CaeriusNet.SqlServer.Contracts.dll",
+        "tools/net10.0/any/CaeriusNet.SqlServer.Contracts.deps.json",
+        "tools/net10.0/any/CaeriusNet.SqlServer.Contracts.runtimeconfig.json",
+        "tools/net10.0/any/Microsoft.Data.SqlClient.dll",
+        "tools/net10.0/any/Microsoft.Extensions.Configuration.EnvironmentVariables.dll",
+        "tools/net10.0/any/Microsoft.Extensions.Configuration.Json.dll"
+    )
+
+    Assert-PackageTextContains -Package $Package -EntryName "CaeriusNet.SqlServer.Contracts.nuspec" -ExpectedText @(
+        "<id>CaeriusNet.SqlServer.Contracts</id>",
+        "<license type=`"expression`">MIT</license>",
+        "<readme>README.md</readme>",
+        "<repository type=`"git`" url=`"https://github.com/CaeriusNET/CaeriusNet`""
+    )
+
+    Assert-PackageTextDoesNotContain -Package $Package -EntryName "CaeriusNet.SqlServer.Contracts.nuspec" -DisallowedText @(
+        "DotnetTool",
+        "<packageTypes"
+    )
+
+    if (Test-Path $ExtractDirectory) {
+        Remove-Item $ExtractDirectory -Recurse -Force
     }
 
-    $globalPackagesRoot = (($globalPackagesLine | Select-Object -First 1) -replace '^global-packages:\s*', '').Trim()
-    $cachedPackageDirectory = Join-Path $globalPackagesRoot (Join-Path "caeriusnet" $version)
-    if (Test-Path $cachedPackageDirectory) {
-        Remove-Item $cachedPackageDirectory -Recurse -Force
+    New-Item -ItemType Directory -Path $ExtractDirectory -Force | Out-Null
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($Package.FullName, $ExtractDirectory)
+    $toolPath = Join-Path $ExtractDirectory "tools/net10.0/any/CaeriusNet.SqlServer.Contracts.dll"
+    if (-not (Test-Path $toolPath)) {
+        throw "Extracted tool package is missing '$toolPath'."
     }
+
+    Invoke-DotNet -Arguments @($toolPath, "--help") -FailureMessage "Contracts tool smoke test failed."
+}
+
+$outputRoot = Resolve-RepositoryPath $OutputDirectory
+Assert-SafeOutputDirectory $outputRoot
+
+$useExistingPackages = -not [string]::IsNullOrWhiteSpace($PackageDirectory)
+$packageDirectory = if ($useExistingPackages) {
+    Resolve-RepositoryPath $PackageDirectory
+}
+else {
+    Join-Path $outputRoot "packages"
+}
+
+$consumerDirectory = Join-Path $outputRoot "consumer"
+$contractsExtractDirectory = Join-Path $outputRoot "contracts-package"
+$previousNuGetPackages = $env:NUGET_PACKAGES
+
+Push-Location $repoRoot
+try {
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+    if (Test-Path $outputRoot) {
+        Remove-Item $outputRoot -Recurse -Force
+    }
+
+    New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
+
+    if ($useExistingPackages) {
+        if (-not (Test-Path $packageDirectory)) {
+            throw "Package directory '$packageDirectory' does not exist."
+        }
+    }
+    else {
+        New-Item -ItemType Directory -Path $packageDirectory -Force | Out-Null
+
+        Invoke-DotNet -Arguments @("build", "Src\CaeriusNet.csproj", "--configuration", $Configuration, "--no-incremental") `
+            -FailureMessage "dotnet build failed for CaeriusNet."
+
+        Invoke-DotNet -Arguments @("build", "Tools\CaeriusNet.SqlServer.Contracts\CaeriusNet.SqlServer.Contracts.csproj", "--configuration", $Configuration, "--no-incremental") `
+            -FailureMessage "dotnet build failed for CaeriusNet.SqlServer.Contracts."
+
+        Invoke-DotNet -Arguments @("pack", "Src\CaeriusNet.csproj", "--configuration", $Configuration, "--no-build", "--output", $packageDirectory) `
+            -FailureMessage "dotnet pack failed for CaeriusNet."
+
+        Invoke-DotNet -Arguments @("pack", "Tools\CaeriusNet.SqlServer.Contracts\CaeriusNet.SqlServer.Contracts.csproj", "--configuration", $Configuration, "--no-build", "--output", $packageDirectory, "-p:IncludeSymbols=true", "-p:SymbolPackageFormat=snupkg") `
+            -FailureMessage "dotnet pack failed for CaeriusNet.SqlServer.Contracts."
+    }
+
+    $mainPackage = Get-RequiredPackage `
+        -Directory $packageDirectory `
+        -Pattern "CaeriusNet.*.nupkg" `
+        -Filter { $_.Name -match '^CaeriusNet\.[0-9]' -and $_.Name -notlike "*.symbols.nupkg" } `
+        -Description "CaeriusNet .nupkg"
+
+    $contractsPackage = Get-RequiredPackage `
+        -Directory $packageDirectory `
+        -Pattern "CaeriusNet.SqlServer.Contracts.*.nupkg" `
+        -Filter { $_.Name -match '^CaeriusNet\.SqlServer\.Contracts\..+\.nupkg$' -and $_.Name -notlike "*.symbols.nupkg" } `
+        -Description "CaeriusNet.SqlServer.Contracts .nupkg"
+
+    Validate-CaeriusNetPackage -Package $mainPackage
+    Validate-ContractsPackage -Package $contractsPackage -ExtractDirectory $contractsExtractDirectory
+    Write-PackageHashes -Directory $packageDirectory
+
+    $version = Get-PackageVersion -Package $mainPackage -PackageId "CaeriusNet"
 
     New-Item -ItemType Directory -Path $consumerDirectory -Force | Out-Null
+    $env:NUGET_PACKAGES = Join-Path $outputRoot "nuget-packages"
 
-    $packageSource = $packageDirectory
+    $packageSource = [System.Security.SecurityElement]::Escape($packageDirectory)
     @"
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
@@ -233,13 +472,18 @@ internal static class Program
 }
 "@ | Set-Content -Path (Join-Path $consumerDirectory "Program.cs") -Encoding UTF8
 
-    dotnet run --project (Join-Path $consumerDirectory "PackageSmoke.Consumer.csproj") --configuration Release
-    if ($LASTEXITCODE -ne 0) {
-        throw "Package smoke consumer failed with exit code $LASTEXITCODE."
-    }
+    Invoke-DotNet -Arguments @("run", "--project", (Join-Path $consumerDirectory "PackageSmoke.Consumer.csproj"), "--configuration", "Release") `
+        -FailureMessage "Package smoke consumer failed."
 
-    Write-Host "Package validation succeeded for $($package.Name)."
+    Write-Host "Package validation succeeded for $($mainPackage.Name) and $($contractsPackage.Name)."
 }
 finally {
+    if ($null -eq $previousNuGetPackages) {
+        Remove-Item Env:NUGET_PACKAGES -ErrorAction SilentlyContinue
+    }
+    else {
+        $env:NUGET_PACKAGES = $previousNuGetPackages
+    }
+
     Pop-Location
 }

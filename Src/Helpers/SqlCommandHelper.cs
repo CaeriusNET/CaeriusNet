@@ -189,21 +189,14 @@ internal static class SqlCommandHelper
         CancellationToken cancellationToken = default)
         where TResultSet : class, ISpMapper<TResultSet>
     {
-        var results = new List<TResultSet>(spParameters.Capacity);
-
         await using var command =
             await ExecuteSqlCommandAsync(spParameters, connection, cancellationToken).ConfigureAwait(false);
         await using var reader = await command
             .ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken)
             .ConfigureAwait(false);
 
-        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-        {
-            var item = TResultSet.MapFromDataReader(reader);
-
-            results.Add(item);
-        }
-
+        var results = await ResultSetMaterializer.ReadListAsync<TResultSet>(
+            reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
         return results.AsReadOnly();
     }
 
@@ -259,36 +252,14 @@ internal static class SqlCommandHelper
         CancellationToken cancellationToken = default)
         where TResultSet : class, ISpMapper<TResultSet>
     {
-        var buffer = ArrayPool<TResultSet>.Shared.Rent(NormalizeCapacity(spParameters.Capacity));
-        var count = 0;
+        await using var command = await ExecuteSqlCommandAsync(spParameters, connection, cancellationToken)
+            .ConfigureAwait(false);
+        await using var reader = await command
+            .ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken)
+            .ConfigureAwait(false);
 
-        try
-        {
-            await using var command = await ExecuteSqlCommandAsync(spParameters, connection, cancellationToken)
-                .ConfigureAwait(false);
-            await using var reader = await command
-                .ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken)
-                .ConfigureAwait(false);
-
-            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-            {
-                if (count >= buffer.Length)
-                {
-                    var newBuffer = ArrayPool<TResultSet>.Shared.Rent(GrowCapacity(buffer.Length));
-                    buffer.AsSpan(0, count).CopyTo(newBuffer);
-                    ArrayPool<TResultSet>.Shared.Return(buffer);
-                    buffer = newBuffer;
-                }
-
-                buffer[count++] = TResultSet.MapFromDataReader(reader);
-            }
-
-            return [..buffer.AsSpan(0, count)];
-        }
-        finally
-        {
-            ArrayPool<TResultSet>.Shared.Return(buffer);
-        }
+        return await ResultSetMaterializer.ReadImmutableArrayAsync<TResultSet>(
+            reader, spParameters.Capacity, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -343,18 +314,6 @@ internal static class SqlCommandHelper
         spParameters.AddParametersTo(command.Parameters);
 
         return command;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int NormalizeCapacity(int capacity)
-    {
-        return Math.Max(capacity, 1);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static int GrowCapacity(int capacity)
-    {
-        return capacity <= 1 ? 2 : capacity * 3 / 2;
     }
 
     /// <summary>

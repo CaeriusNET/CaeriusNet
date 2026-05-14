@@ -10,10 +10,6 @@ public interface IUsersRepository
     Task<IEnumerable<UserDto>> GetUsersByTvpIntGuid(CancellationToken cancellationToken = default);
     Task<IReadOnlyCollection<UserDto>> GetUsersByTvpInt(CancellationToken cancellationToken = default);
     Task<ImmutableArray<UserDto>> GetUsersByTvpGuid(CancellationToken cancellationToken = default);
-
-    // Writes --------------------------------------------------------------
-    Task CreateNewUser(CancellationToken cancellationToken = default);
-
     // Multi-result sets ---------------------------------------------------
     Task<DashboardSnapshot> GetDashboardAsync(CancellationToken cancellationToken = default);
 

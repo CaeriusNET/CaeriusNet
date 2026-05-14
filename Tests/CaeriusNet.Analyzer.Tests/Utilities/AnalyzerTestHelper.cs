@@ -44,7 +44,7 @@ internal static class AnalyzerTestHelper
 
         var analyzerOptions = new AnalyzerOptions(
             additionalTexts.ToImmutableArray(),
-            new TestAnalyzerConfigOptionsProvider(globalOptions));
+            new TestAnalyzerConfigOptionsProvider(globalOptions, additionalTexts));
         var diagnostics = compilation.WithAnalyzers(
                 ImmutableArray.Create<DiagnosticAnalyzer>(
                     new GeneratorUsageAnalyzer(),
@@ -104,9 +104,12 @@ internal static class AnalyzerTestHelper
 }
 
 internal sealed class TestAnalyzerConfigOptionsProvider(
-    IReadOnlyDictionary<string, string>? globalOptions) : AnalyzerConfigOptionsProvider
+    IReadOnlyDictionary<string, string>? globalOptions,
+    IReadOnlyList<AdditionalText>? additionalTexts = null) : AnalyzerConfigOptionsProvider
 {
     private static readonly AnalyzerConfigOptions EmptyOptions = new TestAnalyzerConfigOptions(null);
+    private readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> _additionalOptions =
+        BuildAdditionalOptions(additionalTexts);
 
     public override AnalyzerConfigOptions GlobalOptions { get; } =
         new TestAnalyzerConfigOptions(globalOptions);
@@ -118,7 +121,23 @@ internal sealed class TestAnalyzerConfigOptionsProvider(
 
     public override AnalyzerConfigOptions GetOptions(AdditionalText textFile)
     {
-        return EmptyOptions;
+        return _additionalOptions.TryGetValue(textFile.Path, out var options)
+            ? new TestAnalyzerConfigOptions(options)
+            : EmptyOptions;
+    }
+
+    private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> BuildAdditionalOptions(
+        IReadOnlyList<AdditionalText>? additionalTexts)
+    {
+        if (additionalTexts is null || additionalTexts.Count == 0)
+            return new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal);
+
+        var options = new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.Ordinal);
+        foreach (var additionalText in additionalTexts)
+            if (additionalText is TestAdditionalText testAdditionalText && testAdditionalText.Options.Count > 0)
+                options[testAdditionalText.Path] = testAdditionalText.Options;
+
+        return options;
     }
 }
 
@@ -138,9 +157,14 @@ internal sealed class TestAnalyzerConfigOptions(
     }
 }
 
-internal sealed class TestAdditionalText(string path, string text) : AdditionalText
+internal sealed class TestAdditionalText(
+    string path,
+    string text,
+    IReadOnlyDictionary<string, string>? options = null) : AdditionalText
 {
     public override string Path { get; } = path;
+    internal IReadOnlyDictionary<string, string> Options { get; } =
+        options ?? new Dictionary<string, string>(StringComparer.Ordinal);
 
     public override SourceText GetText(CancellationToken cancellationToken = default)
     {

@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.ExceptionServices;
 
 namespace CaeriusNet.Factories;
 
@@ -46,22 +47,30 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransactionInternal
 
         try
         {
-            var prev = Interlocked.CompareExchange(ref _state, StateCommitted, StateActive);
-            if (prev != StateActive)
+            var current = Volatile.Read(ref _state);
+            if (current != StateActive)
                 throw new InvalidOperationException(
-                    $"Cannot commit: transaction is in state '{StateName(prev)}'.");
+                    $"Cannot commit: transaction is in state '{StateName(current)}'.");
 
-            await Transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await Transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (SqlException ex)
+            {
+                MarkCompletionFailure("commit-failed");
+                throw new CaeriusNetSqlException("Failed to commit SQL Server transaction.", ex);
+            }
+            catch (Exception ex) when (IsTransactionLifecycleFailure(ex))
+            {
+                MarkCompletionFailure("commit-failed");
+                throw;
+            }
+
+            Volatile.Write(ref _state, StateCommitted);
             CaeriusActivityExtensions.RecordTransactionOutcome(_txActivity, "committed");
             _txActivity = null;
             if (_isLoggingEnabled) _logger!.LogTransactionCommitted();
-        }
-        catch (SqlException ex)
-        {
-            Volatile.Write(ref _state, StatePoisoned);
-            CaeriusActivityExtensions.RecordTransactionOutcome(_txActivity, "commit-failed", true);
-            _txActivity = null;
-            throw new CaeriusNetSqlException("Failed to commit SQL Server transaction.", ex);
         }
         finally
         {
@@ -80,18 +89,25 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransactionInternal
                 throw new InvalidOperationException(
                     $"Cannot rollback: transaction is in state '{StateName(current)}'.");
 
-            await Transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await Transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (SqlException ex)
+            {
+                MarkCompletionFailure("rollback-failed");
+                throw new CaeriusNetSqlException("Failed to rollback SQL Server transaction.", ex);
+            }
+            catch (Exception ex) when (IsTransactionLifecycleFailure(ex))
+            {
+                MarkCompletionFailure("rollback-failed");
+                throw;
+            }
+
             Volatile.Write(ref _state, StateRolledBack);
             CaeriusActivityExtensions.RecordTransactionOutcome(_txActivity, "rolled-back");
             _txActivity = null;
             if (_isLoggingEnabled) _logger!.LogTransactionRolledBack();
-        }
-        catch (SqlException ex)
-        {
-            Volatile.Write(ref _state, StatePoisoned);
-            CaeriusActivityExtensions.RecordTransactionOutcome(_txActivity, "rollback-failed", true);
-            _txActivity = null;
-            throw new CaeriusNetSqlException("Failed to rollback SQL Server transaction.", ex);
         }
         finally
         {
@@ -126,35 +142,38 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransactionInternal
 
     public async ValueTask DisposeAsync()
     {
-        var prev = Interlocked.Exchange(ref _state, StateDisposed);
-        if (prev == StateDisposed) return;
+        if (Volatile.Read(ref _state) == StateDisposed)
+            return;
 
-        if (prev is StateActive or StatePoisoned && _transaction is not null)
-            try
-            {
-                await _transaction.RollbackAsync().ConfigureAwait(false);
-                var outcome = prev == StatePoisoned ? "poisoned-auto-rollback" : "auto-rollback";
-                CaeriusActivityExtensions.RecordTransactionOutcome(_txActivity, outcome, prev == StatePoisoned);
-                _txActivity = null;
-                if (_isLoggingEnabled) _logger!.LogTransactionRolledBack();
-            }
-            catch
-            {
-                // Best-effort rollback during disposal; surface no exception to callers.
-                _txActivity?.Stop();
-                _txActivity = null;
-            }
+        AcquireCompletionSlot("dispose");
 
-        if (_transaction is not null)
+        try
         {
-            await _transaction.DisposeAsync().ConfigureAwait(false);
-            _transaction = null;
+            var prev = Interlocked.Exchange(ref _state, StateDisposed);
+            if (prev == StateDisposed) return;
+
+            var transaction = _transaction;
+            if ((prev is StateActive or StatePoisoned) && transaction is not null)
+                try
+                {
+                    await transaction.RollbackAsync().ConfigureAwait(false);
+                    var outcome = prev == StatePoisoned ? "poisoned-auto-rollback" : "auto-rollback";
+                    CaeriusActivityExtensions.RecordTransactionOutcome(_txActivity, outcome, prev == StatePoisoned);
+                    _txActivity = null;
+                    if (_isLoggingEnabled) _logger!.LogTransactionRolledBack();
+                }
+                catch
+                {
+                    // Best-effort rollback during disposal; surface no rollback exception to callers.
+                    _txActivity?.Stop();
+                    _txActivity = null;
+                }
+
+            await DisposeOwnedResourcesAsync(suppressExceptions: false).ConfigureAwait(false);
         }
-
-        if (_connection is not null)
+        finally
         {
-            await _connection.DisposeAsync().ConfigureAwait(false);
-            _connection = null;
+            ReleaseCommandSlot();
         }
     }
 
@@ -184,6 +203,8 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransactionInternal
             connection = await dbContext.DbConnectionAsync(cancellationToken).ConfigureAwait(false);
             if (connection.State == ConnectionState.Closed)
                 await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            if (connection.State != ConnectionState.Open)
+                throw new InvalidOperationException("DbConnectionAsync returned a non-open SQL connection.");
 
             transaction = (SqlTransaction)await connection
                 .BeginTransactionAsync(isolationLevel, cancellationToken)
@@ -200,16 +221,73 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransactionInternal
         }
         catch (SqlException ex)
         {
-            if (transaction is not null) await transaction.DisposeAsync().ConfigureAwait(false);
-            if (connection is not null) await connection.DisposeAsync().ConfigureAwait(false);
+            await DisposeResourcesAsync(transaction, connection, suppressExceptions: true).ConfigureAwait(false);
             throw new CaeriusNetSqlException("Failed to open SQL Server transaction.", ex);
         }
         catch
         {
-            if (transaction is not null) await transaction.DisposeAsync().ConfigureAwait(false);
-            if (connection is not null) await connection.DisposeAsync().ConfigureAwait(false);
+            await DisposeResourcesAsync(transaction, connection, suppressExceptions: true).ConfigureAwait(false);
             throw;
         }
+    }
+
+    private void MarkCompletionFailure(string outcome)
+    {
+        Volatile.Write(ref _state, StatePoisoned);
+        CaeriusActivityExtensions.RecordTransactionOutcome(_txActivity, outcome, true);
+        _txActivity = null;
+    }
+
+    private static bool IsTransactionLifecycleFailure(Exception ex)
+    {
+        return ex is InvalidOperationException or OperationCanceledException;
+    }
+
+    private async ValueTask DisposeOwnedResourcesAsync(bool suppressExceptions)
+    {
+        var transaction = _transaction;
+        var connection = _connection;
+        _transaction = null;
+        _connection = null;
+
+        await DisposeResourcesAsync(transaction, connection, suppressExceptions).ConfigureAwait(false);
+    }
+
+    private static async ValueTask DisposeResourcesAsync(
+        SqlTransaction? transaction,
+        SqlConnection? connection,
+        bool suppressExceptions)
+    {
+        Exception? failure = null;
+
+        if (transaction is not null)
+            try
+            {
+                await transaction.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception) when (suppressExceptions)
+            {
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+
+        if (connection is not null)
+            try
+            {
+                await connection.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception) when (suppressExceptions)
+            {
+            }
+            catch (Exception ex)
+            {
+                failure ??= ex;
+            }
+
+        if (failure is not null)
+            ExceptionDispatchInfo.Capture(failure).Throw();
     }
 
     private static string StateName(int state)

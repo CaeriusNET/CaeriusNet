@@ -49,15 +49,4 @@ public sealed partial class UsersRepository
 
         return await dbContext.QueryAsIEnumerableAsync<UserDto>(sp, cancellationToken);
     }
-
-    // ─── Write ───────────────────────────────────────────────────────────────
-
-    public async Task CreateNewUser(CancellationToken cancellationToken = default)
-    {
-        var sp = new StoredProcedureParametersBuilder("Users", "usp_Create_User")
-            .AddParameter("UserName", $"demo-{Guid.NewGuid():N}"[..32], SqlDbType.NVarChar)
-            .Build();
-
-        await dbContext.ExecuteAsync(sp, cancellationToken);
-    }
 }

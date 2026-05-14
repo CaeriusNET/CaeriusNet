@@ -26,7 +26,6 @@ env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_NOLOGO: true
-  DOTNET_VERSION: '10.0.x'
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
@@ -37,16 +36,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+      - name: Setup .NET from global.json
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          global-json-file: global.json
+
+      - name: Display .NET SDK info
+        run: dotnet --info
 
       - name: Cache NuGet packages
         uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/*.slnx') }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('global.json', '**/*.csproj', '**/*.slnx') }}
           restore-keys: nuget-${{ runner.os }}-
 
       - name: Restore dependencies
@@ -57,8 +59,7 @@ jobs:
           dotnet build CaeriusNet.slnx \
             --configuration Release \
             --no-restore \
-            -p:TreatWarningsAsErrors=true \
-            -p:WarningLevel=4
+            -p:TreatWarningsAsErrors=true
 
       - name: Validate NuGet package
         shell: pwsh

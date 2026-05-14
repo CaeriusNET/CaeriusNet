@@ -68,11 +68,13 @@ public sealed class CaeriusNetCacheInvalidationTests
         FrozenCacheManager.Store(key, 1);
         InMemoryCacheManager.Store(key, 1, LongExpiry);
 
-        ICaeriusNetCache facade = new CaeriusNetCache();
+        var redis = new RecordingRedisCacheManager();
+        ICaeriusNetCache facade = new CaeriusNetCache(redis);
         await facade.RemoveAsync(key);
 
         Assert.False(FrozenCacheManager.TryGet<int>(key, out _));
         Assert.False(InMemoryCacheManager.TryGet<int>(key, out _));
+        Assert.Equal(new[] { key }, redis.RemovedKeys);
     }
 
     [Fact]
@@ -90,6 +92,22 @@ public sealed class CaeriusNetCacheInvalidationTests
     }
 
     [Fact]
+    public async Task Cache_RemoveAsync_TargetedRedis_CallsRedisOnly()
+    {
+        var key = $"invalidate_redis_{Guid.NewGuid()}";
+        FrozenCacheManager.Store(key, "F");
+        InMemoryCacheManager.Store(key, "M", LongExpiry);
+
+        var redis = new RecordingRedisCacheManager();
+        ICaeriusNetCache facade = new CaeriusNetCache(redis);
+        await facade.RemoveAsync(key, CacheType.Redis);
+
+        Assert.True(FrozenCacheManager.TryGet<string>(key, out _));
+        Assert.True(InMemoryCacheManager.TryGet<string>(key, out _));
+        Assert.Equal(new[] { key }, redis.RemovedKeys);
+    }
+
+    [Fact]
     public async Task Cache_ClearAsync_Frozen_EmptiesTier()
     {
         var key = $"invalidate_clear_frozen_{Guid.NewGuid()}";
@@ -99,6 +117,18 @@ public sealed class CaeriusNetCacheInvalidationTests
         await facade.ClearAsync(CacheType.Frozen);
 
         Assert.False(FrozenCacheManager.TryGet<int>(key, out _));
+    }
+
+    [Fact]
+    public async Task Cache_ClearAsync_InMemory_EmptiesTier()
+    {
+        var key = $"invalidate_clear_memory_{Guid.NewGuid()}";
+        InMemoryCacheManager.Store(key, 42, LongExpiry);
+
+        ICaeriusNetCache facade = new CaeriusNetCache();
+        await facade.ClearAsync(CacheType.InMemory);
+
+        Assert.False(InMemoryCacheManager.TryGet<int>(key, out _));
     }
 
     [Fact]
@@ -118,10 +148,81 @@ public sealed class CaeriusNetCacheInvalidationTests
     }
 
     [Fact]
+    public async Task Cache_RemoveAsync_EmptyKey_Throws()
+    {
+        ICaeriusNetCache facade = new CaeriusNetCache();
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            facade.RemoveAsync(string.Empty).AsTask());
+    }
+
+    [Fact]
+    public async Task Cache_RemoveAsync_WhitespaceKey_Throws()
+    {
+        ICaeriusNetCache facade = new CaeriusNetCache();
+        await Assert.ThrowsAsync<ArgumentException>(() =>
+            facade.RemoveAsync("   ").AsTask());
+    }
+
+    [Fact]
+    public async Task Cache_RemoveAsync_CanceledToken_DoesNotTouchTiers()
+    {
+        var key = $"invalidate_canceled_{Guid.NewGuid()}";
+        FrozenCacheManager.Store(key, 5);
+        InMemoryCacheManager.Store(key, 5, LongExpiry);
+        var redis = new RecordingRedisCacheManager();
+        ICaeriusNetCache facade = new CaeriusNetCache(redis);
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            facade.RemoveAsync(key, cts.Token).AsTask());
+
+        Assert.True(FrozenCacheManager.TryGet<int>(key, out _));
+        Assert.True(InMemoryCacheManager.TryGet<int>(key, out _));
+        Assert.Empty(redis.RemovedKeys);
+    }
+
+    [Fact]
+    public async Task Cache_ClearAsync_CanceledToken_DoesNotClearTier()
+    {
+        var key = $"invalidate_clear_canceled_{Guid.NewGuid()}";
+        FrozenCacheManager.Store(key, 42);
+        ICaeriusNetCache facade = new CaeriusNetCache();
+        using var cts = new CancellationTokenSource();
+        await cts.CancelAsync();
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            facade.ClearAsync(CacheType.Frozen, cts.Token).AsTask());
+
+        Assert.True(FrozenCacheManager.TryGet<int>(key, out _));
+    }
+
+    [Fact]
     public async Task Cache_RemoveAsync_UnknownTierEnum_Throws()
     {
         ICaeriusNetCache facade = new CaeriusNetCache();
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
             facade.RemoveAsync("k", (CacheType)42).AsTask());
+    }
+
+    private sealed class RecordingRedisCacheManager : IRedisCacheManager
+    {
+        public List<string> RemovedKeys { get; } = [];
+
+        public bool TryGet<T>(string cacheKey, out T? value)
+        {
+            value = default;
+            return false;
+        }
+
+        public void Store<T>(string cacheKey, T value, TimeSpan? expiration)
+            where T : notnull
+        {
+        }
+
+        public void Remove(string cacheKey)
+        {
+            RemovedKeys.Add(cacheKey);
+        }
     }
 }

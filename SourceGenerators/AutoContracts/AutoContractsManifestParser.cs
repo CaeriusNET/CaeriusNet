@@ -4,7 +4,7 @@ namespace CaeriusNet.Generator.AutoContracts;
 
 internal static class AutoContractsManifestParser
 {
-    private const string DefaultNamespace = "CaeriusNet.Generated";
+    internal const int SupportedManifestVersion = 1;
 
     internal static AutoContractsManifest? ParseOrDefault(AdditionalText text, CancellationToken cancellationToken)
     {
@@ -16,12 +16,12 @@ internal static class AutoContractsManifestParser
         {
             var json = SimpleJsonParser.Parse(source!);
             var root = json.AsObject();
-            var version = root.GetInt32("version", 1);
-            var ns = root.GetString("namespace", DefaultNamespace);
-            var tableTypes = ParseTableTypes(root.GetArray("tableTypes"));
-            var procedures = ParseProcedures(root.GetArray("procedures"));
+            var version = root.GetRequiredInt32("version");
+            var ns = root.GetRequiredString("namespace");
+            var tableTypes = ParseTableTypes(root.GetRequiredArray("tableTypes"));
+            var procedures = ParseProcedures(root.GetRequiredArray("procedures"));
 
-            return new AutoContractsManifest(version, ns, tableTypes, procedures);
+            return new AutoContractsManifest(text.Path, version, ns, tableTypes, procedures);
         }
         catch
         {
@@ -39,7 +39,7 @@ internal static class AutoContractsManifestParser
                 value.GetRequiredString("schema"),
                 value.GetRequiredString("name"),
                 value.GetRequiredString("clrName"),
-                ParseColumns(value.GetArray("columns")),
+                ParseColumns(value.GetRequiredArray("columns")),
                 value.GetString("contractHash", string.Empty));
         }
 
@@ -65,7 +65,7 @@ internal static class AutoContractsManifestParser
                 value.GetRequiredString("clrName"),
                 value.GetRequiredString("parametersClrName"),
                 value.GetString("resultClrName", null),
-                ParseParameters(value.GetArray("parameters")),
+                ParseParameters(value.GetRequiredArray("parameters")),
                 resultSet,
                 value.GetString("contractHash", string.Empty));
         }
@@ -77,7 +77,7 @@ internal static class AutoContractsManifestParser
     {
         return new AutoContractsResultSet(
             value.GetString("status", "None"),
-            ParseColumns(value.GetArray("columns")),
+            ParseColumns(value.GetRequiredArray("columns")),
             value.GetString("errorMessage", null));
     }
 
@@ -384,12 +384,22 @@ internal static class AutoContractsManifestParser
 
         internal int AsInt32()
         {
-            return Convert.ToInt32(_value, CultureInfo.InvariantCulture);
+            return _value is double value &&
+                   value >= int.MinValue &&
+                   value <= int.MaxValue &&
+                   Math.Truncate(value) == value
+                ? (int)value
+                : throw new FormatException("Expected JSON integer.");
         }
 
         internal byte AsByte()
         {
-            return Convert.ToByte(_value, CultureInfo.InvariantCulture);
+            return _value is double value &&
+                   value >= byte.MinValue &&
+                   value <= byte.MaxValue &&
+                   Math.Truncate(value) == value
+                ? (byte)value
+                : throw new FormatException("Expected JSON byte.");
         }
 
         internal bool AsBoolean()
@@ -404,9 +414,13 @@ internal static class AutoContractsManifestParser
     {
         internal string GetRequiredString(string name)
         {
-            return values.TryGetValue(name, out var value) && !value.IsNull
-                ? value.AsString()
-                : throw new FormatException($"Required manifest property '{name}' is missing.");
+            if (!values.TryGetValue(name, out var value) || value.IsNull)
+                throw new FormatException($"Required manifest property '{name}' is missing.");
+
+            var text = value.AsString();
+            return string.IsNullOrWhiteSpace(text)
+                ? throw new FormatException($"Required manifest property '{name}' is empty.")
+                : text;
         }
 
         internal string GetString(string name, string? defaultValue)
@@ -421,6 +435,13 @@ internal static class AutoContractsManifestParser
             return values.TryGetValue(name, out var value) && !value.IsNull
                 ? value.AsInt32()
                 : defaultValue;
+        }
+
+        internal int GetRequiredInt32(string name)
+        {
+            return values.TryGetValue(name, out var value) && !value.IsNull
+                ? value.AsInt32()
+                : throw new FormatException($"Required manifest property '{name}' is missing.");
         }
 
         internal int? GetNullableInt32(string name)
@@ -449,6 +470,13 @@ internal static class AutoContractsManifestParser
             return values.TryGetValue(name, out var value) && !value.IsNull
                 ? value.AsArray()
                 : [];
+        }
+
+        internal IReadOnlyList<JsonValue> GetRequiredArray(string name)
+        {
+            return values.TryGetValue(name, out var value) && !value.IsNull
+                ? value.AsArray()
+                : throw new FormatException($"Required manifest property '{name}' is missing.");
         }
 
         internal bool TryGetObject(string name, out JsonObject obj)

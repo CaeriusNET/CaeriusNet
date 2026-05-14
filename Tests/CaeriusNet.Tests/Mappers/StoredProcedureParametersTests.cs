@@ -84,7 +84,7 @@ public sealed class StoredProcedureParametersTests
     [Fact]
     public void GetParametersSpan_Returns_Correct_Parameter_Name()
     {
-        var parameters = new SqlParameter[] { new("@UserId", SqlDbType.Int) };
+        var parameters = new SqlParameter[] { new("UserId", SqlDbType.Int) };
         var sp = new StoredProcedureParameters("dbo", "sp_Test", 16, parameters, null, null, null);
 
         var span = sp.GetParametersSpan();
@@ -125,6 +125,34 @@ public sealed class StoredProcedureParametersTests
 
         Assert.Equal("@Id", sp1.GetParametersSpan()[0].ParameterName);
         Assert.Equal("@Name", sp2.GetParametersSpan()[0].ParameterName);
+    }
+
+    [Fact]
+    public void Constructor_Clones_Parameter_Array_And_Parameters()
+    {
+        var parameter = new SqlParameter("Id", SqlDbType.Int) { Value = 42 };
+        var parameters = new[] { parameter };
+
+        var sp = new StoredProcedureParameters("dbo", "sp_Test", 16, parameters, null, null, null);
+
+        parameters[0] = new SqlParameter("@Other", SqlDbType.Int) { Value = 100 };
+        parameter.ParameterName = "@Mutated";
+        parameter.Value = 99;
+
+        var actual = sp.GetParametersSpan()[0];
+
+        Assert.NotSame(parameter, actual);
+        Assert.Equal("@Id", actual.ParameterName);
+        Assert.Equal(42, actual.Value);
+    }
+
+    [Fact]
+    public void Constructor_Invalid_Parameter_Name_Throws()
+    {
+        var parameters = new[] { new SqlParameter("@@Id", SqlDbType.Int) };
+
+        Assert.Throws<ArgumentException>(() =>
+            new StoredProcedureParameters("dbo", "sp_Test", 16, parameters, null, null, null));
     }
 
     [Fact]

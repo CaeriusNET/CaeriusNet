@@ -238,7 +238,7 @@ internal static class AutoContractsSqlEmitter
 
     private static bool IsKeyword(string identifier)
     {
-        return identifier is "class" or "struct" or "record" or "namespace" or "public" or "private" or
-            "internal" or "readonly" or "string" or "int" or "bool" or "decimal" or "object";
+        return SyntaxFacts.GetKeywordKind(identifier) != SyntaxKind.None ||
+               SyntaxFacts.GetContextualKeywordKind(identifier) != SyntaxKind.None;
     }
 }

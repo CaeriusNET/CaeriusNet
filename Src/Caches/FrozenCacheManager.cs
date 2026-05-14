@@ -82,37 +82,47 @@ internal static class FrozenCacheManager
     ///     avoiding the O(n²) rebuild cost of sequential single-item inserts.
     /// </summary>
     /// <typeparam name="T">The type of the values to be stored.</typeparam>
-    /// <param name="entries">The key-value pairs to add. Keys already present are overwritten.</param>
+    /// <param name="entries">The key-value pairs to add. Keys already present keep their current value.</param>
     /// <remarks>
     ///     This method is intended for startup warm-up. <see cref="FrozenDictionary{TKey,TValue}" /> is
     ///     designed for "populate once, read many" scenarios; bulk insertion at startup is the ideal usage.
+    ///     Runtime writes are still O(N) because every successful publication creates a new frozen snapshot.
     /// </remarks>
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     internal static void StoreRange<T>(IEnumerable<KeyValuePair<string, T>> entries)
     {
+        ArgumentNullException.ThrowIfNull(entries);
+
+        var newEntries = entries.ToList();
+        if (newEntries.Count == 0) return;
+
         LockSlim.EnterWriteLock();
         try
         {
             var currentCache = _frozenCache;
-            var newEntries = entries is ICollection<KeyValuePair<string, T>> col
-                ? col
-                : entries.ToList();
-
-            if (newEntries.Count == 0) return;
 
             var newCapacity = (int)BitOperations.RoundUpToPowerOf2((uint)(currentCache.Count + newEntries.Count));
             var builder = new Dictionary<string, object>(newCapacity, StringComparer.Ordinal);
+            var added = 0;
 
             foreach (var kvp in currentCache)
                 builder[kvp.Key] = kvp.Value;
 
             foreach (var kvp in newEntries)
-                builder[kvp.Key] = kvp.Value!;
+            {
+                if (!builder.TryAdd(kvp.Key, kvp.Value!))
+                    continue;
+
+                added++;
+            }
+
+            if (added == 0)
+                return;
 
             Volatile.Write(ref _frozenCache, builder.ToFrozenDictionary(StringComparer.Ordinal));
 
             if (IsLoggingEnabled)
-                Logger!.LogStoredRangeInFrozenCache(newEntries.Count);
+                Logger!.LogStoredRangeInFrozenCache(added);
         }
         finally
         {

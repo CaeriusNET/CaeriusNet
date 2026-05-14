@@ -109,6 +109,104 @@ public sealed class CaeriusNetTransactionTests
         tx.ReleaseCommandSlot();
     }
 
+    [Fact]
+    public async Task DisposeAsync_With_Command_In_Flight_Throws_Deterministically()
+    {
+        var tx = CreateStateMachineOnlyTransaction();
+        tx.AcquireCommandSlot();
+
+        try
+        {
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => tx.DisposeAsync().AsTask());
+
+            Assert.Contains("command is already in flight", ex.Message);
+        }
+        finally
+        {
+            tx.ReleaseCommandSlot();
+            await tx.DisposeAsync();
+        }
+    }
+
+    [Fact]
+    public async Task CommitAsync_When_Lifecycle_Fails_Poisons_Instead_Of_Marking_Committed()
+    {
+        var tx = CreateStateMachineOnlyTransaction();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => tx.CommitAsync().AsTask());
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => tx.CommitAsync().AsTask());
+        Assert.Contains("Poisoned", ex.Message);
+
+        await tx.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task RollbackAsync_When_Lifecycle_Fails_Poisons_Transaction()
+    {
+        var tx = CreateStateMachineOnlyTransaction();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => tx.RollbackAsync().AsTask());
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => tx.CommitAsync().AsTask());
+        Assert.Contains("Poisoned", ex.Message);
+
+        await tx.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task TransactionWriteCommand_InvalidOperation_Poisons_And_Releases_Slot()
+    {
+        var failure = new InvalidOperationException("Connection is not usable.");
+        var tx = new FailingInternalTransaction(failure);
+        var parameters = CreateStoredProcedureParameters();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            tx.ExecuteNonQueryAsync(parameters).AsTask());
+
+        Assert.Same(failure, ex);
+        Assert.True(tx.Poisoned);
+        Assert.Equal(1, tx.AcquireCount);
+        Assert.Equal(1, tx.ReleaseCount);
+    }
+
+    [Fact]
+    public async Task TransactionWriteCommand_Cancellation_Poisons_And_Releases_Slot()
+    {
+        var failure = new OperationCanceledException("Command canceled.");
+        var tx = new FailingInternalTransaction(failure);
+        var parameters = CreateStoredProcedureParameters();
+
+        var ex = await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            tx.ExecuteAsync(parameters).AsTask());
+
+        Assert.Same(failure, ex);
+        Assert.True(tx.Poisoned);
+        Assert.Equal(1, tx.AcquireCount);
+        Assert.Equal(1, tx.ReleaseCount);
+    }
+
+    [Fact]
+    public async Task TransactionReadCommand_InvalidOperation_Poisons_And_Releases_Slot()
+    {
+        var failure = new InvalidOperationException("Connection is not usable.");
+        var tx = new FailingInternalTransaction(failure);
+        var parameters = CreateStoredProcedureParameters();
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            tx.FirstQueryAsync<TestMapper>(parameters).AsTask());
+
+        Assert.Same(failure, ex);
+        Assert.True(tx.Poisoned);
+        Assert.Equal(1, tx.AcquireCount);
+        Assert.Equal(1, tx.ReleaseCount);
+    }
+
+    private static StoredProcedureParameters CreateStoredProcedureParameters()
+    {
+        return new StoredProcedureParametersBuilder("dbo", "sp_Test").Build();
+    }
+
     private static ICaeriusNetTransactionInternal CreateStateMachineOnlyTransaction()
     {
         var constructor = typeof(CaeriusNetTransaction).GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
@@ -184,6 +282,54 @@ public sealed class CaeriusNetTransactionTests
         public ValueTask DisposeAsync()
         {
             return default;
+        }
+    }
+
+    private sealed class FailingInternalTransaction(Exception failure) : ICaeriusNetTransactionInternal
+    {
+        public int AcquireCount { get; private set; }
+        public int ReleaseCount { get; private set; }
+        public bool Poisoned { get; private set; }
+        public bool IsActive => !Poisoned;
+        public SqlConnection Connection => throw failure;
+        public SqlTransaction Transaction => throw failure;
+
+        public void AcquireCommandSlot()
+        {
+            AcquireCount++;
+        }
+
+        public void ReleaseCommandSlot()
+        {
+            ReleaseCount++;
+        }
+
+        public void Poison()
+        {
+            Poisoned = true;
+        }
+
+        public ValueTask CommitAsync(CancellationToken cancellationToken = default)
+        {
+            return default;
+        }
+
+        public ValueTask RollbackAsync(CancellationToken cancellationToken = default)
+        {
+            return default;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            return default;
+        }
+    }
+
+    private sealed class TestMapper : ISpMapper<TestMapper>
+    {
+        public static TestMapper MapFromDataReader(SqlDataReader reader)
+        {
+            return new TestMapper();
         }
     }
 

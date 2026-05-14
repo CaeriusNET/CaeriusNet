@@ -96,6 +96,8 @@ public sealed class AutoContractsSourceGeneratorTests
         Assert.Contains("public static string ByParameters(UserRetrieveByIdsParameters parameters)", generated);
         Assert.Contains("ReadOnlyMemory<UserIdListTvp> Ids,", generated);
         Assert.Contains("bool IncludeDisabled", generated);
+        Assert.Contains("public static SqlMetaData[] Metadata => (SqlMetaData[])_metadata.Clone();", generated);
+        Assert.Contains("AppendString(hash, \"sha256:table\");", generated);
         Assert.Contains("return builder.WithParameters(new UserRetrieveByIdsParameters(Ids, IncludeDisabled));",
             generated);
         Assert.Contains("[AutoContractGenerateTvp", generated);
@@ -134,6 +136,59 @@ public sealed class AutoContractsSourceGeneratorTests
             new TestAdditionalText("ignored.json", ValidManifest));
 
         Assert.Empty(result.GeneratedTrees);
+    }
+
+    [Fact]
+    public void CustomManifestPath_WithMetadata_Is_Consumed()
+    {
+        var result = SourceGeneratorTestHelper.RunGenerator<AutoContractsSourceGenerator>(
+            "namespace Consumer;",
+            Manifest(ValidManifest, "generated.contracts.json", isManifest: true));
+
+        Assert.Single(result.GeneratedTrees);
+    }
+
+    [Fact]
+    public void ManifestFileName_WithMetadataFalse_Is_Ignored()
+    {
+        var result = SourceGeneratorTestHelper.RunGenerator<AutoContractsSourceGenerator>(
+            "namespace Consumer;",
+            Manifest(ValidManifest, isManifest: false));
+
+        Assert.Empty(result.GeneratedTrees);
+    }
+
+    [Fact]
+    public void MultipleManifests_WithSameNamespace_Use_Distinct_HintNames()
+    {
+        var result = SourceGeneratorTestHelper.RunGenerator<AutoContractsSourceGenerator>(
+            "namespace Consumer;",
+            Manifest(ValidManifest, "a/caerius.contracts.json"),
+            Manifest("""
+                     {
+                       "version": 1,
+                       "namespace": "Consumer.Contracts",
+                       "tableTypes": [],
+                       "procedures": [
+                         {
+                           "schema": "dbo",
+                           "name": "CountUsers",
+                           "clrName": "CountUsersProcedure",
+                           "parametersClrName": "CountUsersParameters",
+                           "parameters": [],
+                           "resultSet": { "status": "None", "columns": [] },
+                           "contractHash": "sha256:count"
+                         }
+                       ]
+                     }
+                     """, "b/caerius.contracts.json"));
+
+        Assert.Equal(2, result.GeneratedTrees.Length);
+
+        var hintNames = result.GeneratedTrees
+            .Select(tree => Path.GetFileName(tree.FilePath))
+            .ToArray();
+        Assert.Equal(2, hintNames.Distinct(StringComparer.Ordinal).Count());
     }
 
     [Fact]
@@ -215,8 +270,65 @@ public sealed class AutoContractsSourceGeneratorTests
         Assert.Empty(result.GeneratedTrees);
     }
 
-    private static TestAdditionalText Manifest(string json)
+    [Fact]
+    public void UnsupportedManifestVersion_Is_Not_Emitted_By_Generator()
     {
-        return new TestAdditionalText("caerius.contracts.json", json);
+        var result = SourceGeneratorTestHelper.RunGenerator<AutoContractsSourceGenerator>(
+            "namespace Consumer;",
+            Manifest("""
+                     {
+                       "version": 2,
+                       "namespace": "Consumer.Contracts",
+                       "tableTypes": [],
+                       "procedures": []
+                     }
+                     """));
+
+        Assert.Empty(result.Diagnostics);
+        Assert.Empty(result.GeneratedTrees);
+    }
+
+    [Fact]
+    public void ManifestWithMemberNameCollision_Is_Not_Emitted_By_Generator()
+    {
+        var result = SourceGeneratorTestHelper.RunGenerator<AutoContractsSourceGenerator>(
+            "namespace Consumer;",
+            Manifest("""
+                     {
+                       "version": 1,
+                       "namespace": "Consumer.Contracts",
+                       "tableTypes": [
+                         {
+                           "schema": "dbo",
+                           "name": "CollisionRows",
+                           "clrName": "CollisionRowsTvp",
+                           "columns": [
+                             { "ordinal": 1, "name": "User-Id", "sqlType": "int", "clrType": "int", "nullable": false },
+                             { "ordinal": 2, "name": "User_Id", "sqlType": "int", "clrType": "int", "nullable": false }
+                           ],
+                           "contractHash": "sha256:table"
+                         }
+                       ],
+                       "procedures": []
+                     }
+                     """));
+
+        Assert.Empty(result.GeneratedTrees);
+    }
+
+    private static TestAdditionalText Manifest(
+        string json,
+        string path = "caerius.contracts.json",
+        bool? isManifest = null)
+    {
+        var options = isManifest.HasValue
+            ? new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["build_metadata.AdditionalFiles.CaeriusContractManifest"] =
+                    isManifest.Value ? "true" : "false"
+            }
+            : null;
+
+        return new TestAdditionalText(path, json, options);
     }
 }
