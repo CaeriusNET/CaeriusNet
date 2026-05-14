@@ -44,9 +44,9 @@
 
     <Target Name="CaeriusPackContractsTool">
         <ItemGroup>
-            <TfmSpecificPackageFile Include="$(TargetDir)**\*.*"
-                                    Exclude="$(TargetDir)publish\**\*.*"
-                                    PackagePath="tools\$(TargetFramework)\any\%(RecursiveDir)%(Filename)%(Extension)"/>
+            <TfmSpecificPackageFile Include="$(TargetDir)**/*.*"
+                                    Exclude="$(TargetDir)publish/**/*.*"
+                                    PackagePath="tools/$(TargetFramework)/any/%(RecursiveDir)%(Filename)%(Extension)"/>
         </ItemGroup>
     </Target>
 

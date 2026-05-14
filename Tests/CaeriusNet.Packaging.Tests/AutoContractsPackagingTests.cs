@@ -33,6 +33,7 @@ public sealed class AutoContractsPackagingTests
         var package = Assert.Single(Directory.EnumerateFiles(packageOutput, "CaeriusNet.SqlServer.Contracts.*.nupkg"));
         await using var archive = await ZipFile.OpenReadAsync(package);
 
+        Assert.DoesNotContain(archive.Entries, entry => entry.FullName.Contains('\\', StringComparison.Ordinal));
         Assert.NotNull(archive.GetEntry("buildTransitive/CaeriusNet.SqlServer.Contracts.props"));
         Assert.NotNull(archive.GetEntry("buildTransitive/CaeriusNet.SqlServer.Contracts.targets"));
         Assert.NotNull(archive.GetEntry("tools/net10.0/any/CaeriusNet.SqlServer.Contracts.dll"));
