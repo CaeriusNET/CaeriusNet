@@ -2,8 +2,8 @@
 
 ## Overview
 
-BenchmarkDotNet benchmarks measure mapping throughput, collection behavior, cache performance, TVP serialization, and
-end-to-end SQL Server execution.
+BenchmarkDotNet benchmarks measure mapping throughput, AutoContracts generated hot paths, collection behavior, cache
+performance, TVP serialization, and end-to-end SQL Server execution.
 
 ## Prerequisites
 
@@ -26,6 +26,7 @@ dotnet run -c Release -- in-memory
 dotnet run -c Release -- tvp
 dotnet run -c Release -- collections
 dotnet run -c Release -- cache
+dotnet run -c Release -- auto-contracts
 dotnet run -c Release -- sql-server
 ```
 
@@ -42,6 +43,7 @@ If `BENCHMARK_SQL_CONNECTION` is not set, SQL Server benchmarks are skipped.
 
 | Category          | Scope                                                                                 | I/O        |
 |-------------------|---------------------------------------------------------------------------------------|------------|
+| AutoContracts     | Generated contract builder, ordinal mapping, and cache key hashing                    | None       |
 | Cache             | `FrozenDictionary` and `IMemoryCache` throughput                                      | None       |
 | CreateCollections | Collection creation performance                                                       | None       |
 | ListCapacity      | Pre-allocation versus dynamic growth                                                  | None       |

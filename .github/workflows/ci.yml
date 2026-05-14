@@ -62,7 +62,7 @@ jobs:
 
       - name: Validate NuGet package
         shell: pwsh
-        run: ./eng/ValidatePackage.ps1 -Configuration Release
+        run: ./.github/scripts/ValidatePackage.ps1 -Configuration Release -OutputDirectory "${{ runner.temp }}/caerius-package-validation"
 
       - name: Run tests with coverage
         run: |

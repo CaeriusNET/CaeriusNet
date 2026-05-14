@@ -1,5 +1,4 @@
 ﻿using CaeriusNet.Benchmark;
-
 // In CI: runs all benchmarks (category controlled by CI workflow args)
 // Locally: same — use RunningBenchmarks.Run_InMemory_Benchmarks() etc. directly
 var category = args.Length > 0 ? args[0].ToLowerInvariant() : "all";
@@ -21,6 +20,10 @@ switch (category)
         break;
     case "cache":
         RunningBenchmarks.Run_Cache_Benchmarks();
+        break;
+    case "auto-contracts":
+    case "autocontracts":
+        RunningBenchmarks.Run_AutoContracts_Benchmarks();
         break;
     default:
         RunningBenchmarks.Run_All_Benchmarks();

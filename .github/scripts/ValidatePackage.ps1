@@ -1,12 +1,12 @@
 [CmdletBinding()]
 param(
     [string]$Configuration = "Release",
-    [string]$OutputDirectory = "artifacts\package-validation"
+    [string]$OutputDirectory = ".work\package-validation"
 )
 
 $ErrorActionPreference = "Stop"
 
-$repoRoot = Split-Path -Parent $PSScriptRoot
+$repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $outputRoot = if ([System.IO.Path]::IsPathRooted($OutputDirectory)) {
     $OutputDirectory
 }
@@ -74,6 +74,17 @@ try {
         throw "Could not infer package version from '$($package.Name)'."
     }
 
+    $globalPackagesLine = dotnet nuget locals global-packages --list
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not locate NuGet global packages cache."
+    }
+
+    $globalPackagesRoot = (($globalPackagesLine | Select-Object -First 1) -replace '^global-packages:\s*', '').Trim()
+    $cachedPackageDirectory = Join-Path $globalPackagesRoot (Join-Path "caeriusnet" $version)
+    if (Test-Path $cachedPackageDirectory) {
+        Remove-Item $cachedPackageDirectory -Recurse -Force
+    }
+
     New-Item -ItemType Directory -Path $consumerDirectory -Force | Out-Null
 
     $packageSource = $packageDirectory
@@ -100,14 +111,70 @@ try {
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="CaeriusNet" Version="$version" />
+    <AdditionalFiles Include="caerius.contracts.json" />
   </ItemGroup>
 </Project>
 "@ | Set-Content -Path (Join-Path $consumerDirectory "PackageSmoke.Consumer.csproj") -Encoding UTF8
 
     @"
+{
+  "version": 1,
+  "namespace": "PackageSmoke.Contracts",
+  "tableTypes": [
+    {
+      "schema": "dbo",
+      "name": "CustomerIdRows",
+      "clrName": "CustomerIdRowsTvp",
+      "columns": [
+        { "ordinal": 1, "name": "Id", "sqlType": "int", "clrType": "int", "nullable": false }
+      ],
+      "contractHash": "sha256:table"
+    }
+  ],
+  "procedures": [
+    {
+      "schema": "dbo",
+      "name": "Customer_Search",
+      "clrName": "CustomerSearchProcedure",
+      "parametersClrName": "CustomerSearchParameters",
+      "resultClrName": "CustomerSearchResult",
+      "parameters": [
+        {
+          "ordinal": 1,
+          "name": "Ids",
+          "sqlType": "dbo.CustomerIdRows",
+          "clrType": "ReadOnlyMemory<CustomerIdRowsTvp>",
+          "isTableType": true,
+          "nullable": false
+        },
+        {
+          "ordinal": 2,
+          "name": "IncludeDisabled",
+          "sqlType": "bit",
+          "clrType": "bool",
+          "isTableType": false,
+          "nullable": false
+        }
+      ],
+      "resultSet": {
+        "status": "Available",
+        "columns": [
+          { "ordinal": 1, "name": "Id", "sqlType": "int", "clrType": "int", "nullable": false },
+          { "ordinal": 2, "name": "Name", "sqlType": "nvarchar(64)", "clrType": "string", "nullable": false, "maxLength": 128 }
+        ]
+      },
+      "contractHash": "sha256:procedure"
+    }
+  ]
+}
+"@ | Set-Content -Path (Join-Path $consumerDirectory "caerius.contracts.json") -Encoding UTF8
+
+    @"
 using CaeriusNet.Attributes.Dto;
 using CaeriusNet.Attributes.Tvp;
+using CaeriusNet.Builders;
 using CaeriusNet.Mappers;
+using PackageSmoke.Contracts;
 
 namespace PackageSmoke;
 
@@ -132,7 +199,28 @@ internal static class Program
         var mapper = new CustomerRow(1, "Ada");
         using var records = mapper.MapAsSqlDataRecords([mapper]).GetEnumerator();
 
-        return records.MoveNext() ? 0 : 2;
+        if (!records.MoveNext())
+        {
+            return 2;
+        }
+
+        ReadOnlyMemory<CustomerIdRowsTvp> ids = new CustomerIdRowsTvp[] { new(1), new(2) };
+        var autoContractParameters = new CustomerSearchParameters(ids, IncludeDisabled: false);
+        var typed = StoredProcedureParametersBuilder<CustomerSearchProcedure>
+            .Create(autoContractParameters, resultSetCapacity: ids.Length)
+            .Build();
+
+        if (typed.SchemaName != "dbo" || typed.ProcedureName != "Customer_Search")
+        {
+            return 3;
+        }
+
+        if (typed.GetParametersSpan().Length != 2)
+        {
+            return 4;
+        }
+
+        return 0;
     }
 
     private static void EnsureDto<T>() where T : class, ISpMapper<T>

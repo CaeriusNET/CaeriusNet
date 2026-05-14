@@ -61,6 +61,8 @@ BenchmarkDotNet.Artifacts/
 project.lock.json
 project.fragment.lock.json
 artifacts/
+coverage/
+**/%TEMP%/
 
 # ASP.NET Scaffolding
 ScaffoldingReadMe.txt
@@ -97,6 +99,7 @@ StyleCopReport.xml
 *.pidb
 *.svclog
 *.scc
+/.work
 
 # Chutzpah Test files
 _Chutzpah*
@@ -402,3 +405,4 @@ FodyWeavers.xsd
 /.idea/*
 
 /Documentations/docs/.vitepress/cache
+/Documentations/docs/.vitepress/dist
