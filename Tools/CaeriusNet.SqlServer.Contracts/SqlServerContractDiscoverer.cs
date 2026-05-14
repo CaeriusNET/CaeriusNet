@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using System.Data;
 using System.Globalization;
 using Microsoft.Data.SqlClient;
@@ -11,17 +10,14 @@ internal static class SqlServerContractDiscoverer
         CommandLineOptions options,
         ContractDiagnosticSink diagnostics)
     {
-        var connectionString = ResolveConnectionString(options);
-        var schemas = options.Schemas.Length == 0
-            ? ImmutableHashSet.Create(StringComparer.OrdinalIgnoreCase, "dbo")
-            : options.Schemas.ToImmutableHashSet(StringComparer.OrdinalIgnoreCase);
+        var connectionString = ConnectionStringResolver.Resolve(options);
 
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync().ConfigureAwait(false);
 
         var database = await DiscoverDatabaseAsync(connection).ConfigureAwait(false);
-        var tableTypes = await DiscoverTableTypesAsync(connection, schemas, diagnostics).ConfigureAwait(false);
-        var procedures = await DiscoverProceduresAsync(connection, schemas, tableTypes, diagnostics)
+        var tableTypes = await DiscoverTableTypesAsync(connection, diagnostics).ConfigureAwait(false);
+        var procedures = await DiscoverProceduresAsync(connection, tableTypes, diagnostics)
             .ConfigureAwait(false);
 
         return new ContractManifest(
@@ -30,32 +26,6 @@ internal static class SqlServerContractDiscoverer
             database,
             tableTypes,
             procedures);
-    }
-
-    private static string ResolveConnectionString(CommandLineOptions options)
-    {
-        string connectionString;
-        if (!string.IsNullOrWhiteSpace(options.ConnectionString))
-        {
-            connectionString = options.ConnectionString;
-        }
-        else
-        {
-            var envName = options.ConnectionEnv ?? "CAERIUS_SQLSERVER";
-            var value = Environment.GetEnvironmentVariable(envName);
-            if (string.IsNullOrWhiteSpace(value))
-                throw new InvalidOperationException(
-                    $"Environment variable '{envName}' does not contain a SQL Server connection string.");
-
-            connectionString = value;
-        }
-
-        var builder = new SqlConnectionStringBuilder(connectionString)
-        {
-            ApplicationIntent = ApplicationIntent.ReadOnly
-        };
-
-        return builder.ConnectionString;
     }
 
     private static async Task<DatabaseInfo> DiscoverDatabaseAsync(SqlConnection connection)
@@ -82,13 +52,12 @@ internal static class SqlServerContractDiscoverer
 
     private static async Task<IReadOnlyList<TableTypeContract>> DiscoverTableTypesAsync(
         SqlConnection connection,
-        ImmutableHashSet<string> schemas,
         ContractDiagnosticSink diagnostics)
     {
         await using var command = connection.CreateCommand();
         command.CommandText = """
                               SELECT
-                                  SCHEMA_NAME(tt.schema_id) AS schema_name,
+                                  s.name AS schema_name,
                                   tt.name AS table_type_name,
                                   tt.user_type_id,
                                   c.column_id,
@@ -106,8 +75,24 @@ internal static class SqlServerContractDiscoverer
                               LEFT JOIN sys.types AS sysTyp
                                   ON sysTyp.system_type_id = c.system_type_id
                                   AND sysTyp.user_type_id = sysTyp.system_type_id
+                              JOIN sys.schemas AS s
+                                  ON s.schema_id = tt.schema_id
+                              WHERE s.name NOT IN (
+                                  N'sys',
+                                  N'INFORMATION_SCHEMA',
+                                  N'guest',
+                                  N'db_owner',
+                                  N'db_accessadmin',
+                                  N'db_securityadmin',
+                                  N'db_ddladmin',
+                                  N'db_backupoperator',
+                                  N'db_datareader',
+                                  N'db_datawriter',
+                                  N'db_denydatareader',
+                                  N'db_denydatawriter'
+                              )
                               ORDER BY
-                                  SCHEMA_NAME(tt.schema_id),
+                                  s.name,
                                   tt.name,
                                   c.column_id;
                               """;
@@ -117,9 +102,6 @@ internal static class SqlServerContractDiscoverer
         while (await reader.ReadAsync().ConfigureAwait(false))
         {
             var schema = reader.GetString(0);
-            if (!schemas.Contains(schema))
-                continue;
-
             var name = reader.GetString(1);
             var key = schema + "." + name;
             if (!tableTypes.TryGetValue(key, out var tableType))
@@ -169,11 +151,10 @@ internal static class SqlServerContractDiscoverer
 
     private static async Task<IReadOnlyList<ProcedureContract>> DiscoverProceduresAsync(
         SqlConnection connection,
-        ImmutableHashSet<string> schemas,
         IReadOnlyList<TableTypeContract> tableTypes,
         ContractDiagnosticSink diagnostics)
     {
-        var procedures = await DiscoverProcedureHeadersAsync(connection, schemas).ConfigureAwait(false);
+        var procedures = await DiscoverProcedureHeadersAsync(connection).ConfigureAwait(false);
         var tableTypesBySqlName = tableTypes.ToDictionary(
             tableType => tableType.Schema + "." + tableType.Name,
             StringComparer.OrdinalIgnoreCase);
@@ -209,8 +190,7 @@ internal static class SqlServerContractDiscoverer
     }
 
     private static async Task<List<ProcedureHeader>> DiscoverProcedureHeadersAsync(
-        SqlConnection connection,
-        ImmutableHashSet<string> schemas)
+        SqlConnection connection)
     {
         await using var command = connection.CreateCommand();
         command.CommandText = """
@@ -222,6 +202,20 @@ internal static class SqlServerContractDiscoverer
                               JOIN sys.schemas AS s
                                   ON s.schema_id = p.schema_id
                               WHERE p.is_ms_shipped = 0
+                                AND s.name NOT IN (
+                                    N'sys',
+                                    N'INFORMATION_SCHEMA',
+                                    N'guest',
+                                    N'db_owner',
+                                    N'db_accessadmin',
+                                    N'db_securityadmin',
+                                    N'db_ddladmin',
+                                    N'db_backupoperator',
+                                    N'db_datareader',
+                                    N'db_datawriter',
+                                    N'db_denydatareader',
+                                    N'db_denydatawriter'
+                                )
                               ORDER BY
                                   s.name,
                                   p.name;
@@ -230,11 +224,7 @@ internal static class SqlServerContractDiscoverer
         var procedures = new List<ProcedureHeader>();
         await using var reader = await command.ExecuteReaderAsync().ConfigureAwait(false);
         while (await reader.ReadAsync().ConfigureAwait(false))
-        {
-            var schema = reader.GetString(1);
-            if (schemas.Contains(schema))
-                procedures.Add(new ProcedureHeader(reader.GetInt32(0), schema, reader.GetString(2)));
-        }
+            procedures.Add(new ProcedureHeader(reader.GetInt32(0), reader.GetString(1), reader.GetString(2)));
 
         return procedures;
     }

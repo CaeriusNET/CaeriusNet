@@ -48,6 +48,51 @@ AutoContracts has two separate execution phases:
 | `Verify` | Reads SQL Server metadata and compares it with `caerius.contracts.json`. Use this in validation workflows to detect drift. |
 | `Off` | Skips AutoContracts work. Use this when contract checks are not needed for a run. |
 
+## Connection string resolution
+
+Prefer resolving the discovery connection string by configuration name, so AutoContracts follows
+the same development workflow as the application:
+
+```xml
+<PropertyGroup>
+  <CaeriusContractsMode>Pull</CaeriusContractsMode>
+  <CaeriusContractsConnectionName>DefaultConnection</CaeriusContractsConnectionName>
+</PropertyGroup>
+```
+
+The tool reads `ConnectionStrings:DefaultConnection` from .NET configuration. It loads
+`appsettings.json`, optional `appsettings.{environment}.json`, optional user secrets, and
+environment variables from the project directory. `CaeriusContractsConfigurationEnvironment` can
+force the environment-specific file, and `CaeriusContractsUserSecretsId` can override the project
+`UserSecretsId`.
+
+This also fits Aspire-driven projects: when the tool runs in an Aspire-provided environment,
+`ConnectionStrings__DefaultConnection` is resolved by the same configuration path. For a local
+manual database, store the value in `appsettings.Development.json` or user secrets. Do not commit
+production secrets.
+
+The target database is the database named by the connection string, for example `Database=...` or
+`Initial Catalog=...`. AutoContracts scans all application schemas in that database, including
+`dbo`, and ignores SQL Server system schemas such as `sys`, `INFORMATION_SCHEMA`, and fixed-role
+compatibility schemas.
+
+The lower-level escape hatches remain available:
+
+```powershell
+dotnet run --project Tools/CaeriusNet.SqlServer.Contracts -- `
+  pull `
+  --connection-name DefaultConnection `
+  --configuration-base-path .\src\MyApp `
+  --output .\src\MyApp\caerius.contracts.json
+```
+
+```powershell
+dotnet run --project Tools/CaeriusNet.SqlServer.Contracts -- `
+  verify `
+  --connection-env SQLSERVER_CONNECTION_STRING `
+  --manifest .\src\MyApp\caerius.contracts.json
+```
+
 ## Recommended workflow
 
 1. Change the stored procedure contract intentionally.

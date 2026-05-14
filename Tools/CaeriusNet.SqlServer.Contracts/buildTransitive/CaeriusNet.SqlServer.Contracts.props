@@ -2,9 +2,12 @@
     <PropertyGroup>
         <CaeriusContractsMode Condition="'$(CaeriusContractsMode)' == ''">Off</CaeriusContractsMode>
         <CaeriusContractsModeNormalized>$([System.String]::Copy('$(CaeriusContractsMode)').Trim().ToUpperInvariant())</CaeriusContractsModeNormalized>
-        <CaeriusContractsSchemas Condition="'$(CaeriusContractsSchemas)' == ''">dbo</CaeriusContractsSchemas>
         <CaeriusContractsOutput Condition="'$(CaeriusContractsOutput)' == ''">$(ProjectDir)caerius.contracts.json</CaeriusContractsOutput>
-        <CaeriusContractsConnectionStringEnv Condition="'$(CaeriusContractsConnectionStringEnv)' == ''">CAERIUS_SQLSERVER</CaeriusContractsConnectionStringEnv>
+        <CaeriusContractsConnectionStringEnv Condition="'$(CaeriusContractsConnectionStringEnv)' == ''"></CaeriusContractsConnectionStringEnv>
+        <CaeriusContractsConnectionName Condition="'$(CaeriusContractsConnectionName)' == ''">DefaultConnection</CaeriusContractsConnectionName>
+        <CaeriusContractsConfigurationBasePath Condition="'$(CaeriusContractsConfigurationBasePath)' == ''">$(MSBuildProjectDirectory)</CaeriusContractsConfigurationBasePath>
+        <CaeriusContractsConfigurationEnvironment Condition="'$(CaeriusContractsConfigurationEnvironment)' == ''"></CaeriusContractsConfigurationEnvironment>
+        <CaeriusContractsUserSecretsId Condition="'$(CaeriusContractsUserSecretsId)' == ''"></CaeriusContractsUserSecretsId>
         <CaeriusContractsToolPath Condition="'$(CaeriusContractsToolPath)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\tools\net10.0\any\CaeriusNet.SqlServer.Contracts.dll'))</CaeriusContractsToolPath>
         <CaeriusContractsToolCommand Condition="'$(CaeriusContractsToolCommand)' == ''">dotnet &quot;$(CaeriusContractsToolPath)&quot;</CaeriusContractsToolCommand>
     </PropertyGroup>

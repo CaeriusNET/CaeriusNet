@@ -181,6 +181,51 @@ public sealed class AutoContractsPackagingTests
     }
 
     [Fact]
+    public async Task TargetsCanUseConnectionNameConfigurationArguments()
+    {
+        var repoRoot = FindRepoRoot();
+        var props = Path.Combine(repoRoot, "Tools", "CaeriusNet.SqlServer.Contracts", "buildTransitive",
+            "CaeriusNet.SqlServer.Contracts.props");
+        var targets = Path.Combine(repoRoot, "Tools", "CaeriusNet.SqlServer.Contracts", "buildTransitive",
+            "CaeriusNet.SqlServer.Contracts.targets");
+
+        using var temp = new TemporaryDirectory();
+        var project = Path.Combine(temp.Path, "Smoke.proj");
+        var argumentsOutput = Path.Combine(temp.Path, "connection-arguments.txt");
+
+        await File.WriteAllTextAsync(
+            project,
+            $$"""
+              <Project>
+                  <PropertyGroup>
+                      <CaeriusContractsConnectionName>ApplicationDb</CaeriusContractsConnectionName>
+                      <CaeriusContractsConfigurationEnvironment>Development</CaeriusContractsConfigurationEnvironment>
+                      <UserSecretsId>caerius-test-secrets</UserSecretsId>
+                  </PropertyGroup>
+
+                  <Import Project="{{Escape(props)}}"/>
+                  <Import Project="{{Escape(targets)}}"/>
+
+                  <Target Name="RunSmoke">
+                      <WriteLinesToFile File="{{Escape(argumentsOutput)}}"
+                                        Lines="$(CaeriusContractsConnectionArguments)"
+                                        Overwrite="true"/>
+                  </Target>
+              </Project>
+              """);
+
+        var result = await RunDotnetAsync(temp.Path, "msbuild", project, "/t:RunSmoke", "/nologo", "/v:minimal");
+
+        Assert.True(result.ExitCode == 0, result.ToString());
+        var line = Assert.Single(await File.ReadAllLinesAsync(argumentsOutput));
+        Assert.Contains("--connection-name \"ApplicationDb\"", line, StringComparison.Ordinal);
+        Assert.Contains("--configuration-base-path", line, StringComparison.Ordinal);
+        Assert.Contains("--configuration-environment \"Development\"", line, StringComparison.Ordinal);
+        Assert.Contains("--user-secrets-id \"caerius-test-secrets\"", line, StringComparison.Ordinal);
+        Assert.DoesNotContain("--connection-env", line, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void AutoContractsMsbuildFilesDoNotUseVersionedNames()
     {
         var repoRoot = FindRepoRoot();

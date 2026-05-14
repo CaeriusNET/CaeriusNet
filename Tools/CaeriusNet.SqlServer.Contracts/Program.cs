@@ -149,14 +149,19 @@ internal static class Program
                            CaeriusNet SQL Server contracts
 
                            Commands:
-                             pull   --connection-env CAERIUS_SQLSERVER --schemas dbo --output {DefaultManifestPath}
-                             verify --connection-env CAERIUS_SQLSERVER --schemas dbo --manifest {DefaultManifestPath}
+                             pull   --connection-name DefaultConnection --output {DefaultManifestPath}
+                             verify --connection-name DefaultConnection --manifest {DefaultManifestPath}
 
                            Options:
                              --connection-env <name>      Environment variable containing the SQL Server connection string.
-                                                          Defaults to CAERIUS_SQLSERVER.
                              --connection-string <value>  SQL Server connection string. Overrides --connection-env.
-                             --schemas <list>             Comma or semicolon separated schemas. Defaults to dbo.
+                             --connection-name <name>     Reads ConnectionStrings:<name> from .NET configuration.
+                                                          Defaults to DefaultConnection.
+                             --configuration-base-path <path>
+                                                          Directory containing appsettings.json. Defaults to the current directory.
+                             --configuration-environment <name>
+                                                          Loads appsettings.<name>.json. Defaults to DOTNET_ENVIRONMENT or ASPNETCORE_ENVIRONMENT.
+                             --user-secrets-id <id>       Optional user secrets id used with --connection-name.
                              --output <path>              Output manifest path for pull. Defaults to {DefaultManifestPath}.
                              --manifest <path>            Manifest path for verify.
                            """);

@@ -11,8 +11,10 @@ not part of that generated surface.
 
 ## How to fix
 
-Return values through the result set instead of `OUTPUT` parameters, or keep the procedure outside
-AutoContracts read-only contract generation.
+Return values through the first result set instead of `OUTPUT` parameters. AutoContracts scans the
+application schemas in the selected database, so a procedure with `OUTPUT` parameters in that
+database is considered an incompatible contract until it is changed or moved out of that database's
+generated contract boundary.
 
 After changing the procedure contract, run `Pull` and review the refreshed
 `caerius.contracts.json`.

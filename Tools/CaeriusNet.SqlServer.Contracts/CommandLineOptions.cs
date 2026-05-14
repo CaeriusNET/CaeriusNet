@@ -3,7 +3,10 @@ namespace CaeriusNet.SqlServer.Contracts;
 internal sealed record CommandLineOptions(
     string? ConnectionEnv,
     string? ConnectionString,
-    string[] Schemas,
+    string? ConnectionName,
+    string? ConfigurationBasePath,
+    string? ConfigurationEnvironment,
+    string? UserSecretsId,
     string? Output,
     string? Manifest)
 {
@@ -11,7 +14,10 @@ internal sealed record CommandLineOptions(
     {
         string? connectionEnv = null;
         string? connectionString = null;
-        string[] schemas = [];
+        string? connectionName = null;
+        string? configurationBasePath = null;
+        string? configurationEnvironment = null;
+        string? userSecretsId = null;
         string? output = null;
         string? manifest = null;
 
@@ -35,9 +41,17 @@ internal sealed record CommandLineOptions(
                 case "--connection-string":
                     connectionString = Next();
                     break;
-                case "--schemas":
-                    schemas = Next()
-                        .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                case "--connection-name":
+                    connectionName = Next();
+                    break;
+                case "--configuration-base-path":
+                    configurationBasePath = Next();
+                    break;
+                case "--configuration-environment":
+                    configurationEnvironment = Next();
+                    break;
+                case "--user-secrets-id":
+                    userSecretsId = Next();
                     break;
                 case "--output":
                     output = Next();
@@ -50,6 +64,14 @@ internal sealed record CommandLineOptions(
             }
         }
 
-        return new CommandLineOptions(connectionEnv, connectionString, schemas, output, manifest);
+        return new CommandLineOptions(
+            connectionEnv,
+            connectionString,
+            connectionName,
+            configurationBasePath,
+            configurationEnvironment,
+            userSecretsId,
+            output,
+            manifest);
     }
 }
