@@ -94,16 +94,16 @@
 
     <ItemGroup>
         <!-- Microsoft Data Access -->
-        <PackageReference Include="Aspire.Microsoft.Data.SqlClient" Version="13.2.4"/>
-        <PackageReference Include="Aspire.StackExchange.Redis.DistributedCaching" Version="13.2.4"/>
+        <PackageReference Include="Aspire.Microsoft.Data.SqlClient" Version="13.3.2"/>
+        <PackageReference Include="Aspire.StackExchange.Redis.DistributedCaching" Version="13.3.2"/>
         <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.1"/>
 
         <!-- Microsoft Extensions -->
-        <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.7"/>
-        <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.7"/>
-        <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.7"/>
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.7"/>
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.7"/>
+        <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.8"/>
+        <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="10.0.8"/>
+        <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.8"/>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.8"/>
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.8"/>
 
         <!-- Source Generator -->
         <ProjectReference Include="..\SourceGenerators\CaeriusNet.Generator.csproj"
