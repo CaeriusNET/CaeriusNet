@@ -23,9 +23,11 @@ global using Microsoft.Extensions.Logging;
 global using StackExchange.Redis;
 global using System.Buffers;
 global using System.CodeDom.Compiler;
+global using System.Diagnostics.CodeAnalysis;
 global using System.Runtime.CompilerServices;
 global using System.Runtime.InteropServices;
 global using System.Text.Json.Serialization;
+global using System.Text.Json.Serialization.Metadata;
 global using static CaeriusNet.Helpers.CacheType;
 
 [assembly: InternalsVisibleTo("CaeriusNet.Tests")]

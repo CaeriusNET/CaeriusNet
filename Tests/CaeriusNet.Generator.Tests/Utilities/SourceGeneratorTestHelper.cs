@@ -1,3 +1,6 @@
+using System.Collections.Immutable;
+using System.Text;
+using Microsoft.CodeAnalysis.Text;
 using Microsoft.Data.SqlClient;
 
 namespace CaeriusNet.Generator.Tests.Utilities;
@@ -13,12 +16,21 @@ internal static class SourceGeneratorTestHelper
     internal static GeneratorDriverRunResult RunGenerator<TGenerator>(string source)
         where TGenerator : IIncrementalGenerator, new()
     {
+        return RunGenerator<TGenerator>(source, []);
+    }
+
+    internal static GeneratorDriverRunResult RunGenerator<TGenerator>(
+        string source,
+        params AdditionalText[] additionalTexts)
+        where TGenerator : IIncrementalGenerator, new()
+    {
         var parseOptions = CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Latest);
         var syntaxTree = CSharpSyntaxTree.ParseText(source, parseOptions);
         var compilation = CreateCompilation(syntaxTree);
 
         var generator = new TGenerator();
         var driver = CSharpGeneratorDriver.Create(generator)
+            .AddAdditionalTexts(additionalTexts.ToImmutableArray())
             .WithUpdatedParseOptions(parseOptions);
 
         return driver.RunGenerators(compilation).GetRunResult();
@@ -29,12 +41,22 @@ internal static class SourceGeneratorTestHelper
             string source)
         where TGenerator : IIncrementalGenerator, new()
     {
+        return RunGeneratorWithCompilation<TGenerator>(source, []);
+    }
+
+    internal static (GeneratorDriverRunResult RunResult, Compilation Compilation)
+        RunGeneratorWithCompilation<TGenerator>(
+            string source,
+            params AdditionalText[] additionalTexts)
+        where TGenerator : IIncrementalGenerator, new()
+    {
         var parseOptions = CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Latest);
         var syntaxTree = CSharpSyntaxTree.ParseText(source, parseOptions);
         var compilation = CreateCompilation(syntaxTree);
 
         var generator = new TGenerator();
         var driver = CSharpGeneratorDriver.Create(generator)
+            .AddAdditionalTexts(additionalTexts.ToImmutableArray())
             .WithUpdatedParseOptions(parseOptions);
 
         driver = driver.RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out _);
@@ -93,5 +115,15 @@ internal static class SourceGeneratorTestHelper
             references.Add(MetadataReference.CreateFromFile(sqlClientLocation));
 
         return references;
+    }
+}
+
+internal sealed class TestAdditionalText(string path, string text) : AdditionalText
+{
+    public override string Path { get; } = path;
+
+    public override SourceText GetText(CancellationToken cancellationToken = default)
+    {
+        return SourceText.From(text, Encoding.UTF8);
     }
 }

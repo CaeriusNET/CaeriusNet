@@ -54,6 +54,14 @@ internal sealed class RedisCacheManager : IRedisCacheManager
     /// <summary>
     ///     Stores a value in the Redis cache.
     /// </summary>
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2026",
+        Justification = "Legacy Redis cache overload keeps existing API behavior; source-generated JsonTypeInfo overload is available for trim-safe callers.")]
+    [UnconditionalSuppressMessage(
+        "AOT",
+        "IL3050",
+        Justification = "Legacy Redis cache overload keeps existing API behavior; source-generated JsonTypeInfo overload is available for Native AOT callers.")]
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public void Store<T>(string cacheKey, T value, TimeSpan? expiration) where T : notnull
     {
@@ -91,8 +99,56 @@ internal sealed class RedisCacheManager : IRedisCacheManager
     }
 
     /// <summary>
+    ///     Stores a value in the Redis cache using source-generated JSON metadata.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    public void Store<T>(string cacheKey, T value, TimeSpan? expiration, JsonTypeInfo<T> jsonTypeInfo) where T : notnull
+    {
+        ArgumentNullException.ThrowIfNull(jsonTypeInfo);
+        if (_distributedCache == null) return;
+
+        try
+        {
+            _logger?.LogStoringInRedis(cacheKey);
+
+            var bufferWriter = BufferWriterPool.Value!;
+            bufferWriter.Clear();
+
+            using (var writer = new Utf8JsonWriter(bufferWriter, new JsonWriterOptions
+                   {
+                       SkipValidation = true,
+                       Indented = false
+                   }))
+            {
+                JsonSerializer.Serialize(writer, value, jsonTypeInfo);
+            }
+
+            var options = new DistributedCacheEntryOptions();
+            if (expiration.HasValue)
+                options.AbsoluteExpirationRelativeToNow = expiration.Value;
+
+            var written = bufferWriter.WrittenSpan;
+            var bytes = GC.AllocateUninitializedArray<byte>(written.Length);
+            written.CopyTo(bytes);
+            _distributedCache.Set(cacheKey, bytes, options);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogRedisStoreError(cacheKey, ex);
+        }
+    }
+
+    /// <summary>
     ///     Attempts to retrieve a cached value from Redis.
     /// </summary>
+    [UnconditionalSuppressMessage(
+        "Trimming",
+        "IL2026",
+        Justification = "Legacy Redis cache overload keeps existing API behavior; source-generated JsonTypeInfo overload is available for trim-safe callers.")]
+    [UnconditionalSuppressMessage(
+        "AOT",
+        "IL3050",
+        Justification = "Legacy Redis cache overload keeps existing API behavior; source-generated JsonTypeInfo overload is available for Native AOT callers.")]
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public bool TryGet<T>(string cacheKey, out T? value)
     {
@@ -107,6 +163,37 @@ internal sealed class RedisCacheManager : IRedisCacheManager
             ReadOnlySpan<byte> bytes = cached;
             var reader = new Utf8JsonReader(bytes);
             value = JsonSerializer.Deserialize<T>(ref reader, JsonOptions);
+
+            if (value != null && _logger != null)
+                _logger.LogRetrievedFromRedis(cacheKey);
+
+            return value != null;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogRedisTryGetFailed(cacheKey, ex);
+            return false;
+        }
+    }
+
+    /// <summary>
+    ///     Attempts to retrieve a cached value from Redis using source-generated JSON metadata.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
+    public bool TryGet<T>(string cacheKey, JsonTypeInfo<T> jsonTypeInfo, out T? value)
+    {
+        ArgumentNullException.ThrowIfNull(jsonTypeInfo);
+        value = default;
+        if (_distributedCache == null) return false;
+
+        try
+        {
+            var cached = _distributedCache.Get(cacheKey);
+            if (cached == null || cached.Length == 0) return false;
+
+            ReadOnlySpan<byte> bytes = cached;
+            var reader = new Utf8JsonReader(bytes);
+            value = JsonSerializer.Deserialize(ref reader, jsonTypeInfo);
 
             if (value != null && _logger != null)
                 _logger.LogRetrievedFromRedis(cacheKey);

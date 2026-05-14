@@ -56,8 +56,7 @@
         <IsTrimmable>true</IsTrimmable>
         <IsAotCompatible>true</IsAotCompatible>
         <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
-        <!-- Suppress trim/AOT warnings until RedisCacheManager adopts source-generated JSON. -->
-        <NoWarn>$(NoWarn);IL2026;IL3050;CS0419;CS1574;CS1591</NoWarn>
+        <NoWarn>$(NoWarn);CS0419;CS1574;CS1591</NoWarn>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
@@ -109,10 +108,12 @@
         <ProjectReference Include="..\SourceGenerators\CaeriusNet.Generator.csproj"
                           ReferenceOutputAssembly="false"
                           OutputItemType="Analyzer"
-                          PrivateAssets="all"/>
+                          PrivateAssets="all"
+                          GlobalPropertiesToRemove="IsAotCompatible;IsTrimmable;EnableAotAnalyzer;EnableTrimAnalyzer;EnableSingleFileAnalyzer;PublishAot;PublishTrimmed;PublishSingleFile"/>
         <ProjectReference Include="..\Analyzer\CaeriusNet.Analyzer.csproj"
                           ReferenceOutputAssembly="false"
                           OutputItemType="Analyzer"
-                          PrivateAssets="all"/>
+                          PrivateAssets="all"
+                          GlobalPropertiesToRemove="IsAotCompatible;IsTrimmable;EnableAotAnalyzer;EnableTrimAnalyzer;EnableSingleFileAnalyzer;PublishAot;PublishTrimmed;PublishSingleFile"/>
     </ItemGroup>
 </Project>

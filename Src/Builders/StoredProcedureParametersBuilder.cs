@@ -61,6 +61,14 @@ public sealed record StoredProcedureParametersBuilder(
         return this;
     }
 
+    internal StoredProcedureParametersBuilder AddParameter(SqlParameter parameter)
+    {
+        ArgumentNullException.ThrowIfNull(parameter);
+        ArgumentException.ThrowIfNullOrEmpty(parameter.ParameterName);
+        Parameters.Add(parameter);
+        return this;
+    }
+
     /// <summary>
     ///     Adds a Table-Valued Parameter (TVP) to the stored procedure call.
     /// </summary>
