@@ -16,6 +16,11 @@ public static class TransactionWriteSqlAsyncCommands
                    "ICaeriusNetTransaction implementations must derive from the framework's CaeriusNetTransaction.");
     }
 
+    private static bool ShouldPoisonCommandFailure(Exception ex)
+    {
+        return ex is not OutOfMemoryException;
+    }
+
     /// <param name="transaction">Transaction whose connection and scope are reused.</param>
     extension(ICaeriusNetTransaction transaction)
     {
@@ -61,6 +66,12 @@ public static class TransactionWriteSqlAsyncCommands
                 return result;
             }
             catch (CaeriusNetSqlException ex)
+            {
+                CaeriusActivityExtensions.RecordError(activity, tags, ex);
+                tx.Poison();
+                throw;
+            }
+            catch (Exception ex) when (ShouldPoisonCommandFailure(ex))
             {
                 CaeriusActivityExtensions.RecordError(activity, tags, ex);
                 tx.Poison();
@@ -117,6 +128,12 @@ public static class TransactionWriteSqlAsyncCommands
                 tx.Poison();
                 throw;
             }
+            catch (Exception ex) when (ShouldPoisonCommandFailure(ex))
+            {
+                CaeriusActivityExtensions.RecordError(activity, tags, ex);
+                tx.Poison();
+                throw;
+            }
             finally
             {
                 tx.ReleaseCommandSlot();
@@ -161,6 +178,12 @@ public static class TransactionWriteSqlAsyncCommands
                         rowsAffected);
             }
             catch (CaeriusNetSqlException ex)
+            {
+                CaeriusActivityExtensions.RecordError(activity, tags, ex);
+                tx.Poison();
+                throw;
+            }
+            catch (Exception ex) when (ShouldPoisonCommandFailure(ex))
             {
                 CaeriusActivityExtensions.RecordError(activity, tags, ex);
                 tx.Poison();

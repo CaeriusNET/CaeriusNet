@@ -1,4 +1,4 @@
-# Advanced Usage
+# Advanced usage
 
 This page collects patterns that combine multiple CaeriusNet features in real-world scenarios — TVPs alongside scalar parameters, conditional caching, multi-result-set calls with TVP filters, and fine-grained transaction handling.
 
@@ -62,13 +62,14 @@ public async Task<IEnumerable<UserDto>> GetUsersAsync(
 
 ## Multiple result sets with a TVP filter
 
-Multi-result SP calls accept the same parameters as single-result calls — including TVPs and any cache tier:
+Multi-result calls accept the same SQL parameters as single-result calls, including TVPs. Cache policies on
+`StoredProcedureParametersBuilder` are ignored by `QueryMultiple*Async`; cache the repository-level result if the
+complete tuple should be reused.
 
 ```csharp
 var sp = new StoredProcedureParametersBuilder("dbo", "sp_Get_Dashboard_Data", 512)
     .AddTvpParameter("FilterIds", filterIds)
     .AddParameter("MaxAge", maxAge, SqlDbType.Int)
-    .AddRedisCache($"dashboard:max:{maxAge}", TimeSpan.FromMinutes(3))
     .Build();
 
 var (users, orders) = await DbContext
@@ -77,7 +78,7 @@ var (users, orders) = await DbContext
 
 ## Scalar return after a write
 
-Use `ExecuteScalarAsync<T>` when the SP returns a single value — for example a newly inserted identity:
+Use `ExecuteScalarAsync<T>` when the stored procedure returns a single value, such as a newly inserted identity:
 
 ```csharp
 var sp = new StoredProcedureParametersBuilder("dbo", "sp_InsertUser_Return_Id")
@@ -88,14 +89,14 @@ var sp = new StoredProcedureParametersBuilder("dbo", "sp_InsertUser_Return_Id")
 var newId = await DbContext.ExecuteScalarAsync<int>(sp, ct);
 ```
 
-## Performance levers
+## Performance guidance
 
 | Technique | Benefit |
 |---|---|
-| Pre-sized `resultSetCapacity` | Avoids `List<T>` resizing for large result sets |
-| `QueryAsImmutableArrayAsync` | Struct-backed, pool-allocated — zero extra copies |
-| TVP `SqlDataRecord` reuse | Single instance per call regardless of row count |
-| `AddFrozenCache` | Eliminates the DB round-trip entirely for static data |
+| Pre-sized `resultSetCapacity` | Reduces resizing work for large result sets |
+| `QueryAsImmutableArrayAsync` | Good for cached or shared read results |
+| TVPs for set-based filters | Keeps SQL parameterized while avoiding many small calls |
+| `AddFrozenCache` | Eliminates the database round trip for static data |
 | `CancellationToken` propagation | Cancels in-progress SQL commands when the request is aborted |
 
 ## Transaction patterns
@@ -173,14 +174,14 @@ await using var tx = await DbContext
 try
 {
     await tx.ExecuteNonQueryAsync(sp1, ct);
-    await tx.ExecuteNonQueryAsync(sp2, ct); // may throw — poisons the scope
+    await tx.ExecuteNonQueryAsync(sp2, ct); // may throw; the scope is now poisoned
     await tx.CommitAsync(ct);
 }
 catch (CaeriusNetSqlException ex)
 {
     logger.LogWarning(ex, "Transaction poisoned by {Procedure}", ex.ProcedureName);
     await tx.RollbackAsync(ct);
-    throw; // retry at the caller — never partially recover
+    throw; // retry at the caller; never partially recover
 }
 ```
 
@@ -228,4 +229,4 @@ LoggerProvider.SetLogger(app.Services.GetRequiredService<ILoggerFactory>());
 
 ---
 
-**See also:** [Reading Data](/documentation/reading-data) · [Writing Data](/documentation/writing-data) · [Table-Valued Parameters](/documentation/tvp) · [Multiple Result Sets](/documentation/multi-results) · [Transactions](/documentation/transactions) · [Logging](/documentation/logging)
+**See also:** [Reading data](/documentation/reading-data), [Writing data](/documentation/writing-data), [table-valued parameters](/documentation/tvp), [Multiple result sets](/documentation/multi-results), [Transactions](/documentation/transactions), and [Logging](/documentation/logging).

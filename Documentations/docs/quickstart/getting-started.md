@@ -3,58 +3,54 @@ prev:
   text: 'What is CaeriusNet?'
   link: '/quickstart/what-is-caeriusnet'
 next:
-  text: 'DTO Mapping'
-  link: '/documentation/dto-mapping'
+  text: 'Usage overview'
+  link: '/documentation/usage'
 ---
 
-# Installation & Setup
+# Install and configure CaeriusNet
 
-This page walks through installing the package, configuring CaeriusNet for your hosting model, and running your first query end-to-end.
-
-::: info Scope
-CaeriusNet targets Microsoft SQL Server stored procedures. The quickstart assumes the SQL object already exists or can be created in your database.
-:::
+This quickstart shows how to install CaeriusNet, register it with dependency injection, and execute a SQL Server stored procedure.
 
 ## Prerequisites
 
-- **.NET 10.0 SDK** or higher
-- **C# 14** language version (default for .NET 10 projects)
-- **SQL Server 2019** or higher (Developer / Standard / Enterprise / Express / Azure SQL)
-- *(Optional)* **Redis** for distributed caching
-- *(Optional)* **.NET Aspire 10+** for cloud-native development
+- .NET 10 SDK or later.
+- C# 14 or later.
+- SQL Server 2019 or later, Azure SQL, or a compatible local development container.
+- A SQL Server database that contains the stored procedure you want to call.
+- Redis, if you want distributed caching.
 
-## 1. Install the package
+## Install the NuGet package
+
+Run this command from your project directory:
 
 ```bash
 dotnet add package CaeriusNet
 ```
 
-The package ships the runtime library, the Roslyn source generators, and the analyzer in one bundle — no additional packages are required.
+The package includes the runtime library, mapper source generators, and analyzer rules.
 
-## 2. Configure the connection string
+## Configure a connection string
 
-Add your SQL Server connection string to `appsettings.json`:
+Add a SQL Server connection string to `appsettings.json`.
 
 ```json
 {
   "ConnectionStrings": {
-    "Default": "Server=localhost,1433;Database=MyAppDb;User Id=sa;Password=YourPassword!;Trusted_Connection=True;MultipleActiveResultSets=true;Encrypt=True;"
+    "Default": "Server=localhost,1433;Database=MyAppDb;User Id=sa;Password=Your_password123;Encrypt=True;TrustServerCertificate=True;"
   }
 }
 ```
 
-::: details Connection string options
-The flags `Trusted_Connection=True;MultipleActiveResultSets=true;Encrypt=True;` are recommended by `Microsoft.Data.SqlClient`.
-
-For Azure SQL, dev containers, or Docker, see [connectionstrings.com/sql-server](https://www.connectionstrings.com/sql-server/) for ready-made templates.
+::: tip Development certificates
+For local Docker or developer SQL Server instances, `TrustServerCertificate=True` is common. For production, use a trusted certificate chain and remove this option.
 :::
 
-## 3. Register CaeriusNet
+## Register CaeriusNet
 
-Pick the host model that matches your project. All three flavours produce the same registration — only the entry point differs.
+Choose the registration style that matches your application.
 
 ::: code-group
-```csharp [ASP.NET Core / Generic Host]
+```csharp [ASP.NET Core]
 using CaeriusNet.Builders;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -62,29 +58,31 @@ var builder = WebApplication.CreateBuilder(args);
 CaeriusNetBuilder
     .Create(builder)
     .WithSqlServer(builder.Configuration.GetConnectionString("Default")!)
-    // .WithRedis("localhost:6379")  // optional distributed cache
     .Build();
 
 var app = builder.Build();
 app.Run();
 ```
+
 ```csharp [.NET Aspire]
 using CaeriusNet.Builders;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.AddServiceDefaults();   // Aspire ServiceDefaults wires OpenTelemetry
+
+builder.AddServiceDefaults();
 
 CaeriusNetBuilder
     .Create(builder)
-    .WithAspireSqlServer("sqlserver")  // matches AppHost AddSqlServer name
-    .WithAspireRedis()                  // optional — defaults to "redis"
+    .WithAspireSqlServer("sqlserver")
+    .WithAspireRedis()
     .Build();
 
 var app = builder.Build();
 app.MapDefaultEndpoints();
 app.Run();
 ```
-```csharp [Console / Worker Service]
+
+```csharp [Worker or console app]
 using CaeriusNet.Builders;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -101,21 +99,19 @@ CaeriusNetBuilder
 ```
 :::
 
-::: tip Aspire ServiceDefaults
-If you use Aspire, register CaeriusNet's `ActivitySource` and `Meter` in your `ServiceDefaults` project so spans and metrics flow into the dashboard. See the [Aspire Integration](/documentation/aspire#tracing-telemetry) guide.
-:::
-
-## 4. Register your repositories
-
-Inject `ICaeriusNetDbContext` into a repository and register the contract in DI:
+To enable Redis caching outside Aspire, add `WithRedis(...)` before `Build()`.
 
 ```csharp
-builder.Services.AddScoped<IUserRepository, UserRepository>();
+CaeriusNetBuilder
+    .Create(builder)
+    .WithSqlServer(builder.Configuration.GetConnectionString("Default")!)
+    .WithRedis(builder.Configuration.GetConnectionString("Redis"))
+    .Build();
 ```
 
-## 5. Your first query
+## Create a stored procedure
 
-### a. Define the Stored Procedure
+The example uses a stored procedure that returns users filtered by age.
 
 ```sql
 CREATE PROCEDURE dbo.sp_GetUsers_By_Age
@@ -123,14 +119,18 @@ CREATE PROCEDURE dbo.sp_GetUsers_By_Age
 AS
 BEGIN
     SET NOCOUNT ON;
+
     SELECT Id, Name, Age
-    FROM   dbo.Users
-    WHERE  Age >= @Age;
+    FROM dbo.Users
+    WHERE Age >= @Age
+    ORDER BY Id;
 END
 GO
 ```
 
-### b. Define the DTO
+## Create a DTO
+
+Use `[GenerateDto]` to let CaeriusNet create the mapper.
 
 ```csharp
 using CaeriusNet.Attributes.Dto;
@@ -139,59 +139,62 @@ using CaeriusNet.Attributes.Dto;
 public sealed partial record UserDto(int Id, string Name, byte Age);
 ```
 
-`[GenerateDto]` instructs the compile-time source generator to emit `ISpMapper<UserDto>.MapFromDataReader` for you. The DTO must be `sealed`, `partial`, and use a primary constructor — the analyzer enforces this at build time (see [Compiler Diagnostics](/documentation/diagnostics)).
+The DTO constructor parameters must match the stored procedure result columns by order and type.
 
-### c. Implement the repository
+## Call the stored procedure
 
-::: tip Parameter naming
-When adding parameters in C#, pass the stored-procedure parameter identifier without the SQL `@` prefix. For example, use `"Age"` with `AddParameter(...)`.
+Inject `ICaeriusNetDbContext` into a repository. Build the stored procedure parameters, then call a read method.
+
+::: tip Parameter names
+When you add parameters in C#, pass the parameter identifier without the SQL `@` prefix. Use `"Age"`, not `"@Age"`.
 :::
 
 ```csharp
 using CaeriusNet.Abstractions;
 using CaeriusNet.Builders;
 using CaeriusNet.Commands.Reads;
+using System.Collections.ObjectModel;
 using System.Data;
 
 public sealed record UserRepository(ICaeriusNetDbContext DbContext)
-    : IUserRepository
 {
-    public async Task<IEnumerable<UserDto>> GetUsersOlderThanAsync(
-        int age, CancellationToken ct)
+    public async ValueTask<ReadOnlyCollection<UserDto>> GetUsersByAgeAsync(
+        int age,
+        CancellationToken cancellationToken)
     {
-        var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Age", ResultSetCapacity: 128)
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Age", resultSetCapacity: 128)
             .AddParameter("Age", age, SqlDbType.Int)
             .Build();
 
-        return await DbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct);
+        return await DbContext.QueryAsReadOnlyCollectionAsync<UserDto>(sp, cancellationToken);
     }
 }
 ```
 
-### d. Inject and call
+Register the repository in dependency injection.
 
 ```csharp
-public sealed class UserService(IUserRepository repository)
-{
-    public Task<IEnumerable<UserDto>> GetAdultsAsync(CancellationToken ct)
-        => repository.GetUsersOlderThanAsync(18, ct);
-}
+builder.Services.AddScoped<UserRepository>();
 ```
 
-That's it — you have a fully typed, instrumented, allocation-aware Stored Procedure call.
+## Add caching to a read
 
-## What happens behind the scenes
+Caching is opt-in per call. Add a cache policy before you call `Build()`.
 
-1. The builder produces an immutable `StoredProcedureParameters` value.
-2. `QueryAsIEnumerableAsync<UserDto>` opens a connection via `ICaeriusNetDbContext`, starts an OTel `Activity`, and executes the SP with `CommandBehavior.SequentialAccess`.
-3. The compile-time-generated `UserDto.MapFromDataReader` reads each row by ordinal — no reflection, no name lookups.
-4. Results are materialised into a pre-sized list (capacity = 128) and returned to the caller.
-5. The `Activity` records duration, row count, and SP metadata; the `Meter` increments executions and observes the duration histogram.
+```csharp
+var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Age", 128)
+    .AddParameter("Age", age, SqlDbType.Int)
+    .AddInMemoryCache($"users:age:{age}", TimeSpan.FromMinutes(2))
+    .Build();
+```
+
+On a cache hit, CaeriusNet returns the cached value and does not execute the stored procedure.
 
 ## Next steps
 
-- [DTO Mapping](/documentation/dto-mapping) — understand ordinal mapping and nullability.
-- [Source Generators](/documentation/source-generators) — explore `[GenerateDto]` and `[GenerateTvp]` in depth.
-- [Reading Data](/documentation/reading-data) — choose between `IEnumerable`, `ReadOnlyCollection`, and `ImmutableArray`.
-- [Caching](/documentation/cache) — add Frozen / InMemory / Redis caching to any call.
-- [Examples](/examples/) — end-to-end walkthroughs.
+- [Usage overview](/documentation/usage)
+- [Reading data](/documentation/reading-data)
+- [Writing data](/documentation/writing-data)
+- [DTO mapping](/documentation/dto-mapping)
+- [Table-valued parameters](/documentation/tvp)
+- [Multiple result sets](/documentation/multi-results)

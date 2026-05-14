@@ -1,12 +1,38 @@
+using System.Collections.Concurrent;
+using Microsoft.Extensions.Caching.Memory;
+
 namespace CaeriusNet.Tests.Caches;
 
 /// <summary>
 ///     Unit tests for <see cref="InMemoryCacheManager" />.
 ///     Each test uses a GUID-based key to avoid interference from the shared static MemoryCache.
 /// </summary>
+[Collection(FrozenCacheStateCollection.Name)]
 public sealed class InMemoryCacheManagerTests
 {
     private static readonly TimeSpan LongExpiry = TimeSpan.FromHours(1);
+
+    private static MemoryCacheOptions DefaultOptions()
+    {
+        return new MemoryCacheOptions
+        {
+            SizeLimit = null,
+            CompactionPercentage = 0.05,
+            ExpirationScanFrequency = TimeSpan.FromMinutes(2),
+            TrackLinkedCacheEntries = false
+        };
+    }
+
+    private static MemoryCacheOptions SizeLimitedOptions(long sizeLimit)
+    {
+        return new MemoryCacheOptions
+        {
+            SizeLimit = sizeLimit,
+            CompactionPercentage = 0.05,
+            ExpirationScanFrequency = TimeSpan.FromMinutes(2),
+            TrackLinkedCacheEntries = false
+        };
+    }
 
     [Fact]
     public void TryGet_MissingKey_Returns_False()
@@ -97,5 +123,80 @@ public sealed class InMemoryCacheManagerTests
         InMemoryCacheManager.TryGet<List<int>>(key, out var value);
 
         Assert.Equal(list, value);
+    }
+
+    [Fact]
+    public void Configure_WithSizeLimit_StoresEntryWithSize()
+    {
+        var key = $"memory_sizelimit_{Guid.NewGuid()}";
+
+        try
+        {
+            InMemoryCacheManager.Configure(SizeLimitedOptions(1));
+
+            InMemoryCacheManager.Store(key, "limited", LongExpiry);
+            var found = InMemoryCacheManager.TryGet<string>(key, out var value);
+
+            Assert.True(found);
+            Assert.Equal("limited", value);
+        }
+        finally
+        {
+            InMemoryCacheManager.Configure(DefaultOptions());
+        }
+    }
+
+    [Fact]
+    public async Task Configure_ConcurrentWithStoreAndTryGet_DoesNotThrow()
+    {
+        var errors = new ConcurrentQueue<Exception>();
+        var prefix = $"memory_concurrent_{Guid.NewGuid():N}";
+
+        try
+        {
+            var configureTask = Task.Run(() =>
+            {
+                try
+                {
+                    for (var i = 0; i < 250; i++)
+                        InMemoryCacheManager.Configure(i % 2 == 0
+                            ? SizeLimitedOptions(4096)
+                            : DefaultOptions());
+                }
+                catch (Exception ex)
+                {
+                    errors.Enqueue(ex);
+                }
+            });
+
+            var cacheTasks = Enumerable.Range(0, 4)
+                .Select(worker => Task.Run(() =>
+                {
+                    try
+                    {
+                        for (var i = 0; i < 500; i++)
+                        {
+                            var key = $"{prefix}_{worker}_{i}";
+                            InMemoryCacheManager.Store(key, i, LongExpiry);
+                            InMemoryCacheManager.TryGet<int>(key, out _);
+                            InMemoryCacheManager.Remove(key);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Enqueue(ex);
+                    }
+                }))
+                .Append(configureTask)
+                .ToArray();
+
+            await Task.WhenAll(cacheTasks);
+
+            Assert.Empty(errors);
+        }
+        finally
+        {
+            InMemoryCacheManager.Configure(DefaultOptions());
+        }
     }
 }

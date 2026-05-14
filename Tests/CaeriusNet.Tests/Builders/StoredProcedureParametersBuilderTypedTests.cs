@@ -35,7 +35,7 @@ public sealed class StoredProcedureParametersBuilderTypedTests
     {
         var sp = StoredProcedureParametersBuilder<TestScalarProcedure>
             .Create(16)
-            .AddGeneratedParameter(1, "@Id", 42, SqlDbType.Int)
+            .AddGeneratedParameter(1, "Id", 42, SqlDbType.Int)
             .MarkGeneratedParametersBound()
             .AddRedisCache("test:key", TimeSpan.FromMinutes(5))
             .Build();
@@ -50,6 +50,16 @@ public sealed class StoredProcedureParametersBuilderTypedTests
         Assert.Equal("@Id", parameters[0].ParameterName);
         Assert.Equal(SqlDbType.Int, parameters[0].SqlDbType);
         Assert.Equal(42, parameters[0].Value);
+    }
+
+    [Fact]
+    public void AddGeneratedParameter_Invalid_Name_Throws()
+    {
+        var builder = StoredProcedureParametersBuilder<TestScalarProcedure>
+            .Create(16);
+
+        Assert.Throws<ArgumentException>(() =>
+            builder.AddGeneratedParameter(1, "@@Id", 42, SqlDbType.Int));
     }
 
     [Fact]
@@ -87,7 +97,7 @@ public sealed class StoredProcedureParametersBuilderTypedTests
     [Fact]
     public void AddGeneratedParameter_With_Configured_SqlParameter_Preserves_Facets()
     {
-        var parameter = new SqlParameter("@Amount", SqlDbType.Decimal)
+        var parameter = new SqlParameter("Amount", SqlDbType.Decimal)
         {
             Value = 12.50m,
             Precision = 18,
@@ -107,6 +117,21 @@ public sealed class StoredProcedureParametersBuilderTypedTests
         Assert.Equal(12.50m, actual.Value);
         Assert.Equal(18, actual.Precision);
         Assert.Equal(4, actual.Scale);
+    }
+
+    [Fact]
+    public void AddGeneratedParameter_With_Configured_SqlParameter_Does_Not_Mutate_Input()
+    {
+        var parameter = new SqlParameter("Id", SqlDbType.Int) { Value = 42 };
+
+        var sp = StoredProcedureParametersBuilder<TestScalarProcedure>
+            .Create(16)
+            .AddGeneratedParameter(1, parameter)
+            .MarkGeneratedParametersBound()
+            .Build();
+
+        Assert.Equal("Id", parameter.ParameterName);
+        Assert.Equal("@Id", sp.GetParametersSpan()[0].ParameterName);
     }
 
     [Fact]
@@ -136,7 +161,7 @@ public sealed class StoredProcedureParametersBuilderTypedTests
             .Create(16)
             .AddGeneratedTvpParameter<TestGeneratedTvpRow>(
                 1,
-                "@Ids",
+                "Ids",
                 "dbo.UserIdList",
                 [new SqlMetaData("UserId", SqlDbType.Int)],
                 rows,
@@ -149,8 +174,25 @@ public sealed class StoredProcedureParametersBuilderTypedTests
         var values = records.Select(record => record.GetInt32(0)).ToArray();
 
         Assert.Equal(SqlDbType.Structured, parameter.SqlDbType);
+        Assert.Equal("@Ids", parameter.ParameterName);
         Assert.Equal("dbo.UserIdList", parameter.TypeName);
         Assert.Equal([1, 2], values);
+    }
+
+    [Fact]
+    public void AddGeneratedTvpParameter_Invalid_Name_Throws()
+    {
+        var builder = StoredProcedureParametersBuilder<TestTvpProcedure>
+            .Create(16);
+
+        Assert.Throws<ArgumentException>(() =>
+            builder.AddGeneratedTvpParameter(
+                1,
+                "@@Ids",
+                "dbo.UserIdList",
+                [new SqlMetaData("UserId", SqlDbType.Int)],
+                ReadOnlyMemory<TestGeneratedTvpRow>.Empty,
+                static (_, _) => { }));
     }
 
     [Fact]

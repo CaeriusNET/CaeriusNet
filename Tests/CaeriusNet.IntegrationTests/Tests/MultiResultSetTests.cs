@@ -2,8 +2,8 @@ namespace CaeriusNet.IntegrationTests.Tests;
 
 /// <summary>
 ///     End-to-end coverage of the multi-result-set helpers (immutable array, read-only collection,
-///     enumerable). Validates that two- and three-result-set sprocs are correctly tuple-unwrapped,
-///     and that empty trailing result sets don't break the readers.
+///     enumerable). Validates that two- through five-result-set sprocs are correctly tuple-unwrapped,
+///     and that missing or empty trailing result sets don't break the readers.
 /// </summary>
 [Collection(SqlServerCollection.Name)]
 public sealed class MultiResultSetTests(SqlServerFixture fixture) : IAsyncLifetime
@@ -152,6 +152,43 @@ public sealed class MultiResultSetTests(SqlServerFixture fixture) : IAsyncLifeti
         Assert.Equal("M001", first[0].Name);
         Assert.Single(last);
         Assert.Equal("M004", last[0].Name);
+    }
+
+    [Fact]
+    public async Task QueryMultipleImmutableArray_Returns_Five_Result_Sets()
+    {
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
+        await SeedAsync(db, 5);
+
+        var p = new StoredProcedureParametersBuilder("dbo", "usp_GetWidgetsFiveSets").Build();
+        var (all, count, first, last, highQuantity) =
+            await db.QueryMultipleImmutableArrayAsync<WidgetDto, WidgetCountDto, WidgetDto, WidgetDto, WidgetDto>(p);
+
+        Assert.Equal(5, all.Length);
+        Assert.Single(count);
+        Assert.Equal(5L, count[0].Total);
+        Assert.Single(first);
+        Assert.Equal("M001", first[0].Name);
+        Assert.Single(last);
+        Assert.Equal("M005", last[0].Name);
+        Assert.Equal(["M003", "M004", "M005"], highQuantity.Select(w => w.Name).ToArray());
+    }
+
+    [Fact]
+    public async Task QueryMultipleImmutableArray_Missing_Trailing_Result_Set_Returns_Empty_Array()
+    {
+        using var scope = fixture.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
+        await SeedAsync(db, 2);
+
+        var p = new StoredProcedureParametersBuilder("dbo", "usp_GetWidgetsAndCount").Build();
+        var (widgets, counts, missing) =
+            await db.QueryMultipleImmutableArrayAsync<WidgetDto, WidgetCountDto, WidgetDto>(p);
+
+        Assert.Equal(2, widgets.Length);
+        Assert.Single(counts);
+        Assert.Empty(missing);
     }
 
     [Fact]

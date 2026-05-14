@@ -211,7 +211,8 @@ var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetDashboard", ResultSe
 ```
 
 Supported up to 5 result sets: `QueryMultipleIEnumerableAsync<T1,T2>` through
-`QueryMultipleIEnumerableAsync<T1,T2,T3,T4,T5>`.
+`QueryMultipleIEnumerableAsync<T1,T2,T3,T4,T5>`. The multi-result APIs return `ValueTask`
+to match the rest of the async execution API.
 
 ## Available Query Methods
 

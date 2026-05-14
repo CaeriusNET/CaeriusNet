@@ -134,4 +134,39 @@ public sealed class FrozenCacheManagerTests
 
         Assert.Equal(777, value);
     }
+
+    [Fact]
+    public void StoreRange_ExistingKey_IsIdempotent_FirstValuePreserved()
+    {
+        var key = $"frozen_range_existing_{Guid.NewGuid()}";
+        FrozenCacheManager.Store(key, "first");
+
+        FrozenCacheManager.StoreRange(new Dictionary<string, string> { [key] = "second" });
+        FrozenCacheManager.TryGet<string>(key, out var value);
+
+        Assert.Equal("first", value);
+    }
+
+    [Fact]
+    public void StoreRange_DuplicateInputKey_PreservesFirstValue()
+    {
+        var key = $"frozen_range_duplicate_{Guid.NewGuid()}";
+        var entries = new List<KeyValuePair<string, int>>
+        {
+            new(key, 1),
+            new(key, 2)
+        };
+
+        FrozenCacheManager.StoreRange(entries);
+        FrozenCacheManager.TryGet<int>(key, out var value);
+
+        Assert.Equal(1, value);
+    }
+
+    [Fact]
+    public void StoreRange_NullEntries_Throws()
+    {
+        Assert.Throws<ArgumentNullException>(() =>
+            FrozenCacheManager.StoreRange<string>(null!));
+    }
 }

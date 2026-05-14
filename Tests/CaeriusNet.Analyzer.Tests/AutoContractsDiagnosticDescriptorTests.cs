@@ -59,15 +59,27 @@ public sealed class AutoContractsDiagnosticDescriptorTests
         };
 
     [Fact]
-    public void SupportedDiagnostics_Advertise_AutoContractsRules()
+    public void SupportedDiagnostics_Advertise_Only_Roslyn_Emitted_AutoContractsRules()
     {
         var supportedIds = new AutoContractsManifestAnalyzer()
             .SupportedDiagnostics
             .Select(diagnostic => diagnostic.Id)
-            .ToHashSet(StringComparer.Ordinal);
+            .OrderBy(id => id, StringComparer.Ordinal)
+            .ToArray();
 
-        foreach (var id in ExpectedDiagnostics.Keys)
-            Assert.Contains(id, supportedIds);
+        Assert.Equal(
+            [
+                "CAERIUS200",
+                "CAERIUS202",
+                "CAERIUS203",
+                "CAERIUS204",
+                "CAERIUS205",
+                "CAERIUS206",
+                "CAERIUS207",
+                "CAERIUS208",
+                "CAERIUS210"
+            ],
+            supportedIds);
     }
 
     [Fact]

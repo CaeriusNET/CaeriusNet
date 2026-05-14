@@ -30,7 +30,6 @@ env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_NOLOGO: true
-  DOTNET_VERSION: '10.0.x'
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
@@ -56,10 +55,13 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+      - name: Setup .NET from global.json
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          global-json-file: global.json
+
+      - name: Display .NET SDK info
+        run: dotnet --info
 
       - name: Setup Node
         if: hashFiles('Documentations/package.json') != ''
@@ -73,7 +75,7 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ~/.nuget/packages
-          key: nuget-release-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/*.slnx') }}
+          key: nuget-release-${{ runner.os }}-${{ hashFiles('global.json', '**/*.csproj', '**/*.slnx') }}
           restore-keys: nuget-release-${{ runner.os }}-
 
       # ── Bump package versions ───────────────────────────────────────────────────
@@ -91,8 +93,15 @@ jobs:
             patch) NEW="${MAJOR}.${MINOR}.$((PATCH+1))" ;;
           esac
 
-          sed -i "s|<Version>${CURRENT}</Version>|<Version>${NEW}</Version>|g" Src/CaeriusNet.csproj
-          sed -i "s|<Version>${CURRENT}</Version>|<Version>${NEW}</Version>|g" Tools/CaeriusNet.SqlServer.Contracts/CaeriusNet.SqlServer.Contracts.csproj
+          sed -i -E "s|<Version>[0-9]+\.[0-9]+\.[0-9]+</Version>|<Version>${NEW}</Version>|" Src/CaeriusNet.csproj
+          sed -i -E "s|<Version>[0-9]+\.[0-9]+\.[0-9]+</Version>|<Version>${NEW}</Version>|" Tools/CaeriusNet.SqlServer.Contracts/CaeriusNet.SqlServer.Contracts.csproj
+
+          SRC_VERSION=$(grep -oP '(?<=<Version>)\d+\.\d+\.\d+(?=</Version>)' Src/CaeriusNet.csproj)
+          TOOLS_VERSION=$(grep -oP '(?<=<Version>)\d+\.\d+\.\d+(?=</Version>)' Tools/CaeriusNet.SqlServer.Contracts/CaeriusNet.SqlServer.Contracts.csproj)
+          if [ "$SRC_VERSION" != "$NEW" ] || [ "$TOOLS_VERSION" != "$NEW" ]; then
+            echo "❌ Version bump did not update all published packages. Src=${SRC_VERSION}; Tools=${TOOLS_VERSION}; expected=${NEW}."
+            exit 1
+          fi
 
           echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
           echo "new=$NEW"         >> "$GITHUB_OUTPUT"
@@ -122,8 +131,7 @@ jobs:
           dotnet build CaeriusNet.slnx \
             --configuration Release \
             --no-restore \
-            -p:TreatWarningsAsErrors=true \
-            -p:WarningLevel=4
+            -p:TreatWarningsAsErrors=true
 
       - name: Test (non-integration)
         run: |
@@ -176,7 +184,7 @@ jobs:
 
       - name: Validate package contents
         shell: pwsh
-        run: ./.github/scripts/ValidatePackage.ps1 -Configuration Release -OutputDirectory "${{ runner.temp }}/caerius-package-validation"
+        run: ./.github/scripts/ValidatePackage.ps1 -Configuration Release -OutputDirectory "${{ runner.temp }}/caerius-package-validation" -PackageDirectory ./packages
 
       - name: List packages
         run: ls -la ./packages/
@@ -219,20 +227,22 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_NOTES: ${{ github.event.inputs.release_notes }}
         run: |
+          set -euo pipefail
           TAG="${{ steps.bump.outputs.tag }}"
           VERSION="${{ steps.bump.outputs.new }}"
-          NOTES="${{ github.event.inputs.release_notes }}"
           ASSETS=$(ls ./packages/*.nupkg ./packages/*.snupkg 2>/dev/null | tr '\n' ' ')
 
           if gh release view "${TAG}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "ℹ️  Release ${TAG} already exists — skipping."
           else
-            if [ -n "$NOTES" ]; then
+            if [ -n "$RELEASE_NOTES" ]; then
+              printf '%s' "$RELEASE_NOTES" > release-notes.md
               # shellcheck disable=SC2086
               gh release create "${TAG}" \
                 --title "CaeriusNet ${VERSION}" \
-                --notes "${NOTES}" \
+                --notes-file release-notes.md \
                 --repo "$GITHUB_REPOSITORY" \
                 ${ASSETS}
             else

@@ -1,57 +1,56 @@
 # AutoContracts
 
-AutoContracts keeps stored procedure call contracts aligned with SQL Server metadata. It is designed as a read-only safety layer: CaeriusNet reads metadata from SQL Server, but does not create, update, or delete database objects and does not change application data.
+AutoContracts helps keep CaeriusNet call sites aligned with SQL Server stored procedure metadata. It reads stored procedure contracts from SQL Server, stores them in a local manifest, and can verify that the database still matches the contract your application expects.
 
-## What it tracks
+Use AutoContracts when stored procedures are shared across teams, deployed separately from application code, or validated in CI.
 
-AutoContracts records the contract shape used by typed stored procedure calls:
+## What AutoContracts checks
 
-- procedure identity
-- parameter names, SQL types, direction, and nullability
-- result-set columns when SQL Server can expose them through metadata
-- the typed call surface represented by `StoredProcedureParametersBuilder<TProcedure>`
+AutoContracts tracks the public contract shape used by typed stored procedure calls:
 
-Generated contract artifacts are marked with `AutoContractGenerateDto`, `AutoContractGenerateTvp`, and
-`AutoContractGenerateProcedure`. Use these exact AutoContracts marker names in public
-documentation, samples, and generated API names.
+- Stored procedure schema and name
+- Parameter names, SQL types, direction, and nullability
+- Result-set columns when SQL Server can expose them through metadata
+- Typed call contracts used by `StoredProcedureParametersBuilder<TProcedure>`
 
-## Manifest location
+AutoContracts does not inspect data rows and does not execute business logic. It only reads SQL Server metadata.
 
-The snapshot is stored in `caerius.contracts.json`.
+## Manifest file
 
-When AutoContracts runs through MSBuild, the default path is
-`$(ProjectDir)caerius.contracts.json`. Override `CaeriusContractsOutput` when a project needs a
-different path. The build targets pass that same path to the CLI and include it as an
-`AdditionalFiles` item for the source generator.
+The contract snapshot is stored in `caerius.contracts.json`.
 
-When the CLI is run directly, `pull` writes to `--output` when provided, then `--manifest` when
-provided, and otherwise `caerius.contracts.json` in the current working directory. `verify` reads
-from `--manifest` when provided, then `--output` when provided, and otherwise
-`caerius.contracts.json` in the current working directory.
+When AutoContracts runs through MSBuild, the default path is:
 
-## Build responsibilities
+```xml
+$(ProjectDir)caerius.contracts.json
+```
 
-AutoContracts has two separate execution phases:
+Override `CaeriusContractsOutput` when a project needs a different manifest path:
 
-- The CLI/MSBuild phase connects to SQL Server in read-only mode, reads metadata, and writes or
-  verifies `caerius.contracts.json`.
-- The Roslyn source generator does not connect to SQL Server. It only reads the
-  `caerius.contracts.json` file supplied through `AdditionalFiles`.
+```xml
+<PropertyGroup>
+  <CaeriusContractsOutput>Contracts\caerius.contracts.json</CaeriusContractsOutput>
+</PropertyGroup>
+```
+
+When you run the CLI directly:
+
+- `pull` writes to `--output` when provided, then `--manifest` when provided, and otherwise `caerius.contracts.json` in the current directory.
+- `verify` reads from `--manifest` when provided, then `--output` when provided, and otherwise `caerius.contracts.json` in the current directory.
 
 ## Modes
 
-`CaeriusContractsMode` controls how the snapshot is used:
+Set `CaeriusContractsMode` to control how AutoContracts behaves.
 
 | Mode | Behavior |
 |---|---|
 | `Pull` | Reads SQL Server metadata and refreshes `caerius.contracts.json`. Use this after an intentional stored procedure contract change. |
 | `Verify` | Reads SQL Server metadata and compares it with `caerius.contracts.json`. Use this in validation workflows to detect drift. |
-| `Off` | Skips AutoContracts work. Use this when contract checks are not needed for a run. |
+| `Off` | Skips AutoContracts. Use this when contract checks are not needed for a run. |
 
-## Connection string resolution
+## Configure the connection string
 
-Prefer resolving the discovery connection string by configuration name, so AutoContracts follows
-the same development workflow as the application:
+Prefer resolving the discovery connection string by name so AutoContracts follows the same configuration model as your application.
 
 ```xml
 <PropertyGroup>
@@ -60,23 +59,21 @@ the same development workflow as the application:
 </PropertyGroup>
 ```
 
-The tool reads `ConnectionStrings:DefaultConnection` from .NET configuration. It loads
-`appsettings.json`, optional `appsettings.{environment}.json`, optional user secrets, and
-environment variables from the project directory. `CaeriusContractsConfigurationEnvironment` can
-force the environment-specific file, and `CaeriusContractsUserSecretsId` can override the project
-`UserSecretsId`.
+AutoContracts reads `ConnectionStrings:DefaultConnection` from .NET configuration. It supports `appsettings.json`, optional `appsettings.{environment}.json`, user secrets, and environment variables from the project directory.
 
-This also fits Aspire-driven projects: when the tool runs in an Aspire-provided environment,
-`ConnectionStrings__DefaultConnection` is resolved by the same configuration path. For a local
-manual database, store the value in `appsettings.Development.json` or user secrets. Do not commit
-production secrets.
+Use these properties when you need to control configuration resolution:
 
-The target database is the database named by the connection string, for example `Database=...` or
-`Initial Catalog=...`. AutoContracts scans all application schemas in that database, including
-`dbo`, and ignores SQL Server system schemas such as `sys`, `INFORMATION_SCHEMA`, and fixed-role
-compatibility schemas.
+| Property | Purpose |
+|---|---|
+| `CaeriusContractsConfigurationEnvironment` | Selects the environment-specific configuration file. |
+| `CaeriusContractsUserSecretsId` | Overrides the project `UserSecretsId`. |
+| `CaeriusContractsConnectionName` | Selects the named connection string. |
 
-The lower-level escape hatches remain available:
+For Aspire-driven projects, the same configuration path works with `ConnectionStrings__DefaultConnection`. For local manual databases, store the value in `appsettings.Development.json` or user secrets. Do not commit production secrets.
+
+## CLI examples
+
+Refresh a manifest from a named connection:
 
 ```powershell
 dotnet run --project Tools/CaeriusNet.SqlServer.Contracts -- `
@@ -85,6 +82,8 @@ dotnet run --project Tools/CaeriusNet.SqlServer.Contracts -- `
   --configuration-base-path .\src\MyApp `
   --output .\src\MyApp\caerius.contracts.json
 ```
+
+Verify an existing manifest with a connection string from the environment:
 
 ```powershell
 dotnet run --project Tools/CaeriusNet.SqlServer.Contracts -- `
@@ -99,10 +98,14 @@ dotnet run --project Tools/CaeriusNet.SqlServer.Contracts -- `
 2. Run AutoContracts with `Pull`.
 3. Review the updated `caerius.contracts.json`.
 4. Commit the application change and the refreshed contract snapshot together.
-5. Run AutoContracts with `Verify` in validation to catch unexpected SQL Server drift.
+5. Run AutoContracts with `Verify` in CI to catch unexpected SQL Server drift.
 
 ## Read-only guarantees
 
-AutoContracts uses SQL Server metadata reads only. `Pull` updates `caerius.contracts.json` in the application workspace; it does not apply SQL changes back to the database. `Verify` reports mismatches and leaves both SQL Server and the snapshot unchanged.
+AutoContracts uses SQL Server metadata reads only.
 
-Keep `Off` available for local scenarios where SQL Server is unavailable, but prefer `Verify` wherever a real database is part of the validation path.
+- `Pull` updates `caerius.contracts.json` in the application workspace. It does not apply SQL changes back to the database.
+- `Verify` reports mismatches and leaves both SQL Server and the snapshot unchanged.
+- `Off` disables the check for local scenarios where SQL Server is unavailable.
+
+Prefer `Verify` wherever a real database is part of validation.

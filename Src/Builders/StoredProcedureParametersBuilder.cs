@@ -56,16 +56,65 @@ public sealed record StoredProcedureParametersBuilder(
     /// </exception>
     public StoredProcedureParametersBuilder AddParameter(string parameter, object? value, SqlDbType dbType)
     {
-        ArgumentException.ThrowIfNullOrEmpty(parameter);
-        Parameters.Add(new SqlParameter(parameter, dbType) { Value = value ?? DBNull.Value });
+        return AddParameter(
+            parameter,
+            value,
+            dbType,
+            null);
+    }
+
+    /// <summary>
+    ///     Adds a parameter to the stored procedure call with explicit SQL Server facets.
+    /// </summary>
+    /// <param name="parameter">The name of the parameter.</param>
+    /// <param name="value">The value of the parameter.</param>
+    /// <param name="dbType">The SQL Server data type of the parameter.</param>
+    /// <param name="size">Optional parameter size for variable-length types.</param>
+    /// <param name="precision">Optional decimal precision.</param>
+    /// <param name="scale">Optional decimal scale.</param>
+    /// <param name="direction">The parameter direction.</param>
+    /// <returns>The current builder instance to enable method chaining.</returns>
+    /// <exception cref="ArgumentNullException">
+    ///     <paramref name="parameter" /> is null.
+    /// </exception>
+    /// <exception cref="ArgumentException">
+    ///     <paramref name="parameter" /> is empty, whitespace, or uses an invalid SQL parameter prefix.
+    /// </exception>
+    public StoredProcedureParametersBuilder AddParameter(
+        string parameter,
+        object? value,
+        SqlDbType dbType,
+        int? size = null,
+        byte? precision = null,
+        byte? scale = null,
+        ParameterDirection direction = ParameterDirection.Input)
+    {
+        if (direction is not (ParameterDirection.Input
+            or ParameterDirection.Output
+            or ParameterDirection.InputOutput
+            or ParameterDirection.ReturnValue))
+            throw new ArgumentOutOfRangeException(nameof(direction), direction, "Unsupported SQL parameter direction.");
+
+        var sqlParameter = new SqlParameter(SqlParameterName.Normalize(parameter), dbType)
+        {
+            Value = value ?? DBNull.Value,
+            Direction = direction
+        };
+
+        if (size is { } actualSize)
+            sqlParameter.Size = actualSize;
+        if (precision is { } actualPrecision)
+            sqlParameter.Precision = actualPrecision;
+        if (scale is { } actualScale)
+            sqlParameter.Scale = actualScale;
+
+        Parameters.Add(sqlParameter);
         return this;
     }
 
     internal StoredProcedureParametersBuilder AddParameter(SqlParameter parameter)
     {
-        ArgumentNullException.ThrowIfNull(parameter);
-        ArgumentException.ThrowIfNullOrEmpty(parameter.ParameterName);
-        Parameters.Add(parameter);
+        Parameters.Add(StoredProcedureParameters.CloneParameter(parameter));
         return this;
     }
 
@@ -83,16 +132,15 @@ public sealed record StoredProcedureParametersBuilder(
     public StoredProcedureParametersBuilder AddTvpParameter<T>(string parameter, IEnumerable<T> items)
         where T : class, ITvpMapper<T>
     {
-        ArgumentException.ThrowIfNullOrEmpty(parameter);
         ArgumentNullException.ThrowIfNull(items);
-        var tvpItems = items as T[] ?? items.ToArray();
-        if (tvpItems.Length == 0)
-            throw new ArgumentException("No items found in the collection to map to a Table-Valued Parameter.");
+        var parameterName = SqlParameterName.Normalize(parameter);
+        var (mapper, tvpItems) = GetTvpMapperAndItems(items);
+        var typeName = T.TvpTypeName;
+        ArgumentException.ThrowIfNullOrWhiteSpace(typeName);
 
-        var mapper = tvpItems[0];
-        var currentTvpParameter = new SqlParameter(parameter, SqlDbType.Structured)
+        var currentTvpParameter = new SqlParameter(parameterName, SqlDbType.Structured)
         {
-            TypeName = T.TvpTypeName,
+            TypeName = typeName,
             Value = new TvpParameterValue(() => mapper.MapAsSqlDataRecords(tvpItems))
         };
 
@@ -111,6 +159,9 @@ public sealed record StoredProcedureParametersBuilder(
     /// </exception>
     public StoredProcedureParametersBuilder AddInMemoryCache(string cacheKey, TimeSpan expiration)
     {
+        ValidateCacheKey(cacheKey);
+        ValidatePositiveExpiration(expiration, nameof(expiration));
+
         _cacheKey = cacheKey;
         _cacheType = InMemory;
         _cacheExpiration = expiration;
@@ -127,6 +178,8 @@ public sealed record StoredProcedureParametersBuilder(
     /// </exception>
     public StoredProcedureParametersBuilder AddFrozenCache(string cacheKey)
     {
+        ValidateCacheKey(cacheKey);
+
         _cacheKey = cacheKey;
         _cacheType = Frozen;
         _cacheExpiration = null;
@@ -144,6 +197,9 @@ public sealed record StoredProcedureParametersBuilder(
     /// </exception>
     public StoredProcedureParametersBuilder AddRedisCache(string cacheKey, TimeSpan? expiration = null)
     {
+        ValidateCacheKey(cacheKey);
+        ValidateOptionalPositiveExpiration(expiration, nameof(expiration));
+
         _cacheType = Redis;
         _cacheKey = cacheKey;
         _cacheExpiration = expiration;
@@ -176,7 +232,7 @@ public sealed record StoredProcedureParametersBuilder(
         ArgumentOutOfRangeException.ThrowIfNegative(CommandTimeout);
 
         var parameters = Parameters.Count > 0
-            ? CollectionsMarshal.AsSpan(Parameters).ToArray()
+            ? Parameters.ToArray()
             : [];
 
         return new StoredProcedureParameters(
@@ -199,6 +255,51 @@ public sealed record StoredProcedureParametersBuilder(
         var span = identifier.AsSpan();
         return ValidIdentifierStartChars.Contains(span[0])
                && !span[1..].ContainsAnyExcept(ValidIdentifierChars);
+    }
+
+    private static (T Mapper, IEnumerable<T> Items) GetTvpMapperAndItems<T>(IEnumerable<T> items)
+        where T : class, ITvpMapper<T>
+    {
+        switch (items)
+        {
+            case IReadOnlyList<T> { Count: > 0 } readOnlyList:
+                return (readOnlyList[0], readOnlyList);
+
+            case IReadOnlyList<T>:
+                break;
+
+            case IList<T> { Count: > 0 } list:
+                return (list[0], list);
+
+            case IList<T>:
+                break;
+
+            default:
+                var tvpItems = items as T[] ?? items.ToArray();
+                if (tvpItems.Length > 0)
+                    return (tvpItems[0], tvpItems);
+                break;
+        }
+
+        throw new ArgumentException("No items found in the collection to map to a Table-Valued Parameter.",
+            nameof(items));
+    }
+
+    private static void ValidateCacheKey(string cacheKey)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(cacheKey);
+    }
+
+    private static void ValidateOptionalPositiveExpiration(TimeSpan? expiration, string paramName)
+    {
+        if (expiration is { } actualExpiration)
+            ValidatePositiveExpiration(actualExpiration, paramName);
+    }
+
+    private static void ValidatePositiveExpiration(TimeSpan expiration, string paramName)
+    {
+        if (expiration <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(paramName, expiration, "Cache expiration must be positive.");
     }
 
     private sealed class TvpParameterValue(Func<IEnumerable<SqlDataRecord>> factory) : IEnumerable<SqlDataRecord>

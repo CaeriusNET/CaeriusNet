@@ -48,6 +48,9 @@ IF
 OBJECT_ID(N'dbo.usp_GetWidgetsFourSets', N'P') IS NOT NULL
 DROP PROCEDURE dbo.usp_GetWidgetsFourSets;
 IF
+OBJECT_ID(N'dbo.usp_GetWidgetsFiveSets', N'P') IS NOT NULL
+DROP PROCEDURE dbo.usp_GetWidgetsFiveSets;
+IF
 OBJECT_ID(N'dbo.usp_AutoContracts_SearchWidgets', N'P') IS NOT NULL
 DROP PROCEDURE dbo.usp_AutoContracts_SearchWidgets;
 IF
@@ -343,6 +346,30 @@ ORDER BY Id;
 SELECT TOP(1) Id, Name, Quantity, CreatedAt
 FROM dbo.Widgets
 ORDER BY Id DESC;
+END;
+GO
+
+-- Five-result-set sproc: list, count, first row, last row, high-quantity rows.
+CREATE PROCEDURE dbo.usp_GetWidgetsFiveSets
+    AS
+BEGIN
+    SET
+NOCOUNT ON;
+SELECT Id, Name, Quantity, CreatedAt
+FROM dbo.Widgets
+ORDER BY Id;
+SELECT COUNT_BIG(*) AS Total
+FROM dbo.Widgets;
+SELECT TOP(1) Id, Name, Quantity, CreatedAt
+FROM dbo.Widgets
+ORDER BY Id;
+SELECT TOP(1) Id, Name, Quantity, CreatedAt
+FROM dbo.Widgets
+ORDER BY Id DESC;
+SELECT Id, Name, Quantity, CreatedAt
+FROM dbo.Widgets
+WHERE Quantity >= 30
+ORDER BY Id;
 END;
 GO
 

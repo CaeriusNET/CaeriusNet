@@ -54,6 +54,9 @@ internal static class AutoContractsCacheKeyEmitter
 
     private static void AppendTvpValue(StringBuilder sb, string property, AutoContractsTableType tableType)
     {
+        sb.Append("        AppendString(hash, ")
+            .Append(AutoContractsSqlEmitter.ToStringLiteral(tableType.ContractHash))
+            .AppendLine(");");
         sb.Append("        AppendInt32(hash, ")
             .Append(property)
             .AppendLine(".Length);");

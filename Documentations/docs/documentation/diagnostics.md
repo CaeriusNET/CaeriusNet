@@ -1,4 +1,4 @@
-# Compiler Diagnostics
+# Compiler diagnostics
 
 CaeriusNet's Roslyn analyzer emits **compile-time diagnostics** for `[GenerateDto]`, `[GenerateTvp]`, and AutoContracts manifest issues. The analyzer ships inside the `CaeriusNet` NuGet package; no extra reference is required.
 
@@ -103,4 +103,4 @@ from reaching production.
 
 ---
 
-**See also:** [Source Generators](/documentation/source-generators) — the full guide to `[GenerateDto]` and `[GenerateTvp]`.
+**See also:** [source generators](/documentation/source-generators) - the full guide to `[GenerateDto]` and `[GenerateTvp]`.

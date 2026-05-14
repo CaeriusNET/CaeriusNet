@@ -1,6 +1,6 @@
-# Table-Valued Parameters
+# Table-valued parameters
 
-A Table-Valued Parameter lets you pass an entire **set of rows** into a Stored Procedure as a single typed temporary table. This avoids dynamic SQL, IN-list size limits, and the overhead of multiple round-trips.
+A table-valued parameter lets you pass an entire **set of rows** into a stored procedure as a single typed temporary table. This avoids dynamic SQL, `IN`-list size limits, and the overhead of multiple round trips.
 
 This page walks through three TVP shapes — single-int, single-Guid, composite `(int, Guid)` — and a TVP combined with a scalar write.
 
@@ -70,9 +70,9 @@ END
 GO
 ```
 
-## C# TVP types — source-generated
+## Create TVP row types
 
-CaeriusNet generates the `ITvpMapper<T>` implementation when you apply `[GenerateTvp]`. The constructor parameters must match the SQL UDT column order and types exactly:
+CaeriusNet generates the `ITvpMapper<T>` implementation when you apply `[GenerateTvp]`. The constructor parameters must match the SQL table type column order and types exactly:
 
 ```csharp
 using CaeriusNet.Attributes.Tvp;
@@ -97,7 +97,7 @@ public async Task<IReadOnlyCollection<UserDto>> GetUsersByTvpIntAsync(
 
     var sp = new StoredProcedureParametersBuilder(
             "Users", "usp_Get_Users_From_TvpInt", ResultSetCapacity: 5)
-        .AddTvpParameter("tvp", ids)   // matches @tvp in the SP (no leading @)
+        .AddTvpParameter("tvp", ids)   // matches @tvp in the stored procedure, without @
         .Build();
 
     return await DbContext.QueryAsReadOnlyCollectionAsync<UserDto>(sp, ct);
@@ -193,14 +193,14 @@ public async Task<int> CreateBatchOrdersAsync(
 }
 ```
 
-## Notes & constraints
+## Notes and constraints
 
-- The TVP parameter name in `AddTvpParameter("tvp", …)` must match the SP `@tvp` parameter name **without** the leading `@`.
-- `READONLY` is **required** on TVP parameters in SQL Server Stored Procedures.
-- TVP rows are streamed via `IEnumerable<SqlDataRecord>` directly into the TDS protocol — no `DataTable`, no boxing.
+- The TVP parameter name in `AddTvpParameter("tvp", ...)` must match the stored procedure `@tvp` parameter name **without** the leading `@`.
+- `READONLY` is **required** on TVP parameters in SQL Server stored procedures.
+- CaeriusNet sends TVP rows without requiring a `DataTable`.
 - `caerius.sp.parameters` always shows `[TVP]` for the TVP entry, even when `CaptureParameterValues = true`. The actual rows are never inlined into a span.
 - `AddTvpParameter` throws `ArgumentException` for an empty collection — SQL Server rejects empty TVPs. Validate before calling.
 
 ---
 
-**Next:** [Multi-Result Sets](/examples/multi-result-sets) — fetch multiple result sets in one round-trip.
+**Next:** [Multi-result sets](/examples/multi-result-sets) - fetch multiple result sets in one round trip.

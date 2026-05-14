@@ -12,14 +12,6 @@ namespace CaeriusNet.Benchmark.Workshops.Benchs.Mapping;
 [HardwareCounters(HardwareCounter.BranchMispredictions, HardwareCounter.CacheMisses)]
 public class DtoMappingBench
 {
-    private static readonly Faker<BenchmarkItemDto> Faker = new Faker<BenchmarkItemDto>()
-        .CustomInstantiator(f => new BenchmarkItemDto(
-            f.Random.Int(1, 100_000),
-            f.Random.Guid(),
-            f.Internet.UserName(),
-            Math.Round((decimal)f.Random.Double(0.01, 9999.99), 2),
-            f.Random.Bool()));
-
     private int[] _ids = null!;
     private bool[] _isActives = null!;
     private string[] _names = null!;

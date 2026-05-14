@@ -1,5 +1,3 @@
-using System.IO;
-
 namespace CaeriusNet.Generator.AutoContracts;
 
 /// <summary>
@@ -12,11 +10,9 @@ public sealed class AutoContractsSourceGenerator : IIncrementalGenerator
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         var manifests = context.AdditionalTextsProvider
-            .Where(static text => string.Equals(
-                Path.GetFileName(text.Path),
-                AutoContractsSourceNames.ManifestFileName,
-                StringComparison.OrdinalIgnoreCase))
-            .Select(static (text, ct) => AutoContractsManifestParser.ParseOrDefault(text, ct))
+            .Combine(context.AnalyzerConfigOptionsProvider)
+            .Where(static pair => AutoContractsManifestFile.IsManifest(pair.Left, pair.Right))
+            .Select(static (pair, ct) => AutoContractsManifestParser.ParseOrDefault(pair.Left, ct))
             .Where(static manifest => manifest is not null)
             .Select(static (manifest, _) => manifest!);
 

@@ -75,6 +75,9 @@ public sealed class AutoContractsPackagingTests
 
         Assert.True(packResult.ExitCode == 0, packResult.ToString());
 
+        var package = Assert.Single(Directory.EnumerateFiles(packageOutput, "CaeriusNet.SqlServer.Contracts.*.nupkg"));
+        var packageVersion = GetToolPackageVersion(package);
+
         await File.WriteAllTextAsync(
             consumerProject,
             $$"""
@@ -86,7 +89,7 @@ public sealed class AutoContractsPackagingTests
 
                   <ItemGroup>
                       <PackageReference Include="CaeriusNet.SqlServer.Contracts"
-                                        Version="11.0.3"
+                                        Version="{{packageVersion}}"
                                         PrivateAssets="all"/>
                   </ItemGroup>
 
@@ -134,6 +137,95 @@ public sealed class AutoContractsPackagingTests
         Assert.Equal(2, parts.Length);
         Assert.True(File.Exists(parts[0]), $"Expected packaged tool path to exist: {parts[0]}");
         Assert.Contains("CaeriusNet.SqlServer.Contracts.dll", parts[1], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PackageReferencePullHonorsProjectDefinedModeAndOutput()
+    {
+        var repoRoot = FindRepoRoot();
+        var toolSource = Path.Combine(repoRoot, "Tools", "CaeriusNet.SqlServer.Contracts");
+
+        using var temp = new TemporaryDirectory();
+        var toolCopy = Path.Combine(temp.Path, "tool");
+        var packageOutput = Path.Combine(temp.Path, "packages");
+        var consumerDirectory = Path.Combine(temp.Path, "consumer");
+        var consumerProject = Path.Combine(consumerDirectory, "Consumer.csproj");
+        var packageCache = Path.Combine(temp.Path, "nuget-packages");
+        var manifest = Path.Combine(consumerDirectory, "generated.contracts.json");
+        var stateOutput = Path.Combine(consumerDirectory, "contracts-state.txt");
+        var invocationLog = Path.Combine(consumerDirectory, "fake-tool.log");
+        CopyToolProject(toolSource, toolCopy);
+        Directory.CreateDirectory(packageOutput);
+        Directory.CreateDirectory(consumerDirectory);
+
+        var packResult = await RunDotnetAsync(
+            toolCopy,
+            "pack",
+            "CaeriusNet.SqlServer.Contracts.csproj",
+            "--configuration",
+            "Release",
+            "--output",
+            packageOutput);
+
+        Assert.True(packResult.ExitCode == 0, packResult.ToString());
+
+        var package = Assert.Single(Directory.EnumerateFiles(packageOutput, "CaeriusNet.SqlServer.Contracts.*.nupkg"));
+        var packageVersion = GetToolPackageVersion(package);
+        var fakeTool = await CreateFakeContractsToolAsync(temp.Path);
+
+        await File.WriteAllTextAsync(
+            consumerProject,
+            $$"""
+              <Project Sdk="Microsoft.NET.Sdk">
+                  <PropertyGroup>
+                      <TargetFramework>net10.0</TargetFramework>
+                      <CaeriusContractsMode>Pull</CaeriusContractsMode>
+                      <CaeriusContractsOutput>{{Escape(manifest)}}</CaeriusContractsOutput>
+                      <CaeriusContractsToolCommand>dotnet &quot;{{Escape(fakeTool)}}&quot;</CaeriusContractsToolCommand>
+                  </PropertyGroup>
+
+                  <ItemGroup>
+                      <PackageReference Include="CaeriusNet.SqlServer.Contracts"
+                                        Version="{{packageVersion}}"
+                                        PrivateAssets="all"/>
+                  </ItemGroup>
+
+                  <Target Name="WriteContractsState" AfterTargets="CoreCompile">
+                      <WriteLinesToFile File="{{Escape(stateOutput)}}"
+                                        Lines="$(CaeriusContractsModeNormalized)"
+                                        Overwrite="true"/>
+                      <WriteLinesToFile File="{{Escape(stateOutput)}}"
+                                        Lines="@(AdditionalFiles->'%(FullPath)|%(CaeriusContractManifest)')"
+                                        Overwrite="false"/>
+                  </Target>
+              </Project>
+              """);
+
+        var buildResult = await RunDotnetAsync(
+            consumerDirectory,
+            new Dictionary<string, string>
+            {
+                ["CAERIUS_FAKE_TOOL_LOG"] = invocationLog,
+                ["NUGET_PACKAGES"] = packageCache
+            },
+            "build",
+            consumerProject,
+            "--configuration",
+            "Release",
+            "--source",
+            packageOutput);
+
+        Assert.True(buildResult.ExitCode == 0, buildResult.ToString());
+        Assert.True(File.Exists(manifest), $"Expected generated manifest at {manifest}.");
+
+        var log = await File.ReadAllTextAsync(invocationLog);
+        Assert.Contains("pull", log, StringComparison.Ordinal);
+        Assert.Contains(manifest, log, StringComparison.Ordinal);
+
+        var state = string.Join(Environment.NewLine, await File.ReadAllLinesAsync(stateOutput));
+        Assert.Contains("PULL", state, StringComparison.Ordinal);
+        Assert.Contains(Path.GetFullPath(manifest), state, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("|true", state, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -207,7 +299,7 @@ public sealed class AutoContractsPackagingTests
                   <Import Project="{{Escape(props)}}"/>
                   <Import Project="{{Escape(targets)}}"/>
 
-                  <Target Name="RunSmoke">
+                  <Target Name="RunSmoke" DependsOnTargets="CaeriusPrepareContracts">
                       <WriteLinesToFile File="{{Escape(argumentsOutput)}}"
                                         Lines="$(CaeriusContractsConnectionArguments)"
                                         Overwrite="true"/>
@@ -295,6 +387,70 @@ public sealed class AutoContractsPackagingTests
     private static string Escape(string value)
     {
         return SecurityElement.Escape(value) ?? value;
+    }
+
+    private static string GetToolPackageVersion(string package)
+    {
+        var fileName = Path.GetFileNameWithoutExtension(package);
+        const string packagePrefix = "CaeriusNet.SqlServer.Contracts.";
+        Assert.True(fileName.StartsWith(packagePrefix, StringComparison.Ordinal), fileName);
+        return fileName[packagePrefix.Length..];
+    }
+
+    private static async Task<string> CreateFakeContractsToolAsync(string root)
+    {
+        var projectDirectory = Path.Combine(root, "fake-tool");
+        var project = Path.Combine(projectDirectory, "FakeContractsTool.csproj");
+        Directory.CreateDirectory(projectDirectory);
+
+        await File.WriteAllTextAsync(
+            project,
+            """
+            <Project Sdk="Microsoft.NET.Sdk">
+                <PropertyGroup>
+                    <OutputType>Exe</OutputType>
+                    <TargetFramework>net10.0</TargetFramework>
+                    <ImplicitUsings>enable</ImplicitUsings>
+                    <Nullable>enable</Nullable>
+                </PropertyGroup>
+            </Project>
+            """);
+
+        await File.WriteAllTextAsync(
+            Path.Combine(projectDirectory, "Program.cs"),
+            """
+            string? output = null;
+            for (var index = 0; index < args.Length - 1; index++)
+                if (args[index] is "--output" or "--manifest")
+                    output = args[index + 1];
+
+            output ??= Path.Combine(Directory.GetCurrentDirectory(), "caerius.contracts.json");
+            var directory = Path.GetDirectoryName(Path.GetFullPath(output));
+            if (!string.IsNullOrEmpty(directory))
+                Directory.CreateDirectory(directory);
+
+            File.WriteAllText(output, "{ \"version\": 1, \"namespace\": \"CaeriusNet.Generated\", \"database\": { \"name\": \"fake\", \"serverVersion\": \"fake\", \"compatibilityLevel\": 0 }, \"tableTypes\": [], \"procedures\": [] }");
+
+            var log = Environment.GetEnvironmentVariable("CAERIUS_FAKE_TOOL_LOG");
+            if (!string.IsNullOrWhiteSpace(log))
+            {
+                var logDirectory = Path.GetDirectoryName(Path.GetFullPath(log));
+                if (!string.IsNullOrEmpty(logDirectory))
+                    Directory.CreateDirectory(logDirectory);
+
+                File.AppendAllText(log, string.Join(" ", args) + Environment.NewLine);
+            }
+            """);
+
+        var result = await RunDotnetAsync(
+            projectDirectory,
+            "build",
+            project,
+            "--configuration",
+            "Release");
+
+        Assert.True(result.ExitCode == 0, result.ToString());
+        return Path.Combine(projectDirectory, "bin", "Release", "net10.0", "FakeContractsTool.dll");
     }
 
     private static void CopyToolProject(string source, string destination)

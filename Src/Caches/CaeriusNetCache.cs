@@ -8,7 +8,7 @@ internal sealed class CaeriusNetCache(IRedisCacheManager? redisCacheManager = nu
 {
     public ValueTask RemoveAsync(string cacheKey, CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrEmpty(cacheKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(cacheKey);
         cancellationToken.ThrowIfCancellationRequested();
 
         FrozenCacheManager.Remove(cacheKey);
@@ -20,7 +20,7 @@ internal sealed class CaeriusNetCache(IRedisCacheManager? redisCacheManager = nu
 
     public ValueTask RemoveAsync(string cacheKey, CacheType cacheType, CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrEmpty(cacheKey);
+        ArgumentException.ThrowIfNullOrWhiteSpace(cacheKey);
         cancellationToken.ThrowIfCancellationRequested();
 
         switch (cacheType)

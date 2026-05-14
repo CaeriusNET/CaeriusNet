@@ -1,9 +1,9 @@
 ---
-title: SQL Server Benchmarks
-description: CaeriusNet SQL Server end-to-end benchmarks — stored procedure execution, batched vs single inserts, TVP full roundtrip, OUTPUT parameters, and connection pool reuse.
+title: SQL Server benchmarks
+description: CaeriusNet SQL Server end-to-end benchmarks for stored procedure execution, batched inserts, TVPs, OUTPUT parameters, and connection pool reuse.
 ---
 
-# SQL Server Benchmarks
+# SQL Server benchmarks
 
 These benchmarks measure **real end-to-end latency** of CaeriusNet operations against a live
 SQL Server 2022 instance running inside a Docker service container on Ubuntu.
@@ -26,16 +26,16 @@ SQL Server benchmark results vary with server edition, CPU, memory, storage, ind
 
 ---
 
-## Stored Procedure Execution Roundtrip
+## Stored procedure execution round trip
 
 **Benchmark class: `SpExecutionBench`**
 
 ### What is measured
 
-Full stored procedure roundtrip: `SqlConnection.Open()` (from pool) → `SqlCommand.ExecuteReaderAsync()`
-→ `while (reader.ReadAsync())` → return row count.
+Full stored procedure round trip: `SqlConnection.Open()` from the pool, `SqlCommand.ExecuteReaderAsync()`,
+`while (reader.ReadAsync())`, and the final row count.
 
-`RowCount` controls the `TOP N` in the SP query — the benchmark measures how roundtrip latency
+`RowCount` controls the `TOP N` in the stored procedure query. The benchmark measures how round trip latency
 scales from 0 rows (no data, pure call overhead) to 50 000 rows (large result set streaming).
 
 `[Params(0, 10, 100, 1_000, 5_000, 10_000, 50_000)]`
@@ -43,9 +43,9 @@ scales from 0 rows (no data, pure call overhead) to 50 000 rows (large result se
 ### Key insights
 
 - **At RowCount = 0**, the measurement isolates pure call overhead: TDS command framing + SQL Server parse/compile +
-  empty result set return. This is the irreducible floor for any SP call.
+  empty result set return. This is the irreducible floor for any stored procedure call.
 - **At small row counts (10–100)**, connection establishment and command preparation dominate over data transfer.
-  Connection pooling amortises the TCP handshake across calls — the warm-pool cost is lower
+  Connection pooling amortizes the TCP handshake across calls. The warm-pool cost is lower
   than a cold-start `SqlConnection`.
 - **At large row counts (5 000–50 000)**, streaming throughput (rows per microsecond) becomes the binding factor.
   CaeriusNet's `SqlDataReader` iteration cost grows linearly with rows.
@@ -53,67 +53,67 @@ scales from 0 rows (no data, pure call overhead) to 50 000 rows (large result se
 
 ---
 
-## Batched vs Single Inserts — The TVP Advantage
+## Batched inserts vs single inserts
 
 **Benchmark class: `BatchedVsSingleBench`**
 
 ### What is measured
 
-This benchmark compares per-row stored-procedure calls with a single TVP-based stored-procedure call.
+This benchmark compares per-row stored procedure calls with a single TVP-based stored procedure call.
 
 Two insertion strategies are compared at `[Params(10, 100, 500, 1_000, 5_000)]` items:
 
-| Method | Strategy | Roundtrips |
+| Method | Strategy | Round trips |
 |---|---|---|
-| `Insert_SingleCalls` *(Baseline)* | One `INSERT INTO ... VALUES (...)` SP call per item | N roundtrips |
-| `Insert_BatchedTvp` | One `INSERT INTO ... SELECT * FROM @tvp` SP call with a TVP | 1 roundtrip |
+| `Insert_SingleCalls` *(Baseline)* | One `INSERT INTO ... VALUES (...)` stored procedure call per item | N round trips |
+| `Insert_BatchedTvp` | One `INSERT INTO ... SELECT * FROM @tvp` stored procedure call with a TVP | 1 round trip |
 
 ### Key insights
 
-- **Single-call strategy costs O(N) roundtrips.** Each roundtrip includes:
+- **Single-call strategy costs O(N) round trips.** Each round trip includes:
   TCP segment send + SQL Server parse + plan lookup + lock acquisition + row write + result return.
   At N = 1 000, this is 1 000 independent TCP exchanges.
 
-- **TVP batch strategy costs O(1) roundtrips.** The entire dataset is serialized into the TVP stream,
+- **TVP batch strategy costs O(1) round trips.** The entire dataset is serialized into the TVP stream,
   transmitted in a single TDS message batch, and processed in one server-side INSERT.
 
 - The performance gap between the two strategies widens with item count:
   - At N = 10: the difference exists but is modest (TVP has a fixed setup overhead).
-- At N = 1 000: TVP avoids per-row roundtrip cost; confirm the measured ratio from your benchmark table.
-- At N = 5 000: per-row roundtrip cost often dominates; confirm suitability from your benchmark table and latency budget.
+- At N = 1 000: TVP avoids per-row round trip cost; confirm the measured ratio from your benchmark table.
+- At N = 5 000: per-row round trip cost often dominates; confirm suitability from your benchmark table and latency budget.
 
-- In production environments, network latency increases the cost of every roundtrip.
+- In production environments, network latency increases the cost of every round trip.
   Local Docker numbers should not be treated as remote database latency estimates.
 
 ---
 
-## Multi-Result Set vs Separate Calls
+## Multiple result sets vs separate calls
 
 **Benchmark class: `MultiResultSetBench`**
 
 ### What is measured
 
-CaeriusNet supports `IAsyncEnumerable<(T1, T2, ...)>` multi-result-set SPs — a single SP call that returns
-multiple independent result sets, read via successive `reader.NextResultAsync()` calls.
+CaeriusNet supports typed tuple multi-result-set calls: a single stored procedure call that returns
+multiple independent result sets, materialized via successive `reader.NextResultAsync()` calls.
 
 This benchmark compares:
-- **Single SP, multiple result sets**: one TDS roundtrip, one connection checkout from pool, N result set reads.
-- **N separate SP calls**: N independent roundtrips, N connection checkouts, each with parse/compile overhead.
+- **Single stored procedure, multiple result sets**: one round trip, one connection checkout from the pool, and N result set reads.
+- **N separate stored procedure calls**: N independent round trips, N connection checkouts, each with parse/compile overhead.
 
 ### Key insights
 
-- Every SQL Server roundtrip adds a fixed overhead for TDS framing, plan cache lookup, and lock manager interaction.
-  Combining multiple result sets into one SP call eliminates all per-call fixed overhead after the first.
+- Every SQL Server round trip adds a fixed overhead for command framing, plan cache lookup, and lock manager interaction.
+  Combining multiple result sets into one stored procedure call eliminates all per-call fixed overhead after the first.
 - The savings are most pronounced when each individual result set is small (< 100 rows) — in that regime,
   per-call overhead dominates over data transfer.
 - When individual result sets are large (> 10 000 rows), the gains from combining are proportionally smaller
   since data transfer time dominates over fixed overhead.
-- Multi-result-set SPs also reduce connection pool contention under concurrent load by shortening total
+- Multi-result-set stored procedures also reduce connection pool contention under concurrent load by shortening total
   connection hold time.
 
 ---
 
-## TVP Full Roundtrip
+## TVP full round trip
 
 **Benchmark class: `TvpFullRoundtripBench`**
 
@@ -124,25 +124,25 @@ The complete CaeriusNet TVP pipeline, end-to-end:
 1. `Randomizer.Seed = new Random(42)` → generate `RowCount` items via Bogus
 2. `StoredProcedureParametersBuilder.AddTvpParameter<T>(items)` → serialize to `SqlDataRecord` stream
 3. `.Build()` → produce `SqlParameter[]`
-4. `SqlCommand.ExecuteReaderAsync()` → execute SP with `OUTPUT INSERTED.*`
-5. `while (reader.ReadAsync())` → stream back the inserted rows
+4. `SqlCommand.ExecuteReaderAsync()` to execute the stored procedure with `OUTPUT INSERTED.*`
+5. `while (reader.ReadAsync())` to stream back the inserted rows
 
-Compared against a **manual ADO.NET TVP setup** without the builder — raw `SqlParameter(Structured)` assembly.
+Compared against a **manual ADO.NET TVP setup** without the builder: raw `SqlParameter(Structured)` assembly.
 
 `[Params(10, 100, 1_000, 5_000, 10_000)]`
 
 ### Key insights
 
 - Compare the CaeriusNet builder against raw ADO.NET assembly by using the **Ratio**, **Error**, and **StdDev** columns together. Small differences may be measurement noise.
-- The dominant cost at any row count > 100 is **network I/O + SQL Server execution** — not .NET-side work.
+- The dominant cost at any row count greater than 100 is **network I/O + SQL Server execution**, not .NET-side work.
 - At RowCount = 10 000 the TVP pipeline throughput demonstrates that memory allocation stays constant
   (O(1) `SqlDataRecord` streaming) even as the SQL-side work grows linearly.
-- The `OUTPUT INSERTED.*` pattern (streaming back inserted rows) proves that CaeriusNet's round-trip
+- The `OUTPUT INSERTED.*` pattern (streaming back inserted rows) proves that CaeriusNet's round trip
   cost is dominated by the server-side work, not the client-side builder or serializer.
 
 ---
 
-## OUTPUT Parameter vs SCOPE_IDENTITY()
+## OUTPUT parameter vs SCOPE_IDENTITY()
 
 **Benchmark class: `SpOutputParameterBench`**
 
@@ -150,27 +150,27 @@ Compared against a **manual ADO.NET TVP setup** without the builder — raw `Sql
 
 Two common patterns for retrieving a newly-inserted identity value:
 
-| Method | SQL strategy | Roundtrips | .NET cost |
+| Method | SQL strategy | Round trips | .NET cost |
 |---|---|---|---|
-| `Insert_OutputParameter` *(Baseline)* | `@NewId INT OUTPUT` — value populated server-side inside the SP | 1 | One `SqlParameter` direction change |
-| `Insert_ScopeIdentity` | `INSERT ...; SELECT SCOPE_IDENTITY()` — second result set after insert | 1 (same roundtrip, extra result) | `reader.NextResult()` + `reader.Read()` |
-| `Insert_SeparateSelect` | `INSERT ...; SELECT MAX(Id) FROM ...` — separate query after SP call | 2 | Full second roundtrip |
+| `Insert_OutputParameter` *(Baseline)* | `@NewId INT OUTPUT`, populated server-side inside the stored procedure | 1 | One `SqlParameter` direction change |
+| `Insert_ScopeIdentity` | `INSERT ...; SELECT SCOPE_IDENTITY()`, second result set after insert | 1 (same round trip, extra result) | `reader.NextResult()` + `reader.Read()` |
+| `Insert_SeparateSelect` | `INSERT ...; SELECT MAX(Id) FROM ...`, separate query after the stored procedure call | 2 | Full second round trip |
 
 ### Key insights
 
 - `@NewId INT OUTPUT` is the most efficient pattern: the identity value is written to the output parameter
-  slot by SQL Server during SP execution, retrieved by `SqlClient` as part of the SP's response packet.
-  No second result set, no second roundtrip.
+  slot by SQL Server during stored procedure execution, retrieved by `SqlClient` as part of the response packet.
+  No second result set, no second round trip.
 - `SELECT SCOPE_IDENTITY()` requires `reader.NextResultAsync()` to advance past the INSERT's empty result
-  set — a small but measurable overhead vs a pure OUTPUT parameter.
-- The two-roundtrip `SELECT MAX(Id)` anti-pattern is significantly slower because it pays the full
-  per-roundtrip fixed overhead twice, plus it is unsafe under concurrent inserts.
+  set. This creates a small but measurable overhead compared with a pure OUTPUT parameter.
+- The two-round-trip `SELECT MAX(Id)` anti-pattern is significantly slower because it pays the full
+  per-round-trip fixed overhead twice, plus it is unsafe under concurrent inserts.
 - **CaeriusNet best practice:** use `OUTPUT INSERTED.Id` (for multi-row TVP inserts) or `@NewId INT OUTPUT`
   (for single-row inserts). Never use a separate `SCOPE_IDENTITY()` query or `SELECT MAX(Id)`.
 
 ---
 
-## Connection Pool Reuse vs Cold Start
+## Connection pool reuse vs cold start
 
 **Benchmark class: `ConnectionPoolBench`**
 
@@ -181,9 +181,9 @@ logical `Open/Close` calls. This benchmark quantifies the performance difference
 
 | Method | Strategy |
 |---|---|
-| `Connect_WarmPool` *(Baseline)* | `Open()` returns a pooled physical connection — no TCP handshake |
-| `Connect_ColdStart` | `ClearPool(connection)` then `Open()` — forces a new TCP handshake + TDS login |
-| `Connect_Persistent` | Hold one physical connection open for the entire benchmark iteration — bypasses pool checkout overhead |
+| `Connect_WarmPool` *(Baseline)* | `Open()` returns a pooled physical connection; no TCP handshake |
+| `Connect_ColdStart` | `ClearPool(connection)` then `Open()`; forces a new TCP handshake and login |
+| `Connect_Persistent` | Hold one physical connection open for the entire benchmark iteration; bypasses pool checkout overhead |
 
 ### Key insights
 
@@ -192,7 +192,7 @@ logical `Open/Close` calls. This benchmark quantifies the performance difference
 - **Cold start** forces a full TCP three-way handshake + TDS pre-login + TDS login sequence.
   This is typically much more expensive than a warm pool checkout; use measured results for your environment.
   `ClearPool()` should **never be called in production** unless connection credentials change.
-- **Persistent connection** bypasses checkout overhead — useful for understanding the irreducible
+- **Persistent connection** bypasses checkout overhead. This is useful for understanding the irreducible
   command-execution cost (no pool interaction at all), but not suitable for concurrent workloads.
 - The Ratio between Warm Pool and Cold Start quantifies the value of the connection pool.
   In a local Docker environment, the cold-start cost is often dominated by the TDS handshake.

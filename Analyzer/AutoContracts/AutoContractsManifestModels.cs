@@ -3,34 +3,51 @@ using System.Collections.Generic;
 namespace CaeriusNet.Analyzer.AutoContracts;
 
 internal sealed record AutoContractsManifest(
+    int Version,
+    string Namespace,
     EquatableArray<AutoContractsTableType> TableTypes,
     EquatableArray<AutoContractsProcedure> Procedures);
 
 internal sealed record AutoContractsTableType(
     string Schema,
     string Name,
+    string ClrName,
     EquatableArray<AutoContractsColumn> Columns);
 
 internal sealed record AutoContractsProcedure(
     string Schema,
     string Name,
+    string ClrName,
+    string ParametersClrName,
+    string? ResultClrName,
     EquatableArray<AutoContractsParameter> Parameters,
     AutoContractsResultSet ResultSet);
 
 internal sealed record AutoContractsParameter(
+    int Ordinal,
     string Name,
     string SqlType,
+    string ClrType,
     bool IsTableType,
-    bool IsOutput);
+    bool IsOutput,
+    bool Nullable,
+    int? MaxLength,
+    byte? Precision,
+    byte? Scale);
 
 internal sealed record AutoContractsResultSet(
     string Status,
     EquatableArray<AutoContractsColumn> Columns);
 
 internal sealed record AutoContractsColumn(
+    int Ordinal,
     string Name,
     string SqlType,
-    bool Nullable);
+    string ClrType,
+    bool Nullable,
+    int? MaxLength,
+    byte? Precision,
+    byte? Scale);
 
 internal readonly struct EquatableArray<T>(ImmutableArray<T> items) : IEquatable<EquatableArray<T>>
     where T : IEquatable<T>

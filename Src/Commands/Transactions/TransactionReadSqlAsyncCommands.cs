@@ -18,6 +18,11 @@ public static class TransactionReadSqlAsyncCommands
                    "ICaeriusNetTransaction implementations must derive from the framework's CaeriusNetTransaction.");
     }
 
+    private static bool ShouldPoisonCommandFailure(Exception ex)
+    {
+        return ex is not OutOfMemoryException;
+    }
+
     /// <param name="transaction">Transaction whose connection and scope are reused.</param>
     extension(ICaeriusNetTransaction transaction)
     {
@@ -66,6 +71,12 @@ public static class TransactionReadSqlAsyncCommands
                 tx.Poison();
                 throw new CaeriusNetSqlException(
                     $"Failed to execute stored procedure: {spParameters.ProcedureName}", ex);
+            }
+            catch (Exception ex) when (ShouldPoisonCommandFailure(ex))
+            {
+                CaeriusActivityExtensions.RecordError(activity, tags, ex);
+                tx.Poison();
+                throw;
             }
             finally
             {
@@ -121,6 +132,12 @@ public static class TransactionReadSqlAsyncCommands
                 tx.Poison();
                 throw new CaeriusNetSqlException(
                     $"Failed to execute stored procedure: {spParameters.ProcedureName}", ex);
+            }
+            catch (Exception ex) when (ShouldPoisonCommandFailure(ex))
+            {
+                CaeriusActivityExtensions.RecordError(activity, tags, ex);
+                tx.Poison();
+                throw;
             }
             finally
             {
@@ -183,6 +200,12 @@ public static class TransactionReadSqlAsyncCommands
                 tx.Poison();
                 throw new CaeriusNetSqlException(
                     $"Failed to execute stored procedure: {spParameters.ProcedureName}", ex);
+            }
+            catch (Exception ex) when (ShouldPoisonCommandFailure(ex))
+            {
+                CaeriusActivityExtensions.RecordError(activity, tags, ex);
+                tx.Poison();
+                throw;
             }
             finally
             {

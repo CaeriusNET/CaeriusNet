@@ -1,6 +1,7 @@
 namespace CaeriusNet.Generator.AutoContracts;
 
 internal sealed record AutoContractsManifest(
+    string SourcePath,
     int Version,
     string Namespace,
     EquatableArray<AutoContractsTableType> TableTypes,

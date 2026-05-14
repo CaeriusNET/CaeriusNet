@@ -27,23 +27,50 @@ internal sealed record CaeriusNetDbContext : ICaeriusNetDbContext
         if (_isLoggingEnabled)
             _logger!.LogDatabaseConnecting();
 
+        SqlConnection? connection = null;
         try
         {
-            var connection = _sqlConnectionFactory();
+            connection = _sqlConnectionFactory()
+                         ?? throw new InvalidOperationException("SQL connection factory returned null.");
 
             if (connection.State == ConnectionState.Closed)
                 await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+            if (connection.State != ConnectionState.Open)
+                throw new InvalidOperationException("SQL connection factory returned a non-open connection.");
 
             if (_isLoggingEnabled)
                 _logger!.LogDatabaseConnected();
 
-            return connection;
+            var openedConnection = connection;
+            connection = null;
+            return openedConnection;
         }
         catch (SqlException ex)
         {
+            await DisposeFailedConnectionAsync(connection).ConfigureAwait(false);
             if (_isLoggingEnabled)
                 _logger!.LogDatabaseConnectionFailed(ex);
             throw new CaeriusNetSqlException("Failed to open database connection", ex);
+        }
+        catch
+        {
+            await DisposeFailedConnectionAsync(connection).ConfigureAwait(false);
+            throw;
+        }
+    }
+
+    private static async ValueTask DisposeFailedConnectionAsync(SqlConnection? connection)
+    {
+        if (connection is null)
+            return;
+
+        try
+        {
+            await connection.DisposeAsync().ConfigureAwait(false);
+        }
+        catch
+        {
+            // Preserve the original open/factory exception; cleanup is best-effort here.
         }
     }
 }

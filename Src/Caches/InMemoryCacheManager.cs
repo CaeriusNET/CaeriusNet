@@ -10,23 +10,14 @@
 /// </remarks>
 internal static class InMemoryCacheManager
 {
-    /// <summary>
-    ///     The memory cache instance used for storing cached items. Replaceable via <see cref="Configure" />
-    ///     before any Store/TryGet call (typically from the DI builder at startup).
-    /// </summary>
-    private static MemoryCache _memoryCache = new(new MemoryCacheOptions
-    {
-        SizeLimit = null,
-        CompactionPercentage = 0.05,
-        ExpirationScanFrequency = TimeSpan.FromMinutes(2),
-        TrackLinkedCacheEntries = false
-    });
+    private const int RetiredStateFlag = unchecked((int)0x80000000);
+    private const int ReferenceCountMask = 0x7fffffff;
 
     /// <summary>
-    ///     When non-null, every cache entry is sized as 1 so that <see cref="MemoryCacheOptions.SizeLimit" />
-    ///     effectively caps the maximum number of resident entries. Null preserves legacy unbounded behavior.
+    ///     The memory cache state used for storing cached items. Replaceable via <see cref="Configure" />
+    ///     before any Store/TryGet call (typically from the DI builder at startup).
     /// </summary>
-    private static long? _entrySize;
+    private static CacheState _state = CreateDefaultState();
 
     /// <summary>
     ///     The logger instance used for recording cache operations.
@@ -47,9 +38,10 @@ internal static class InMemoryCacheManager
     internal static void Configure(MemoryCacheOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        var previous = Interlocked.Exchange(ref _memoryCache, new MemoryCache(options));
-        _entrySize = options.SizeLimit;
-        previous.Dispose();
+
+        var next = new CacheState(new MemoryCache(options), options.SizeLimit.HasValue);
+        var previous = Interlocked.Exchange(ref _state, next);
+        previous.Retire();
     }
 
     /// <summary>
@@ -61,16 +53,18 @@ internal static class InMemoryCacheManager
         if (IsLoggingEnabled)
             Logger!.LogStoringInMemoryCache(cacheKey);
 
+        using var lease = AcquireState();
+
         var options = new MemoryCacheEntryOptions
         {
             AbsoluteExpirationRelativeToNow = expiration,
             Priority = CacheItemPriority.Normal
         };
 
-        if (_entrySize.HasValue)
+        if (lease.SizeEntries)
             options.Size = 1;
 
-        _memoryCache.Set(cacheKey, value!, options);
+        lease.Cache.Set(cacheKey, value!, options);
     }
 
     /// <summary>
@@ -79,7 +73,9 @@ internal static class InMemoryCacheManager
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static bool TryGet<T>(string cacheKey, out T? value)
     {
-        if (!_memoryCache.TryGetValue(cacheKey, out var cached) || cached is not T typedValue)
+        using var lease = AcquireState();
+
+        if (!lease.Cache.TryGetValue(cacheKey, out var cached) || cached is not T typedValue)
         {
             value = default;
             return false;
@@ -99,7 +95,8 @@ internal static class InMemoryCacheManager
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal static void Remove(string cacheKey)
     {
-        _memoryCache.Remove(cacheKey);
+        using var lease = AcquireState();
+        lease.Cache.Remove(cacheKey);
     }
 
     /// <summary>
@@ -107,6 +104,92 @@ internal static class InMemoryCacheManager
     /// </summary>
     internal static void Clear()
     {
-        _memoryCache.Clear();
+        using var lease = AcquireState();
+        lease.Cache.Clear();
+    }
+
+    private static CacheState CreateDefaultState()
+    {
+        return new CacheState(new MemoryCache(new MemoryCacheOptions
+        {
+            SizeLimit = null,
+            CompactionPercentage = 0.05,
+            ExpirationScanFrequency = TimeSpan.FromMinutes(2),
+            TrackLinkedCacheEntries = false
+        }), false);
+    }
+
+    private static CacheLease AcquireState()
+    {
+        while (true)
+        {
+            var state = Volatile.Read(ref _state);
+            if (state.TryAddReference())
+                return new CacheLease(state);
+        }
+    }
+
+    private sealed class CacheState(MemoryCache cache, bool sizeEntries)
+    {
+        private int _referenceState;
+
+        internal MemoryCache Cache { get; } = cache;
+
+        internal bool SizeEntries { get; } = sizeEntries;
+
+        internal bool TryAddReference()
+        {
+            while (true)
+            {
+                var current = Volatile.Read(ref _referenceState);
+                if ((current & RetiredStateFlag) != 0)
+                    return false;
+
+                var referenceCount = current & ReferenceCountMask;
+                if (referenceCount == ReferenceCountMask)
+                    throw new InvalidOperationException("The in-memory cache has too many concurrent operations.");
+
+                if (Interlocked.CompareExchange(ref _referenceState, current + 1, current) == current)
+                    return true;
+            }
+        }
+
+        internal void Release()
+        {
+            var current = Interlocked.Decrement(ref _referenceState);
+            if ((current & RetiredStateFlag) != 0 && (current & ReferenceCountMask) == 0)
+                Cache.Dispose();
+        }
+
+        internal void Retire()
+        {
+            while (true)
+            {
+                var current = Volatile.Read(ref _referenceState);
+                if ((current & RetiredStateFlag) != 0)
+                    return;
+
+                var retired = current | RetiredStateFlag;
+                if (Interlocked.CompareExchange(ref _referenceState, retired, current) != current)
+                    continue;
+
+                if ((retired & ReferenceCountMask) == 0)
+                    Cache.Dispose();
+
+                return;
+            }
+        }
+    }
+
+    private readonly struct CacheLease(CacheState state) : IDisposable
+    {
+        internal MemoryCache Cache => state.Cache;
+
+        internal bool SizeEntries => state.SizeEntries;
+
+        public void Dispose()
+        {
+            state.Release();
+        }
     }
 }

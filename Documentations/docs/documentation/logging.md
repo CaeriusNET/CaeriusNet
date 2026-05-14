@@ -1,4 +1,4 @@
-# Logging & Observability
+# Logging and observability
 
 CaeriusNet uses **source-generated** `[LoggerMessage]` logging for zero-allocation structured output. Every database operation emits timing, procedure name, and result metadata — enabling diagnostics, performance monitoring, and alerting without custom instrumentation.
 
@@ -103,7 +103,7 @@ CaeriusNet log messages use semantic (structured) placeholders. Structured loggi
 
 | Placeholder | Type | Description |
 |---|---|---|
-| `{ProcedureName}` | `string` | Fully qualified Stored Procedure name (`schema.name`) |
+| `{ProcedureName}` | `string` | Fully qualified stored procedure name (`schema.name`) |
 | `{Duration}` | `TimeSpan` | Elapsed execution time |
 | `{RowCount}` | `int` | Number of rows returned or affected |
 | `{CacheKey}` | `string` | Cache key used for lookup or store |

@@ -1,6 +1,6 @@
 # Caching
 
-CaeriusNet supports three caching strategies to reduce database load and improve latency. Caching is **opt-in per call** via `StoredProcedureParametersBuilder` — you choose the tier exactly where you need it. On a cache hit, CaeriusNet returns the cached result without executing the Stored Procedure and **without creating a DB span**.
+CaeriusNet supports three caching strategies to reduce database load and improve latency. Caching is **opt-in per call** via `StoredProcedureParametersBuilder`; choose the tier where you need it. On a cache hit, CaeriusNet returns the cached result without executing the stored procedure and without creating a database span.
 
 ## Strategy comparison
 

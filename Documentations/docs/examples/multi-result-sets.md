@@ -1,13 +1,13 @@
-# Multi-Result Sets
+# Multi-result sets
 
-A Stored Procedure can return more than one `SELECT` result. CaeriusNet maps each set to a separate DTO collection in a single round-trip — no extra queries, no manual `NextResultAsync` calls, and a single cohesive span in the trace.
+A stored procedure can return more than one `SELECT` result. CaeriusNet maps each set to a separate DTO collection in a single round trip. You do not need extra queries or manual `NextResultAsync` calls.
 
-This page demonstrates two scenarios: a pure 3-set dashboard read, and a 2-set read driven by a TVP filter.
+This page demonstrates two scenarios: a dashboard read with three result sets, and a read with two result sets driven by a TVP filter.
 
 ## SQL Server objects
 
 ```sql
--- 3-set: dashboard summary (users + orders + per-user stats)
+-- Dashboard summary with users, orders, and per-user statistics.
 CREATE PROCEDURE Users.usp_Get_Dashboard
 AS
 BEGIN
@@ -35,7 +35,7 @@ BEGIN
 END
 GO
 
--- 2-set: users + their orders, filtered by a TVP of user IDs
+-- Users and their orders, filtered by a TVP of user IDs.
 CREATE PROCEDURE Users.usp_Get_Users_With_Orders_By_Tvp
     @tvp Types.tvp_Int READONLY
 AS
@@ -79,12 +79,12 @@ public sealed partial record UserStatsDto(
     decimal TotalAmount);
 ```
 
-## 1. Three result sets — pure multi-RS
+## 1. Read three result sets
 
-A 3-tuple destructures the three sets directly at the call site. The DTO type at each position **must** match the columns of the corresponding `SELECT` (positional contract):
+A 3-tuple destructures the three sets directly at the call site. The DTO type at each position **must** match the columns of the corresponding `SELECT`.
 
 ```csharp
-public async Task<DashboardSnapshot> GetDashboardAsync(CancellationToken ct)
+public async ValueTask<DashboardSnapshot> GetDashboardAsync(CancellationToken ct)
 {
     var sp = new StoredProcedureParametersBuilder(
             "Users", "usp_Get_Dashboard", ResultSetCapacity: 25)
@@ -101,12 +101,12 @@ public async Task<DashboardSnapshot> GetDashboardAsync(CancellationToken ct)
 `caerius.resultset.multi = true` · `caerius.resultset.expected_count = 3`
 :::
 
-## 2. Two result sets — TVP + multi-RS
+## 2. Read two result sets with a TVP
 
-You can combine a TVP input with a multi-result-set output — still **one** round-trip and **one** span:
+You can combine a TVP input with a multi-result-set output in **one** round trip and **one** span:
 
 ```csharp
-public async Task<(IReadOnlyCollection<UserDto> Users, IReadOnlyCollection<OrderDto> Orders)>
+public async ValueTask<(IReadOnlyCollection<UserDto> Users, IReadOnlyCollection<OrderDto> Orders)>
     GetUsersWithOrdersByTvpAsync(
         IReadOnlyCollection<int> userIds,
         CancellationToken ct)
@@ -131,23 +131,18 @@ public async Task<(IReadOnlyCollection<UserDto> Users, IReadOnlyCollection<Order
 `caerius.tvp.used = true` · `caerius.resultset.multi = true` · `caerius.resultset.expected_count = 2`
 :::
 
-## Available overloads
+## Available method families
 
 | Method | Sets | Return type |
 |---|---|---|
-| `QueryMultipleReadOnlyCollectionAsync<T1, T2>` | 2 | `(ReadOnlyCollection<T1>, ReadOnlyCollection<T2>)` |
-| `QueryMultipleReadOnlyCollectionAsync<T1, T2, T3>` | 3 | `(ReadOnlyCollection<T1>, …, ReadOnlyCollection<T3>)` |
-| `QueryMultipleImmutableArrayAsync<T1, T2>` | 2 | `(ImmutableArray<T1>, ImmutableArray<T2>)` |
-| `QueryMultipleImmutableArrayAsync<T1, T2, T3>` | 3 | `(ImmutableArray<T1>, …, ImmutableArray<T3>)` |
-| `QueryMultipleIEnumerableAsync<T1, T2>` | 2 | `(IEnumerable<T1>, IEnumerable<T2>)` |
-| `QueryMultipleIEnumerableAsync<T1, T2, T3>` | 3 | `(IEnumerable<T1>, …, IEnumerable<T3>)` |
-
-The `IEnumerable`, `ReadOnlyCollection`, and `ImmutableArray` families are all available with arities **2 → 5**.
+| `QueryMultipleReadOnlyCollectionAsync<T1, T2>` through `<T1, T2, T3, T4, T5>` | 2-5 | tuple of `ReadOnlyCollection<T>` |
+| `QueryMultipleImmutableArrayAsync<T1, T2>` through `<T1, T2, T3, T4, T5>` | 2-5 | tuple of `ImmutableArray<T>` |
+| `QueryMultipleIEnumerableAsync<T1, T2>` through `<T1, T2, T3, T4, T5>` | 2-5 | tuple of `IEnumerable<T>` |
 
 ::: warning Result-set order is the contract
-CaeriusNet maps result sets **positionally** — the first `SELECT` becomes `T1`, the second becomes `T2`, and so on. The DTO type passed at each position must match the columns of the corresponding `SELECT`. There is no runtime name-matching; misalignment produces an `InvalidCastException` (best case) or silently wrong values.
+CaeriusNet maps result sets **positionally**. The first `SELECT` becomes `T1`, the second becomes `T2`, and so on. The DTO type passed at each position must match the columns of the corresponding `SELECT`. CaeriusNet does not match columns by name at runtime.
 :::
 
 ---
 
-**Next:** [Transactions](/examples/transactions) — commit, C#-side rollback, and SQL-side rollback.
+**Next:** [Transactions](/examples/transactions) - commit, C#-side rollback, and SQL-side rollback.

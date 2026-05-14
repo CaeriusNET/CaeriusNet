@@ -1,137 +1,104 @@
 # What is CaeriusNet?
 
-CaeriusNet is a focused **micro-ORM** for **C# 14 / .NET 10** that turns SQL Server Stored Procedure result sets into strongly typed C# DTOs without runtime reflection.
+CaeriusNet is a focused data-access package for **C# 14**, **.NET 10**, and **SQL Server stored procedures**. It helps you call stored procedures, map result sets to strongly typed DTOs, pass table-valued parameters, cache read results, and observe database calls with tracing and metrics.
 
-It is intentionally specialized: CaeriusNet targets **Microsoft SQL Server** and **Stored Procedures**. That scope lets the library optimize for T-SQL, `SqlDataReader`, Table-Valued Parameters, and multi-result sets without trying to model every database provider.
+CaeriusNet is intentionally narrow. It does not translate LINQ, track entities, create migrations, or generate SQL text. You keep SQL Server and stored procedures as the contract. CaeriusNet provides the .NET API around that contract.
 
-::: info Supported data-access model
-CaeriusNet executes stored procedures only. It does not translate LINQ, generate ad hoc SQL, track entities, or provide migrations.
+::: info Package scope
+Use CaeriusNet when your application owns or consumes SQL Server stored procedures. Use a full ORM when you need change tracking, LINQ query translation, migrations, or database-provider portability.
 :::
 
-## Why CaeriusNet?
+## Why use CaeriusNet?
 
-### 1. Predictable hot-path behavior
+CaeriusNet is designed for teams that want stable SQL contracts and low-overhead .NET call sites.
 
-CaeriusNet is engineered to keep the hot path hot:
+| Capability | Benefit |
+|---|---|
+| Stored procedure calls | Keeps SQL logic in SQL Server and makes the .NET call site explicit. |
+| DTO mapping | Converts each row into a typed C# DTO with ordinal column reads. |
+| Source generators | Removes repetitive DTO and TVP mapper code while preserving compile-time checks. |
+| Table-valued parameters | Sends large sets of IDs, GUIDs, or composite values without building `DataTable` objects. |
+| Multiple result sets | Reads related result sets from a single database round trip. |
+| Per-call caching | Applies Frozen, in-memory, or Redis caching only where the call is safe to cache. |
+| Transactions | Provides explicit async transaction scopes with commit, rollback, and automatic rollback on dispose. |
+| Observability | Emits tracing, metrics, and structured logs for stored procedure execution. |
 
-- **Ordinal, allocation-aware mapping.** DTOs implement `ISpMapper<T>` (manual or source-generated) and read columns by index to avoid per-row name lookups.
-- **Compiler-guided optimizations.** Hot mappers carry `[MethodImpl(AggressiveInlining)]`; TVP iterators carry `[MethodImpl(AggressiveOptimization)]`.
-- **Low-level buffers and spans.** `CollectionsMarshal.SetCount` + `AsSpan(list)` populate result lists in place; `ArrayPool<T>.Shared` rents/returns buffers for `ImmutableArray<T>` without extra copies.
-- **Streaming reads.** Every `SqlCommand` runs with `CommandBehavior.SequentialAccess` to consume rows directly off the TDS stream.
-- **Right-sized collections.** You declare an expected capacity per call so CaeriusNet can pre-size result lists.
-- **Caching tiers built in.** Frozen (immutable in-process), InMemory (TTL), and Redis (distributed) — opt in per call via the builder.
+## What CaeriusNet does
 
-In short: no runtime reflection, no expression-tree compilation on the hot path, and minimal allocations.
+Use CaeriusNet to:
 
-### 2. Source-generated mappers
+- Execute stored procedures through `ICaeriusNetDbContext`.
+- Build stored procedure inputs with `StoredProcedureParametersBuilder`.
+- Read one row with `FirstQueryAsync<T>()`.
+- Materialize result sets as `IEnumerable<T>`, `ReadOnlyCollection<T>`, or `ImmutableArray<T>`.
+- Execute writes with `ExecuteNonQueryAsync`, `ExecuteScalarAsync<T>`, or `ExecuteAsync`.
+- Pass TVPs through `AddTvpParameter`.
+- Read two to five result sets with `QueryMultiple*Async`.
+- Configure caching on individual read calls.
+- Run multiple commands in an `ICaeriusNetTransaction`.
 
-- **`[GenerateDto]`** emits a compile-time `ISpMapper<T>` for sealed partial records or classes. You get static, ordinal mapping with correct nullability and special-type conversions.
-- **`[GenerateTvp]`** emits an `ITvpMapper<T>` so you can pass large sets as Table-Valued Parameters without writing boilerplate.
-- A dedicated **Roslyn analyzer** enforces the contract (`sealed partial`, primary constructor) — drift surfaces in your IDE, not at runtime.
+## What CaeriusNet does not do
 
-Prefer manual control? You can still implement `ISpMapper<T>` / `ITvpMapper<T>` by hand.
+CaeriusNet does not:
 
-### 3. SQL Server scope, not a kitchen sink
+- Translate LINQ expressions to SQL.
+- Track entities or detect changes.
+- Generate database migrations.
+- Build ad hoc SQL strings.
+- Target multiple database providers.
+- Replace SQL Server schema design, indexing, or query tuning.
 
-- **Stored Procedures first.** TVP, multi-result-sets, scalar reads, and write commands (`ExecuteNonQueryAsync`, `ExecuteScalarAsync<T>`, fire-and-forget `ExecuteAsync`).
-- **Fluent builder.** `StoredProcedureParametersBuilder` composes parameters, TVPs, and caching for each call. Pass parameter identifiers without the SQL `@` prefix; CaeriusNet applies provider-specific parameter handling internally.
-- **Atomic transactions.** `BeginTransactionAsync` provides a thread-safe scope with a strict state machine, automatic rollback on dispose, and a parent `TX` activity for cohesive tracing.
-- **Works with the schema you already have.** No migrations, no shadow tables, no surprise columns.
+This boundary is deliberate. It keeps the package small and predictable for applications that already use stored procedures as their data-access boundary.
 
-### 4. Developer experience
+## How a read call works
 
-- Small API surface: one builder, one `ICaeriusNetDbContext` abstraction, a handful of query and command methods.
-- **Async-only I/O** by design — every call is `async` and `CancellationToken`-aware.
-- **DI-first.** `CaeriusNetBuilder` integrates cleanly with `IServiceCollection` and `IHostApplicationBuilder`.
-- **Aspire-native.** `WithAspireSqlServer` / `WithAspireRedis` resolve connection strings from the AppHost in two lines.
+A typical read has four parts:
 
-### 5. Reliability and observability
+1. Create a DTO that implements `ISpMapper<T>` or use `[GenerateDto]`.
+2. Build the stored procedure call with `StoredProcedureParametersBuilder`.
+3. Call a read method such as `QueryAsReadOnlyCollectionAsync<T>()`.
+4. Receive a typed result collection.
 
-- **Clear exception boundaries.** SQL errors are wrapped in `CaeriusNetSqlException`; the original `SqlException` stays available via `InnerException`.
-- **Built-in OpenTelemetry.** An `ActivitySource` and a `Meter` emit OTel-compliant spans (`db.system`, `db.operation`, `db.statement`, plus rich `caerius.*` tags) and metrics (duration histogram, executions / errors / cache-lookup counters).
-- **Structured logging** via source-generated `[LoggerMessage]` — zero allocations on disabled levels, named placeholders for queryable backends.
-- **AOT- and trim-compatible** (`IsAotCompatible=true`, `IsTrimmable=true`) — the library is ready for AOT-published deployments.
+```csharp
+[GenerateDto]
+public sealed partial record UserDto(int Id, string Name, byte Age);
 
-## Core capabilities at a glance
+var sp = new StoredProcedureParametersBuilder("Users", "usp_Get_By_Age", 128)
+    .AddParameter("Age", 18, SqlDbType.Int)
+    .Build();
 
-- Stored Procedure → DTO mapping with compile-time safety (`ISpMapper<T>` / `[GenerateDto]`).
-- High-throughput reads into `IEnumerable<T>`, `ReadOnlyCollection<T>`, or `ImmutableArray<T>` — pick what fits.
-- Up to **five result sets** in a single round-trip.
-- **TVPs** with `[GenerateTvp]` for bulk-style inputs.
-- Per-call caching: **Frozen**, **InMemory** (TTL), **Redis** distributed.
-- Write commands: `ExecuteNonQueryAsync`, `ExecuteScalarAsync<T>`, `ExecuteAsync`.
-- Atomic transactions with a parent `TX` span and a strict state machine.
-- DI / Aspire-friendly setup via `CaeriusNetBuilder`.
+ReadOnlyCollection<UserDto> users =
+    await dbContext.QueryAsReadOnlyCollectionAsync<UserDto>(sp, ct);
+```
 
-## When should you use CaeriusNet?
+## When to use each result shape
 
-Choose CaeriusNet when:
+| Method | Use when |
+|---|---|
+| `FirstQueryAsync<T>` | The procedure returns zero or one row. |
+| `QueryAsIEnumerableAsync<T>` | You want a simple materialized sequence for LINQ operations. |
+| `QueryAsReadOnlyCollectionAsync<T>` | You expose results through public APIs that should not be mutated. |
+| `QueryAsImmutableArrayAsync<T>` | You want a compact immutable value for hot paths or cached data. |
+| `QueryMultiple*Async` | The procedure returns related result sets that should be loaded together. |
 
-- Your team owns the SQL schema and embraces Stored Procedures for reads and writes.
-- Latency and allocation budget matter — you want predictable, fast mapping with minimal runtime overhead.
-- You need to push large parameter sets (IDs, GUIDs, composite keys) via TVPs.
-- You operate in services where per-call caching can offload the database.
-- You prefer versioned SQL and stable DTOs over runtime query generation.
+## How it compares
 
-It may not be the best fit when you require ORM features such as change tracking, LINQ-to-SQL translation, or multi-database portability.
-
-## How does it compare?
-
-| | CaeriusNet | EF Core | Dapper |
+| Feature | CaeriusNet | EF Core | Dapper |
 |---|---|---|---|
-| Target database | SQL Server only | SQL Server, PostgreSQL, MySQL, … | Any ADO.NET provider |
-| Query model | Stored Procedures | LINQ → SQL translation | Raw SQL strings |
-| Mapping | Compile-time, ordinal, no reflection | Runtime, expression-tree compilation | Runtime reflection or hand-rolled |
-| Change tracking | None | Full | None |
-| TVP support | Source-generated streaming mapper | Manual `DataTable` | Manual `DataTable` |
-| Multi-result-set | Up to 5, typed tuple | Manual `ExecuteReader` + `NextResult` | `QueryMultiple` (typed by call) |
-| Built-in caching | Frozen / InMemory / Redis | Second-level cache via extensions | None |
-| OpenTelemetry | Built-in source + meter | Via instrumentation package | None |
+| Primary model | SQL Server stored procedures | LINQ and entity model | SQL text and ADO.NET commands |
+| Change tracking | No | Yes | No |
+| Database providers | SQL Server | Multiple providers | Multiple ADO.NET providers |
+| DTO mapping | Static mapper contract or source generation | Entity materialization | Runtime mapping or manual mapping |
+| TVP support | Built in | Manual setup | Manual setup |
+| Multiple result sets | Typed tuple APIs | Manual reader handling | `QueryMultiple` |
+| Built-in caching | Frozen, in-memory, Redis | Extension-based | No |
+| Tracing and metrics | Built in | External instrumentation | External instrumentation |
 
-Pick the tool that matches your architecture — CaeriusNet excels when SPs, TVPs, and throughput are central.
+## Recommended next steps
 
-## Architecture and hot path (simplified)
-
-1. You build call settings with `StoredProcedureParametersBuilder` (schema, SP name, capacity, parameters, optional cache).
-2. Read commands open a connection via `ICaeriusNetDbContext` and execute with `SqlCommand` using `SequentialAccess`.
-3. Rows are mapped by `ISpMapper<T>` (manual or generated) with ordinal reads (e.g., `GetInt32(0)`).
-4. Results are materialized using pre-sized collections and pooling helpers; the optional cache is read or written via the chosen tier.
-5. Throughout, an `Activity` records the SP execution and the `Meter` records duration, executions, errors, and cache lookups.
-
-## A quick example — one SP, one cache
-
-```csharp
-var sp = new StoredProcedureParametersBuilder("Users", "usp_Get_All_Users", 250)
-    .AddFrozenCache("users:all:frozen")
-    .Build();
-
-var users = await dbContext.QueryAsReadOnlyCollectionAsync<UserDto>(sp, ct);
-```
-
-Same call, with a TVP filter and Redis caching:
-
-```csharp
-var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Tvp_Ids_And_Age", 1024)
-    .AddTvpParameter("Ids", tvpItems)
-    .AddParameter("Age", age, SqlDbType.Int)
-    .AddRedisCache($"users:age:{age}", TimeSpan.FromMinutes(2))
-    .Build();
-
-var (adults, seniors) = await dbContext
-    .QueryMultipleIEnumerableAsync<UserDto, UserDto>(sp, ct);
-```
-
-## Benchmarks and realism
-
-CaeriusNet publishes BenchmarkDotNet suites covering the mapping path, collection construction, TVP serialization, cache layers, and full SQL Server round-trips. The suites use fixed seeds where generated data is involved so repeated runs on the same machine are easier to compare.
-
-Treat benchmark numbers as environment-specific. Network latency, SQL Server edition, hardware, schema design, query plans, indexes, row counts, and payload size can dominate end-to-end latency. Use the published methodology to reproduce measurements against your own workload before making performance decisions.
-
-## Next steps
-
-- [Installation & Setup](/quickstart/getting-started) — drop the package in, register DI, run your first query.
-- [Source Generators](/documentation/source-generators) — let the compiler write your mappers.
-- [Examples](/examples/) — end-to-end walkthroughs for SPs, TVPs, multi-result-sets, and transactions.
-- [Aspire Integration](/documentation/aspire) — wire CaeriusNet into the Aspire dashboard.
-- [Best Practices](/documentation/best-practices) — recommendations for production-ready usage.
-- [API Reference](/documentation/api) — full public surface.
+- [Install and configure](/quickstart/getting-started)
+- [Usage overview](/documentation/usage)
+- [Reading data](/documentation/reading-data)
+- [Table-valued parameters](/documentation/tvp)
+- [Multiple result sets](/documentation/multi-results)
+- [API reference](/documentation/api)

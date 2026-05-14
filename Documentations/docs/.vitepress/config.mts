@@ -18,19 +18,26 @@ export default defineConfig({
       { text: 'Home', link: '/' },
       { text: 'Quickstart', link: '/quickstart/getting-started' },
       {
-        text: 'Guides',
+        text: 'Use CaeriusNet',
         items: [
+          { text: 'Usage overview', link: '/documentation/usage' },
+          { text: 'Reading data', link: '/documentation/reading-data' },
+          { text: 'Writing data', link: '/documentation/writing-data' },
           { text: 'DTO Mapping', link: '/documentation/dto-mapping' },
-          { text: 'Source Generators', link: '/documentation/source-generators' },
-          { text: 'AutoContracts', link: '/documentation/auto-contracts' },
-          { text: 'Reading Data', link: '/documentation/reading-data' },
-          { text: 'Writing Data', link: '/documentation/writing-data' },
-          { text: 'Table-Valued Parameters', link: '/documentation/tvp' },
-          { text: 'Multiple Result Sets', link: '/documentation/multi-results' },
+          { text: 'Table-valued parameters', link: '/documentation/tvp' },
+          { text: 'Multiple result sets', link: '/documentation/multi-results' },
           { text: 'Caching', link: '/documentation/cache' },
-          { text: 'Transactions', link: '/documentation/transactions' },
-          { text: 'Logging & Observability', link: '/documentation/logging' },
-          { text: 'Aspire Integration', link: '/documentation/aspire' },
+          { text: 'Transactions', link: '/documentation/transactions' }
+        ]
+      },
+      {
+        text: 'Advanced',
+        items: [
+          { text: 'Source generators', link: '/documentation/source-generators' },
+          { text: 'AutoContracts', link: '/documentation/auto-contracts' },
+          { text: 'Advanced usage', link: '/documentation/advanced-usage' },
+          { text: 'Logging and observability', link: '/documentation/logging' },
+          { text: 'Aspire integration', link: '/documentation/aspire' },
         ]
       },
       {
@@ -49,45 +56,46 @@ export default defineConfig({
 
     sidebar: [
       {
-         text: 'Quickstart',
+         text: 'Get started',
         collapsed: false,
         items: [
           { text: 'What is CaeriusNet?', link: '/quickstart/what-is-caeriusnet' },
-          { text: 'Installation & Setup', link: '/quickstart/getting-started' }
+          { text: 'Install and configure', link: '/quickstart/getting-started' },
+          { text: 'Usage overview', link: '/documentation/usage' }
         ]
       },
       {
-        text: 'Core Concepts',
+        text: 'Use CaeriusNet',
         collapsed: false,
         items: [
-          { text: 'DTO Mapping', link: '/documentation/dto-mapping' },
-          { text: 'Source Generators', link: '/documentation/source-generators' },
-          { text: 'AutoContracts', link: '/documentation/auto-contracts' },
-          { text: 'Table-Valued Parameters', link: '/documentation/tvp' }
-        ]
-      },
-      {
-        text: 'Guides',
-        collapsed: false,
-        items: [
-          { text: 'Reading Data', link: '/documentation/reading-data' },
-          { text: 'Writing Data', link: '/documentation/writing-data' },
-          { text: 'Multiple Result Sets', link: '/documentation/multi-results' },
+          { text: 'Reading data', link: '/documentation/reading-data' },
+          { text: 'Writing data', link: '/documentation/writing-data' },
+          { text: 'DTO mapping', link: '/documentation/dto-mapping' },
+          { text: 'Table-valued parameters', link: '/documentation/tvp' },
+          { text: 'Multiple result sets', link: '/documentation/multi-results' },
           { text: 'Caching', link: '/documentation/cache' },
-          { text: 'Transactions', link: '/documentation/transactions' },
-          { text: 'Logging & Observability', link: '/documentation/logging' },
-          { text: 'Aspire Integration', link: '/documentation/aspire' },
-          { text: 'Advanced Usage', link: '/documentation/advanced-usage' }
+          { text: 'Transactions', link: '/documentation/transactions' }
+        ]
+      },
+      {
+        text: 'Advanced scenarios',
+        collapsed: false,
+        items: [
+          { text: 'Source generators', link: '/documentation/source-generators' },
+          { text: 'AutoContracts', link: '/documentation/auto-contracts' },
+          { text: 'Logging and observability', link: '/documentation/logging' },
+          { text: 'Aspire integration', link: '/documentation/aspire' },
+          { text: 'Advanced usage', link: '/documentation/advanced-usage' }
         ]
       },
       {
         text: 'Reference',
         collapsed: true,
         items: [
-           { text: 'API Reference', link: '/documentation/api' },
-           { text: 'Best Practices', link: '/documentation/best-practices' },
-           { text: 'Telemetry & Diagnostics', link: '/documentation/diagnostics' },
-           { text: 'Diagnostic Rules', link: '/diagnostics/' }
+           { text: 'API reference', link: '/documentation/api' },
+           { text: 'Best practices', link: '/documentation/best-practices' },
+           { text: 'Telemetry and diagnostics', link: '/documentation/diagnostics' },
+           { text: 'Diagnostic rules', link: '/diagnostics/' }
          ]
        },
        {
@@ -119,9 +127,9 @@ export default defineConfig({
         collapsed: false,
         items: [
           { text: 'Overview', link: '/examples/' },
-          { text: 'Stored Procedures', link: '/examples/stored-procedures' },
-          { text: 'Table-Valued Parameters', link: '/examples/tvp' },
-          { text: 'Multi-Result Sets', link: '/examples/multi-result-sets' },
+          { text: 'Stored procedures', link: '/examples/stored-procedures' },
+          { text: 'Table-valued parameters', link: '/examples/tvp' },
+          { text: 'Multi-result sets', link: '/examples/multi-result-sets' },
           { text: 'Transactions', link: '/examples/transactions' }
         ]
       },

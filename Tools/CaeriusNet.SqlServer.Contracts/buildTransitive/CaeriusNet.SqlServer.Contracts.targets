@@ -1,19 +1,30 @@
 <Project>
-    <PropertyGroup>
-        <CaeriusContractsEffectiveUserSecretsId Condition="'$(CaeriusContractsUserSecretsId)' != ''">$(CaeriusContractsUserSecretsId)</CaeriusContractsEffectiveUserSecretsId>
-        <CaeriusContractsEffectiveUserSecretsId Condition="'$(CaeriusContractsEffectiveUserSecretsId)' == ''">$(UserSecretsId)</CaeriusContractsEffectiveUserSecretsId>
-        <CaeriusContractsUseConfigurationConnection Condition="'$(CaeriusContractsConnectionString)' == '' and '$(CaeriusContractsConnectionStringEnv)' == ''">true</CaeriusContractsUseConfigurationConnection>
+    <ItemGroup Condition="Exists('$(CaeriusContractsOutput)')">
+        <AdditionalFiles Include="$(CaeriusContractsOutput)" CaeriusContractManifest="true"/>
+    </ItemGroup>
 
-        <CaeriusContractsConnectionArguments Condition="'$(CaeriusContractsConnectionArguments)' == '' and '$(CaeriusContractsConnectionString)' != ''">--connection-string &quot;$(CaeriusContractsConnectionString)&quot;</CaeriusContractsConnectionArguments>
-        <CaeriusContractsConnectionArguments Condition="'$(CaeriusContractsConnectionArguments)' == '' and '$(CaeriusContractsConnectionStringEnv)' != ''">--connection-env &quot;$(CaeriusContractsConnectionStringEnv)&quot;</CaeriusContractsConnectionArguments>
-        <CaeriusContractsConnectionArguments Condition="'$(CaeriusContractsConnectionArguments)' == '' and '$(CaeriusContractsUseConfigurationConnection)' == 'true' and '$(CaeriusContractsConnectionName)' != ''">--connection-name &quot;$(CaeriusContractsConnectionName)&quot; --configuration-base-path &quot;$(CaeriusContractsConfigurationBasePath)&quot;</CaeriusContractsConnectionArguments>
-        <CaeriusContractsConnectionArguments Condition="'$(CaeriusContractsUseConfigurationConnection)' == 'true' and '$(CaeriusContractsConfigurationEnvironment)' != ''">$(CaeriusContractsConnectionArguments) --configuration-environment &quot;$(CaeriusContractsConfigurationEnvironment)&quot;</CaeriusContractsConnectionArguments>
-        <CaeriusContractsConnectionArguments Condition="'$(CaeriusContractsUseConfigurationConnection)' == 'true' and '$(CaeriusContractsEffectiveUserSecretsId)' != ''">$(CaeriusContractsConnectionArguments) --user-secrets-id &quot;$(CaeriusContractsEffectiveUserSecretsId)&quot;</CaeriusContractsConnectionArguments>
-        <CaeriusContractsConnectionArguments Condition="'$(CaeriusContractsConnectionArguments)' == ''">--connection-name &quot;DefaultConnection&quot; --configuration-base-path &quot;$(CaeriusContractsConfigurationBasePath)&quot;</CaeriusContractsConnectionArguments>
-    </PropertyGroup>
+    <Target Name="CaeriusPrepareContracts"
+            Condition="'$(DesignTimeBuild)' != 'true'">
+
+        <PropertyGroup>
+            <CaeriusContractsModeNormalized>$(CaeriusContractsMode.Trim().ToUpperInvariant())</CaeriusContractsModeNormalized>
+            <CaeriusContractsEffectiveUserSecretsId Condition="'$(CaeriusContractsUserSecretsId)' != ''">$(CaeriusContractsUserSecretsId)</CaeriusContractsEffectiveUserSecretsId>
+            <CaeriusContractsEffectiveUserSecretsId Condition="'$(CaeriusContractsEffectiveUserSecretsId)' == ''">$(UserSecretsId)</CaeriusContractsEffectiveUserSecretsId>
+            <CaeriusContractsUseConfigurationConnection Condition="'$(CaeriusContractsConnectionString)' == '' and '$(CaeriusContractsConnectionStringEnv)' == ''">true</CaeriusContractsUseConfigurationConnection>
+
+            <CaeriusContractsResolvedConnectionArguments>$(CaeriusContractsConnectionArguments)</CaeriusContractsResolvedConnectionArguments>
+            <CaeriusContractsResolvedConnectionArguments Condition="'$(CaeriusContractsResolvedConnectionArguments)' == '' and '$(CaeriusContractsConnectionString)' != ''">--connection-string &quot;$(CaeriusContractsConnectionString)&quot;</CaeriusContractsResolvedConnectionArguments>
+            <CaeriusContractsResolvedConnectionArguments Condition="'$(CaeriusContractsResolvedConnectionArguments)' == '' and '$(CaeriusContractsConnectionStringEnv)' != ''">--connection-env &quot;$(CaeriusContractsConnectionStringEnv)&quot;</CaeriusContractsResolvedConnectionArguments>
+            <CaeriusContractsResolvedConnectionArguments Condition="'$(CaeriusContractsResolvedConnectionArguments)' == '' and '$(CaeriusContractsUseConfigurationConnection)' == 'true' and '$(CaeriusContractsConnectionName)' != ''">--connection-name &quot;$(CaeriusContractsConnectionName)&quot; --configuration-base-path &quot;$(CaeriusContractsConfigurationBasePath)&quot;</CaeriusContractsResolvedConnectionArguments>
+            <CaeriusContractsResolvedConnectionArguments Condition="'$(CaeriusContractsUseConfigurationConnection)' == 'true' and '$(CaeriusContractsConfigurationEnvironment)' != ''">$(CaeriusContractsResolvedConnectionArguments) --configuration-environment &quot;$(CaeriusContractsConfigurationEnvironment)&quot;</CaeriusContractsResolvedConnectionArguments>
+            <CaeriusContractsResolvedConnectionArguments Condition="'$(CaeriusContractsUseConfigurationConnection)' == 'true' and '$(CaeriusContractsEffectiveUserSecretsId)' != ''">$(CaeriusContractsResolvedConnectionArguments) --user-secrets-id &quot;$(CaeriusContractsEffectiveUserSecretsId)&quot;</CaeriusContractsResolvedConnectionArguments>
+            <CaeriusContractsResolvedConnectionArguments Condition="'$(CaeriusContractsResolvedConnectionArguments)' == ''">--connection-name &quot;DefaultConnection&quot; --configuration-base-path &quot;$(CaeriusContractsConfigurationBasePath)&quot;</CaeriusContractsResolvedConnectionArguments>
+            <CaeriusContractsConnectionArguments Condition="'$(CaeriusContractsConnectionArguments)' == ''">$(CaeriusContractsResolvedConnectionArguments)</CaeriusContractsConnectionArguments>
+        </PropertyGroup>
+    </Target>
 
     <Target Name="CaeriusValidateContractsMode"
-            BeforeTargets="CaeriusPullContracts;CaeriusVerifyContracts;CaeriusAddContractsManifest"
+            DependsOnTargets="CaeriusPrepareContracts"
             Condition="'$(DesignTimeBuild)' != 'true'">
 
         <Error Text="CaeriusContractsMode must be Off, Pull, or Verify. Current value: '$(CaeriusContractsMode)'."
@@ -22,23 +33,27 @@
 
     <Target Name="CaeriusPullContracts"
             BeforeTargets="CoreCompile"
-            Condition="'$(DesignTimeBuild)' != 'true' and '$(CaeriusContractsModeNormalized)' == 'PULL'">
+            DependsOnTargets="CaeriusValidateContractsMode"
+            Condition="'$(DesignTimeBuild)' != 'true'">
 
         <Exec EchoOff="true"
+              Condition="'$(CaeriusContractsModeNormalized)' == 'PULL'"
               WorkingDirectory="$(CaeriusContractsConfigurationBasePath)"
-              Command="$(CaeriusContractsToolCommand) pull $(CaeriusContractsConnectionArguments) --output &quot;$(CaeriusContractsOutput)&quot;"/>
+              Command="$(CaeriusContractsToolCommand) pull $(CaeriusContractsResolvedConnectionArguments) --output &quot;$(CaeriusContractsOutput)&quot;"/>
     </Target>
 
     <Target Name="CaeriusVerifyContracts"
             BeforeTargets="CoreCompile"
-            Condition="'$(DesignTimeBuild)' != 'true' and '$(CaeriusContractsModeNormalized)' == 'VERIFY'">
+            DependsOnTargets="CaeriusValidateContractsMode"
+            Condition="'$(DesignTimeBuild)' != 'true'">
 
         <Error Text="CaeriusContractsOutput does not exist: '$(CaeriusContractsOutput)'."
-               Condition="!Exists('$(CaeriusContractsOutput)')"/>
+               Condition="'$(CaeriusContractsModeNormalized)' == 'VERIFY' and !Exists('$(CaeriusContractsOutput)')"/>
 
         <Exec EchoOff="true"
+              Condition="'$(CaeriusContractsModeNormalized)' == 'VERIFY'"
               WorkingDirectory="$(CaeriusContractsConfigurationBasePath)"
-              Command="$(CaeriusContractsToolCommand) verify $(CaeriusContractsConnectionArguments) --manifest &quot;$(CaeriusContractsOutput)&quot;"/>
+              Command="$(CaeriusContractsToolCommand) verify $(CaeriusContractsResolvedConnectionArguments) --manifest &quot;$(CaeriusContractsOutput)&quot;"/>
     </Target>
 
     <Target Name="CaeriusAddContractsManifest"

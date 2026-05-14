@@ -76,7 +76,7 @@ internal static class AutoContractsEmitter
 
         sb.AppendLine("    ];");
         sb.AppendLine();
-        sb.AppendLine("    public static SqlMetaData[] Metadata => _metadata;");
+        sb.AppendLine("    public static SqlMetaData[] Metadata => (SqlMetaData[])_metadata.Clone();");
         sb.AppendLine();
 
         sb.AppendLine("    [MethodImpl(MethodImplOptions.AggressiveInlining)]");

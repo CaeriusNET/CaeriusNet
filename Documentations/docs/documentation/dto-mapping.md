@@ -1,4 +1,4 @@
-# DTO Mapping
+# DTO mapping
 
 CaeriusNet maps SQL Server result sets to C# DTOs at **compile time** — no reflection, no expression-tree compilation, no runtime metadata lookups. This page explains how the contract works, what it requires from your DTOs, and the few special cases worth knowing.
 
@@ -10,9 +10,9 @@ Every DTO implements `ISpMapper<T>`, a static-interface contract with a single m
 public static abstract T MapFromDataReader(SqlDataReader reader);
 ```
 
-Reads are **ordinal-based**: each column is accessed by its zero-based index rather than by name. This eliminates per-row string lookups and matches the TDS wire protocol directly — the column order in your `SELECT` statement is the contract between SQL and C#.
+Reads are **ordinal-based**: each column is accessed by its zero-based index rather than by name. This avoids per-row string lookups, and the column order in your `SELECT` statement becomes the contract between SQL and C#.
 
-You can implement `ISpMapper<T>` manually, or — preferably — let the source generator emit it for you with `[GenerateDto]`. Both produce the same machine code; the generator simply removes the boilerplate.
+You can implement `ISpMapper<T>` manually, or let the source generator emit it for you with `[GenerateDto]`. Use the generator for most DTOs; manual mapping is useful when you need custom conversion logic.
 
 ## A manual `ISpMapper<T>`
 
@@ -31,11 +31,11 @@ public sealed record UserDto(int Id, string Username, byte Age)
 }
 ```
 
-The constructor parameter order **must** match the `SELECT` column order in your Stored Procedure.
+The constructor parameter order **must** match the `SELECT` column order in your stored procedure.
 
 ## Column order is the contract
 
-The column at position `0` in the result set is read at ordinal `0`. Your Stored Procedure defines the contract:
+The column at position `0` in the result set is read at ordinal `0`. Your stored procedure defines the contract:
 
 ```sql
 -- Columns: Id (0), Username (1), Age (2)
@@ -54,7 +54,7 @@ public sealed record UserDto(int Id, string Username, byte Age)
 ```
 
 ::: warning Column order matters
-If the SP `SELECT` order changes, update the ordinal indices in `MapFromDataReader` accordingly. This is a deliberate design choice — ordinal reads are faster and enforce an explicit contract between SQL and C#.
+If the stored procedure `SELECT` order changes, update the ordinal indices in `MapFromDataReader` accordingly. This is a deliberate design choice: ordinal reads are faster and enforce an explicit contract between SQL and C#.
 :::
 
 ## Nullable columns
@@ -129,17 +129,17 @@ using CaeriusNet.Attributes.Dto;
 public sealed partial record UserDto(int Id, string Username, byte Age);
 ```
 
-The DTO must be `sealed`, `partial`, and use a primary constructor — the [Roslyn analyzer](/documentation/diagnostics) reports a build error if any of these are missing. See the [Source Generators](/documentation/source-generators) page for the full list of features.
+The DTO must be `sealed`, `partial`, and use a primary constructor. The [Roslyn analyzer](/documentation/diagnostics) reports a build error if any of these are missing. See the [source generators](/documentation/source-generators) page for the full list of features.
 
 ## Common pitfalls
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `InvalidCastException` at runtime | Reader method does not match the SQL column type | Align the `Get*` call (or DTO field type) with the actual SQL type |
-| `IndexOutOfRangeException` | Ordinal index does not correspond to an actual column | Re-check the SP `SELECT` arity |
+| `IndexOutOfRangeException` | Ordinal index does not correspond to an actual column | Recheck the stored procedure `SELECT` column count |
 | `NullReferenceException` on a column | Nullable column not guarded with `IsDBNull` | Make the field nullable or add the guard |
-| Wrong values for several fields | SP column order does not match constructor parameter order | Re-align the SELECT with the constructor |
+| Wrong values for several fields | Stored procedure column order does not match constructor parameter order | Realign the `SELECT` with the constructor |
 
 ---
 
-**Next:** [Source Generators](/documentation/source-generators) — eliminate the `MapFromDataReader` boilerplate entirely.
+**Next:** [source generators](/documentation/source-generators) - eliminate the `MapFromDataReader` boilerplate entirely.

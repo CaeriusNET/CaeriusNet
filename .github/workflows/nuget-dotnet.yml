@@ -38,11 +38,17 @@ jobs:
         id: bump
         run: |
           VERSION=$(grep -oP '(?<=<Version>)\d+\.\d+\.\d+(?=</Version>)' Src/CaeriusNet.csproj)
+          TOOL_VERSION=$(grep -oP '(?<=<Version>)\d+\.\d+\.\d+(?=</Version>)' Tools/CaeriusNet.SqlServer.Contracts/CaeriusNet.SqlServer.Contracts.csproj)
+          if [ "$TOOL_VERSION" != "$VERSION" ]; then
+            echo "❌ Package versions are already out of sync. Src=${VERSION}; Tools=${TOOL_VERSION}."
+            exit 1
+          fi
           MAJOR=$(echo "$VERSION" | cut -d. -f1)
           MINOR=$(echo "$VERSION" | cut -d. -f2)
           PATCH=$(echo "$VERSION" | cut -d. -f3)
           NEW="${MAJOR}.${MINOR}.$((PATCH+1))"
           sed -i "s|<Version>${VERSION}</Version>|<Version>${NEW}</Version>|g" Src/CaeriusNet.csproj
+          sed -i "s|<Version>${VERSION}</Version>|<Version>${NEW}</Version>|g" Tools/CaeriusNet.SqlServer.Contracts/CaeriusNet.SqlServer.Contracts.csproj
           echo "new_version=$NEW" >> "$GITHUB_OUTPUT"
           echo "🔖 Bumped: ${VERSION} → ${NEW}"
 
@@ -50,6 +56,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Src/CaeriusNet.csproj
+          git add Src/CaeriusNet.csproj Tools/CaeriusNet.SqlServer.Contracts/CaeriusNet.SqlServer.Contracts.csproj
           git commit -m "chore: bump version to ${{ steps.bump.outputs.new_version }}"
           git push

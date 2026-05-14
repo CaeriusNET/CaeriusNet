@@ -1,15 +1,15 @@
-# Best Practices
+# Best practices
 
-This page distills practical recommendations for building reliable, secure, and high-performance applications with CaeriusNet. It complements the [Quickstart](/quickstart/getting-started), [Reading Data](/documentation/reading-data), [Writing Data](/documentation/writing-data), and [Advanced Usage](/documentation/advanced-usage) guides.
+This page distills practical recommendations for building reliable, secure, and high-performance applications with CaeriusNet. It complements the [Quickstart](/quickstart/getting-started), [Reading data](/documentation/reading-data), [Writing data](/documentation/writing-data), and [Advanced usage](/documentation/advanced-usage) guides.
 
 > Applies to: **C# 14 / .NET 10**, **SQL Server 2019 +**, `Microsoft.Data.SqlClient`.
 
-## Architecture & patterns
+## Architecture and patterns
 
 - **Use the Repository pattern.** Keep data access isolated behind interfaces — `ICaeriusNetDbContext` is the only external dependency repositories should know about.
 - **Inject `ICaeriusNetDbContext` via DI.** Never instantiate it manually; the lifetime and connection management is handled by the framework.
-- **Favour sealed records.** They are immutable, lightweight, value-equatable, and pair well with the source generators.
-- **Always prefer source generators.** The analyzer enforces the contract and the generated code is identical to a hand-written mapper:
+- **Favor sealed records.** They are immutable, lightweight, value-equatable, and pair well with the source generators.
+- **Prefer source generators.** The analyzer validates the contract and the generated code matches the mapper you would write by hand:
   ```csharp
   [GenerateDto]
   public sealed partial record UserDto(int Id, string Name, byte? Age);
@@ -21,7 +21,7 @@ This page distills practical recommendations for building reliable, secure, and 
 
 ## DTO mapping
 
-- Mapping is **ordinal-based** — the constructor parameter order **must** match the SP `SELECT` column order. Aliases are cosmetic.
+- Mapping is **ordinal-based**. The constructor parameter order **must** match the stored procedure `SELECT` column order. Aliases are cosmetic.
 - Mark columns that may return `NULL` as nullable in the DTO; the source generator emits `IsDBNull` guards automatically.
 - Keep DTOs **purpose-specific**. Avoid catch-all DTOs that grow with every screen.
 - Manual mapping example for reference:
@@ -36,12 +36,12 @@ This page distills practical recommendations for building reliable, secure, and 
   }
   ```
 
-## Stored Procedure conventions (T-SQL)
+## Stored procedure conventions
 
 - **Use dedicated schemas** (`Users`, `Orders`, `Sales`, …) instead of the default `dbo` for application code where feasible.
 - Always start procedures with `SET NOCOUNT ON;` to avoid spurious result sets.
 - **Never `SELECT *`.** Explicitly list columns in the order your DTO expects.
-- Keep result-set shape stable. Any change in cardinality or order requires a matching DTO change.
+- Keep the result-set shape stable. Any change in column count, order, or type requires a matching DTO change.
 - Prefer parameterized procedures for all inputs — avoid dynamic SQL unless absolutely required.
 - Wrap multi-statement writes in `BEGIN TRY / BEGIN CATCH` with explicit `COMMIT` / `ROLLBACK` and `THROW;` for re-raise.
 - Adopt a consistent name convention, e.g. `Schema.sp_Action_Subject_By_Filter`.
@@ -81,17 +81,10 @@ See [Caching](/documentation/cache) for the full guide.
 - **Set `resultSetCapacity` accurately.** It pre-allocates the `List<T>` and avoids resize churn for large reads.
 - **Return only required columns.** Less data = fewer allocations and faster TDS framing.
 - **Pick the right collection.** `ImmutableArray<T>` for frozen / shared data; `ReadOnlyCollection<T>` for public APIs; `IEnumerable<T>` for LINQ pipelines.
-- **Stream multi-result-sets** with the `QueryMultipleIEnumerableAsync` family rather than chaining separate calls.
-- **Benchmark critical flows.** CaeriusNet's own [BenchmarkDotNet suites](/benchmarks/) are reproducible (`Random(42)`); use them as a baseline.
-
-Internal performance levers worth knowing about:
-
-| Mechanism | What it buys you |
-|---|---|
-| `SearchValues<char>` SIMD scans | Near-zero-cost parameter-name validation on modern CPUs |
-| `FrozenDictionary` for Frozen cache | Lock-free concurrent reads |
-| `GC.AllocateUninitializedArray` | Skips zero-fill on large result arrays that will be fully populated |
-| `CollectionsMarshal.SetCount` + `AsSpan` | Populates `List<T>` in place without bounds checks per write |
+- **Combine related result sets** with the `QueryMultiple*Async` families rather than chaining separate stored-procedure calls.
+- **Benchmark critical flows.** CaeriusNet's own [BenchmarkDotNet suites](/benchmarks/) are reproducible (`Random(42)`). Use them as a baseline before tuning application code.
+- **Keep hot paths direct.** Avoid adding extra mapping layers around CaeriusNet calls unless they remove real duplication.
+- **Use `ValueTask` naturally.** Await CaeriusNet calls directly. Convert to `Task` only when another API explicitly requires it.
 
 ## Transactions
 
@@ -115,7 +108,7 @@ await tx.CommitAsync(ct);
 ## Logging
 
 - Configure `ILoggerFactory` **before** `CaeriusNetBuilder.Build()` — DI then wires the logger automatically.
-- Filter by event-ID category to control verbosity per subsystem:
+- Filter by event ID category to control verbosity per subsystem:
   - `CaeriusNet.Cache` → `Warning` in production
   - `CaeriusNet.Commands` → `Information` to keep timing visible
 - Use **structured sinks** (Seq, Elasticsearch, OTLP) to leverage CaeriusNet's named placeholders (`{ProcedureName}`, `{Duration}`, `{RowCount}`).
@@ -129,7 +122,7 @@ builder.Services.AddLogging(logging =>
 });
 ```
 
-See [Logging & Observability](/documentation/logging) for the complete event-ID reference.
+See [Logging and observability](/documentation/logging) for the complete event ID reference.
 
 ## Async, cancellation, reliability
 
@@ -142,8 +135,8 @@ See [Logging & Observability](/documentation/logging) for the complete event-ID 
 
 | Issue | Likely cause | Fix |
 |---|---|---|
-| `InvalidCastException` at runtime | Reader method or DTO type doesn't match SQL column type | Align the `Get*` call (or DTO field type) with the actual SQL type |
-| `IndexOutOfRangeException` | DTO has more parameters than the SP returns columns | Re-check `SELECT` arity and DTO parameter count |
+| `InvalidCastException` at runtime | Reader method or DTO type doesn't match SQL column type | Align the reader call or DTO field type with the actual SQL type |
+| `IndexOutOfRangeException` | DTO has more parameters than the stored procedure returns columns | Recheck the `SELECT` column count and DTO parameter count |
 | Aspire connection failure | `WithAspireSqlServer("name")` does not match AppHost name | Cross-check the resource name in the AppHost |
 | TVP type mismatch | Schema/TvpName diverge between SQL and .NET, or column order is wrong | Re-align `[GenerateTvp]` arguments and constructor params |
 | Cache miss when hit was expected | Different keys per call | Build keys deterministically from inputs |
@@ -151,14 +144,14 @@ See [Logging & Observability](/documentation/logging) for the complete event-ID 
 
 ## Security
 
-- Use Stored Procedures with parameters — no string concatenation, no dynamic SQL.
-- **Never cache sensitive data** (passwords, tokens, raw PII) without explicit threat-modelling.
+- Use stored procedures with parameters — no string concatenation, no dynamic SQL.
+- **Never cache sensitive data** (passwords, tokens, raw PII) without explicit threat modeling.
 - Secure Redis with TLS and authentication; restrict network access.
-- Grant the application user the **minimum required SQL permissions** (`EXECUTE` on the SP schema, no `dbo`).
+- Grant the application user the **minimum required SQL permissions** (`EXECUTE` on the stored procedure schema, no `dbo`).
 
-## Versioning & migrations
+## Versioning and migrations
 
-- Treat Stored Procedures and DTOs as a contract — version them when breaking changes are needed (e.g. `sp_GetUsers` → `sp_GetUsers_v2`).
+- Treat stored procedures and DTOs as a contract. Version them when breaking changes are needed, for example `sp_GetUsers` to `sp_GetUsers_v2`.
 - Add new procedures alongside existing ones; deprecate old ones once consumers migrate.
 
 ## Quick reference
@@ -194,4 +187,4 @@ var users = await dbContext.QueryAsIEnumerableAsync<UserDto>(sp, ct);
 
 ---
 
-Use this page as a checklist when designing new queries or auditing existing ones. For deeper APIs and patterns, see [API Reference](/documentation/api), [Advanced Usage](/documentation/advanced-usage), and the [Examples](/examples/).
+Use this page as a checklist when designing new queries or auditing existing ones. For deeper APIs and patterns, see [API reference](/documentation/api), [Advanced usage](/documentation/advanced-usage), and the [Examples](/examples/).

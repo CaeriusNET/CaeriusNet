@@ -1,3 +1,5 @@
+using System.Collections;
+
 namespace CaeriusNet.Tests.Builders;
 
 public sealed class StoredProcedureParametersBuilderTests
@@ -102,7 +104,12 @@ public sealed class StoredProcedureParametersBuilderTests
 
     [Theory]
     [InlineData("")]
-    public void AddParameter_Empty_Name_Throws(string paramName)
+    [InlineData(" ")]
+    [InlineData("@")]
+    [InlineData("@@Id")]
+    [InlineData(" Id")]
+    [InlineData("Id ")]
+    public void AddParameter_Invalid_Name_Throws(string paramName)
     {
         var builder = new StoredProcedureParametersBuilder("dbo", "sp_Test");
 
@@ -141,6 +148,27 @@ public sealed class StoredProcedureParametersBuilderTests
         Assert.Equal(expiration, sp.CacheExpiration);
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void AddInMemoryCache_Invalid_Key_Throws(string cacheKey)
+    {
+        var builder = new StoredProcedureParametersBuilder("dbo", "sp_Test");
+
+        Assert.Throws<ArgumentException>(() => builder.AddInMemoryCache(cacheKey, TimeSpan.FromMinutes(1)));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void AddInMemoryCache_NonPositive_Expiration_Throws(int seconds)
+    {
+        var builder = new StoredProcedureParametersBuilder("dbo", "sp_Test");
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            builder.AddInMemoryCache("my_key", TimeSpan.FromSeconds(seconds)));
+    }
+
     [Fact]
     public void AddFrozenCache_Sets_CacheType_And_Null_Expiration()
     {
@@ -151,6 +179,16 @@ public sealed class StoredProcedureParametersBuilderTests
         Assert.Equal(CacheType.Frozen, sp.CacheType);
         Assert.Equal("frozen_key", sp.CacheKey);
         Assert.Null(sp.CacheExpiration);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void AddFrozenCache_Invalid_Key_Throws(string cacheKey)
+    {
+        var builder = new StoredProcedureParametersBuilder("dbo", "sp_Test");
+
+        Assert.Throws<ArgumentException>(() => builder.AddFrozenCache(cacheKey));
     }
 
     [Fact]
@@ -175,6 +213,27 @@ public sealed class StoredProcedureParametersBuilderTests
 
         Assert.Equal(CacheType.Redis, sp.CacheType);
         Assert.Null(sp.CacheExpiration);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void AddRedisCache_Invalid_Key_Throws(string cacheKey)
+    {
+        var builder = new StoredProcedureParametersBuilder("dbo", "sp_Test");
+
+        Assert.Throws<ArgumentException>(() => builder.AddRedisCache(cacheKey));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void AddRedisCache_NonPositive_Expiration_Throws(int seconds)
+    {
+        var builder = new StoredProcedureParametersBuilder("dbo", "sp_Test");
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            builder.AddRedisCache("redis_key", TimeSpan.FromSeconds(seconds)));
     }
 
     [Fact]
@@ -204,6 +263,46 @@ public sealed class StoredProcedureParametersBuilderTests
             .Build();
 
         Assert.Equal("@UserId", sp.GetParametersSpan()[0].ParameterName);
+    }
+
+    [Fact]
+    public void AddParameter_Name_Without_Prefix_Is_Normalized()
+    {
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_Test")
+            .AddParameter("UserId", 42, SqlDbType.Int)
+            .Build();
+
+        Assert.Equal("@UserId", sp.GetParametersSpan()[0].ParameterName);
+    }
+
+    [Fact]
+    public void AddParameter_With_Facets_And_Direction_Preserves_Metadata()
+    {
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_Test")
+            .AddParameter(
+                "@Amount",
+                12.34m,
+                SqlDbType.Decimal,
+                precision: 19,
+                scale: 4,
+                direction: ParameterDirection.InputOutput)
+            .Build();
+
+        var parameter = sp.GetParametersSpan()[0];
+
+        Assert.Equal(19, parameter.Precision);
+        Assert.Equal(4, parameter.Scale);
+        Assert.Equal(ParameterDirection.InputOutput, parameter.Direction);
+    }
+
+    [Fact]
+    public void AddParameter_With_Size_Preserves_Metadata()
+    {
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_Test")
+            .AddParameter("@Name", "ari", SqlDbType.NVarChar, 64)
+            .Build();
+
+        Assert.Equal(64, sp.GetParametersSpan()[0].Size);
     }
 
     [Fact]
@@ -301,6 +400,35 @@ public sealed class StoredProcedureParametersBuilderTests
     }
 
     [Fact]
+    public void AddTvpParameter_Name_Without_Prefix_Is_Normalized()
+    {
+        var items = new List<TestTvpItem> { new(1) };
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_Test")
+            .AddTvpParameter("Ids", items)
+            .Build();
+
+        Assert.Equal("@Ids", sp.GetParametersSpan()[0].ParameterName);
+    }
+
+    [Fact]
+    public void AddTvpParameter_ReadOnlyList_Does_Not_Materialize_During_Build()
+    {
+        var items = new CountingReadOnlyList<TestTvpItem>([new TestTvpItem(1), new TestTvpItem(2)]);
+
+        var sp = new StoredProcedureParametersBuilder("dbo", "sp_Test")
+            .AddTvpParameter("@Ids", items)
+            .Build();
+
+        Assert.Equal(0, items.EnumerationCount);
+
+        var records = Assert.IsAssignableFrom<IEnumerable<SqlDataRecord>>(sp.GetParametersSpan()[0].Value);
+        var values = records.Select(record => record.GetInt32(0)).ToArray();
+
+        Assert.Equal(1, items.EnumerationCount);
+        Assert.Equal([1, 2], values);
+    }
+
+    [Fact]
     public void AddTvpParameter_Multiple_TVPs_Adds_Multiple_Parameters()
     {
         var items = new List<TestTvpItem> { new(1), new(2) };
@@ -365,5 +493,25 @@ public sealed class StoredProcedureParametersBuilderTests
         var builder = new StoredProcedureParametersBuilder("dbo", "");
 
         Assert.Throws<ArgumentException>(() => builder.Build());
+    }
+
+    private sealed class CountingReadOnlyList<T>(IReadOnlyList<T> items) : IReadOnlyList<T>
+    {
+        public int EnumerationCount { get; private set; }
+
+        public int Count => items.Count;
+
+        public T this[int index] => items[index];
+
+        public IEnumerator<T> GetEnumerator()
+        {
+            EnumerationCount++;
+            return items.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
     }
 }

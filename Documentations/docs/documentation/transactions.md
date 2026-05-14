@@ -1,18 +1,17 @@
 # Transactions
 
-CaeriusNet provides a lightweight transaction scope that wraps `SqlTransaction` with a thread-safe state machine, automatic rollback on dispose, cache bypass, and a parent `TX` activity for cohesive tracing. Multiple commands enlisted on the scope succeed or fail **atomically** — there are no partial commits.
+CaeriusNet provides a transaction scope that wraps `SqlTransaction` with automatic rollback on dispose, cache bypass, and a parent `TX` activity for cohesive tracing. Multiple commands enlisted on the scope succeed or fail **atomically**. There are no partial commits.
 
 ## At a glance
 
-| Feature | Behaviour |
+| Feature | Behavior |
 |---|---|
 | **State machine** | `Active` → `Committed` / `RolledBack` / `Poisoned` / `Disposed` |
-| **Thread safety** | State transitions guarded by `Interlocked.CompareExchange` |
-| **Single in-flight command** | Enforced — `SqlConnection` is not thread-safe |
+| **Single in-flight command** | Enforced because a SQL connection can execute only one command at a time in the scope |
 | **Failure handling** | A failure poisons the scope; only `RollbackAsync` / `DisposeAsync` remain valid |
 | **Cache** | Bypassed inside transactions (no dirty reads published) |
 | **Auto-rollback** | An uncommitted scope rolls back on `DisposeAsync` |
-| **Telemetry** | Parent `TX` span (kind = Internal) wraps every child SP span |
+| **Telemetry** | Parent `TX` span (kind = Internal) wraps every child stored procedure span |
 | **Logging** | Structured events for start, commit, rollback, and poison |
 
 ## Basic usage
@@ -77,7 +76,7 @@ await using var tx = await DbContext
 
 await tx.ExecuteNonQueryAsync(sp, ct);
 
-// No CommitAsync — the transaction is rolled back when tx is disposed.
+// No CommitAsync; the transaction is rolled back when tx is disposed.
 ```
 
 ::: warning Always call `CommitAsync` on the success path
@@ -169,21 +168,21 @@ catch (CaeriusNetSqlException)
 `SqlConnection` is not thread-safe. CaeriusNet enforces a single command at a time within a scope. Concurrent commands throw `InvalidOperationException`:
 
 ```csharp
-// ❌ DO NOT — concurrent commands on the same scope
+// Do not run concurrent commands on the same scope.
 var task1 = tx.ExecuteNonQueryAsync(sp1, ct);
 var task2 = tx.ExecuteNonQueryAsync(sp2, ct); // throws InvalidOperationException
 await Task.WhenAll(task1, task2);
 ```
 
 ```csharp
-// ✅ DO — sequential commands
+// Run commands sequentially.
 await tx.ExecuteNonQueryAsync(sp1, ct);
 await tx.ExecuteNonQueryAsync(sp2, ct);
 ```
 
 ### No nested transactions
 
-SQL Server does not support nested transactions on a single connection. Calling `BeginTransactionAsync` on a scope throws `NotSupportedException`. Use SQL `SAVEPOINT` inside a Stored Procedure if you need partial-rollback semantics:
+SQL Server does not support nested transactions on a single connection. Calling `BeginTransactionAsync` on a scope throws `NotSupportedException`. Use SQL `SAVEPOINT` inside a stored procedure if you need partial-rollback semantics:
 
 ```sql
 CREATE PROCEDURE dbo.sp_With_Savepoint
@@ -212,7 +211,7 @@ Any unhandled exception from a command poisons the scope. Partial success in a t
 
 ## Tracing
 
-Every scope emits a parent **`TX` span** (kind = Internal) under which all child SP spans nest. The trace remains a single cohesive workflow in the Aspire dashboard:
+Every scope emits a parent **`TX` span** (kind = Internal) under which all child stored procedure spans nest. The trace remains a single cohesive workflow in the Aspire dashboard:
 
 ```text
 TX  (caerius.tx.isolation_level=ReadCommitted, caerius.tx.outcome=committed)
@@ -224,9 +223,9 @@ TX  (caerius.tx.isolation_level=ReadCommitted, caerius.tx.outcome=committed)
 |---|---|
 | `caerius.tx.isolation_level` | The SQL Server isolation level (e.g. `ReadCommitted`) |
 | `caerius.tx.outcome` | `committed`, `rolled-back`, `auto-rollback`, `poisoned-auto-rollback`, `commit-failed`, `rollback-failed` |
-| `caerius.tx` | `true` on every child SP span enlisted in the scope |
+| `caerius.tx` | `true` on every child stored procedure span enlisted in the scope |
 
-See [Aspire Integration — Transaction tracing](/documentation/aspire#transaction-tracing) for full details.
+See [Aspire integration — Transaction tracing](/documentation/aspire#transaction-tracing) for full details.
 
 ## Best practices
 
@@ -252,7 +251,7 @@ See [Aspire Integration — Transaction tracing](/documentation/aspire#transacti
 SQL errors raised inside a transaction are wrapped in `CaeriusNetSqlException`:
 
 - Original `SqlException` is preserved as `InnerException`
-- The active SP span is tagged `ActivityStatusCode.Error` before the exception bubbles up
+- The active stored procedure span is tagged `ActivityStatusCode.Error` before the exception bubbles up
 
 ```csharp
 await using var tx = await DbContext
@@ -283,4 +282,4 @@ CaeriusNet emits structured log events for the transaction lifecycle:
 
 ---
 
-**Next:** [Logging & Observability](/documentation/logging) — structured logging, event IDs, and OTel integration.
+**Next:** [Logging and observability](/documentation/logging) - structured logging, event IDs, and OpenTelemetry integration.

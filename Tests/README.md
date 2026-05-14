@@ -118,7 +118,7 @@ These tests use `CSharpSourceGeneratorTest` to compile source in memory and veri
 
 | Category     | What is tested                                                                   |
 |--------------|----------------------------------------------------------------------------------|
-| Reads        | Single-row, collection, multi-result-set (2 to 4), and concurrent read scenarios |
+| Reads        | Single-row, collection, multi-result-set (2 to 5), and concurrent read scenarios |
 | Writes       | Non-query, scalar, and fire-and-forget execution                                 |
 | TVP          | Table-valued parameter round-trips and TVP usage inside transactions             |
 | Transactions | Commit, rollback, multi-command flows, and poison-state handling                 |

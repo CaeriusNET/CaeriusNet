@@ -22,5 +22,5 @@ The `Schema` argument is optional and defaults to `dbo`.
 
 ## See also
 
-- [Table-Valued Parameters](/documentation/tvp)
-- [Source Generators — GenerateTvp](/documentation/source-generators#generatetvp-tvp-mapper)
+- [table-valued parameters](/documentation/tvp)
+- [source generators: GenerateTvp](/documentation/source-generators#generatetvp-tvp-mapper)

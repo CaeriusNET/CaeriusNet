@@ -31,13 +31,15 @@ public sealed record StoredProcedureParameters
         CacheType? cacheType,
         int commandTimeout = 30)
     {
+        ArgumentNullException.ThrowIfNull(parameters);
         ArgumentOutOfRangeException.ThrowIfNegative(capacity);
         ArgumentOutOfRangeException.ThrowIfNegative(commandTimeout);
 
         SchemaName = schemaName;
         ProcedureName = procedureName;
+        FullName = string.Concat(schemaName, ".", procedureName);
         Capacity = capacity;
-        _parameters = parameters;
+        _parameters = CloneParameters(parameters);
         CacheKey = cacheKey;
         CacheExpiration = cacheExpiration;
         CacheType = cacheType;
@@ -46,6 +48,7 @@ public sealed record StoredProcedureParameters
 
     public string SchemaName { get; }
     public string ProcedureName { get; }
+    public string FullName { get; }
     public int Capacity { get; }
     public string? CacheKey { get; }
     public TimeSpan? CacheExpiration { get; }
@@ -65,20 +68,68 @@ public sealed record StoredProcedureParameters
         return _parameters;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal SqlParameter[] GetParametersArray()
+    {
+        return _parameters;
+    }
+
     [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     internal void AddParametersTo(SqlParameterCollection parameters)
     {
-        var paramsSpan = GetParametersSpan();
-        ref var searchSpace = ref MemoryMarshal.GetReference(paramsSpan);
+        ArgumentNullException.ThrowIfNull(parameters);
 
-        for (var i = 0; i < paramsSpan.Length; i++)
-            parameters.Add(CloneParameter(Unsafe.Add(ref searchSpace, i)));
+        for (var i = 0; i < _parameters.Length; i++)
+            parameters.Add(CloneParameter(_parameters[i]));
     }
 
-    private static SqlParameter CloneParameter(SqlParameter parameter)
+    private static SqlParameter[] CloneParameters(SqlParameter[] parameters)
     {
+        if (parameters.Length == 0)
+            return [];
+
+        var clones = new SqlParameter[parameters.Length];
+        for (var i = 0; i < parameters.Length; i++)
+            clones[i] = CloneParameter(parameters[i]);
+
+        return clones;
+    }
+
+    internal static SqlParameter CloneParameter(SqlParameter parameter)
+    {
+        ArgumentNullException.ThrowIfNull(parameter);
         var clone = (SqlParameter)((ICloneable)parameter).Clone();
+        clone.ParameterName = SqlParameterName.Normalize(clone.ParameterName);
         clone.Value ??= DBNull.Value;
         return clone;
+    }
+}
+
+internal static class SqlParameterName
+{
+    internal static string Normalize(string parameterName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(parameterName);
+
+        if (parameterName.Length != parameterName.Trim().Length)
+            throw new ArgumentException("SQL parameter names cannot contain leading or trailing whitespace.",
+                nameof(parameterName));
+
+        var normalized = parameterName[0] == '@'
+            ? parameterName
+            : "@" + parameterName;
+
+        if (normalized.Length == 1)
+            throw new ArgumentException("SQL parameter names must include a name after '@'.", nameof(parameterName));
+
+        if (normalized[1] == '@')
+            throw new ArgumentException("SQL parameter names must use a single leading '@'.", nameof(parameterName));
+
+        for (var i = 0; i < normalized.Length; i++)
+            if (char.IsControl(normalized[i]))
+                throw new ArgumentException("SQL parameter names cannot contain control characters.",
+                    nameof(parameterName));
+
+        return normalized;
     }
 }

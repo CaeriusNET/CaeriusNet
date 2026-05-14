@@ -1,6 +1,6 @@
-# Writing Data
+# Writing data
 
-CaeriusNet provides three write commands for executing Stored Procedures that modify data — all asynchronous, all `CancellationToken`-aware, and all pluggable into a transaction scope.
+CaeriusNet provides three write commands for executing stored procedures that modify data. All write commands are asynchronous, `CancellationToken`-aware, and available inside a transaction scope.
 
 ## Overview
 
@@ -10,7 +10,7 @@ CaeriusNet provides three write commands for executing Stored Procedures that mo
 | `ExecuteAsync` | *void* (`ValueTask`) | Fire-and-forget writes — row count not needed |
 | `ExecuteScalarAsync<T>` | `T?` | SELECT scalar — `SCOPE_IDENTITY`, `COUNT`, status code, etc. |
 
-## A representative write SP
+## A representative write stored procedure
 
 ```sql
 CREATE PROCEDURE dbo.sp_UpdateUserAge_By_Guid
@@ -33,7 +33,7 @@ BEGIN
     BEGIN CATCH
         IF @@TRANCOUNT > 0
             ROLLBACK TRANSACTION;
-        THROW;  -- re-raise so the SP span is correctly tagged Error
+        THROW;  -- re-raise so the stored procedure span is tagged Error
     END CATCH;
 END
 GO
@@ -73,7 +73,7 @@ public async Task DeleteUserAsync(Guid guid, CancellationToken ct)
 
 ## `ExecuteScalarAsync<T>` — scalar return
 
-Use when the SP returns a single scalar value — a new identity, a count, a status code, etc.
+Use when the stored procedure returns a single scalar value, such as a new identity, a count, or a status code.
 
 ```sql
 CREATE PROCEDURE dbo.sp_InsertUser_Return_Id
@@ -112,7 +112,7 @@ new StoredProcedureParametersBuilder("dbo", "sp_DeleteUser_By_Guid"); // capacit
 
 ## Multiple parameters
 
-Chain as many `.AddParameter()` calls as needed. Each maps to a named SP parameter:
+Chain as many `.AddParameter()` calls as needed. Each maps to a named stored procedure parameter:
 
 ```csharp
 var sp = new StoredProcedureParametersBuilder("dbo", "sp_InsertAuditLog")
@@ -136,7 +136,7 @@ var sp = new StoredProcedureParametersBuilder("dbo", "sp_DeleteUsers_By_Ids")
 var deleted = await DbContext.ExecuteNonQueryAsync(sp, ct);
 ```
 
-See [Table-Valued Parameters](/documentation/tvp) for the full TVP guide.
+See [table-valued parameters](/documentation/tvp) for the full TVP guide.
 
 ## Writes inside a transaction
 
@@ -152,4 +152,4 @@ await tx.CommitAsync(ct);
 
 ---
 
-**Next:** [Multiple Result Sets](/documentation/multi-results) — fetch two to five result sets in a single round-trip.
+**Next:** [Multiple result sets](/documentation/multi-results) - fetch two to five result sets in a single round trip.
