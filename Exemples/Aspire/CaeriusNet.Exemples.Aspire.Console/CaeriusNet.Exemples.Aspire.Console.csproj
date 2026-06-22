@@ -13,7 +13,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Aspire.StackExchange.Redis" Version="13.3.5" />
+        <PackageReference Include="Aspire.StackExchange.Redis" Version="13.4.6" />
         <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.9"/>
         <!-- Ensure the app process loads Microsoft.Data.SqlClient (align with library) -->
         <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.1"/>
