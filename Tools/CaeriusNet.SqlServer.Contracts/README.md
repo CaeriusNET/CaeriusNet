@@ -1,8 +1,10 @@
 # AutoContracts tool
 
-This project builds the internal AutoContracts SQL Server discovery tool that ships inside the main `CaeriusNet` NuGet package.
+This project builds the internal AutoContracts SQL Server discovery tool that ships inside the main `CaeriusNet` NuGet
+package.
 
-It is not a standalone public package. Consumers install only `CaeriusNet`; the package imports the MSBuild targets and invokes this tool from its embedded `tools/net10.0/any` assets during normal `dotnet build` commands.
+It is not a standalone public package. Consumers install only `CaeriusNet`; the package imports the MSBuild targets and
+invokes this tool from its embedded `tools/net10.0/any` assets during normal `dotnet build` commands.
 
 ## Consumer usage
 
@@ -54,17 +56,18 @@ If SQL Server metadata no longer matches `caerius.contracts.json`, the build fai
 
 ## Configuration
 
-| Property | Default | Purpose |
-|---|---|---|
-| `CaeriusContractsMode` | `Off` | Enables `Pull`, `Verify`, or disables AutoContracts. |
-| `CaeriusContractsOutput` | `$(ProjectDir)caerius.contracts.json` | Manifest path. |
-| `CaeriusContractsConnectionName` | `DefaultConnection` | Named connection string from .NET configuration. |
-| `CaeriusContractsConnectionStringEnv` | Empty | Environment variable that contains the SQL Server connection string. |
-| `CaeriusContractsConnectionString` | Empty | Inline connection string. Prefer configuration or secrets instead. |
-| `CaeriusContractsConfigurationBasePath` | `$(MSBuildProjectDirectory)` | Directory used to load configuration files. |
-| `CaeriusContractsConfigurationEnvironment` | Empty | Environment suffix for `appsettings.{environment}.json`. |
-| `CaeriusContractsUserSecretsId` | Project `UserSecretsId` | User secrets ID override. |
+| Property                                   | Default                               | Purpose                                                              |
+|--------------------------------------------|---------------------------------------|----------------------------------------------------------------------|
+| `CaeriusContractsMode`                     | `Off`                                 | Enables `Pull`, `Verify`, or disables AutoContracts.                 |
+| `CaeriusContractsOutput`                   | `$(ProjectDir)caerius.contracts.json` | Manifest path.                                                       |
+| `CaeriusContractsConnectionName`           | `DefaultConnection`                   | Named connection string from .NET configuration.                     |
+| `CaeriusContractsConnectionStringEnv`      | Empty                                 | Environment variable that contains the SQL Server connection string. |
+| `CaeriusContractsConnectionString`         | Empty                                 | Inline connection string. Prefer configuration or secrets instead.   |
+| `CaeriusContractsConfigurationBasePath`    | `$(MSBuildProjectDirectory)`          | Directory used to load configuration files.                          |
+| `CaeriusContractsConfigurationEnvironment` | Empty                                 | Environment suffix for `appsettings.{environment}.json`.             |
+| `CaeriusContractsUserSecretsId`            | Project `UserSecretsId`               | User secrets ID override.                                            |
 
 ## Read-only behavior
 
-AutoContracts reads SQL Server metadata only. It does not create, update, or delete database objects, and it does not inspect table data.
+AutoContracts reads SQL Server metadata only. It does not create, update, or delete database objects, and it does not
+inspect table data.

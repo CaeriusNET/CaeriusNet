@@ -26,7 +26,8 @@ public sealed class AutoContractsPackagingTests
         Assert.NotNull(archive.GetEntry("tools/net10.0/any/CaeriusNet.SqlServer.Contracts.deps.json"));
         Assert.NotNull(archive.GetEntry("tools/net10.0/any/CaeriusNet.SqlServer.Contracts.runtimeconfig.json"));
         Assert.NotNull(archive.GetEntry("tools/net10.0/any/Microsoft.Data.SqlClient.dll"));
-        Assert.NotNull(archive.GetEntry("tools/net10.0/any/Microsoft.Extensions.Configuration.EnvironmentVariables.dll"));
+        Assert.NotNull(
+            archive.GetEntry("tools/net10.0/any/Microsoft.Extensions.Configuration.EnvironmentVariables.dll"));
         Assert.NotNull(archive.GetEntry("tools/net10.0/any/Microsoft.Extensions.Configuration.Json.dll"));
 
         var nuspec = archive.Entries.Single(entry => entry.FullName.EndsWith(".nuspec", StringComparison.Ordinal));
