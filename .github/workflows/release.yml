@@ -183,15 +183,21 @@ jobs:
       - name: List packages
         run: ls -la ./packages/
 
-      # ── Publish → NuGet.org ────────────────────────────────────────────────────
+      # ── Publish → NuGet.org (Trusted Publishing) ───────────────────────────────
+      - name: NuGet login (OIDC → clé API temporaire)
+        id: nuget_login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
       - name: Publish → NuGet.org
         run: |
           dotnet nuget push ./packages/*.nupkg \
-            --api-key "${{ secrets.NUGET_API_KEY }}" \
+            --api-key "${{ steps.nuget_login.outputs.NUGET_API_KEY }}" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
           dotnet nuget push ./packages/*.snupkg \
-            --api-key "${{ secrets.NUGET_API_KEY }}" \
+            --api-key "${{ steps.nuget_login.outputs.NUGET_API_KEY }}" \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate || true
 
