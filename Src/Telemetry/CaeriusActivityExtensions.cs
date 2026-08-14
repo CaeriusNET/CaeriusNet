@@ -1,6 +1,3 @@
-using System.Diagnostics;
-using System.Text;
-
 namespace CaeriusNet.Telemetry;
 
 /// <summary>

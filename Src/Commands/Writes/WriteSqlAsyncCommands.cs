@@ -1,5 +1,3 @@
-using System.Diagnostics;
-
 namespace CaeriusNet.Commands.Writes;
 
 /// <summary>

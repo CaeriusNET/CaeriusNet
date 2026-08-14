@@ -1,6 +1,4 @@
-﻿using System.Collections;
-
-namespace CaeriusNet.Builders;
+﻿namespace CaeriusNet.Builders;
 
 /// <summary>
 ///     A builder class for configuring and creating stored procedure parameter collections.

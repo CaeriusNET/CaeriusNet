@@ -35,7 +35,7 @@ internal static class ResultSetMaterializer
 
         var first = T.MapFromDataReader(reader);
         if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
-            return ImmutableArray.Create(first);
+            return [first];
 
         var buffer = ArrayPool<T>.Shared.Rent(Math.Max(NormalizeCapacity(capacity), 2));
         var count = 0;

@@ -1,6 +1,4 @@
-﻿using System.Numerics;
-
-namespace CaeriusNet.Caches;
+﻿namespace CaeriusNet.Caches;
 
 /// <summary>
 ///     Provides methods for managing an immutable, thread-safe cache using frozen dictionaries.
