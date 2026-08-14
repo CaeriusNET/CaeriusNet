@@ -1,0 +1,11 @@
+<Project>
+    <Target Name="ValidateCaeriusTargetFramework" BeforeTargets="PrepareForBuild"
+            Condition="'$(TargetFramework)' != 'net10.0' and ('$(TargetFramework)' != 'netstandard2.0' or '$(IsRoslynComponent)' != 'true')">
+        <Error Text="CaeriusNet projects must target net10.0; only Roslyn components may target netstandard2.0."/>
+    </Target>
+
+    <Target Name="ValidateCaeriusLanguageVersion" BeforeTargets="CoreCompile"
+            Condition="'$(LangVersion)' != '14.0'">
+        <Error Text="CaeriusNet requires LangVersion 14.0."/>
+    </Target>
+</Project>

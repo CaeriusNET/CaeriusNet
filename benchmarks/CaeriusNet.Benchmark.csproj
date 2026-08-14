@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <IsPackable>false</IsPackable>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <Optimize>true</Optimize>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="BenchmarkDotNet"/>
+        <PackageReference Include="Microsoft.Data.SqlClient"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Reference main CaeriusNet library for accessing builder/mapper types -->
+        <ProjectReference Include="..\src\CaeriusNet\CaeriusNet.csproj"/>
+        <!-- Source generator must also run on THIS project to generate [GenerateDto] / [GenerateTvp] implementations -->
+        <ProjectReference Include="..\src\Compiler\CaeriusNet.Generator\CaeriusNet.Generator.csproj"
+                          ReferenceOutputAssembly="false"
+                          OutputItemType="Analyzer"
+                          PrivateAssets="all"/>
+        <ProjectReference Include="..\src\Compiler\CaeriusNet.Analyzer\CaeriusNet.Analyzer.csproj"
+                          ReferenceOutputAssembly="false"
+                          OutputItemType="Analyzer"
+                          PrivateAssets="all"/>
+    </ItemGroup>
+</Project>

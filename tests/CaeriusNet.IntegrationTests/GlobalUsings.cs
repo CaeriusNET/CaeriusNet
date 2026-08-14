@@ -1,0 +1,17 @@
+global using System.Buffers;
+global using System.Collections.Immutable;
+global using System.Data;
+global using CaeriusNet;
+global using CaeriusNet.Abstractions;
+global using CaeriusNet.Caching;
+global using CaeriusNet.Commands;
+global using CaeriusNet.Exceptions;
+global using CaeriusNet.Redis;
+global using CaeriusNet.Results;
+global using Microsoft.Data.SqlClient;
+global using Microsoft.Data.SqlClient.Server;
+global using Microsoft.Extensions.DependencyInjection;
+global using StackExchange.Redis;
+global using Testcontainers.MsSql;
+global using Testcontainers.Redis;
+global using Xunit;

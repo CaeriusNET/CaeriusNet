@@ -7,7 +7,7 @@ on:
   push:
     branches: [main]
     paths:
-      - 'Documentations/**'
+      - 'docs/**'
       - '.github/workflows/github-pages-deploy.yml'
   workflow_dispatch:
 
@@ -40,24 +40,24 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: Documentations/package*.json
+          cache-dependency-path: docs/package*.json
       - name: Setup Pages
         uses: actions/configure-pages@v4
       - name: Install dependencies
-        if: hashFiles('Documentations/package-lock.json') == ''
-        working-directory: Documentations
+        if: hashFiles('docs/package-lock.json') == ''
+        working-directory: docs
         run: npm install
       - name: Install locked dependencies
-        if: hashFiles('Documentations/package-lock.json') != ''
-        working-directory: Documentations
+        if: hashFiles('docs/package-lock.json') != ''
+        working-directory: docs
         run: npm ci
       - name: Build with VitePress
-        working-directory: Documentations
+        working-directory: docs
         run: npm run docs:build
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          path: ./Documentations/docs/.vitepress/dist
+          path: ./docs/site/.vitepress/dist
 
   # Deployment job
   deploy:

@@ -1,0 +1,20 @@
+<Project>
+    <PropertyGroup>
+        <CaeriusContractsMode Condition="'$(CaeriusContractsMode)' == ''">Off</CaeriusContractsMode>
+        <CaeriusContractsOutput Condition="'$(CaeriusContractsOutput)' == ''">$(MSBuildProjectDirectory)\caerius.contracts.json</CaeriusContractsOutput>
+        <CaeriusContractsOverrides Condition="'$(CaeriusContractsOverrides)' == ''">$(MSBuildProjectDirectory)\caerius.contracts.overrides.json</CaeriusContractsOverrides>
+        <CaeriusContractsConnectionName Condition="'$(CaeriusContractsConnectionName)' == ''">DefaultConnection</CaeriusContractsConnectionName>
+        <CaeriusContractsConfigurationBasePath Condition="'$(CaeriusContractsConfigurationBasePath)' == ''">$(MSBuildProjectDirectory)</CaeriusContractsConfigurationBasePath>
+        <CaeriusContractsConfigurationEnvironment Condition="'$(CaeriusContractsConfigurationEnvironment)' == ''">$(DOTNET_ENVIRONMENT)</CaeriusContractsConfigurationEnvironment>
+        <CaeriusContractsUserSecretsId Condition="'$(CaeriusContractsUserSecretsId)' == ''">$(UserSecretsId)</CaeriusContractsUserSecretsId>
+        <CaeriusContractsTimeout Condition="'$(CaeriusContractsTimeout)' == ''">30</CaeriusContractsTimeout>
+        <CaeriusContractsToolPath Condition="'$(CaeriusContractsToolPath)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../tools/net10.0/any/CaeriusNet.SqlServer.Contracts.dll'))</CaeriusContractsToolPath>
+        <CaeriusContractsToolCommand Condition="'$(CaeriusContractsToolCommand)' == ''">dotnet &quot;$(CaeriusContractsToolPath)&quot;</CaeriusContractsToolCommand>
+    </PropertyGroup>
+    <ItemGroup>
+        <CompilerVisibleProperty Include="CaeriusContractsMode"/>
+        <CompilerVisibleProperty Include="CaeriusContractsOutput"/>
+        <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="CaeriusContractManifest"/>
+        <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="CaeriusContractOverrides"/>
+    </ItemGroup>
+</Project>

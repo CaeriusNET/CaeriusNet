@@ -1,341 +1,136 @@
 # CaeriusNet
 
 <p align="center">
-  <a href="https://www.nuget.org/packages/CaeriusNet"><img src="https://img.shields.io/nuget/v/CaeriusNet?style=flat&logo=nuget" alt="NuGet version"></a>
-  <a href="https://www.nuget.org/packages/CaeriusNet"><img src="https://img.shields.io/nuget/dt/CaeriusNet?style=flat" alt="NuGet downloads"></a>
-  <img src="https://img.shields.io/badge/.NET%2010-512BD4.svg?style=flat&logo=dotnet&logoColor=white" alt=".NET 10">
-  <img src="https://img.shields.io/badge/C%23%2014-%23239120.svg?style=flat&logo=csharp&logoColor=white" alt="C# 14">
-  <img src="https://img.shields.io/badge/SQL%20Server-CC2927.svg?style=flat&logo=microsoftsqlserver&logoColor=white" alt="SQL Server 2019+">
-  <img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat" alt="MIT License">
+  <a href="https://www.nuget.org/packages/CaeriusNet"><img src="https://img.shields.io/nuget/v/CaeriusNet?style=flat&logo=nuget" alt="NuGet CaeriusNet"></a>
+  <img src="https://img.shields.io/badge/.NET-10-512BD4?style=flat&logo=dotnet&logoColor=white" alt=".NET 10">
+  <img src="https://img.shields.io/badge/C%23-14-239120?style=flat&logo=csharp&logoColor=white" alt="C# 14">
+  <img src="https://img.shields.io/badge/SQL%20Server-2022%20%7C%202025-CC2927?style=flat&logo=microsoftsqlserver&logoColor=white" alt="SQL Server 2022 or 2025">
+  <img src="https://img.shields.io/badge/license-MIT-blue?style=flat" alt="MIT">
 </p>
 
-## Overview
+CaeriusNet 12 is a stored-procedure-only data-access runtime for .NET 10 and C# 14. It maps result rows without reflection, supports table-valued parameters (TVPs), cardinality-aware reads, transactions, typed cache codecs, and SQL Server 2022/2025.
 
-**CaeriusNet** is a high-performance micro-ORM for C# 14 and .NET 10, built exclusively around SQL Server stored procedures. It eliminates boilerplate data-access code through compile-time source generators, delivers multiple caching strategies out of the box, and supports multi-result-set queries — all in a single NuGet package.
+Version 12 is intentionally a major release. It replaces the v11 builder and its global state with dependency injection; read the [v11 to v12 migration guide](MIGRATION-v11-v12.md) before upgrading. Maintainers can follow the complete invariants, evidence and release gates in the [12.0.0 engineering contract](docs/engineering/caeriusnet-v12-release-engineering-contract.md).
 
----
+## Packages
 
-## Project Structure
+| Package | Purpose |
+| --- | --- |
+| [`CaeriusNet`](src/CaeriusNet/README.md) | Runtime, DI, transactions, mappers, local caches, telemetry, DTO/TVP generator and analyzer. |
+| [`CaeriusNet.Redis`](src/CaeriusNet.Redis/README.md) | Fully asynchronous typed Redis cache manager and binary envelope. |
+| [`CaeriusNet.Aspire`](src/CaeriusNet.Aspire/README.md) | Aspire SQL Server/Redis clients, health checks, configuration and telemetry wiring. |
+| [`CaeriusNet.Contracts`](src/CaeriusNet.Contracts/README.md) | Opt-in AutoContracts discovery tool and `buildTransitive` integration. |
 
-| Directory | Description |
-|-----------|-------------|
-| `Src/` | Core library — CaeriusNet NuGet package source |
-| `SourceGenerators/` | Roslyn incremental source generators and analyzers used by the package |
-| `Tests/` | Unit tests, generator tests, integration tests |
-| `Benchmark/` | BenchmarkDotNet performance benchmarks |
-| `Exemples/` | Example projects (Aspire + Console); directory name retained for compatibility |
-| `Documentations/` | VitePress documentation site |
-
----
-
-## Why CaeriusNet?
-
-- **Zero reflection at runtime** — DTO and TVP mappers are generated at compile time via Roslyn source generators.
-- **Stored procedures first** — every query is a stored procedure call; no inline SQL, no query builders.
-- **Three caching layers** — Frozen (immutable in-process), In-Memory (TTL), and Redis (distributed).
-- **Multi-result sets** — retrieve up to 5 strongly-typed result sets in a single database round-trip.
-- **TVP support** — pass structured data to SQL Server efficiently without any DataTable overhead.
-- **AutoContracts** — optionally pull and verify stored procedure contracts during `dotnet build` from the same NuGet package.
-- **Aspire-ready** — first-class integration with .NET Aspire for cloud-native scenarios.
-
----
-
-## Installation
+## Install and configure
 
 ```bash
-dotnet add package CaeriusNet
+dotnet add package CaeriusNet --version 12.0.0
 ```
 
-The runtime, analyzers, source generators, and AutoContracts MSBuild integration are bundled in this single package.
-
----
-
-## Quick Start
-
-**1. Register the services**
-
 ```csharp
-CaeriusNetBuilder
-    .Create(services)
-    .WithSqlServer(connectionString)
-    .Build();
+using CaeriusNet;
+using CaeriusNet.Abstractions;
+using Microsoft.Extensions.DependencyInjection;
+
+services.AddCaeriusNet(options =>
+    options.UseSqlServer("Server=.;Database=Orders;Integrated Security=true;TrustServerCertificate=true"));
 ```
 
-**2. Define a DTO**
+For a second database, add a keyed context and request it through normal .NET keyed DI:
 
 ```csharp
-[GenerateDto]
-public sealed partial record UserDto(int Id, string Name, byte Age);
-```
+services.AddCaeriusNet("reporting", options => options.UseSqlServer(reportingConnectionString));
 
-**3. Execute a stored procedure**
-
-```csharp
-var sp = new StoredProcedureParametersBuilder("dbo", "usp_GetUsers_By_Age", 250)
-    .AddParameter("Age", age, SqlDbType.Int)
-    .AddInMemoryCache("users:age:" + age, TimeSpan.FromMinutes(5))
-    .Build();
-
-var users = await dbContext.QueryAsReadOnlyCollectionAsync<UserDto>(sp, cancellationToken);
-```
-
----
-
-## Core Concepts
-
-| Concept | Description |
-|---------|-------------|
-| **Stored procedures first** | All queries target SQL Server stored procedures. Inline SQL is not supported. |
-| **Compile-time mapping** | `[GenerateDto]` and `[GenerateTvp]` generate `ISpMapper<T>` and `ITvpMapper<T>` at build time. |
-| **TVP support** | Pass structured data as Table-Valued Parameters using `.AddTvpParameter()`. |
-| **Caching layers** | Choose Frozen, In-Memory, or Redis caching per query — or combine them. |
-| **Multi-result sets** | Call `QueryMultipleIEnumerableAsync<T1, T2, …>` to retrieve up to 5 result sets at once. |
-
----
-
-## DTO Mapping
-
-You can map result sets either automatically with source generation or manually by implementing the interface.
-
-### Source-generated (recommended)
-
-```csharp
-[GenerateDto]
-public sealed partial record UserDto(int Id, string Name, byte Age);
-```
-
-The `[GenerateDto]` attribute instructs the compiler to generate the `ISpMapper<UserDto>` implementation automatically.
-
-### Manual implementation
-
-```csharp
-public sealed record UserDto(int Id, string Name, byte Age) : ISpMapper<UserDto>
+public sealed class ReportingService(
+    [FromKeyedServices("reporting")] ICaeriusNetDbContext database)
 {
-    public static UserDto MapFromDataReader(SqlDataReader reader)
-        => new(reader.GetInt32(0), reader.GetString(1), reader.GetByte(2));
 }
 ```
 
----
+## First stored-procedure call
 
-## Table-Valued Parameters (TVP)
-
-Use `[GenerateTvp]` to generate a TVP mapper that matches an existing SQL Server user-defined table type.
-
-**1. Define the SQL type**
-
-```sql
-CREATE TYPE dbo.tvp_int AS TABLE (Id INT NOT NULL);
-```
-
-**2. Generate the C# mapper**
+Every runtime command is a `CommandType.StoredProcedure` call. CaeriusNet neither accepts inline SQL nor offers a query builder.
 
 ```csharp
-[GenerateTvp(Schema = "dbo", TvpName = "tvp_int")]
-public sealed partial record UsersIdsTvp(int Id);
-```
+using CaeriusNet.Commands;
+using CaeriusNet.Mappers;
+using Microsoft.Data.SqlClient;
+using System.Data;
 
-**3. Use it in a query**
+public sealed record Customer(int Id, string Name) : ISpMapper<Customer>
+{
+    public static Customer MapFromDataReader(SqlDataReader reader) =>
+        new(reader.GetInt32(0), reader.GetString(1));
+}
 
-```csharp
-var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetUsers_By_Ids", 1024)
-    .AddTvpParameter("Ids", tvpItems)
+var command = new StoredProcedureCommandBuilder("dbo", "usp_Customers_ByCountry")
+    .AddParameter("CountryCode", "FR", SqlDbType.Char, size: 2)
     .Build();
 
-var users = await dbContext.QueryAsIEnumerableAsync<UserDto>(sp, cancellationToken);
+var customers = await database.QueryReadOnlyCollectionAsync<Customer>(command, cancellationToken: ct);
 ```
 
----
+`QueryAsync<T>` materializes before returning its `IEnumerable<T>`. Use `StreamAsync<T>` only when streaming one result set and the reader lifetime is intentionally part of the caller's async enumeration.
 
-## Multi-Result Sets
+## Choose the result contract
 
-Retrieve multiple strongly-typed result sets in a single round-trip using `QueryMultipleIEnumerableAsync`.
-The multi-result APIs follow the same `ValueTask` async shape as the rest of the read/write API.
+| Intent | API |
+| --- | --- |
+| One required row / optional first row | `QueryFirstAsync<T>` / `QueryFirstOrDefaultAsync<T>` |
+| Exactly one row / zero or one row | `QuerySingleAsync<T>` / `QuerySingleOrDefaultAsync<T>` |
+| Materialized rows | `QueryAsync<T>`, `QueryReadOnlyCollectionAsync<T>`, `QueryImmutableArrayAsync<T>` |
+| One result set streamed | `StreamAsync<T>` |
+| Required scalar / default only when the row is absent | `ExecuteScalarAsync<T>` / `ExecuteScalarOrDefaultAsync<T>` |
+| No business result / affected-row count | `ExecuteAsync` / `ExecuteNonQueryAsync` |
 
-```csharp
-var sp = new StoredProcedureParametersBuilder("dbo", "sp_GetDashboard", 512).Build();
+Cardinality, mapping, result-set shape and SQL failures are reported as `CaeriusContractException`, `CaeriusMappingException`, and `CaeriusNetSqlException`; cancellation remains `OperationCanceledException`.
+Both scalar APIs keep an existing SQL `NULL` distinct from an absent row: nullable/reference `T` receives `null`, while a non-nullable `T` raises `CaeriusContractException`.
 
-var (users, orders) = await dbContext.QueryMultipleIEnumerableAsync<UserDto, OrderDto>(
-    sp, cancellationToken);
-```
+## TVPs, result sets and outputs
 
-You can query up to five result sets: `QueryMultipleIEnumerableAsync<T1, T2, T3, T4, T5>`.
-
----
-
-## Caching
-
-Add a cache policy directly on the `StoredProcedureParametersBuilder`. All three strategies are opt-in per query.
-
-### Frozen cache — in-process, immutable
+`[GenerateDto]` and `[GenerateTvp]` generate source-only mappers. A generated TVP writes rows into a reused `SqlDataRecord`, including for empty input, so it avoids `DataTable` allocation.
 
 ```csharp
-var sp = new StoredProcedureParametersBuilder("dbo", "usp_GetConfig", 64)
-    .AddFrozenCache("config:all")
+[GenerateTvp(Schema = "dbo", TvpName = "OrderLineType")]
+public sealed partial record OrderLine(int ProductId, int Quantity);
+
+var command = new StoredProcedureCommandBuilder("dbo", "usp_Order_AddLines")
+    .AddTvpParameter("Lines", lines)      // empty, small and large sequences are supported
+    .AddOutputParameter("OrderId", SqlDbType.Int)
     .Build();
+
+var result = await database.ExecuteWithOutputsAsync(command, ct);
+var orderId = result.Output.Get<int>("OrderId");
 ```
 
-### In-Memory cache — in-process, TTL
+Multi-result calls are generated for arities 2 through 10 and for `IEnumerable<T>`, `ReadOnlyCollection<T>` and `ImmutableArray<T>`. They require the announced result-set count by default; opt into `CaeriusResultSetCountPolicy.AllowMissing` or `AllowAdditional` only for deliberately variable procedures.
+
+## Caching and transactions
+
+Local memory and Frozen snapshot caches are part of `CaeriusNet`; Redis requires the separate `CaeriusNet.Redis` package and an `ICaeriusCacheCodec<T>`. Cache keys are centrally derived from the application namespace, procedure contract, result shape and canonical parameters—do not construct keys per procedure.
 
 ```csharp
-var sp = new StoredProcedureParametersBuilder("dbo", "usp_GetUsers_By_Age", 250)
-    .AddParameter("Age", age, SqlDbType.Int)
-    .AddInMemoryCache("users:age:" + age, TimeSpan.FromMinutes(5))
-    .Build();
-```
-
-### Redis cache — distributed, optional
-
-```csharp
-var sp = new StoredProcedureParametersBuilder("dbo", "usp_GetProducts", 512)
-    .AddRedisCache("products:all", TimeSpan.FromMinutes(10))
+var cached = new StoredProcedureCommandBuilder("dbo", "usp_Product_List")
+    .UseInMemoryCache(TimeSpan.FromMinutes(2), slidingExpiration: true)
     .Build();
 ```
 
-To enable Redis, register it during setup:
+Transactions hold one connection and one SQL transaction, forbid concurrent commands, bypass read-through cache, and defer declared invalidations until commit:
 
 ```csharp
-CaeriusNetBuilder
-    .Create(services)
-    .WithSqlServer(connectionString)
-    .WithRedis("localhost:6379")
-    .Build();
+await using var transaction = await database.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
+await transaction.ExecuteNonQueryAsync(command, ct);
+await transaction.CommitAsync(ct);
 ```
 
----
+The same materialized single- and multi-result APIs (all arities 2–10 and collection families) are available on a transaction, including `ExecuteWithOutputsAsync`, `ExecuteNonQueryWithOutputsAsync`, and `Query…WithOutputsAsync`. Outputs are read only after every result set has been consumed and its reader disposed; invalidations run only after `CommitAsync` succeeds. `transaction.StreamAsync<T>` retains the command slot for the lifetime of its enumeration—consume it fully before committing, or roll the transaction back. `CommitAsync` and `RollbackAsync` observe cancellation before their terminal SQL operation begins; after that cutoff, they finish without the caller token so a cancelled request cannot turn an already-sent commit into an ambiguous cache state.
 
-## Transactions
+## Documentation and support
 
-Execute multiple stored procedures atomically within a single transaction scope.
+- [Documentation site](https://caerius.net)
+- [Getting started](https://caerius.net/quickstart/getting-started)
+- [Migration from v11](MIGRATION-v11-v12.md)
+- [Issues](https://github.com/CaeriusNET/CaeriusNet/issues)
+- [Contributing](CONTRIBUTING.md)
 
-```csharp
-await using var tx = await dbContext.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
-
-var sp1 = new StoredProcedureParametersBuilder("dbo", "sp_DebitAccount")
-    .AddParameter("AccountId", fromId, SqlDbType.Int)
-    .AddParameter("Amount", amount, SqlDbType.Decimal)
-    .Build();
-
-var sp2 = new StoredProcedureParametersBuilder("dbo", "sp_CreditAccount")
-    .AddParameter("AccountId", toId, SqlDbType.Int)
-    .AddParameter("Amount", amount, SqlDbType.Decimal)
-    .Build();
-
-await tx.ExecuteNonQueryAsync(sp1, ct);
-await tx.ExecuteNonQueryAsync(sp2, ct);
-await tx.CommitAsync(ct);
-```
-
-Key design points:
-
-- **State machine** — Active → Committed / RolledBack / Poisoned.
-- **Single in-flight command** — concurrent commands on the same transaction throw `InvalidOperationException`.
-- **Cache bypass** — no reads from cache, no writes to cache inside a transaction.
-- **Auto-rollback on dispose** — if `CommitAsync` is never called, the transaction rolls back.
-
----
-
-## Write Operations
-
-Use the execute methods for INSERT, UPDATE, DELETE, and scalar return values.
-
-### Execute non-query
-
-```csharp
-var sp = new StoredProcedureParametersBuilder("dbo", "sp_UpdateUser")
-    .AddParameter("Guid", guid, SqlDbType.UniqueIdentifier)
-    .AddParameter("Age", age, SqlDbType.TinyInt)
-    .Build();
-
-int rows = await dbContext.ExecuteNonQueryAsync(sp, cancellationToken);
-```
-
-### Execute scalar
-
-```csharp
-var sp = new StoredProcedureParametersBuilder("dbo", "sp_CreateUser")
-    .AddParameter("Name", name, SqlDbType.NVarChar)
-    .Build();
-
-int newId = await dbContext.ExecuteScalarAsync<int>(sp, cancellationToken);
-```
-
-### Available methods
-
-| Category | Method |
-|----------|--------|
-| **Read** | `FirstQueryAsync`, `QueryAsReadOnlyCollectionAsync`, `QueryAsIEnumerableAsync`, `QueryAsImmutableArrayAsync` |
-| **Write** | `ExecuteNonQueryAsync`, `ExecuteAsync`, `ExecuteScalarAsync<T>` |
-| **Multi-result** | `QueryMultipleIEnumerableAsync<T1,T2>` … `<T1,T2,T3,T4,T5>` |
-
----
-
-## Aspire Integration
-
-Use `WithAspireSqlServer` and `WithAspireRedis` when running under .NET Aspire.
-
-```csharp
-CaeriusNetBuilder.Create(builder)
-    .WithAspireSqlServer("CaeriusNet")
-    .WithAspireRedis()
-    .Build();
-```
-
----
-
-## Prerequisites
-
-| Requirement | Minimum version |
-|-------------|----------------|
-| .NET | 10 |
-| C# | 14 |
-| SQL Server | 2019 |
-
----
-
-## Package Validation
-
-Before publishing, validate the NuGet package contents and smoke-test a consumer project:
-
-```bash
-pwsh ./.github/scripts/ValidatePackage.ps1 -Configuration Release -OutputDirectory .work/package-validation
-```
-
-Trim/AOT analyzer validation is covered by the Release build. To run it directly:
-
-```bash
-dotnet build Src/CaeriusNet.csproj --configuration Release -p:IsAotCompatible=true -p:EnableTrimAnalyzer=true
-```
-
----
-
-## Documentation & Resources
-
-- 📖 **[Full Documentation](https://caerius.net)** — VitePress docs with guides, API reference, benchmarks
-- 🚀 **[Getting Started](https://caerius.net/quickstart/getting-started)** — Installation and first query
-- 📊 **[Benchmarks](https://caerius.net/benchmarks/)** — Performance measurements with BenchmarkDotNet
-- 🔧 **[Source Generators](https://caerius.net/documentation/source-generators)** — `[GenerateDto]` and `[GenerateTvp]`
-- 🏗️ **[.NET Aspire](https://caerius.net/documentation/aspire)** — Cloud-native integration
-
----
-
-## Contributing
-
-Contributions are welcome. Read these first:
-
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) — coding standards, branch model, conventional commits, build/test commands.
-- [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) — Contributor Covenant 2.1.
-- [`SECURITY.md`](SECURITY.md) — how to responsibly report vulnerabilities (private GitHub advisory).
-- [`SUPPORT.md`](SUPPORT.md) — where to ask questions and get help.
-
-Quick path:
-
-1. Open an [issue](https://github.com/CaeriusNET/CaeriusNet/issues) to report a bug or propose a feature.
-2. Fork the repository and create a branch from `main`.
-3. Submit a [pull request](https://github.com/CaeriusNET/CaeriusNet/pulls) with a clear description of your change.
-
----
-
-## License
-
-CaeriusNet is licensed under the [MIT License](LICENSE).
+CaeriusNet is released under the [MIT License](LICENSE).

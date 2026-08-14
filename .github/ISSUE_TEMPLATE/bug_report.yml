@@ -13,7 +13,7 @@ body:
     attributes:
       label: Summary
       description: A clear and concise description of the bug.
-      placeholder: "Calling MultiQueryAsync with two TVPs throws InvalidCastException."
+      placeholder: "Calling QueryMultipleAsync with two TVPs throws a CaeriusMappingException."
     validations:
       required: true
   - type: textarea

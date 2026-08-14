@@ -17,6 +17,9 @@
 .github/CODEOWNERS @AriusII
 
 # Source code
-Src/ @AriusII
-SourceGenerators/ @AriusII
-Tests/ @AriusII
+src/ @AriusII
+tests/ @AriusII
+benchmarks/ @AriusII
+examples/ @AriusII
+docs/ @AriusII
+tools/ @AriusII

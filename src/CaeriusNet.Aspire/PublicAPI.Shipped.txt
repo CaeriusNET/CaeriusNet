@@ -1,0 +1,10 @@
+#nullable enable
+CaeriusNet.Aspire.CaeriusAspireExtensions
+CaeriusNet.Aspire.CaeriusAspireOptions
+CaeriusNet.Aspire.CaeriusAspireOptions.CaeriusAspireOptions() -> void
+CaeriusNet.Aspire.CaeriusAspireOptions.EnableLowLevelSqlClientTracing.get -> bool
+CaeriusNet.Aspire.CaeriusAspireOptions.EnableLowLevelSqlClientTracing.set -> void
+CaeriusNet.Aspire.CaeriusAspireOptions.EnableSqlServerVersionHealthCheck.get -> bool
+CaeriusNet.Aspire.CaeriusAspireOptions.EnableSqlServerVersionHealthCheck.set -> void
+static CaeriusNet.Aspire.CaeriusAspireExtensions.AddCaeriusNetAspire(this Microsoft.Extensions.Hosting.IHostApplicationBuilder! builder, string! sqlConnectionName, System.Action<CaeriusNet.CaeriusNetOptions!>? configureCaerius = null, System.Action<CaeriusNet.Aspire.CaeriusAspireOptions!>? configureAspire = null, string? redisConnectionName = null) -> Microsoft.Extensions.Hosting.IHostApplicationBuilder!
+static CaeriusNet.Aspire.CaeriusAspireExtensions.AddKeyedCaeriusNetAspire(this Microsoft.Extensions.Hosting.IHostApplicationBuilder! builder, string! caeriusName, string! sqlConnectionName, System.Action<CaeriusNet.CaeriusNetOptions!>? configureCaerius = null, System.Action<CaeriusNet.Aspire.CaeriusAspireOptions!>? configureAspire = null) -> Microsoft.Extensions.Hosting.IHostApplicationBuilder!

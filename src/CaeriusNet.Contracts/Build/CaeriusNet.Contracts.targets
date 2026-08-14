@@ -1,0 +1,51 @@
+<Project>
+    <ItemGroup Condition="Exists('$(CaeriusContractsOutput)')">
+        <AdditionalFiles Include="$(CaeriusContractsOutput)" CaeriusContractManifest="true"/>
+    </ItemGroup>
+    <ItemGroup Condition="Exists('$(CaeriusContractsOverrides)')">
+        <AdditionalFiles Include="$(CaeriusContractsOverrides)" CaeriusContractOverrides="true"/>
+    </ItemGroup>
+
+    <Target Name="CaeriusPrepareContracts" Condition="'$(DesignTimeBuild)' != 'true'">
+        <PropertyGroup>
+            <CaeriusContractsModeNormalized>$(CaeriusContractsMode.Trim().ToUpperInvariant())</CaeriusContractsModeNormalized>
+            <CaeriusContractsResolvedConnectionArguments Condition="'$(CaeriusContractsConnectionArguments)' != ''">$(CaeriusContractsConnectionArguments)</CaeriusContractsResolvedConnectionArguments>
+            <CaeriusContractsResolvedConnectionArguments Condition="'$(CaeriusContractsResolvedConnectionArguments)' == '' and '$(CaeriusContractsConnectionStringEnv)' != ''">--connection-env &quot;$(CaeriusContractsConnectionStringEnv)&quot;</CaeriusContractsResolvedConnectionArguments>
+            <CaeriusContractsResolvedConnectionArguments Condition="'$(CaeriusContractsResolvedConnectionArguments)' == '' and '$(CaeriusContractsConnectionString)' != ''">--connection-string &quot;$(CaeriusContractsConnectionString)&quot;</CaeriusContractsResolvedConnectionArguments>
+            <CaeriusContractsResolvedConnectionArguments Condition="'$(CaeriusContractsResolvedConnectionArguments)' == ''">--connection-name &quot;$(CaeriusContractsConnectionName)&quot; --configuration-base-path &quot;$(CaeriusContractsConfigurationBasePath)&quot;</CaeriusContractsResolvedConnectionArguments>
+            <CaeriusContractsResolvedConnectionArguments Condition="'$(CaeriusContractsConfigurationEnvironment)' != ''">$(CaeriusContractsResolvedConnectionArguments) --configuration-environment &quot;$(CaeriusContractsConfigurationEnvironment)&quot;</CaeriusContractsResolvedConnectionArguments>
+            <CaeriusContractsResolvedConnectionArguments Condition="'$(CaeriusContractsUserSecretsId)' != ''">$(CaeriusContractsResolvedConnectionArguments) --user-secrets-id &quot;$(CaeriusContractsUserSecretsId)&quot;</CaeriusContractsResolvedConnectionArguments>
+            <CaeriusContractsResolvedConnectionArguments>$(CaeriusContractsResolvedConnectionArguments) --timeout &quot;$(CaeriusContractsTimeout)&quot;</CaeriusContractsResolvedConnectionArguments>
+        </PropertyGroup>
+        <Warning Text="CaeriusContractsConnectionString is deprecated because MSBuild logs may expose secrets; prefer CaeriusContractsConnectionName or CaeriusContractsConnectionStringEnv."
+                 Condition="'$(CaeriusContractsConnectionString)' != ''"/>
+    </Target>
+
+    <Target Name="CaeriusValidateContractsMode" DependsOnTargets="CaeriusPrepareContracts" Condition="'$(DesignTimeBuild)' != 'true'">
+        <Error Text="CaeriusContractsMode must be Off, Pull, or Verify. Current value: '$(CaeriusContractsMode)'."
+               Condition="'$(CaeriusContractsMode.Trim().ToUpperInvariant())' != 'OFF' and '$(CaeriusContractsMode.Trim().ToUpperInvariant())' != 'PULL' and '$(CaeriusContractsMode.Trim().ToUpperInvariant())' != 'VERIFY'"/>
+    </Target>
+
+    <Target Name="CaeriusPullContracts" DependsOnTargets="CaeriusValidateContractsMode" Condition="'$(DesignTimeBuild)' != 'true' and '$(CaeriusContractsMode.Trim().ToUpperInvariant())' == 'PULL'">
+        <Exec EchoOff="true" WorkingDirectory="$(CaeriusContractsConfigurationBasePath)"
+              Command="$(CaeriusContractsToolCommand) pull $(CaeriusContractsResolvedConnectionArguments) --output &quot;$(CaeriusContractsOutput)&quot;"/>
+    </Target>
+
+    <Target Name="CaeriusVerifyContracts" DependsOnTargets="CaeriusValidateContractsMode" Condition="'$(DesignTimeBuild)' != 'true' and '$(CaeriusContractsMode.Trim().ToUpperInvariant())' == 'VERIFY'">
+        <Error Text="CaeriusContractsOutput does not exist: '$(CaeriusContractsOutput)'." Condition="!Exists('$(CaeriusContractsOutput)')"/>
+        <Exec EchoOff="true" WorkingDirectory="$(CaeriusContractsConfigurationBasePath)"
+              Command="$(CaeriusContractsToolCommand) verify $(CaeriusContractsResolvedConnectionArguments) --manifest &quot;$(CaeriusContractsOutput)&quot;"/>
+    </Target>
+
+    <Target Name="CaeriusAddContractsManifest" BeforeTargets="GenerateMSBuildEditorConfigFileCore;CoreCompile"
+            DependsOnTargets="CaeriusValidateContractsMode;CaeriusPullContracts;CaeriusVerifyContracts" Condition="'$(DesignTimeBuild)' != 'true'">
+        <ItemGroup Condition="Exists('$(CaeriusContractsOutput)')">
+            <AdditionalFiles Remove="$(CaeriusContractsOutput)"/>
+            <AdditionalFiles Include="$(CaeriusContractsOutput)" CaeriusContractManifest="true"/>
+        </ItemGroup>
+        <ItemGroup Condition="Exists('$(CaeriusContractsOverrides)')">
+            <AdditionalFiles Remove="$(CaeriusContractsOverrides)"/>
+            <AdditionalFiles Include="$(CaeriusContractsOverrides)" CaeriusContractOverrides="true"/>
+        </ItemGroup>
+    </Target>
+</Project>

@@ -22,7 +22,7 @@ updates:
           - "Aspire.*"
 
   - package-ecosystem: "npm"
-    directory: "/Documentations"
+    directory: "/docs"
     schedule:
       interval: "weekly"
       day: "monday"

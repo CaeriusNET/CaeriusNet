@@ -1,0 +1,4 @@
+#nullable enable
+CaeriusNet.CaeriusNetOptions.CacheDatabaseIdentity.get -> string?
+CaeriusNet.CaeriusNetOptions.CacheDatabaseIdentity.set -> void
+CaeriusNet.Abstractions.IInMemoryCacheManager.GetOrCreateAsync<T, TState>(string! key, System.TimeSpan expiration, bool slidingExpiration, TState state, System.Func<TState, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! factory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<T>
