@@ -7,7 +7,7 @@ echo "[devcontainer] dotnet --info"
 dotnet --info
 
 echo "[devcontainer] Restoring CaeriusNet.slnx"
-dotnet restore CaeriusNet.slnx
+dotnet restore CaeriusNet.slnx --locked-mode
 
 echo "[devcontainer] Pre-pulling mcr.microsoft.com/mssql/server:2022-latest (best-effort)"
 docker pull mcr.microsoft.com/mssql/server:2022-latest || \

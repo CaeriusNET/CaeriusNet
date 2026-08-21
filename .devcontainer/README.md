@@ -9,7 +9,7 @@ Rider, GitHub Codespaces) and you get the exact toolchain CI uses — no host-si
 
 | Layer | Provided by |
 | ----- | ----------- |
-| .NET 10 SDK (Bookworm) | `mcr.microsoft.com/devcontainers/dotnet:1-10.0-bookworm` |
+| .NET 10 SDK (Noble) | `mcr.microsoft.com/devcontainers/dotnet:2-10.0-noble@sha256:0ad11caaa728e35cbc46b0592dd11ca0df8111e565a96471024a795f4d412c7c` |
 | Docker (for Testcontainers MSSQL) | `docker-outside-of-docker` feature |
 | GitHub CLI | `github-cli` feature |
 | Node.js LTS | `node` feature |

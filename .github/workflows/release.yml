@@ -43,13 +43,13 @@ jobs:
           [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup .NET from global.json
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
 
@@ -60,7 +60,7 @@ jobs:
         run: echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
 
       - name: Cache NuGet packages
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.nuget/packages
           key: nuget-release-${{ runner.os }}-${{ hashFiles('global.json', 'Directory.Packages.props', 'Directory.Build.props', 'Directory.Build.targets', '**/packages.lock.json') }}
@@ -164,15 +164,44 @@ jobs:
       - name: Restore four isolated consumers from the exact release packages
         run: bash ./.github/scripts/ValidatePackageConsumers.sh "$GITHUB_WORKSPACE/artifacts/packages" "$RUNNER_TEMP/caeriusnet-release-consumers"
 
-      - name: Exercise Docker acceptance gates from the exact release packages
+      - name: Exercise Docker acceptance gates against exact release packages
         env:
           CAERIUS_RUN_CONTAINERS: 'true'
           CAERIUS_PACKAGE_DIRECTORY: ${{ github.workspace }}/artifacts/packages
         run: |
+          set -euo pipefail
+          package_test_root="$RUNNER_TEMP/caeriusnet-release-package-integration"
+          package_lock="$package_test_root/packages.lock.json"
+          intermediate_directory="$package_test_root/obj/"
+          output_directory="$package_test_root/bin/"
+          mkdir -p "$package_test_root"
+          export NUGET_PACKAGES="$package_test_root/nuget-packages"
+          package_properties=(
+            -p:UseCaeriusReleasePackages=true
+            -p:CaeriusPackageVersion="${{ steps.version.outputs.value }}"
+            -p:RestoreAdditionalProjectSources="$GITHUB_WORKSPACE/artifacts/packages"
+            -p:NuGetLockFilePath="$package_lock"
+            -p:BaseIntermediateOutputPath="$intermediate_directory"
+            -p:BaseOutputPath="$output_directory"
+          )
+          # The temporary package-consumer graph must be created once before the locked
+          # restore can verify it. Keep the two phases explicit: the second restore may
+          # not mutate the freshly written lock file.
+          dotnet msbuild tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj \
+            /t:Restore \
+            /p:RestoreLockedMode=false \
+            "${package_properties[@]}"
+          dotnet restore tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj \
+            "${package_properties[@]}" \
+            --locked-mode
+          if grep -q '"type": "project"' "$intermediate_directory/project.assets.json"; then
+            echo 'Release integration gate must resolve CaeriusNet dependencies from packages, not ProjectReference.' >&2
+            exit 1
+          fi
           dotnet test --project tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj \
             --configuration Release \
             --no-restore \
-            --no-build \
+            "${package_properties[@]}" \
             --results-directory ./artifacts/test-results/integration \
             --report-trx \
             --report-trx-filename integration-results.trx \
@@ -191,7 +220,7 @@ jobs:
           )
 
       - name: Upload exact release artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: caeriusnet-release-${{ steps.version.outputs.value }}
           path: artifacts/packages/*
@@ -200,7 +229,7 @@ jobs:
 
       - name: NuGet login (OIDC)
         id: nuget_login
-        uses: NuGet/login@v1
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
         with:
           user: ${{ secrets.NUGET_USER }}
 

@@ -10,6 +10,16 @@
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
         <WarningLevel>4</WarningLevel>
         <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
+        <!-- Release validates this project once against the exact packed dependencies.  The default
+             remains source references so developers and normal CI retain the fast inner loop. -->
+        <UseCaeriusReleasePackages Condition="'$(UseCaeriusReleasePackages)' == ''">false</UseCaeriusReleasePackages>
+        <CaeriusPackageVersion Condition="'$(CaeriusPackageVersion)' == ''">$(Version)</CaeriusPackageVersion>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(UseCaeriusReleasePackages)' == 'true'">
+        <!-- A package gate redirects obj/bin to a temporary directory.  Keep any regular local
+             obj/bin artifacts out of the default Compile globs while that redirection is active. -->
+        <DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)/obj/**;$(MSBuildProjectDirectory)/bin/**</DefaultItemExcludes>
     </PropertyGroup>
 
     <ItemGroup>
@@ -25,7 +35,16 @@
         <PackageReference Include="Testcontainers.Redis"/>
     </ItemGroup>
 
-    <ItemGroup>
+    <ItemGroup Condition="'$(UseCaeriusReleasePackages)' == 'true'">
+        <PackageVersion Include="CaeriusNet" Version="$(CaeriusPackageVersion)"/>
+        <PackageVersion Include="CaeriusNet.Redis" Version="$(CaeriusPackageVersion)"/>
+        <PackageVersion Include="CaeriusNet.Aspire" Version="$(CaeriusPackageVersion)"/>
+        <PackageReference Include="CaeriusNet"/>
+        <PackageReference Include="CaeriusNet.Redis"/>
+        <PackageReference Include="CaeriusNet.Aspire"/>
+    </ItemGroup>
+
+    <ItemGroup Condition="'$(UseCaeriusReleasePackages)' != 'true'">
         <ProjectReference Include="..\..\src\CaeriusNet\CaeriusNet.csproj"/>
         <ProjectReference Include="..\..\src\CaeriusNet.Redis\CaeriusNet.Redis.csproj"/>
         <ProjectReference Include="..\..\src\CaeriusNet.Aspire\CaeriusNet.Aspire.csproj"/>
