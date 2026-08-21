@@ -206,10 +206,14 @@ public sealed class SqlRedisReadThroughAcceptanceTests
         CancellationToken cancellationToken)
     {
         await ResetCountersAsync(connectionString, cancellationToken);
+        await SetSnapshotReadGateAsync(connectionString, isOpen: false, cancellationToken: cancellationToken);
         await redis.ExecuteAsync("FLUSHDB");
         // Use a procedure identity dedicated to this race. Reusing the earlier single-flight
         // scenario's command can legitimately overlap its asynchronous flight teardown and make
-        // an unrelated completed population look like a stale re-publication.
+        // an unrelated completed population look like a stale re-publication. The SQL procedure
+        // stops at a gate after it has captured its database snapshot. Releasing that gate only
+        // after ExecuteAsync returns proves that Redis invalidation completed before the stale
+        // population attempts to publish.
         var read = CachedWidgetCommand("caerius_redis_read_widget_snapshot_slow", TimeSpan.FromMinutes(1));
         var write = new StoredProcedureCommandBuilder("dbo", "caerius_redis_update_widget")
             .AddParameter("@name", "redis widget updated", SqlDbType.NVarChar, size: 80)
@@ -225,6 +229,7 @@ public sealed class SqlRedisReadThroughAcceptanceTests
 
         await WaitForCounterAsync(connectionString, "snapshot", 1, cancellationToken);
         await writer.ExecuteAsync(write, cancellationToken);
+        await SetSnapshotReadGateAsync(connectionString, isOpen: true, cancellationToken: cancellationToken);
 
         var stale = Assert.Single(await staleRead);
         Assert.Equal("redis widget", stale.Name);
@@ -396,6 +401,12 @@ public sealed class SqlRedisReadThroughAcceptanceTests
                                        INSERT dbo.CaeriusRedisAcceptanceWidget (Id, Name) VALUES (7, N'redis widget');
                                        """, cancellationToken);
         await ExecuteAsync(connection, """
+                                       IF OBJECT_ID(N'dbo.CaeriusRedisAcceptanceGate', N'U') IS NULL
+                                           CREATE TABLE dbo.CaeriusRedisAcceptanceGate (Name nvarchar(32) NOT NULL PRIMARY KEY, IsOpen bit NOT NULL);
+                                       DELETE FROM dbo.CaeriusRedisAcceptanceGate;
+                                       INSERT dbo.CaeriusRedisAcceptanceGate (Name, IsOpen) VALUES (N'snapshot-read', 0);
+                                       """, cancellationToken);
+        await ExecuteAsync(connection, """
                                        CREATE OR ALTER PROCEDURE dbo.caerius_redis_read_widget
                                        AS
                                        BEGIN
@@ -426,7 +437,13 @@ public sealed class SqlRedisReadThroughAcceptanceTests
                                            DECLARE @snapshot TABLE (Id int NOT NULL, Name nvarchar(80) NOT NULL);
                                            INSERT @snapshot (Id, Name) SELECT Id, Name FROM dbo.CaeriusRedisAcceptanceWidget;
                                            UPDATE dbo.CaeriusRedisAcceptanceCounter SET Value = Value + 1 WHERE Name = N'snapshot';
-                                           WAITFOR DELAY '00:00:00.300';
+                                           WHILE NOT EXISTS (
+                                               SELECT 1
+                                               FROM dbo.CaeriusRedisAcceptanceGate
+                                               WHERE Name = N'snapshot-read' AND IsOpen = 1)
+                                           BEGIN
+                                               WAITFOR DELAY '00:00:00.010';
+                                           END
                                            SELECT Id, Name FROM @snapshot;
                                        END
                                        """, cancellationToken);
@@ -463,6 +480,20 @@ public sealed class SqlRedisReadThroughAcceptanceTests
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken);
         await ExecuteAsync(connection, "UPDATE dbo.CaeriusRedisAcceptanceCounter SET Value = 0;", cancellationToken);
+    }
+
+    private static async Task SetSnapshotReadGateAsync(
+        string connectionString,
+        bool isOpen,
+        CancellationToken cancellationToken)
+    {
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText =
+            "UPDATE dbo.CaeriusRedisAcceptanceGate SET IsOpen = @isOpen WHERE Name = N'snapshot-read';";
+        command.Parameters.Add(new SqlParameter("@isOpen", SqlDbType.Bit) { Value = isOpen });
+        await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
     private static async Task<int> ReadCounterAsync(string connectionString, string name,

@@ -64,12 +64,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 1
 
       - name: Setup .NET from global.json
-        uses: actions/setup-dotnet@v6
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
 
@@ -77,7 +77,7 @@ jobs:
         run: echo "CAERIUS_BENCHMARK_SDK_VERSION=$(dotnet --version)" >> "$GITHUB_ENV"
 
       - name: Cache NuGet packages
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.nuget/packages
           key: nuget-bench-${{ runner.os }}-${{ hashFiles('global.json', 'Directory.Packages.props', 'Directory.Build.props', 'Directory.Build.targets', '**/packages.lock.json') }}
@@ -182,7 +182,7 @@ jobs:
 
       - name: Upload benchmark reports
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: benchmark-reports-${{ github.run_number }}
           path: ${{ steps.run.outputs.results }}
@@ -191,7 +191,7 @@ jobs:
 
       - name: Upload baseline candidate
         if: always() && steps.mode.outputs.value == 'record'
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         with:
           name: benchmark-baseline-candidate-${{ github.run_number }}
           path: ${{ steps.record.outputs.directory }}

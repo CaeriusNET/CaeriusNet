@@ -130,7 +130,7 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransaction
         {
             await Transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
         }
-        catch
+        catch (Exception exception) when (IsNonFatal(exception))
         {
             // Dispose is teardown only.  There is no pending SQL success to report here, and both
             // underlying resources still need an opportunity to release their connection state.
@@ -180,11 +180,22 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransaction
         {
             await disposable.DisposeAsync().ConfigureAwait(false);
         }
-        catch
+        catch (Exception exception) when (IsNonFatal(exception))
         {
             // A teardown failure must not hide the primary TDS exception and cannot prevent the
             // remaining resource from being released.
         }
+    }
+
+    internal static bool IsNonFatal(Exception exception)
+    {
+        return exception is not OutOfMemoryException
+            and not StackOverflowException
+            and not AccessViolationException
+            and not AppDomainUnloadedException
+            and not BadImageFormatException
+            and not CannotUnloadAppDomainException
+            and not System.Threading.ThreadAbortException;
     }
 
     internal void AcquireCommandSlot()

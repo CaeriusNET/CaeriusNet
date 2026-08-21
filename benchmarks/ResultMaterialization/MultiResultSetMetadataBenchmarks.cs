@@ -22,7 +22,8 @@ public class MultiResultSetMetadataBenchmarks
     public void Setup()
     {
         _serviceCollection.AddCaeriusNet(options =>
-            options.UseSqlServer("Server=benchmark.invalid;Database=CaeriusNet;"));
+            options.UseSqlServer(
+                "Server=benchmark.invalid;Database=CaeriusNet;Encrypt=Strict;TrustServerCertificate=False"));
         _services = _serviceCollection.BuildServiceProvider();
         _memory = _services.GetRequiredService<IInMemoryCacheManager>();
         _frozen = _services.GetRequiredService<IFrozenCacheManager>();

@@ -174,7 +174,13 @@ fi
 export NUGET_PACKAGES="$consumer_root/nuget-packages"
 project="$consumer_root/CaeriusNet.NativeAotPackageSmoke.csproj"
 publish_directory="$consumer_root/publish"
-dotnet restore "$project" --configfile "$consumer_root/NuGet.config"
+# This fresh, isolated consumer has no checked-in lock file. Bootstrap its lock graph from the
+# package feed, then require the immediately repeated restore to consume that exact graph.
+dotnet msbuild "$project" /t:Restore \
+  /p:RestorePackagesWithLockFile=true \
+  /p:RestoreLockedMode=false \
+  "/p:RestoreConfigFile=$consumer_root/NuGet.config"
+dotnet restore "$project" --configfile "$consumer_root/NuGet.config" --locked-mode
 dotnet publish "$project" --configuration Release --no-restore --output "$publish_directory"
 
 binary="$publish_directory/CaeriusNet.NativeAotPackageSmoke"

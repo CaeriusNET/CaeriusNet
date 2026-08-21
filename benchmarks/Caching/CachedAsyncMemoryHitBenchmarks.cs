@@ -29,7 +29,8 @@ public class CachedAsyncMemoryHitBenchmarks
             true,
             null);
         var services = new ServiceCollection();
-        services.AddCaeriusNet(options => options.UseSqlServer("Server=benchmark.invalid;Database=CaeriusNet;"));
+        services.AddCaeriusNet(options => options.UseSqlServer(
+            "Server=benchmark.invalid;Database=CaeriusNet;Encrypt=Strict;TrustServerCertificate=False"));
         services.AddCaeriusCacheCodec<BenchmarkDto, BenchmarkDtoCaeriusCacheCodec>();
         _services = services.BuildServiceProvider();
         _scope = _services.CreateScope();

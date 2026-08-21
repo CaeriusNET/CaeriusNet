@@ -116,7 +116,11 @@ internal sealed class RedisCacheManager : IRedisCacheManager, IDisposable
             _ = DisposeLeaseWhenCompletedAsync(leaseTask);
             throw;
         }
-        catch (Exception exception)
+        catch (RedisTimeoutException exception)
+        {
+            throw new CaeriusCacheException("get", exception);
+        }
+        catch (RedisException exception)
         {
             throw new CaeriusCacheException("get", exception);
         }

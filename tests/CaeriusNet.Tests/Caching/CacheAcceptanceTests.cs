@@ -374,7 +374,7 @@ public sealed class CacheAcceptanceTests
     }
 
     [Fact]
-    public async Task RedisLookupOperationalFailuresFailOpenToTheSqlFactory()
+    public async Task RedisLookupNonFatalFailuresFailOpenToTheSqlFactory()
     {
         var failures = new Exception[]
         {
@@ -382,7 +382,8 @@ public sealed class CacheAcceptanceTests
             new System.IO.IOException("lookup transport failed"),
             new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.ConnectionReset),
             new ObjectDisposedException("redis-multiplexer"),
-            new CaeriusCacheException("get", new TimeoutException("wrapped lookup timed out"))
+            new CaeriusCacheException("get", new TimeoutException("wrapped lookup timed out")),
+            new InvalidOperationException("third-party cache failure")
         };
 
         foreach (var failure in failures)
@@ -409,11 +410,11 @@ public sealed class CacheAcceptanceTests
     }
 
     [Fact]
-    public async Task RedisPopulationCacheFailureReturnsTheSqlFactoryResult()
+    public async Task RedisPopulationNonFatalFailureReturnsTheSqlFactoryResult()
     {
         var remote = new DeterministicRemoteCache
         {
-            SetFailure = new CaeriusCacheException("set", new TimeoutException("population timed out"))
+            SetFailure = new InvalidOperationException("third-party cache failure")
         };
         using var provider = CreateProvider(remote);
         using var scope = provider.CreateScope();
@@ -429,58 +430,6 @@ public sealed class CacheAcceptanceTests
             new Int32Codec());
 
         Assert.Equal(1, result);
-        Assert.Equal(1, calls);
-        Assert.Equal(1, remote.LookupCalls);
-        Assert.Equal(1, remote.SetCalls);
-    }
-
-    [Fact]
-    public async Task RedisLookupUnexpectedFailureIsPropagated()
-    {
-        var remote = new DeterministicRemoteCache
-        {
-            LookupFailure = new InvalidOperationException("lookup contract failure")
-        };
-        using var provider = CreateProvider(remote);
-        using var scope = provider.CreateScope();
-        var context = (ICaeriusExecutionContext)scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
-        var calls = 0;
-
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => CaeriusExecutor.CachedAsync(
-            context,
-            RedisCommand("LookupUnexpectedFailure"),
-            "integer",
-            _ => ValueTask.FromResult(Interlocked.Increment(ref calls)),
-            TestContext.Current.CancellationToken,
-            new Int32Codec()).AsTask());
-
-        Assert.Equal("lookup contract failure", exception.Message);
-        Assert.Equal(0, calls);
-        Assert.Equal(1, remote.LookupCalls);
-        Assert.Equal(0, remote.SetCalls);
-    }
-
-    [Fact]
-    public async Task RedisPopulationUnexpectedFailureIsPropagated()
-    {
-        var remote = new DeterministicRemoteCache
-        {
-            SetFailure = new InvalidOperationException("population contract failure")
-        };
-        using var provider = CreateProvider(remote);
-        using var scope = provider.CreateScope();
-        var context = (ICaeriusExecutionContext)scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
-        var calls = 0;
-
-        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => CaeriusExecutor.CachedAsync(
-            context,
-            RedisCommand("PopulationUnexpectedFailure"),
-            "integer",
-            _ => ValueTask.FromResult(Interlocked.Increment(ref calls)),
-            TestContext.Current.CancellationToken,
-            new Int32Codec()).AsTask());
-
-        Assert.Equal("population contract failure", exception.Message);
         Assert.Equal(1, calls);
         Assert.Equal(1, remote.LookupCalls);
         Assert.Equal(1, remote.SetCalls);
@@ -541,7 +490,7 @@ public sealed class CacheAcceptanceTests
         var remote = new DeterministicRemoteCache();
         var services = new ServiceCollection();
         services.AddCaeriusNet("reporting", options => options.UseSqlServer(
-            "Server=.;Database=cache_reporting;Integrated Security=true;TrustServerCertificate=true"));
+            "Server=.;Database=cache_reporting;Integrated Security=true;Encrypt=Strict;TrustServerCertificate=False"));
         services.AddSingleton<ICaeriusRemoteCacheManager>(remote);
         using var provider = services.BuildServiceProvider();
         using var requestScope = provider.CreateScope();
@@ -584,6 +533,22 @@ public sealed class CacheAcceptanceTests
     }
 
     [Fact]
+    public async Task RemoteInvalidationDoesNotWrapFatalFailures()
+    {
+        var failure = CreateSimulatedFatalFailure();
+        var remote = new DeterministicRemoteCache { RemoveFailure = failure };
+        using var provider = CreateProvider(remote);
+        using var scope = provider.CreateScope();
+        var context = (ICaeriusExecutionContext)scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
+
+        var exception = await Assert.ThrowsAsync<OutOfMemoryException>(() =>
+            CaeriusExecutor.InvalidateStrictAsync(context, ["one"], TestContext.Current.CancellationToken).AsTask());
+
+        Assert.Same(failure, exception);
+        Assert.Equal(1, remote.RemoveCalls);
+    }
+
+    [Fact]
     public async Task DurableSqlInvalidationFailureHasANonRetryableStateException()
     {
         var remote = new DeterministicRemoteCache { RemoveFailure = new InvalidOperationException("remove down") };
@@ -597,6 +562,22 @@ public sealed class CacheAcceptanceTests
         Assert.True(exception.SqlWasCommitted);
         Assert.IsType<CaeriusCacheException>(exception.InnerException);
         Assert.Contains("Do not blindly retry", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DurableSqlInvalidationDoesNotWrapFatalFailures()
+    {
+        var failure = CreateSimulatedFatalFailure();
+        var remote = new DeterministicRemoteCache { RemoveFailure = failure };
+        using var provider = CreateProvider(remote);
+        using var scope = provider.CreateScope();
+        var context = (ICaeriusExecutionContext)scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
+
+        var exception = await Assert.ThrowsAsync<OutOfMemoryException>(() =>
+            CaeriusExecutor.InvalidateAfterDurableSqlAsync(context, ["orders"]).AsTask());
+
+        Assert.Same(failure, exception);
+        Assert.Equal(1, remote.RemoveCalls);
     }
 
     [Fact]
@@ -657,7 +638,7 @@ public sealed class CacheAcceptanceTests
         var services = new ServiceCollection();
         services.Configure<CaeriusMemoryCacheOptions>(options => options.SizeLimit = sizeLimit);
         services.AddCaeriusNet(options => options.UseSqlServer(
-            "Server=.;Database=cache_acceptance;Integrated Security=true;TrustServerCertificate=true"));
+            "Server=.;Database=cache_acceptance;Integrated Security=true;Encrypt=Strict;TrustServerCertificate=False"));
         if (remote is not null)
             services.AddSingleton<ICaeriusRemoteCacheManager>(remote);
         return services.BuildServiceProvider();
@@ -668,6 +649,13 @@ public sealed class CacheAcceptanceTests
         return new StoredProcedureCommandBuilder("dbo", procedureName)
             .UseRedisCache(TimeSpan.FromMinutes(1))
             .Build();
+    }
+
+    private static OutOfMemoryException CreateSimulatedFatalFailure()
+    {
+#pragma warning disable CA2201 // The tests need a representative fatal runtime exception to verify it is never wrapped.
+        return new OutOfMemoryException("simulated fatal cache failure");
+#pragma warning restore CA2201
     }
 
     private sealed class DeterministicRemoteCache : ICaeriusRemoteCacheManager
