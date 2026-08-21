@@ -58,7 +58,7 @@ env:
 
 jobs:
   benchmark:
-    name: ${{ inputs.category || 'all' }} (${{ inputs.mode || 'compare' }})
+    name: ${{ inputs.category || 'all' }} (${{ inputs.mode || (github.event_name == 'pull_request' && 'run') || 'compare' }})
     runs-on: ubuntu-24.04
     timeout-minutes: 30
 
@@ -82,6 +82,22 @@ jobs:
           path: ~/.nuget/packages
           key: nuget-bench-${{ runner.os }}-${{ hashFiles('global.json', 'Directory.Packages.props', 'Directory.Build.props', 'Directory.Build.targets', '**/packages.lock.json') }}
           restore-keys: nuget-bench-${{ runner.os }}-
+
+      - name: Resolve benchmark mode
+        id: mode
+        env:
+          REQUESTED_MODE: ${{ inputs.mode }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          MODE="$REQUESTED_MODE"
+          if [ -z "$MODE" ]; then
+            if [ "$EVENT_NAME" = 'pull_request' ]; then
+              MODE='run'
+            else
+              MODE='compare'
+            fi
+          fi
+          echo "value=$MODE" >> "$GITHUB_OUTPUT"
 
       - name: Restore benchmark dependencies
         run: dotnet restore benchmarks/CaeriusNet.Benchmark.csproj --locked-mode
@@ -109,7 +125,7 @@ jobs:
           echo "results=$RESULTS" >> "$GITHUB_OUTPUT"
 
       - name: Validate baseline version input
-        if: inputs.mode != 'run'
+        if: steps.mode.outputs.value != 'run'
         id: baseline
         run: |
           VERSION="${{ inputs.baseline_version || '11.2.0' }}"
@@ -120,7 +136,7 @@ jobs:
           echo "directory=$GITHUB_WORKSPACE/benchmarks/baselines/$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Validate comparison scope
-        if: inputs.mode != 'run'
+        if: steps.mode.outputs.value != 'run'
         run: |
           CATEGORY="${{ inputs.category || 'all' }}"
           if [ "$CATEGORY" != 'all' ]; then
@@ -130,7 +146,7 @@ jobs:
           fi
 
       - name: Compare with the committed baseline
-        if: inputs.mode == 'compare' || inputs.mode == ''
+        if: steps.mode.outputs.value == 'compare'
         env:
           BASELINE_DIRECTORY: ${{ steps.baseline.outputs.directory }}
           CANDIDATE_DIRECTORY: ${{ steps.run.outputs.results }}
@@ -142,7 +158,7 @@ jobs:
             --compare "$BASELINE_DIRECTORY" "$CANDIDATE_DIRECTORY" --max-time-regression 5
 
       - name: Record candidate baseline
-        if: inputs.mode == 'record'
+        if: steps.mode.outputs.value == 'record'
         id: record
         env:
           CANDIDATE_DIRECTORY: ${{ steps.run.outputs.results }}
@@ -174,7 +190,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload baseline candidate
-        if: always() && inputs.mode == 'record'
+        if: always() && steps.mode.outputs.value == 'record'
         uses: actions/upload-artifact@v5
         with:
           name: benchmark-baseline-candidate-${{ github.run_number }}

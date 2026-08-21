@@ -61,6 +61,8 @@ BenchmarkDotNet.Artifacts/
 project.lock.json
 project.fragment.lock.json
 artifacts/
+!tests/CaeriusNet.Packaging.Tests/Artifacts/
+!tests/CaeriusNet.Packaging.Tests/Artifacts/*.cs
 coverage/
 **/%TEMP%/
 
