@@ -226,6 +226,7 @@ public sealed class SqlServerAcceptanceMatrixTests
                 await foreach (var _ in database.StreamAsync<Widget>(
                                    StreamCommand(1, true), cancellation.Token))
                 {
+                    // Intentionally enumerate until cancellation is observed.
                 }
             });
         }
@@ -237,6 +238,7 @@ public sealed class SqlServerAcceptanceMatrixTests
             await foreach (var _ in database.StreamAsync<Widget>(
                                StreamCommand(4, badAt: 3), cancellationToken))
             {
+                // Intentionally enumerate until the mapper reports the malformed row.
             }
         });
         Assert.Equal(0, mapping.ResultSetIndex);
@@ -248,6 +250,7 @@ public sealed class SqlServerAcceptanceMatrixTests
             await foreach (var _ in database.StreamAsync<Widget>(
                                StreamCommand(2, additionalSet: true), cancellationToken))
             {
+                // Intentionally enumerate until the unexpected result set is reported.
             }
         });
         Assert.Equal(0, await database.ExecuteScalarAsync<int>(CounterCommand(), cancellationToken));

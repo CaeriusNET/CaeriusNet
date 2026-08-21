@@ -461,11 +461,13 @@ internal static class CaeriusExecutor
     {
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
+            // Intentionally drain every remaining row in the current result set.
         }
 
         while (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
+            // Intentionally drain every row in each additional result set.
         }
     }
 

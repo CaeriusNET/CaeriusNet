@@ -115,7 +115,7 @@ public sealed class SqlRedisReadThroughAcceptanceTests
         await redis.ExecuteAsync("FLUSHDB");
         var command = CachedWidgetCommand("caerius_redis_read_widget_slow", TimeSpan.FromMinutes(1));
         var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var ready = new CountdownEvent(32);
+        using var ready = new CountdownEvent(32);
 
         var calls = Enumerable.Range(0, 32).Select(async _ =>
         {

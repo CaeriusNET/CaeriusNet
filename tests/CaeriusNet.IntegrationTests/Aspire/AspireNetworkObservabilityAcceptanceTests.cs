@@ -314,6 +314,7 @@ public sealed class AspireNetworkObservabilityAcceptanceTests
         {
             while (_spans.TryDequeue(out _))
             {
+                // Intentionally drain every snapshot recorded by this test processor.
             }
         }
     }

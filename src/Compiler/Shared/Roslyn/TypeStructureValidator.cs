@@ -63,9 +63,10 @@ internal static class TypeStructureValidator
         };
         if (parameterCount is null)
             return null;
+        var requiredParameterCount = parameterCount.Value;
 
         var candidates = typeSymbol.Constructors
-            .Where(constructor => !constructor.IsStatic && constructor.Parameters.Length == parameterCount.Value)
+            .Where(constructor => !constructor.IsStatic && constructor.Parameters.Length == requiredParameterCount)
             .OrderBy(static constructor => constructor.Locations.FirstOrDefault()?.SourceTree?.FilePath,
                 StringComparer.Ordinal)
             .ThenBy(static constructor => constructor.Locations.FirstOrDefault()?.SourceSpan.Start ?? int.MaxValue)

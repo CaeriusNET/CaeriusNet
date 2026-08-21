@@ -307,6 +307,7 @@ public static class CaeriusNetTransactionExtensions
 
                 while (await reader.ReadAsync(token).ConfigureAwait(false))
                 {
+                    // Intentionally drain the remaining rows after selecting the first value.
                 }
 
                 await CaeriusExecutor.EnsureNoAdditionalResultSetsAsync(reader, command, token).ConfigureAwait(false);

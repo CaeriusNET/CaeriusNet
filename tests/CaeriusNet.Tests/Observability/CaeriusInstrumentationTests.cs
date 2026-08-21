@@ -28,9 +28,6 @@ public sealed class CaeriusInstrumentationTests
 
         // JIT and static initialization must not be part of the allocation assertion.
         ExecuteSuccessfulOperation(instrumentation, command, connection, options);
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
-        GC.Collect();
 
         var before = GC.GetAllocatedBytesForCurrentThread();
         for (var index = 0; index < 32; index++)
