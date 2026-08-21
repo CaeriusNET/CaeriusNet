@@ -118,6 +118,8 @@ public sealed class AutoContractsSourceGeneratorTests
     [InlineData("-3", true)]
     [InlineData("3.5", false)]
     [InlineData("3e-1", false)]
+    [InlineData("3.0000000000000004", false)]
+    [InlineData("2.9999999999999996", false)]
     [InlineData("1e999", false)]
     public void ManifestParser_AcceptsOnlyFiniteIntegerVersionValues(string version, bool isSuccess)
     {
