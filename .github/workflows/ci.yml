@@ -4,23 +4,20 @@ on:
   push:
     branches: [main, 'feature/**']
     paths-ignore:
-      - 'Documentations/**'
-      - '*.md'
+      - 'docs/**'
       - '.github/dependabot.yml'
   pull_request:
     branches: [main]
     paths-ignore:
-      - 'Documentations/**'
-      - '*.md'
+      - 'docs/**'
 
-# Cancel in-progress runs on the same branch/PR to avoid wasting runner minutes.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
-  pull-requests: write   # for sticky coverage comment
+  pull-requests: write
 
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -29,8 +26,8 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
-  build-and-test:
-    name: Build & Test
+  build-test-pack:
+    name: Build, test and package
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -44,98 +41,140 @@ jobs:
       - name: Display .NET SDK info
         run: dotnet --info
 
+      - name: Set deterministic package timestamp
+        run: echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
+
       - name: Cache NuGet packages
         uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('global.json', '**/*.csproj', '**/*.slnx') }}
+          key: nuget-${{ runner.os }}-${{ hashFiles('global.json', 'Directory.Packages.props', 'Directory.Build.props', 'Directory.Build.targets', '**/packages.lock.json') }}
           restore-keys: nuget-${{ runner.os }}-
 
-      - name: Restore dependencies
-        run: dotnet restore CaeriusNet.slnx
+      - name: Restore
+        run: dotnet restore CaeriusNet.slnx --locked-mode
 
       - name: Build (Release)
-        run: |
-          dotnet build CaeriusNet.slnx \
-            --configuration Release \
-            --no-restore \
-            -p:TreatWarningsAsErrors=true
+        run: dotnet build CaeriusNet.slnx --configuration Release --no-restore -p:TreatWarningsAsErrors=true
 
-      - name: Validate NuGet package
-        shell: pwsh
-        run: ./.github/scripts/ValidatePackage.ps1 -Configuration Release -OutputDirectory "${{ runner.temp }}/caerius-package-validation"
-
-      - name: Run tests with coverage
+      - name: Test unit and compiler projects
         run: |
-          dotnet test CaeriusNet.slnx \
+          set -euo pipefail
+          for test_project in \
+            tests/CaeriusNet.Tests/CaeriusNet.Tests.csproj \
+            tests/CaeriusNet.Analyzer.Tests/CaeriusNet.Analyzer.Tests.csproj \
+            tests/CaeriusNet.Generator.Tests/CaeriusNet.Generator.Tests.csproj; do
+            test_name=$(basename "$(dirname "$test_project")")
+            dotnet test --project "$test_project" \
+              --configuration Release \
+              --no-restore \
+              --no-build \
+              --results-directory ./artifacts/test-results \
+              --report-trx \
+              --report-trx-filename "$test_name.trx" \
+              --coverage \
+              --coverage-output "$test_name.coverage.cobertura.xml" \
+              --coverage-output-format cobertura
+          done
+
+      - name: Pack the four release artifacts once
+        run: |
+          set -euo pipefail
+          package_directory="$GITHUB_WORKSPACE/artifacts/packages"
+          mkdir -p "$package_directory"
+          dotnet pack src/CaeriusNet/CaeriusNet.csproj --configuration Release --no-build --output "$package_directory"
+          dotnet pack src/CaeriusNet.Redis/CaeriusNet.Redis.csproj --configuration Release --no-build --output "$package_directory"
+          dotnet pack src/CaeriusNet.Aspire/CaeriusNet.Aspire.csproj --configuration Release --no-build --output "$package_directory"
+          dotnet pack src/CaeriusNet.Contracts/CaeriusNet.Contracts.csproj --configuration Release --no-build --output "$package_directory"
+
+          repro_directory="$RUNNER_TEMP/caeriusnet-packages-repro"
+          mkdir -p "$repro_directory"
+          for project in \
+            src/CaeriusNet/CaeriusNet.csproj \
+            src/CaeriusNet.Redis/CaeriusNet.Redis.csproj \
+            src/CaeriusNet.Aspire/CaeriusNet.Aspire.csproj \
+            src/CaeriusNet.Contracts/CaeriusNet.Contracts.csproj; do
+            dotnet pack "$project" --configuration Release --no-build --output "$repro_directory"
+          done
+          for artifact in "$package_directory"/*.nupkg "$package_directory"/*.snupkg; do
+            cmp --silent "$artifact" "$repro_directory/$(basename "$artifact")"
+          done
+
+      - name: Exercise packaging acceptance tests from the packed nupkgs
+        run: |
+          dotnet test --project tests/CaeriusNet.Packaging.Tests/CaeriusNet.Packaging.Tests.csproj \
             --configuration Release \
             --no-restore \
             --no-build \
-            --filter "FullyQualifiedName!~IntegrationTests" \
-            --collect:"XPlat Code Coverage" \
-            --results-directory ./coverage \
-            --logger "trx;LogFileName=test-results.trx" \
-            --logger "console;verbosity=normal" \
-            -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura
+            --results-directory ./artifacts/test-results/packaging \
+            --report-trx \
+            --report-trx-filename packaging-results.trx \
+            --coverage \
+            --coverage-output packaging.coverage.cobertura.xml \
+            --coverage-output-format cobertura
 
-      - name: Upload coverage reports
-        uses: actions/upload-artifact@v5
-        if: always()
-        with:
-          name: coverage-reports
-          path: ./coverage/**/coverage.cobertura.xml
-          retention-days: 14
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v5
-        if: always()
-        with:
-          name: test-results
-          path: ./coverage/**/*.trx
-          retention-days: 14
-
-      - name: Generate coverage summary (markdown)
-        if: always()
+      - name: Exercise Contracts Pull and Verify from the packed nupkg
+        env:
+          CAERIUS_RUN_CONTAINERS: 'true'
+          CAERIUS_PACKAGE_DIRECTORY: ${{ github.workspace }}/artifacts/packages
         run: |
-          dotnet tool install --global dotnet-reportgenerator-globaltool --version 5.* >/dev/null 2>&1 || \
-            dotnet tool update  --global dotnet-reportgenerator-globaltool --version 5.* >/dev/null 2>&1 || true
-          export PATH="$PATH:$HOME/.dotnet/tools"
-          reportgenerator \
-            -reports:"./coverage/**/coverage.cobertura.xml" \
-            -targetdir:./coverage/report \
-            -reporttypes:"MarkdownSummaryGithub;HtmlInline_AzurePipelines;Cobertura" \
-            -filefilters:"-**/obj/**;-**/bin/**" \
-            -classfilters:"-CaeriusNet.Generator*;-*Tests*"
-          if [ -f ./coverage/report/SummaryGithub.md ]; then
-            {
-              echo "## 📊 Coverage summary"
-              echo
-              cat ./coverage/report/SummaryGithub.md
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
+          dotnet test --project tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj \
+            --configuration Release \
+            --no-restore \
+            --no-build \
+            --filter "FullyQualifiedName~ContractsPackageAcceptanceTests" \
+            --results-directory ./artifacts/test-results/contracts \
+            --report-trx \
+            --report-trx-filename contracts-results.trx \
+            --coverage \
+            --coverage-output contracts.coverage.cobertura.xml \
+            --coverage-output-format cobertura
 
-      - name: Upload HTML coverage report
+      - name: Validate packed artifacts with the repository verifier
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & ./.github/scripts/ValidatePackage.ps1 `
+            -Configuration Release `
+            -PackageDirectory "$env:GITHUB_WORKSPACE/artifacts/packages" `
+            -OutputDirectory "$env:RUNNER_TEMP/caeriusnet-package-validation"
+
+      - name: Verify Source Link
+        shell: pwsh
+        run: |
+          & ./.github/scripts/ValidateSourceLink.ps1 `
+            -Configuration Release `
+            -PackageDirectory "$env:GITHUB_WORKSPACE/artifacts/packages"
+
+      - name: Restore four isolated consumers from the packed packages
+        run: bash ./.github/scripts/ValidatePackageConsumers.sh "$GITHUB_WORKSPACE/artifacts/packages" "$RUNNER_TEMP/caeriusnet-consumers"
+
+      - name: Upload packages
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: coverage-html
-          path: ./coverage/report/**
-          retention-days: 14
+          name: caeriusnet-packages
+          path: artifacts/packages/*
+          retention-days: 30
+          if-no-files-found: error
 
-      - name: Sticky PR coverage comment
-        if: github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@v3
+      - name: Upload test results and coverage
+        if: always()
+        uses: actions/upload-artifact@v5
         with:
-          header: caeriusnet-coverage
-          path: ./coverage/report/SummaryGithub.md
-          recreate: true
+          name: test-results-and-coverage
+          path: |
+            artifacts/test-results/**/*.trx
+            artifacts/test-results/**/*.coverage.cobertura.xml
+          retention-days: 14
+          if-no-files-found: warn
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v6
         if: success()
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage/**/coverage.cobertura.xml
+          files: artifacts/test-results/**/*.coverage.cobertura.xml
           flags: unittests
           name: caeriusnet-coverage
           fail_ci_if_error: false

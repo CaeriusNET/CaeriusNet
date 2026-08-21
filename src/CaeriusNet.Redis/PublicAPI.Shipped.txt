@@ -1,0 +1,10 @@
+#nullable enable
+CaeriusNet.Redis.CaeriusRedisOptions
+CaeriusNet.Redis.CaeriusRedisOptions.CaeriusRedisOptions() -> void
+CaeriusNet.Redis.CaeriusRedisOptions.Database.get -> int
+CaeriusNet.Redis.CaeriusRedisOptions.Database.set -> void
+CaeriusNet.Redis.CaeriusRedisOptions.KeyPrefix.get -> string!
+CaeriusNet.Redis.CaeriusRedisOptions.KeyPrefix.set -> void
+CaeriusNet.Redis.CaeriusRedisServiceCollectionExtensions
+CaeriusNet.Redis.IRedisCacheManager
+static CaeriusNet.Redis.CaeriusRedisServiceCollectionExtensions.AddCaeriusNetRedis(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, System.Action<CaeriusNet.Redis.CaeriusRedisOptions!>? configure = null) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!

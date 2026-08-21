@@ -23,9 +23,9 @@
 - [ ] My commits follow the [Conventional Commits](https://www.conventionalcommits.org/) specification.
 - [ ] I have added or updated tests covering my change.
 - [ ] `dotnet build CaeriusNet.slnx -c Release -p:TreatWarningsAsErrors=true` succeeds locally.
-- [ ] `dotnet test CaeriusNet.slnx -c Release --filter "FullyQualifiedName!~IntegrationTests"` is green.
+- [ ] The five native MTP projects pass with `dotnet test --project <test-project> -c Release --report-trx`.
 - [ ] `pwsh ./.github/scripts/ValidatePackage.ps1 -Configuration Release -OutputDirectory .work/package-validation` succeeds for package/public API changes.
-- [ ] `cd Documentations && npm install && npm run docs:build` succeeds for documentation changes (or `npm ci` when a lockfile exists).
+- [ ] `cd docs && npm install && npm run docs:build` succeeds for documentation changes (or `npm ci` when a lockfile exists).
 - [ ] Docker-backed integration tests were run when storage, transactions, SQL, or TVP behaviour changed.
 - [ ] I have updated [`CHANGELOG.md`](../CHANGELOG.md) under `[Unreleased]` if user-visible.
 - [ ] I have updated public XML documentation comments for any public API change.

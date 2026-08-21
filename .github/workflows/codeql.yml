@@ -42,9 +42,9 @@ jobs:
           queries: security-extended
           config: |
             paths-ignore:
-              - Benchmark/**
-              - Exemples/**
-              - Documentations/**
+              - benchmarks/**
+              - examples/**
+              - docs/**
 
       - name: Setup .NET from global.json
         uses: actions/setup-dotnet@v6
@@ -55,7 +55,7 @@ jobs:
         run: dotnet --info
 
       - name: Restore dependencies
-        run: dotnet restore CaeriusNet.slnx
+        run: dotnet restore CaeriusNet.slnx --locked-mode
 
       - name: Build for CodeQL
         run: |

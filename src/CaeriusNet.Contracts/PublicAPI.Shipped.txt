@@ -1,0 +1,3 @@
+#nullable enable
+CaeriusNet.Contracts.ContractsPackage
+const CaeriusNet.Contracts.ContractsPackage.ManifestVersion = 3 -> int

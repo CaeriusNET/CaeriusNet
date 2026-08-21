@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <AssemblyName>CaeriusNet.Aspire</AssemblyName>
+        <PackageId>CaeriusNet.Aspire</PackageId>
+        <RootNamespace>CaeriusNet.Aspire</RootNamespace>
+        <IsPackable>true</IsPackable>
+        <Title>CaeriusNet.Aspire</Title>
+        <Description>.NET Aspire SQL Server and Redis integration for CaeriusNet with health checks and OpenTelemetry wiring.</Description>
+        <PackageTags>caeriusnet;aspire;sql-server;redis;health-checks;opentelemetry;net10</PackageTags>
+    </PropertyGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\CaeriusNet\CaeriusNet.csproj"/>
+        <ProjectReference Include="..\CaeriusNet.Redis\CaeriusNet.Redis.csproj"/>
+        <PackageReference Include="Aspire.Microsoft.Data.SqlClient"/>
+        <PackageReference Include="Aspire.StackExchange.Redis"/>
+        <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks"/>
+        <PackageReference Include="OpenTelemetry.Extensions.Hosting"/>
+    </ItemGroup>
+    <ItemGroup>
+        <None Include="README.md" Pack="true" PackagePath=""/>
+    </ItemGroup>
+</Project>

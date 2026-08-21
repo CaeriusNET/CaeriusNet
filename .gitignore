@@ -61,6 +61,8 @@ BenchmarkDotNet.Artifacts/
 project.lock.json
 project.fragment.lock.json
 artifacts/
+!tests/CaeriusNet.Packaging.Tests/Artifacts/
+!tests/CaeriusNet.Packaging.Tests/Artifacts/*.cs
 coverage/
 **/%TEMP%/
 
@@ -404,5 +406,5 @@ FodyWeavers.xsd
 .idea/*
 /.idea/*
 
-/Documentations/docs/.vitepress/cache
-/Documentations/docs/.vitepress/dist
+/docs/site/.vitepress/cache
+/docs/site/.vitepress/dist

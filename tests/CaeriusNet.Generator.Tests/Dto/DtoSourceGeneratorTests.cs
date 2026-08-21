@@ -1,0 +1,742 @@
+namespace CaeriusNet.Generator.Tests.Dto;
+
+public sealed class DtoSourceGeneratorTests
+{
+    [Fact]
+    public void BasicRecord_Generates_ISpMapper_Implementation()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record UserDto(int Id, string Name);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("ISpMapper<UserDto>", generated);
+        Assert.Contains("MapFromDataReader", generated);
+        Assert.Contains("reader.GetInt32(0)", generated);
+        Assert.Contains("reader.GetString(1)", generated);
+    }
+
+    [Fact]
+    public void NullableReferenceType_Generates_IsDBNull_Check()
+    {
+        const string source = """
+                              #nullable enable
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record UserDto(int Id, string? Name);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("reader.IsDBNull(1)", generated);
+    }
+
+    [Fact]
+    public void NullableValueType_Generates_IsDBNull_Check()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record ItemDto(int Id, int? Quantity);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("reader.IsDBNull(1)", generated);
+    }
+
+    [Fact]
+    public void DateOnly_Generates_FromDateTime_Conversion()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record EventDto(int Id, System.DateOnly EventDate);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("DateOnly.FromDateTime", generated);
+    }
+
+    [Fact]
+    public void TimeOnly_Generates_FromDateTime_Conversion()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record ScheduleDto(int Id, System.TimeOnly StartTime);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("TimeOnly.FromTimeSpan(reader.GetTimeSpan(1))", generated);
+    }
+
+    [Fact]
+    public void ByteArray_Generates_GetFieldValue()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record BlobDto(int Id, byte[] Data);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("reader.GetFieldValue<byte[]>(1)", generated);
+    }
+
+    [Fact]
+    public void GeneratedFile_Uses_Stable_Unique_HintName()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record ProductDto(int Id, string Name);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        Assert.Contains("Test.Models.ProductDto.Dto.g.cs", result.GeneratedTrees[0].FilePath);
+    }
+
+    [Fact]
+    public void Duplicate_Type_Names_In_Different_Namespaces_Generate_Distinct_HintNames()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Alpha.Models
+                              {
+                                  [GenerateDto]
+                                  public sealed partial record UserDto(int Id);
+                              }
+                              namespace Beta.Models
+                              {
+                                  [GenerateDto]
+                                  public sealed partial record UserDto(int Id);
+                              }
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        var filePaths = result.GeneratedTrees
+            .Select(static tree => tree.FilePath)
+            .OrderBy(static path => path)
+            .ToArray();
+
+        Assert.Equal(2, filePaths.Length);
+        Assert.Contains(filePaths, path => path.Contains("Alpha.Models.UserDto.Dto.g.cs", StringComparison.Ordinal));
+        Assert.Contains(filePaths, path => path.Contains("Beta.Models.UserDto.Dto.g.cs", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void NonSealed_Type_Does_Not_Generate()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public partial record UserDto(int Id, string Name);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Empty(result.GeneratedTrees);
+    }
+
+    [Fact]
+    public void NonPartial_Type_Does_Not_Generate()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed record UserDto(int Id, string Name);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Empty(result.GeneratedTrees);
+    }
+
+    [Fact]
+    public void Type_Without_Attribute_Does_Not_Generate()
+    {
+        const string source = """
+                              namespace Test.Models;
+                              public sealed partial record UserDto(int Id, string Name);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Empty(result.GeneratedTrees);
+    }
+
+    [Fact]
+    public void Class_With_Attribute_Generates_Class_Keyword()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial class UserClass(int Id, string Name);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("partial class UserClass", generated);
+    }
+
+    [Fact]
+    public void Multiple_Types_Generate_Multiple_Files()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record UserDto(int Id, string Name);
+                              [GenerateDto]
+                              public sealed partial record OrderDto(int Id, decimal Total);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Equal(2, result.GeneratedTrees.Length);
+    }
+
+    [Fact]
+    public void Guid_Field_Generates_GetGuid()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record EntityDto(int Id, System.Guid TraceId);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("reader.GetGuid(1)", generated);
+    }
+
+    [Fact]
+    public void Bool_Field_Generates_GetBoolean()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record FlagDto(int Id, bool IsActive);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("reader.GetBoolean(1)", generated);
+    }
+
+    [Fact]
+    public void Long_Field_Generates_GetInt64()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record MetricDto(int Id, long Ticks);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("reader.GetInt64(1)", generated);
+    }
+
+    [Fact]
+    public void Short_Field_Generates_GetInt16()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record CodeDto(int Id, short Code);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("reader.GetInt16(1)", generated);
+    }
+
+    [Fact]
+    public void Decimal_Field_Generates_GetDecimal()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record PriceDto(int Id, decimal Price);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("reader.GetDecimal(1)", generated);
+    }
+
+    [Fact]
+    public void Float_Field_Generates_GetFloat()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record ScoreDto(int Id, float Score);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("reader.GetFloat(1)", generated);
+    }
+
+    [Fact]
+    public void Double_Field_Generates_GetDouble()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record RatioDto(int Id, double Ratio);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("reader.GetDouble(1)", generated);
+    }
+
+    [Fact]
+    public void Byte_Field_Generates_GetByte()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record LevelDto(int Id, byte Level);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("reader.GetByte(1)", generated);
+    }
+
+    [Fact]
+    public void Unsigned_And_Narrow_Numeric_Fields_Generate_Explicit_Casts()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record NumericDto(sbyte SByte, ushort UInt16, uint UInt32, ulong UInt64);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("(sbyte)reader.GetInt16(0)", generated);
+        Assert.Contains("(ushort)reader.GetInt32(1)", generated);
+        Assert.Contains("(uint)reader.GetInt64(2)", generated);
+        Assert.Contains("(ulong)reader.GetDecimal(3)", generated);
+    }
+
+    [Fact]
+    public void Internal_Type_Generates_Internal_Partial_Declaration_And_Compiles()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              internal sealed partial record InternalDto(int Id, string Name);
+                              """;
+
+        var (result, compilation) =
+            SourceGeneratorTestHelper.RunGeneratorWithCompilation<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("internal sealed partial record InternalDto", generated);
+        Assert.Empty(compilation.GetDiagnostics(TestContext.Current.CancellationToken).Where(static diagnostic =>
+            diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Id != "CS0009"));
+    }
+
+    [Fact]
+    public void Nested_And_Generic_Types_Do_Not_Generate()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              public sealed partial class Container
+                              {
+                                  [GenerateDto]
+                                  public sealed partial record NestedDto(int Id);
+                              }
+                              [GenerateDto]
+                              public sealed partial record GenericDto<T>(int Id);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Empty(result.GeneratedTrees);
+    }
+
+    [Fact]
+    public void Nullable_Guid_Generates_IsDBNull_Check()
+    {
+        const string source = """
+                              #nullable enable
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record TraceDto(int Id, System.Guid? TraceId);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("reader.IsDBNull(1)", generated);
+        Assert.Contains("reader.GetGuid(1)", generated);
+    }
+
+    [Fact]
+    public void Nested_Namespace_Generates_Correct_Namespace()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace My.App.Data.Models;
+                              [GenerateDto]
+                              public sealed partial record DeepDto(int Id, string Name);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("namespace My.App.Data.Models;", generated);
+    }
+
+    [Fact]
+    public void Enum_Int_Property_Generates_Cast_From_GetInt32()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              public enum Status { Active = 1, Inactive = 2 }
+                              [GenerateDto]
+                              public sealed partial record ItemDto(int Id, Status Status);
+                              """;
+
+        var (result, compilation) = SourceGeneratorTestHelper.RunGeneratorWithCompilation<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("reader.GetInt32(1)", generated);
+        Assert.Contains("(global::Test.Models.Status)", generated);
+        Assert.Empty(compilation.GetDiagnostics(TestContext.Current.CancellationToken).Where(static diagnostic =>
+            diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Id != "CS0009"));
+    }
+
+    [Fact]
+    public void EmptyParameterRecord_DoesNotGenerate()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record EmptyDto();
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Empty(result.GeneratedTrees);
+    }
+
+    [Fact]
+    public void Half_Field_Generates_GetFloat_With_Half_Cast()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record SensorDto(int Id, System.Half Temperature);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("GetFloat", generated);
+        Assert.Contains("checked((global::System.Half)reader.GetFloat(1))", generated);
+    }
+
+    [Fact]
+    public void Nullable_Half_Generates_IsDBNull_Check()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record SensorDto(int Id, System.Half? Temperature);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("reader.IsDBNull(1)", generated);
+        Assert.Contains("checked((global::System.Half)reader.GetFloat(1))", generated);
+        Assert.Contains("GetFloat", generated);
+    }
+
+    [Fact]
+    public void ManyColumns_Generates_Ordinal_Constants()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record BigDto(
+                                  int Id, string Name, int Qty, decimal Price,
+                                  bool Active, System.Guid TraceId, long Ticks,
+                                  System.DateTime Created, string Category, float Score);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("const int ColumnOrdinal0", generated);
+        Assert.Contains("const int ColumnOrdinal9", generated);
+    }
+
+    [Fact]
+    public void FewColumns_DoesNot_Generate_Ordinal_Constants()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record SmallDto(int Id, string Name);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        Assert.Single(result.GeneratedTrees);
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.DoesNotContain("const int ColumnOrdinal", generated);
+    }
+
+    [Fact]
+    public void Generated_Code_Contains_GeneratedCodeAttribute()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record SimpleDto(int Id, string Name);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("[global::System.CodeDom.Compiler.GeneratedCode(\"CaeriusNet.Generator\"", generated);
+        Assert.Contains("\"11.2.0\")]", generated);
+    }
+
+    [Fact]
+    public void Generated_Code_Does_Not_Contain_Speculative_AggressiveInlining()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record SimpleDto(int Id, string Name);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.DoesNotContain("MethodImplOptions.AggressiveInlining", generated);
+    }
+
+    [Fact]
+    public void Generated_Code_Contains_PragmaWarningDisable()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record SimpleDto(int Id, string Name);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("#pragma warning disable CS1591", generated);
+    }
+
+    [Fact]
+    public void Generated_Code_Contains_XmlDocComments()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record SimpleDto(int Id, string Name);
+                              """;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+
+        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("/// <summary>", generated);
+    }
+
+    [Fact]
+    public void EscapedAndUnicodeIdentifiers_Generate_Compilable_CollisionFree_Ordinals()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace @event;
+                              [GenerateDto]
+                              public sealed partial record @class(int foo, int Foo, string café, int Alpha, int Beta,
+                                  int Gamma, int Delta, int Epsilon, int Zeta);
+                              """;
+
+        var (result, compilation) =
+            SourceGeneratorTestHelper.RunGeneratorWithCompilation<DtoSourceGenerator>(source);
+
+        Assert.Null(Assert.Single(result.Results).Exception);
+        var generated = Assert.Single(result.GeneratedTrees).GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("namespace @event;", generated);
+        Assert.Contains("partial record @class : global::CaeriusNet.Mappers.ISpMapper<@class>", generated);
+        Assert.Contains("value.foo", generated);
+        Assert.Contains("value.Foo", generated);
+        Assert.Contains("ColumnOrdinal0", generated);
+        Assert.Contains("ColumnOrdinal8", generated);
+        Assert.DoesNotContain("ColumnOrdinalfoo", generated, StringComparison.Ordinal);
+        Assert.Empty(compilation.GetDiagnostics(TestContext.Current.CancellationToken).Where(static diagnostic =>
+            diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Id != "CS0009"));
+    }
+
+    [Fact]
+    public void SqlDecimal_Dto_Uses_GetSqlDecimal_And_Compiles()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record LedgerDto(System.Data.SqlTypes.SqlDecimal Amount);
+                              """;
+
+        var (result, compilation) =
+            SourceGeneratorTestHelper.RunGeneratorWithCompilation<DtoSourceGenerator>(source);
+
+        Assert.Null(Assert.Single(result.Results).Exception);
+        var generated = Assert.Single(result.GeneratedTrees).GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("reader.GetSqlDecimal(0)", generated);
+        Assert.Contains("binary.WriteSqlDecimal(value.Amount)", generated);
+        Assert.Contains("binary.ReadSqlDecimal()", generated);
+        Assert.Empty(compilation.GetDiagnostics(TestContext.Current.CancellationToken).Where(static diagnostic =>
+            diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Id != "CS0009"));
+    }
+
+    [Fact]
+    public void GeneratedDto_Uses_GlobalQualified_FrameworkReferences_And_Compiles()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              public sealed class SqlDataReader;
+                              public sealed class DateOnly;
+                              public sealed class TimeOnly;
+                              public sealed class Half;
+                              [GenerateDto]
+                              public sealed partial record FrameworkNamesDto(
+                                  System.DateOnly Date,
+                                  System.TimeOnly Time,
+                                  System.Half Ratio,
+                                  char Initial);
+                              """;
+
+        var (result, compilation) =
+            SourceGeneratorTestHelper.RunGeneratorWithCompilation<DtoSourceGenerator>(source);
+
+        Assert.Null(Assert.Single(result.Results).Exception);
+        var generated = Assert.Single(result.GeneratedTrees).GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.DoesNotContain("\nusing ", generated, StringComparison.Ordinal);
+        Assert.Contains("global::Microsoft.Data.SqlClient.SqlDataReader", generated);
+        Assert.Contains("global::System.DateOnly.FromDateTime", generated);
+        Assert.Contains("global::System.TimeOnly.FromTimeSpan", generated);
+        Assert.Contains("checked((global::System.Half)reader.GetFloat(2))", generated);
+        Assert.Contains("binary.WriteChar(value.Initial)", generated);
+        Assert.DoesNotContain("char.ToString", generated, StringComparison.Ordinal);
+        Assert.Empty(compilation.GetDiagnostics(TestContext.Current.CancellationToken).Where(static diagnostic =>
+            diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Id != "CS0009"));
+    }
+
+    [Fact]
+    public void Unsupported_Dto_Type_Does_Not_Throw_Or_Emit_Source()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record InvalidDto(System.Uri Endpoint);
+                              """;
+
+        var (result, compilation) =
+            SourceGeneratorTestHelper.RunGeneratorWithCompilation<DtoSourceGenerator>(source);
+
+        Assert.Null(Assert.Single(result.Results).Exception);
+        Assert.Empty(result.GeneratedTrees);
+        Assert.DoesNotContain(compilation.GetDiagnostics(TestContext.Current.CancellationToken), static diagnostic =>
+            diagnostic.Id is "CS8784" or "CS8785");
+    }
+}

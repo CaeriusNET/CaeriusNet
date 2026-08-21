@@ -5,6 +5,9 @@ micro-ORM for **C# 14 / .NET 10 / SQL Server**, focused on stored procedures, TV
 and transactions. This document explains how to set up, the conventions we follow,
 and how to get a PR merged efficiently.
 
+Changes targeting the major release must also preserve the invariants and evidence
+listed in the [11.2.0 engineering contract](docs/engineering/caeriusnet-v12-release-engineering-contract.md).
+
 ## Table of Contents
 
 - [Code of Conduct](#code-of-conduct)
@@ -29,9 +32,9 @@ participating you agree to uphold it.
 ```bash
 git clone https://github.com/CaeriusNET/CaeriusNet.git
 cd CaeriusNet
-dotnet restore CaeriusNet.slnx
-dotnet build   CaeriusNet.slnx -c Release
-dotnet test    CaeriusNet.slnx -c Release --filter "FullyQualifiedName!~CaeriusNet.IntegrationTests"
+dotnet restore CaeriusNet.slnx --locked-mode
+dotnet build   CaeriusNet.slnx -c Release --no-restore -p:TreatWarningsAsErrors=true
+dotnet test    CaeriusNet.slnx -c Release --no-build --filter "FullyQualifiedName!~CaeriusNet.IntegrationTests"
 ```
 
 ### Devcontainer (recommended)
@@ -42,24 +45,29 @@ Testcontainers works), the GitHub CLI and pre-pulls the SQL Server 2022 image.
 
 ```bash
 # Inside the container — run the full integration suite
-dotnet test Tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj -c Release
+CAERIUS_RUN_CONTAINERS=true \
+  dotnet test tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj -c Release
 ```
 
 ## Project layout
 
 ```
-Src/                       # Public runtime API (the NuGet package)
-SourceGenerators/          # Roslyn incremental generators (DTO, TVP, AutoContracts emission)
-Analyzer/                  # Roslyn analyzers and user-facing CAERIUS diagnostics
-Tests/CaeriusNet.Tests/                # Pure unit tests (no IO)
-Tests/CaeriusNet.Generator.Tests/      # Source-generator emit and caching tests
-Tests/CaeriusNet.Analyzer.Tests/       # Analyzer diagnostic tests
-Tests/CaeriusNet.IntegrationTests/     # End-to-end tests (Testcontainers MSSQL)
-Benchmark/                 # BenchmarkDotNet suites
-Exemples/                  # Example consumer apps (directory name retained for compatibility)
-Documentations/            # VitePress documentation site
-.devcontainer/             # Reproducible dev environment
-.github/                   # Workflows, templates, issue forms
+src/CaeriusNet/                         # Core runtime package
+src/CaeriusNet.Redis/                   # Redis integration package
+src/CaeriusNet.Aspire/                  # Aspire integration package
+src/CaeriusNet.Contracts/               # AutoContracts package assets
+src/Compiler/                           # Generator, analyzer, build-only generator and shared sources
+tests/CaeriusNet.Tests/                 # Pure runtime unit tests
+tests/CaeriusNet.Generator.Tests/       # Source-generator and incrementality tests
+tests/CaeriusNet.Analyzer.Tests/        # Analyzer diagnostic tests
+tests/CaeriusNet.IntegrationTests/      # SQL Server, Redis, Aspire and Contracts acceptance tests
+tests/CaeriusNet.Packaging.Tests/       # Exact NuGet package validation
+benchmarks/                             # BenchmarkDotNet suites and performance gate
+examples/                               # Example consumer applications
+tools/                                  # SQL Server contract discovery tool
+docs/                                   # VitePress site and engineering contracts
+.devcontainer/                          # Reproducible development environment
+.github/                                # Workflows, templates and validation scripts
 ```
 
 ## Branching & commits
@@ -90,13 +98,13 @@ migration path in the PR description.
 | ------- | ------- |
 | `dotnet build CaeriusNet.slnx -c Release -p:TreatWarningsAsErrors=true` | Mirrors CI. |
 | `dotnet test CaeriusNet.slnx -c Release --filter "FullyQualifiedName!~IntegrationTests"` | Unit + generator tests (fast, no Docker). |
-| `dotnet test Tests/CaeriusNet.IntegrationTests` | End-to-end tests; needs Docker. |
+| `dotnet test tests/CaeriusNet.IntegrationTests` | End-to-end tests; needs Docker. |
 | `pwsh ./.github/scripts/ValidatePackage.ps1 -Configuration Release -OutputDirectory .work/package-validation` | Packs the NuGet package and smoke-tests a consumer project. |
-| `cd Documentations && npm install && npm run docs:build` | Builds the VitePress docs when npm is available; use `npm ci` if a lockfile exists. |
+| `cd docs && npm install && npm run docs:build` | Builds the VitePress docs when npm is available; use `npm ci` if a lockfile exists. |
 | `dotnet test --collect:"XPlat Code Coverage"` | Generates Cobertura coverage. |
 
 Coverage is reported on every PR via the CI workflow. Aim to **never decrease**
-line coverage on `Src/` and `SourceGenerators/`.
+line coverage on `src/CaeriusNet/` and `src/Compiler/CaeriusNet.Generator/`.
 
 ## Coding conventions
 

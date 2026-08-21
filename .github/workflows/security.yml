@@ -58,24 +58,27 @@ jobs:
         run: dotnet --info
 
       - name: Restore dependencies
-        run: dotnet restore CaeriusNet.slnx
+        run: |
+          dotnet restore CaeriusNet.slnx --locked-mode
+          dotnet restore tools/CaeriusNet.SqlServer.Contracts/CaeriusNet.SqlServer.Contracts.csproj --locked-mode
 
-      - name: Scan for vulnerable packages (distributed projects)
+      - name: Scan for vulnerable packages (published packages)
         run: |
           set -euo pipefail
 
           projects=(
-            "Src/CaeriusNet.csproj|CaeriusNet"
-            "Tools/CaeriusNet.SqlServer.Contracts/CaeriusNet.SqlServer.Contracts.csproj|CaeriusNet AutoContracts tool"
-            "Analyzer/CaeriusNet.Analyzer.csproj|CaeriusNet.Analyzer"
-            "SourceGenerators/CaeriusNet.Generator.csproj|CaeriusNet.Generator"
+            "src/CaeriusNet/CaeriusNet.csproj|CaeriusNet"
+            "src/CaeriusNet.Redis/CaeriusNet.Redis.csproj|CaeriusNet.Redis"
+            "src/CaeriusNet.Aspire/CaeriusNet.Aspire.csproj|CaeriusNet.Aspire"
+            "src/CaeriusNet.Contracts/CaeriusNet.Contracts.csproj|CaeriusNet.Contracts"
+            "tools/CaeriusNet.SqlServer.Contracts/CaeriusNet.SqlServer.Contracts.csproj|CaeriusNet.SqlServer.Contracts"
           )
 
           total_vulnerabilities=0
           for item in "${projects[@]}"; do
             IFS='|' read -r project label <<< "$item"
             echo "=== Scanning ${project} for vulnerabilities ==="
-            result=$(dotnet list "$project" package --vulnerable --include-transitive --format json 2>&1)
+            result=$(dotnet package list --project "$project" --vulnerable --include-transitive --format json --no-restore 2>&1)
             echo "$result"
             count=$(echo "$result" | jq '[.projects[]? | (.frameworks // [])[] | ((.topLevelPackages // [])[], (.transitivePackages // [])[]) | select((.vulnerabilities // []) | length > 0)] | length')
             if [ "$count" -gt 0 ]; then
@@ -90,15 +93,54 @@ jobs:
             exit 1
           fi
 
+      - name: Scan for deprecated packages (published packages)
+        run: |
+          set -euo pipefail
+
+          projects=(
+            "src/CaeriusNet/CaeriusNet.csproj|CaeriusNet"
+            "src/CaeriusNet.Redis/CaeriusNet.Redis.csproj|CaeriusNet.Redis"
+            "src/CaeriusNet.Aspire/CaeriusNet.Aspire.csproj|CaeriusNet.Aspire"
+            "src/CaeriusNet.Contracts/CaeriusNet.Contracts.csproj|CaeriusNet.Contracts"
+            "tools/CaeriusNet.SqlServer.Contracts/CaeriusNet.SqlServer.Contracts.csproj|CaeriusNet.SqlServer.Contracts"
+          )
+
+          total_deprecated=0
+          for item in "${projects[@]}"; do
+            IFS='|' read -r project label <<< "$item"
+            result=$(dotnet package list --project "$project" --deprecated --include-transitive --format json --no-restore 2>&1)
+            echo "$result"
+            count=$(echo "$result" | jq '
+              def has_deprecation:
+                ((.deprecationReasons? // []) |
+                  if type == "array" then length > 0
+                  elif type == "string" then length > 0
+                  else false
+                  end)
+                or ((.message? // .deprecationMessage? // "") |
+                  type == "string" and length > 0);
+              [
+                .projects[]?
+                | (.frameworks // [])[]
+                | ((.topLevelPackages // [])[], (.transitivePackages // [])[])
+                | select(has_deprecation)
+              ]
+              | length')
+            if [ "$count" -gt 0 ]; then
+              echo "::error title=Deprecated Packages::${count} deprecated NuGet package(s) detected in ${label}."
+              total_deprecated=$((total_deprecated + count))
+            fi
+          done
+
+          test "$total_deprecated" -eq 0
+
       - name: Scan for vulnerable packages (full solution, informational)
         run: |
           echo "=== Scanning all solution projects for vulnerabilities (non-blocking) ==="
-          dotnet list CaeriusNet.slnx package --vulnerable --include-transitive --format json || true
+          dotnet package list --project CaeriusNet.slnx --vulnerable --include-transitive --format json --no-restore || true
 
       - name: Report outdated packages (informational)
         run: |
           echo "=== Outdated packages (informational, non-blocking) ==="
-          dotnet list CaeriusNet.slnx package --outdated || true
-          echo "=== Deprecated packages (informational, non-blocking) ==="
-          dotnet list CaeriusNet.slnx package --deprecated --include-transitive || true
+          dotnet package list --project CaeriusNet.slnx --outdated --no-restore || true
         continue-on-error: true

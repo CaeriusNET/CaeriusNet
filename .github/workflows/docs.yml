@@ -4,12 +4,12 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'Documentations/**'
+      - 'docs/**'
       - '.github/workflows/docs.yml'
   push:
     branches: [main, 'feature/**']
     paths:
-      - 'Documentations/**'
+      - 'docs/**'
       - '.github/workflows/docs.yml'
 
 permissions:
@@ -35,18 +35,18 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: Documentations/package*.json
+          cache-dependency-path: docs/package*.json
 
       - name: Install dependencies
-        if: hashFiles('Documentations/package-lock.json') == ''
-        working-directory: Documentations
+        if: hashFiles('docs/package-lock.json') == ''
+        working-directory: docs
         run: npm install
 
       - name: Install locked dependencies
-        if: hashFiles('Documentations/package-lock.json') != ''
-        working-directory: Documentations
+        if: hashFiles('docs/package-lock.json') != ''
+        working-directory: docs
         run: npm ci
 
       - name: Build docs
-        working-directory: Documentations
+        working-directory: docs
         run: npm run docs:build

@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <AssemblyName>CaeriusNet.Contracts</AssemblyName>
+        <PackageId>CaeriusNet.Contracts</PackageId>
+        <RootNamespace>CaeriusNet.Contracts</RootNamespace>
+        <IsPackable>true</IsPackable>
+        <Title>CaeriusNet.Contracts</Title>
+        <Description>SQL Server AutoContracts discovery tool, manifest integration, and opt-in buildTransitive targets for CaeriusNet.</Description>
+        <PackageTags>caeriusnet;sql-server;contracts;source-generator;msbuild;buildtransitive;net10</PackageTags>
+        <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);CaeriusPackContractsTool</TargetsForTfmSpecificContentInPackage>
+    </PropertyGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\CaeriusNet\CaeriusNet.csproj"/>
+        <ProjectReference Include="..\..\tools\CaeriusNet.SqlServer.Contracts\CaeriusNet.SqlServer.Contracts.csproj"
+                          ReferenceOutputAssembly="false" PrivateAssets="all"/>
+    </ItemGroup>
+    <ItemGroup>
+        <None Include="README.md" Pack="true" PackagePath=""/>
+        <None Include="Build\CaeriusNet.Contracts.props" Pack="true" PackagePath="buildTransitive\CaeriusNet.Contracts.props"/>
+        <None Include="Build\CaeriusNet.Contracts.targets" Pack="true" PackagePath="buildTransitive\CaeriusNet.Contracts.targets"/>
+    </ItemGroup>
+    <Target Name="CaeriusPackContractsTool">
+        <PropertyGroup>
+            <CaeriusContractsToolOutputDirectory>$(MSBuildProjectDirectory)\..\..\tools\CaeriusNet.SqlServer.Contracts\bin\$(Configuration)\net10.0\</CaeriusContractsToolOutputDirectory>
+            <CaeriusContractsToolAssembly>$(CaeriusContractsToolOutputDirectory)CaeriusNet.SqlServer.Contracts.dll</CaeriusContractsToolAssembly>
+        </PropertyGroup>
+        <Error Condition="!Exists('$(CaeriusContractsToolAssembly)')"
+               Text="AutoContracts tool output is missing. Build the tool before packing or omit --no-build."/>
+        <ItemGroup>
+            <TfmSpecificPackageFile Include="$(CaeriusContractsToolOutputDirectory)**\*.*"
+                                    Exclude="$(CaeriusContractsToolOutputDirectory)publish\**\*.*;$(CaeriusContractsToolOutputDirectory)CaeriusNet.SqlServer.Contracts.exe;$(CaeriusContractsToolOutputDirectory)**\*.pdb"
+                                    PackagePath="tools/net10.0/any/%(RecursiveDir)%(Filename)%(Extension)"/>
+        </ItemGroup>
+    </Target>
+</Project>

@@ -1,0 +1,5 @@
+#nullable enable
+CaeriusNet.Redis.CaeriusRedisTelemetry
+const CaeriusNet.Redis.CaeriusRedisTelemetry.MeterName = "CaeriusNet.Redis" -> string!
+CaeriusNet.Redis.CaeriusRedisOptions.MaxPayloadBytes.get -> int
+CaeriusNet.Redis.CaeriusRedisOptions.MaxPayloadBytes.set -> void

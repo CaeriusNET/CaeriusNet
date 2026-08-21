@@ -1,0 +1,176 @@
+import { defineConfig } from 'vitepress'
+
+// https://vitepress.dev/reference/site-config
+export default defineConfig({
+  title: "CaeriusNet",
+  description: "SQL Server stored procedure data access for .NET",
+
+  head: [
+    ['link', { rel: 'icon', type: 'image/png', href: '/logo.png' }],
+    ['meta', { name: 'theme-color', content: '#0078d4' }]
+  ],
+
+  themeConfig: {
+    logo: 'logo.png',
+    siteTitle: 'CaeriusNet',
+
+    nav: [
+      { text: 'Home', link: '/' },
+      { text: 'Quickstart', link: '/quickstart/getting-started' },
+      {
+        text: 'Use CaeriusNet',
+        items: [
+          { text: 'Usage overview', link: '/documentation/usage' },
+          { text: 'Reading data', link: '/documentation/reading-data' },
+          { text: 'Writing data', link: '/documentation/writing-data' },
+          { text: 'DTO Mapping', link: '/documentation/dto-mapping' },
+          { text: 'Table-valued parameters', link: '/documentation/tvp' },
+          { text: 'Multiple result sets', link: '/documentation/multi-results' },
+          { text: 'Caching', link: '/documentation/cache' },
+          { text: 'Transactions', link: '/documentation/transactions' }
+        ]
+      },
+      {
+        text: 'Advanced',
+        items: [
+          { text: 'Source generators', link: '/documentation/source-generators' },
+          { text: 'AutoContracts', link: '/documentation/auto-contracts' },
+          { text: 'Advanced usage', link: '/documentation/advanced-usage' },
+          { text: 'Logging and observability', link: '/documentation/logging' },
+          { text: 'Aspire integration', link: '/documentation/aspire' },
+        ]
+      },
+      {
+        text: 'Reference',
+        items: [
+            { text: 'API Reference', link: '/documentation/api' },
+            { text: 'Best Practices', link: '/documentation/best-practices' },
+            { text: 'Telemetry & Diagnostics', link: '/documentation/diagnostics' },
+            { text: 'Diagnostic Rules', link: '/diagnostics/' },
+        ]
+      },
+      { text: 'Diagnostics', link: '/diagnostics/' },
+      { text: 'Examples', link: '/examples/' },
+      { text: 'Benchmarks', link: '/benchmarks/' }
+    ],
+
+    sidebar: [
+      {
+         text: 'Get started',
+        collapsed: false,
+        items: [
+          { text: 'What is CaeriusNet?', link: '/quickstart/what-is-caeriusnet' },
+          { text: 'Install and configure', link: '/quickstart/getting-started' },
+          { text: 'Usage overview', link: '/documentation/usage' }
+        ]
+      },
+      {
+        text: 'Use CaeriusNet',
+        collapsed: false,
+        items: [
+          { text: 'Reading data', link: '/documentation/reading-data' },
+          { text: 'Writing data', link: '/documentation/writing-data' },
+          { text: 'DTO mapping', link: '/documentation/dto-mapping' },
+          { text: 'Table-valued parameters', link: '/documentation/tvp' },
+          { text: 'Multiple result sets', link: '/documentation/multi-results' },
+          { text: 'Caching', link: '/documentation/cache' },
+          { text: 'Transactions', link: '/documentation/transactions' }
+        ]
+      },
+      {
+        text: 'Advanced scenarios',
+        collapsed: false,
+        items: [
+          { text: 'Source generators', link: '/documentation/source-generators' },
+          { text: 'AutoContracts', link: '/documentation/auto-contracts' },
+          { text: 'Logging and observability', link: '/documentation/logging' },
+          { text: 'Aspire integration', link: '/documentation/aspire' },
+          { text: 'Advanced usage', link: '/documentation/advanced-usage' }
+        ]
+      },
+      {
+        text: 'Reference',
+        collapsed: true,
+        items: [
+           { text: 'API reference', link: '/documentation/api' },
+           { text: 'Best practices', link: '/documentation/best-practices' },
+           { text: 'Telemetry and diagnostics', link: '/documentation/diagnostics' },
+           { text: 'Diagnostic rules', link: '/diagnostics/' }
+         ]
+       },
+       {
+         text: 'Diagnostics',
+         collapsed: true,
+         items: [
+           { text: 'Overview', link: '/diagnostics/' },
+           { text: 'CAERIUS001', link: '/diagnostics/CAERIUS001' },
+           { text: 'CAERIUS002', link: '/diagnostics/CAERIUS002' },
+           { text: 'CAERIUS003', link: '/diagnostics/CAERIUS003' },
+           { text: 'CAERIUS004', link: '/diagnostics/CAERIUS004' },
+           { text: 'CAERIUS005', link: '/diagnostics/CAERIUS005' },
+           { text: 'CAERIUS006', link: '/diagnostics/CAERIUS006' },
+           { text: 'CAERIUS200', link: '/diagnostics/CAERIUS200' },
+           { text: 'CAERIUS201', link: '/diagnostics/CAERIUS201' },
+           { text: 'CAERIUS202', link: '/diagnostics/CAERIUS202' },
+           { text: 'CAERIUS203', link: '/diagnostics/CAERIUS203' },
+           { text: 'CAERIUS204', link: '/diagnostics/CAERIUS204' },
+           { text: 'CAERIUS205', link: '/diagnostics/CAERIUS205' },
+           { text: 'CAERIUS206', link: '/diagnostics/CAERIUS206' },
+           { text: 'CAERIUS207', link: '/diagnostics/CAERIUS207' },
+           { text: 'CAERIUS208', link: '/diagnostics/CAERIUS208' },
+           { text: 'CAERIUS209', link: '/diagnostics/CAERIUS209' },
+           { text: 'CAERIUS210', link: '/diagnostics/CAERIUS210' }
+         ]
+       },
+      {
+        text: 'Examples',
+        collapsed: false,
+        items: [
+          { text: 'Overview', link: '/examples/' },
+          { text: 'Stored procedures', link: '/examples/stored-procedures' },
+          { text: 'Table-valued parameters', link: '/examples/tvp' },
+          { text: 'Multi-result sets', link: '/examples/multi-result-sets' },
+          { text: 'Transactions', link: '/examples/transactions' }
+        ]
+      },
+      {
+        text: 'Benchmarks',
+        collapsed: false,
+        items: [
+          { text: 'Overview & Methodology', link: '/benchmarks/' },
+          { text: 'In-Memory Benchmarks', link: '/benchmarks/in-memory' },
+          { text: 'Collection Benchmarks', link: '/benchmarks/collections' },
+          { text: 'SQL Server Benchmarks', link: '/benchmarks/sql-server' },
+          { text: 'Cache Benchmarks', link: '/benchmarks/cache' }
+        ]
+      }
+    ],
+
+    search: {
+      provider: 'local'
+    },
+
+    socialLinks: [
+      { icon: 'github', link: 'https://github.com/CaeriusNET/CaeriusNet' }
+    ],
+
+    lastUpdated: {
+      text: 'Updated at',
+      formatOptions: {
+        dateStyle: 'full',
+        timeStyle: 'medium'
+      }
+    },
+
+    editLink: {
+      pattern: 'https://github.com/CaeriusNET/CaeriusNet/edit/main/docs/site/:path',
+      text: 'Edit this page on GitHub'
+    },
+
+    footer: {
+      message: 'Released under the MIT License.',
+      copyright: 'Copyright © 2024-2026 Johan (AriusII) Coureuil'
+    }
+  }
+})
+

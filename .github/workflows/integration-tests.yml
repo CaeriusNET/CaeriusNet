@@ -1,15 +1,18 @@
 name: Integration Tests
 
-# Heavy SQL Server-backed tests are gated on manual dispatch (and on PRs touching their code)
-# so the default CI stays fast and free of Docker dependencies.
 on:
   workflow_dispatch:
   pull_request:
     branches: [main]
     paths:
-      - 'Src/**'
-      - 'Tests/CaeriusNet.IntegrationTests/**'
-      - 'SourceGenerators/**'
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/CaeriusNet.SqlServer.Contracts/**'
+      - 'Directory.Build.props'
+      - 'Directory.Build.targets'
+      - 'Directory.Packages.props'
+      - 'global.json'
+      - '.config/dotnet-tools.json'
       - '.github/workflows/integration-tests.yml'
 
 concurrency:
@@ -23,15 +26,25 @@ env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_NOLOGO: true
-  # Testcontainers' Ryuk reaper must remain enabled in CI to guarantee container cleanup
-  # if the runner is killed (job timeout, cancellation, OOM). Reuse is not used in CI.
   TESTCONTAINERS_RYUK_DISABLED: 'false'
+  CAERIUS_RUN_CONTAINERS: 'true'
 
 jobs:
   integration:
-    name: SQL Server (Testcontainers)
+    name: SQL Server ${{ matrix.sql.name }} + Redis
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        sql:
+          - name: '2022-CU26-ubuntu-22.04'
+            image: mcr.microsoft.com/mssql/server:2022-CU26-ubuntu-22.04
+          - name: '2025-CU7-ubuntu-24.04'
+            image: mcr.microsoft.com/mssql/server:2025-CU7-ubuntu-24.04
+
+    env:
+      CAERIUS_TEST_SQL_IMAGE: ${{ matrix.sql.image }}
 
     steps:
       - name: Checkout
@@ -49,35 +62,38 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
-          key: nuget-${{ runner.os }}-${{ hashFiles('global.json', '**/*.csproj', '**/*.slnx') }}
-          restore-keys: nuget-${{ runner.os }}-
+          key: nuget-integration-${{ runner.os }}-${{ hashFiles('global.json', 'Directory.Packages.props', 'Directory.Build.props', 'Directory.Build.targets', '**/packages.lock.json') }}
+          restore-keys: nuget-integration-${{ runner.os }}-
 
-      - name: Pre-pull SQL Server image
-        run: docker pull mcr.microsoft.com/mssql/server:2022-latest
+      - name: Pre-pull database images
+        run: |
+          docker pull '${{ matrix.sql.image }}'
+          docker pull redis:7.4-alpine
 
       - name: Restore
-        run: dotnet restore Tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj
+        run: dotnet restore tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj --locked-mode
 
       - name: Build (Release)
-        run: |
-          dotnet build Tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj \
-            --configuration Release \
-            --no-restore
+        run: dotnet build tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj --configuration Release --no-restore
 
       - name: Run integration tests
         run: |
-          dotnet test Tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj \
+          dotnet test --project tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj \
             --configuration Release \
             --no-restore \
             --no-build \
-            --logger "trx;LogFileName=integration-results.trx" \
-            --logger "console;verbosity=normal" \
-            --results-directory ./integration-results
+            --results-directory ./artifacts/integration-results \
+            --report-trx \
+            --report-trx-filename integration-results.trx \
+            --coverage \
+            --coverage-output integration.coverage.cobertura.xml \
+            --coverage-output-format cobertura
 
       - name: Upload integration test results
-        uses: actions/upload-artifact@v5
         if: always()
+        uses: actions/upload-artifact@v5
         with:
-          name: integration-results
-          path: ./integration-results/**/*.trx
+          name: integration-results-${{ matrix.sql.name }}
+          path: artifacts/integration-results/**/*
           retention-days: 14
+          if-no-files-found: warn

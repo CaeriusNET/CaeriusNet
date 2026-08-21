@@ -35,8 +35,8 @@ body:
     attributes:
       label: Surface area
       options:
-        - Runtime API (Src/)
-        - Source generator (SourceGenerators/)
+        - Runtime API (src/CaeriusNet/)
+        - Source generator (src/Compiler/CaeriusNet.Generator/)
         - Diagnostics
         - Tooling / CI / docs
         - Other

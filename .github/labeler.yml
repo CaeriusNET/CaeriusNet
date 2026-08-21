@@ -4,34 +4,39 @@
 src:
   - changed-files:
       - any-glob-to-any-file:
-          - 'Src/**'
+          - 'src/CaeriusNet/**'
+          - 'src/CaeriusNet.Redis/**'
+          - 'src/CaeriusNet.Aspire/**'
+          - 'src/CaeriusNet.Contracts/**'
 
 source-generator:
   - changed-files:
       - any-glob-to-any-file:
-          - 'SourceGenerators/**'
+          - 'src/Compiler/CaeriusNet.Generator/**'
+          - 'src/Compiler/CaeriusNet.Analyzer/**'
+          - 'src/Compiler/CaeriusNet.MultiResultApiGenerator/**'
+          - 'src/Compiler/Shared/**'
 
 tests:
   - changed-files:
       - any-glob-to-any-file:
-          - 'Tests/**'
+          - 'tests/**'
 
 integration-tests:
   - changed-files:
       - any-glob-to-any-file:
-          - 'Tests/CaeriusNet.IntegrationTests/**'
+          - 'tests/CaeriusNet.IntegrationTests/**'
 
 benchmarks:
   - changed-files:
       - any-glob-to-any-file:
-          - 'Benchmark/**'
+          - 'benchmarks/**'
 
 documentation:
   - changed-files:
       - any-glob-to-any-file:
-          - 'Documentations/**'
-          - '*.md'
           - 'docs/**'
+          - '*.md'
 
 ci:
   - changed-files:

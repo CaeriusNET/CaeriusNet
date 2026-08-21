@@ -3,20 +3,16 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
-      version_bump:
-        description: 'Version bump type'
+      version:
+        description: 'NuGet version for all CaeriusNet packages (for example 11.2.0)'
         required: true
-        type: choice
-        options:
-          - patch
-          - minor
-          - major
+        default: '11.2.0'
+        type: string
       release_notes:
-        description: 'Release notes (leave empty to auto-generate from commits)'
+        description: 'Release notes (leave empty to generate them from commits)'
         required: false
         type: string
 
-# Only one release at a time — never cancel an in-progress release.
 concurrency:
   group: release
   cancel-in-progress: false
@@ -34,20 +30,17 @@ env:
 
 jobs:
   release:
-    name: Release → Production
+    name: Release to production
     runs-on: ubuntu-latest
     environment: production
 
     steps:
-      # ── Guard: must be triggered from main ─────────────────────────────────────
-      - name: Validate — main branch only
+      - name: Validate release branch and version
         run: |
-          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
-            echo "❌ Release must be triggered from the 'main' branch."
-            echo "   Current ref: ${{ github.ref }}"
-            exit 1
-          fi
-          echo "✅ Running on main."
+          set -euo pipefail
+          test "${{ github.ref }}" = 'refs/heads/main'
+          version='${{ inputs.version }}'
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -63,195 +56,196 @@ jobs:
       - name: Display .NET SDK info
         run: dotnet --info
 
-      - name: Setup Node
-        if: hashFiles('Documentations/package.json') != ''
-        uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-          cache-dependency-path: Documentations/package*.json
+      - name: Set deterministic package timestamp
+        run: echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
 
       - name: Cache NuGet packages
         uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
-          key: nuget-release-${{ runner.os }}-${{ hashFiles('global.json', '**/*.csproj', '**/*.slnx') }}
+          key: nuget-release-${{ runner.os }}-${{ hashFiles('global.json', 'Directory.Packages.props', 'Directory.Build.props', 'Directory.Build.targets', '**/packages.lock.json') }}
           restore-keys: nuget-release-${{ runner.os }}-
 
-      # ── Bump package versions ───────────────────────────────────────────────────
-      - name: Bump version
-        id: bump
+      - name: Validate the committed package version
+        id: version
         run: |
-          CURRENT=$(grep -oP '(?<=<Version>)\d+\.\d+\.\d+(?=</Version>)' Src/CaeriusNet.csproj)
-          MAJOR=$(echo "$CURRENT" | cut -d. -f1)
-          MINOR=$(echo "$CURRENT" | cut -d. -f2)
-          PATCH=$(echo "$CURRENT" | cut -d. -f3)
-
-          case "${{ github.event.inputs.version_bump }}" in
-            major) NEW="$((MAJOR+1)).0.0" ;;
-            minor) NEW="${MAJOR}.$((MINOR+1)).0" ;;
-            patch) NEW="${MAJOR}.${MINOR}.$((PATCH+1))" ;;
-          esac
-
-          sed -i -E "s|<Version>[0-9]+\.[0-9]+\.[0-9]+</Version>|<Version>${NEW}</Version>|" Src/CaeriusNet.csproj
-
-          SRC_VERSION=$(grep -oP '(?<=<Version>)\d+\.\d+\.\d+(?=</Version>)' Src/CaeriusNet.csproj)
-          if [ "$SRC_VERSION" != "$NEW" ]; then
-            echo "❌ Version bump did not update CaeriusNet. Src=${SRC_VERSION}; expected=${NEW}."
-            exit 1
-          fi
-
-          echo "current=$CURRENT" >> "$GITHUB_OUTPUT"
-          echo "new=$NEW"         >> "$GITHUB_OUTPUT"
-          echo "tag=v${NEW}"      >> "$GITHUB_OUTPUT"
-          echo "🔖 Version bump: ${CURRENT} → ${NEW} (${{ github.event.inputs.version_bump }})"
+          set -euo pipefail
+          requested='${{ inputs.version }}'
+          committed=$(grep -oP '(?<=<Version>)[^<]+' Directory.Build.props | head -n 1)
+          test "$committed" = "$requested"
+          test -z "$(git status --porcelain -- Directory.Build.props)"
+          echo "value=$requested" >> "$GITHUB_OUTPUT"
+          echo "tag=v$requested" >> "$GITHUB_OUTPUT"
 
       - name: Validate release metadata
         run: |
-          if [ ! -f CHANGELOG.md ]; then
-            echo "❌ CHANGELOG.md is required before publishing a release."
-            exit 1
-          fi
-          if ! grep -q '^## \[Unreleased\]' CHANGELOG.md; then
-            echo "❌ CHANGELOG.md must contain an [Unreleased] section before release."
-            exit 1
-          fi
-          if [ -z "${{ github.event.inputs.release_notes }}" ]; then
-            echo "ℹ️  No manual release notes supplied; GitHub release notes will be generated from commits."
-          fi
+          set -euo pipefail
+          test -f CHANGELOG.md
+          grep -q '^## \[Unreleased\]' CHANGELOG.md
 
-      # ── Build & Test (gates on the new version) ────────────────────────────────
       - name: Restore
-        run: dotnet restore CaeriusNet.slnx
+        run: dotnet restore CaeriusNet.slnx --locked-mode
 
       - name: Build (Release)
-        run: |
-          dotnet build CaeriusNet.slnx \
-            --configuration Release \
-            --no-restore \
-            -p:TreatWarningsAsErrors=true
+        run: dotnet build CaeriusNet.slnx --configuration Release --no-restore -p:TreatWarningsAsErrors=true
 
-      - name: Test (non-integration)
+      - name: Test unit and compiler projects
         run: |
-          dotnet test CaeriusNet.slnx \
+          set -euo pipefail
+          for test_project in \
+            tests/CaeriusNet.Tests/CaeriusNet.Tests.csproj \
+            tests/CaeriusNet.Analyzer.Tests/CaeriusNet.Analyzer.Tests.csproj \
+            tests/CaeriusNet.Generator.Tests/CaeriusNet.Generator.Tests.csproj; do
+            test_name=$(basename "$(dirname "$test_project")")
+            dotnet test --project "$test_project" \
+              --configuration Release \
+              --no-restore \
+              --no-build \
+              --results-directory ./artifacts/test-results \
+              --report-trx \
+              --report-trx-filename "$test_name.trx" \
+              --coverage \
+              --coverage-output "$test_name.coverage.cobertura.xml" \
+              --coverage-output-format cobertura
+          done
+
+      - name: Pack exact release artifacts once
+        run: |
+          set -euo pipefail
+          package_directory="$GITHUB_WORKSPACE/artifacts/packages"
+          mkdir -p "$package_directory"
+          dotnet pack src/CaeriusNet/CaeriusNet.csproj --configuration Release --no-build --output "$package_directory"
+          dotnet pack src/CaeriusNet.Redis/CaeriusNet.Redis.csproj --configuration Release --no-build --output "$package_directory"
+          dotnet pack src/CaeriusNet.Aspire/CaeriusNet.Aspire.csproj --configuration Release --no-build --output "$package_directory"
+          dotnet pack src/CaeriusNet.Contracts/CaeriusNet.Contracts.csproj --configuration Release --no-build --output "$package_directory"
+
+          repro_directory="$RUNNER_TEMP/caeriusnet-packages-repro"
+          mkdir -p "$repro_directory"
+          for project in \
+            src/CaeriusNet/CaeriusNet.csproj \
+            src/CaeriusNet.Redis/CaeriusNet.Redis.csproj \
+            src/CaeriusNet.Aspire/CaeriusNet.Aspire.csproj \
+            src/CaeriusNet.Contracts/CaeriusNet.Contracts.csproj; do
+            dotnet pack "$project" --configuration Release --no-build --output "$repro_directory"
+          done
+          for artifact in "$package_directory"/*.nupkg "$package_directory"/*.snupkg; do
+            cmp --silent "$artifact" "$repro_directory/$(basename "$artifact")"
+          done
+
+      - name: Exercise packaging acceptance tests from the exact release artifacts
+        run: |
+          dotnet test --project tests/CaeriusNet.Packaging.Tests/CaeriusNet.Packaging.Tests.csproj \
             --configuration Release \
             --no-restore \
             --no-build \
-            --filter "FullyQualifiedName!~IntegrationTests" \
-            --logger "console;verbosity=normal"
+            --results-directory ./artifacts/test-results/packaging \
+            --report-trx \
+            --report-trx-filename packaging-results.trx \
+            --coverage \
+            --coverage-output packaging.coverage.cobertura.xml \
+            --coverage-output-format cobertura
 
-      - name: Test (integration, Docker)
-        run: |
-          dotnet test Tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj \
-            --configuration Release \
-            --no-restore \
-            --no-build \
-            --logger "console;verbosity=normal"
-
-      - name: Install docs dependencies
-        if: hashFiles('Documentations/package.json') != '' && hashFiles('Documentations/package-lock.json') == ''
-        working-directory: Documentations
-        run: npm install
-
-      - name: Install locked docs dependencies
-        if: hashFiles('Documentations/package-lock.json') != ''
-        working-directory: Documentations
-        run: npm ci
-
-      - name: Build docs
-        if: hashFiles('Documentations/package.json') != ''
-        working-directory: Documentations
-        run: npm run docs:build
-
-      # ── Pack ────────────────────────────────────────────────────────────────────
-      - name: Pack (nupkg + snupkg)
-        run: |
-          rm -rf ./packages
-          mkdir -p ./packages
-
-          dotnet pack Src/CaeriusNet.csproj \
-            --configuration Release \
-            --no-build \
-            --output ./packages \
-            -p:IncludeSymbols=true \
-            -p:SymbolPackageFormat=snupkg
-
-      - name: Validate package contents
+      - name: Validate exact release package layout, symbols and package validation
         shell: pwsh
-        run: ./.github/scripts/ValidatePackage.ps1 -Configuration Release -OutputDirectory "${{ runner.temp }}/caerius-package-validation" -PackageDirectory ./packages
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & ./.github/scripts/ValidatePackage.ps1 `
+            -Configuration Release `
+            -PackageDirectory "$env:GITHUB_WORKSPACE/artifacts/packages" `
+            -OutputDirectory "$env:RUNNER_TEMP/caeriusnet-release-package-validation"
 
-      - name: List packages
-        run: ls -la ./packages/
+      - name: Verify Source Link for release binaries
+        shell: pwsh
+        run: |
+          & ./.github/scripts/ValidateSourceLink.ps1 `
+            -Configuration Release `
+            -PackageDirectory "$env:GITHUB_WORKSPACE/artifacts/packages"
 
-      # ── Publish → NuGet.org (Trusted Publishing) ───────────────────────────────
-      - name: NuGet login (OIDC → clé API temporaire)
+      - name: Restore four isolated consumers from the exact release packages
+        run: bash ./.github/scripts/ValidatePackageConsumers.sh "$GITHUB_WORKSPACE/artifacts/packages" "$RUNNER_TEMP/caeriusnet-release-consumers"
+
+      - name: Exercise Docker acceptance gates from the exact release packages
+        env:
+          CAERIUS_RUN_CONTAINERS: 'true'
+          CAERIUS_PACKAGE_DIRECTORY: ${{ github.workspace }}/artifacts/packages
+        run: |
+          dotnet test --project tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj \
+            --configuration Release \
+            --no-restore \
+            --no-build \
+            --results-directory ./artifacts/test-results/integration \
+            --report-trx \
+            --report-trx-filename integration-results.trx \
+            --coverage \
+            --coverage-output integration.coverage.cobertura.xml \
+            --coverage-output-format cobertura
+
+      - name: Record exact release artifact hashes
+        run: |
+          set -euo pipefail
+          package_directory="$GITHUB_WORKSPACE/artifacts/packages"
+          (
+            cd "$package_directory"
+            sha256sum *.nupkg *.snupkg > SHA256SUMS
+            sha256sum --check SHA256SUMS
+          )
+
+      - name: Upload exact release artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          name: caeriusnet-release-${{ steps.version.outputs.value }}
+          path: artifacts/packages/*
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: NuGet login (OIDC)
         id: nuget_login
         uses: NuGet/login@v1
         with:
           user: ${{ secrets.NUGET_USER }}
 
-      - name: Publish → NuGet.org
+      - name: Publish to NuGet.org in dependency order
         run: |
-          dotnet nuget push ./packages/*.nupkg \
-            --api-key "${{ steps.nuget_login.outputs.NUGET_API_KEY }}" \
-            --source https://api.nuget.org/v3/index.json \
-            --skip-duplicate
-          dotnet nuget push ./packages/*.snupkg \
-            --api-key "${{ steps.nuget_login.outputs.NUGET_API_KEY }}" \
-            --source https://api.nuget.org/v3/index.json \
-            --skip-duplicate || true
+          set -euo pipefail
+          package_directory="$GITHUB_WORKSPACE/artifacts/packages"
+          version='${{ steps.version.outputs.value }}'
+          for package_id in CaeriusNet CaeriusNet.Redis CaeriusNet.Aspire CaeriusNet.Contracts; do
+            dotnet nuget push "$package_directory/${package_id}.${version}.nupkg" \
+              --api-key "${{ steps.nuget_login.outputs.NUGET_API_KEY }}" \
+              --source https://api.nuget.org/v3/index.json \
+              --skip-duplicate
+            dotnet nuget push "$package_directory/${package_id}.${version}.snupkg" \
+              --api-key "${{ steps.nuget_login.outputs.NUGET_API_KEY }}" \
+              --source https://api.nuget.org/v3/index.json \
+              --skip-duplicate
+          done
 
-      # ── Publish → GitHub Packages ──────────────────────────────────────────────
-      - name: Publish → GitHub Packages
+      - name: Publish to GitHub Packages in dependency order
         run: |
-          dotnet nuget push ./packages/*.nupkg \
-            --api-key "${{ secrets.GITHUB_TOKEN }}" \
-            --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
-            --skip-duplicate
-          dotnet nuget push ./packages/*.snupkg \
-            --api-key "${{ secrets.GITHUB_TOKEN }}" \
-            --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
-            --skip-duplicate || true
+          set -euo pipefail
+          package_directory="$GITHUB_WORKSPACE/artifacts/packages"
+          version='${{ steps.version.outputs.value }}'
+          for package_id in CaeriusNet CaeriusNet.Redis CaeriusNet.Aspire CaeriusNet.Contracts; do
+            dotnet nuget push "$package_directory/${package_id}.${version}.nupkg" \
+              --api-key "${{ secrets.GITHUB_TOKEN }}" \
+              --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+              --skip-duplicate
+          done
 
-      # ── Commit version bump back to main ───────────────────────────────────────
-      - name: Commit version bump
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Src/CaeriusNet.csproj
-          git commit -m "chore: release v${{ steps.bump.outputs.new }} [skip ci]"
-          git push
-          echo "✅ Version bump committed: ${{ steps.bump.outputs.new }}"
-
-      # ── Create GitHub Release (triggers benchmark.yml automatically) ───────────
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_NOTES: ${{ github.event.inputs.release_notes }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
         run: |
           set -euo pipefail
-          TAG="${{ steps.bump.outputs.tag }}"
-          VERSION="${{ steps.bump.outputs.new }}"
-          ASSETS=$(ls ./packages/*.nupkg ./packages/*.snupkg 2>/dev/null | tr '\n' ' ')
-
-          if gh release view "${TAG}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "ℹ️  Release ${TAG} already exists — skipping."
+          tag='${{ steps.version.outputs.tag }}'
+          version='${{ steps.version.outputs.value }}'
+          assets=(artifacts/packages/*.nupkg artifacts/packages/*.snupkg artifacts/packages/SHA256SUMS)
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $tag already exists."
+          elif [ -n "$RELEASE_NOTES" ]; then
+            printf '%s' "$RELEASE_NOTES" > release-notes.md
+            gh release create "$tag" --title "CaeriusNet $version" --notes-file release-notes.md --repo "$GITHUB_REPOSITORY" "${assets[@]}"
           else
-            if [ -n "$RELEASE_NOTES" ]; then
-              printf '%s' "$RELEASE_NOTES" > release-notes.md
-              # shellcheck disable=SC2086
-              gh release create "${TAG}" \
-                --title "CaeriusNet ${VERSION}" \
-                --notes-file release-notes.md \
-                --repo "$GITHUB_REPOSITORY" \
-                ${ASSETS}
-            else
-              # shellcheck disable=SC2086
-              gh release create "${TAG}" \
-                --title "CaeriusNet ${VERSION}" \
-                --generate-notes \
-                --repo "$GITHUB_REPOSITORY" \
-                ${ASSETS}
-            fi
-            echo "✅ Release ${TAG} created — benchmark workflow will trigger automatically."
+            gh release create "$tag" --title "CaeriusNet $version" --generate-notes --repo "$GITHUB_REPOSITORY" "${assets[@]}"
           fi

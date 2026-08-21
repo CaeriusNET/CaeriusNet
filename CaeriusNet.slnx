@@ -1,42 +1,48 @@
-﻿<Solution>
-    <Folder Name="/Benchmark/">
-        <Project Path="Benchmark\CaeriusNet.Benchmark.csproj"/>
+<Solution>
+    <Folder Name="/Source/Packages/">
+        <Project Path="src\CaeriusNet\CaeriusNet.csproj"/>
+        <Project Path="src\CaeriusNet.Redis\CaeriusNet.Redis.csproj"/>
+        <Project Path="src\CaeriusNet.Aspire\CaeriusNet.Aspire.csproj"/>
+        <Project Path="src\CaeriusNet.Contracts\CaeriusNet.Contracts.csproj"/>
     </Folder>
-    <Folder Name="/Documentations/"/>
-    <Folder Name="/Exemples/">
-        <File Path="Exemples/README.md"/>
-    </Folder>
-    <Folder Name="/Exemples/Aspire/">
-        <Project Path="Exemples\Aspire\CaeriusNet.Exemples.Aspire.AppHost\CaeriusNet.Exemples.Aspire.AppHost.csproj"/>
-        <Project
-                Path="Exemples\Aspire\CaeriusNet.Exemples.Aspire.ServiceDefaults\CaeriusNet.Exemples.Aspire.ServiceDefaults.csproj"/>
-        <Project Path="Exemples\Aspire\CaeriusNet.Exemples.Aspire.Console\CaeriusNet.Exemples.Aspire.Console.csproj"/>
-    </Folder>
-    <Folder Name="/Exemples/Default/">
-        <Project
-                Path="Exemples\Default\CaeriusNet.Exemples.Default.Console\CaeriusNet.Exemples.Default.Console.csproj"/>
-    </Folder>
-    <Folder Name="/Exemples/Libs/">
-        <Project Path="Exemples\Libs\CaeriusNet.Exemples.Libs.Commons\CaeriusNet.Exemples.Libs.Commons.csproj"/>
-    </Folder>
-    <Folder Name="/Analyzer/">
-        <Project Path="Analyzer\CaeriusNet.Analyzer.csproj"/>
-    </Folder>
-    <Folder Name="/SourceGenerators/">
-        <Project Path="SourceGenerators\CaeriusNet.Generator.csproj"/>
-    </Folder>
-    <Folder Name="/Src/">
-        <Project Path="Src\CaeriusNet.csproj"/>
-    </Folder>
-    <Folder Name="/Tests/">
-        <Project Path="Tests\CaeriusNet.Tests\CaeriusNet.Tests.csproj"/>
-        <File Path="Tests/README.md"/>
-        <Project Path="Tests\CaeriusNet.Analyzer.Tests\CaeriusNet.Analyzer.Tests.csproj"/>
-        <Project Path="Tests\CaeriusNet.Generator.Tests\CaeriusNet.Generator.Tests.csproj"/>
-        <Project Path="Tests\CaeriusNet.IntegrationTests\CaeriusNet.IntegrationTests.csproj"/>
-        <Project Path="Tests\CaeriusNet.Packaging.Tests\CaeriusNet.Packaging.Tests.csproj"/>
+    <Folder Name="/Source/Compiler/">
+        <Project Path="src\Compiler\CaeriusNet.Analyzer\CaeriusNet.Analyzer.csproj"/>
+        <Project Path="src\Compiler\CaeriusNet.Generator\CaeriusNet.Generator.csproj"/>
+        <Project Path="src\Compiler\CaeriusNet.MultiResultApiGenerator\CaeriusNet.MultiResultApiGenerator.csproj"/>
     </Folder>
     <Folder Name="/Tools/">
-        <Project Path="Tools\CaeriusNet.SqlServer.Contracts\CaeriusNet.SqlServer.Contracts.csproj"/>
+        <Project Path="tools\CaeriusNet.SqlServer.Contracts\CaeriusNet.SqlServer.Contracts.csproj"/>
+    </Folder>
+    <Folder Name="/Tests/Runtime/">
+        <Project Path="tests\CaeriusNet.Tests\CaeriusNet.Tests.csproj"/>
+    </Folder>
+    <Folder Name="/Tests/Compiler/">
+        <Project Path="tests\CaeriusNet.Analyzer.Tests\CaeriusNet.Analyzer.Tests.csproj"/>
+        <Project Path="tests\CaeriusNet.Generator.Tests\CaeriusNet.Generator.Tests.csproj"/>
+    </Folder>
+    <Folder Name="/Tests/Integration/">
+        <Project Path="tests\CaeriusNet.IntegrationTests\CaeriusNet.IntegrationTests.csproj"/>
+    </Folder>
+    <Folder Name="/Tests/Packaging/">
+        <Project Path="tests\CaeriusNet.Packaging.Tests\CaeriusNet.Packaging.Tests.csproj"/>
+    </Folder>
+    <Folder Name="/Tests/">
+        <File Path="tests\README.md"/>
+    </Folder>
+    <Folder Name="/Benchmarks/">
+        <Project Path="benchmarks\CaeriusNet.Benchmark.csproj"/>
+    </Folder>
+    <Folder Name="/Examples/">
+        <Project Path="examples\Common\CaeriusNet.Examples.Common\CaeriusNet.Examples.Common.csproj"/>
+        <Project
+                Path="examples\StoredProcedures.Console\CaeriusNet.Examples.StoredProcedures.Console\CaeriusNet.Examples.StoredProcedures.Console.csproj"/>
+        <Project Path="examples\Aspire\CaeriusNet.Examples.Aspire.AppHost\CaeriusNet.Examples.Aspire.AppHost.csproj"/>
+        <Project Path="examples\Aspire\CaeriusNet.Examples.Aspire.Console\CaeriusNet.Examples.Aspire.Console.csproj"/>
+        <Project
+                Path="examples\Aspire\CaeriusNet.Examples.Aspire.ServiceDefaults\CaeriusNet.Examples.Aspire.ServiceDefaults.csproj"/>
+        <File Path="examples\README.md"/>
+    </Folder>
+    <Folder Name="/Documentation/">
+        <File Path="docs\package.json"/>
     </Folder>
 </Solution>

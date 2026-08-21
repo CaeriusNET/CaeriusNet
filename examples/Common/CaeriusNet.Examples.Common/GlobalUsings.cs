@@ -1,0 +1,12 @@
+﻿global using CaeriusNet.Abstractions;
+global using CaeriusNet;
+global using CaeriusNet.Commands;
+global using CaeriusNet.Exceptions;
+global using CaeriusNet.Examples.Common.Abstractions;
+global using CaeriusNet.Examples.Common.Models.Dtos;
+global using CaeriusNet.Examples.Common.Models.Tvps;
+global using CaeriusNet.Examples.Common.Repositories;
+global using CaeriusNet.Examples.Common.Services;
+global using Microsoft.Extensions.DependencyInjection;
+global using System.Collections.Immutable;
+global using System.Data;

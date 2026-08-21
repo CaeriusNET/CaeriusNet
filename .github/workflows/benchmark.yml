@@ -1,33 +1,53 @@
-name: Benchmarks
+name: CaeriusNet benchmarks
 
 on:
-  # Auto-triggered when a GitHub Release is published
+  pull_request:
+    paths:
+      - 'benchmarks/**'
+      - 'src/**'
+      - 'Directory.Build.props'
+      - 'Directory.Build.targets'
+      - 'Directory.Packages.props'
+      - 'global.json'
   release:
     types: [published]
-
-  # Manual trigger — restricted to 'Developpement' environment (AriusII approval)
   workflow_dispatch:
     inputs:
       category:
-        description: 'Benchmark category to run'
-        required: false
-        default: 'all'
+        description: 'Benchmark category'
+        required: true
+        default: all
         type: choice
         options:
           - all
-          - in-memory
+          - command
           - tvp
-          - sql-server
-          - collections
+          - materialization
+          - multi-result
           - cache
-          - auto-contracts
+          - sql-server
+          - redis
+          - generator
+      mode:
+        description: 'Run one category, compare the full suite, or record a full-suite candidate baseline artifact.'
+        required: true
+        default: compare
+        type: choice
+        options:
+          - run
+          - compare
+          - record
+      baseline_version:
+        description: 'Committed release baseline to compare (for example 11.2.0).'
+        required: true
+        default: 11.2.0
+        type: string
 
-# Minimal default permissions
 permissions:
-  contents: write  # needed to commit results back to repo
+  contents: read
 
 concurrency:
-  group: benchmark
+  group: caeriusnet-benchmark-${{ github.ref }}
   cancel-in-progress: false
 
 env:
@@ -35,182 +55,145 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_NOLOGO: true
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-  SA_PASSWORD: 'BenchmarkP@ss2026!'
 
 jobs:
   benchmark:
-    name: Run Benchmarks (${{ github.event.inputs.category || 'all' }})
-    runs-on: ubuntu-latest
-
-    # Developpement environment for manual dispatch; no gate needed for automated release trigger.
-    environment: ${{ github.event_name == 'workflow_dispatch' && 'Developpement' || '' }}
-
-    # SQL Server 2022 service container for SQL benchmarks
-    services:
-      sqlserver:
-        image: mcr.microsoft.com/mssql/server:2022-latest
-        env:
-          SA_PASSWORD: ${{ env.SA_PASSWORD }}
-          ACCEPT_EULA: 'Y'
-          MSSQL_PID: Developer
-        ports:
-          - 1433:1433
-        options: >-
-          --health-cmd "/bin/bash -c 'echo > /dev/tcp/127.0.0.1/1433'"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 24
-          --health-start-period 20s
+    name: ${{ inputs.category || 'all' }} (${{ inputs.mode || (github.event_name == 'pull_request' && 'run') || 'compare' }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
 
       - name: Setup .NET from global.json
         uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
-      - name: Display .NET SDK info
-        run: dotnet --info
+      - name: Capture SDK for the benchmark environment manifest
+        run: echo "CAERIUS_BENCHMARK_SDK_VERSION=$(dotnet --version)" >> "$GITHUB_ENV"
 
       - name: Cache NuGet packages
         uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
-          key: nuget-bench-${{ runner.os }}-${{ hashFiles('global.json', '**/*.csproj', '**/*.slnx') }}
+          key: nuget-bench-${{ runner.os }}-${{ hashFiles('global.json', 'Directory.Packages.props', 'Directory.Build.props', 'Directory.Build.targets', '**/packages.lock.json') }}
           restore-keys: nuget-bench-${{ runner.os }}-
 
-      - name: Restore dependencies
-        run: dotnet restore CaeriusNet.slnx
-
-      - name: Build (Release)
-        run: |
-          dotnet build Benchmark/CaeriusNet.Benchmark.csproj \
-            --configuration Release \
-            --no-restore
-
-      - name: Wait for SQL Server to be ready
-        run: |
-          # The service container health check (TCP /dev/tcp) guarantees port 1433 is
-          # open before steps begin. This step adds explicit diagnostic output.
-          echo "⏳ Verifying SQL Server port 1433 is reachable on localhost..."
-          for i in $(seq 1 12); do
-            if bash -c '(echo > /dev/tcp/localhost/1433) 2>/dev/null'; then
-              echo "✅ SQL Server port 1433 is open (attempt $i)."
-              exit 0
-            fi
-            echo "  Attempt $i/12 — port not open yet, retrying in 5s..."
-            sleep 5
-          done
-          echo "❌ SQL Server port 1433 did not open after 12 attempts. Aborting."
-          exit 1
-
-      - name: Run Benchmarks
+      - name: Resolve benchmark mode
+        id: mode
         env:
-          BENCHMARK_SQL_CONNECTION: "Server=localhost,1433;Database=master;User Id=sa;Password=${{ env.SA_PASSWORD }};TrustServerCertificate=True"
-          # Explicit artifact path — read by BenchmarkConfig.cs via env var.
-          # InProcessEmitToolchain guarantees files are written here (no child process CWD ambiguity).
-          BENCHMARK_ARTIFACTS_PATH: ${{ github.workspace }}/BenchmarkDotNet.Artifacts
-          CI: 'true'
+          REQUESTED_MODE: ${{ inputs.mode }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          CATEGORY="${{ github.event.inputs.category || 'all' }}"
-          echo "🚀 Running benchmarks: category=${CATEGORY}"
-          cd Benchmark && dotnet run \
-            --project CaeriusNet.Benchmark.csproj \
-            --configuration Release \
-            --no-build \
-            -- "${CATEGORY}"
-
-      - name: Verify artifact output
-        if: always()
-        run: |
-          ARTIFACTS="${{ github.workspace }}/BenchmarkDotNet.Artifacts/results"
-          echo "=== Configured artifact path ==="
-          echo "$ARTIFACTS"
-          echo "=== Directory listing ==="
-          ls -la "$ARTIFACTS" 2>/dev/null || echo "⚠️  Directory not found: $ARTIFACTS"
-          echo "=== GitHub-flavoured Markdown reports (*-report-github.md) ==="
-          find "$ARTIFACTS" -name "*-report-github.md" 2>/dev/null || echo "  (none found)"
-          echo "=== JSON reports (*-report-full.json) ==="
-          find "$ARTIFACTS" -name "*-report-full.json" 2>/dev/null || echo "  (none found)"
-
-      - name: Extract results into documentation
-        if: always()
-        run: |
-          ARTIFACTS="${{ github.workspace }}/BenchmarkDotNet.Artifacts/results"
-          DOCS_DIR="Documentations/docs/benchmarks/results"
-          mkdir -p "$DOCS_DIR"
-
-          if [ ! -d "$ARTIFACTS" ] || [ -z "$(ls -A "$ARTIFACTS" 2>/dev/null)" ]; then
-            echo "⚠️  No artifacts at $ARTIFACTS — skipping extraction."
-            exit 0
-          fi
-
-          echo "📂 Artifact files:"
-          ls -la "$ARTIFACTS"
-
-          # Copy full JSON reports for data analysis
-          cp "$ARTIFACTS"/*.json "$DOCS_DIR/" 2>/dev/null && echo "✅ JSON files copied." || echo "ℹ️  No JSON files."
-
-          # MarkdownExporter.GitHub produces *-report-github.md files.
-          # Extract only table rows (lines starting with '|') to strip BDN environment headers.
-          extracted=0
-          skipped=0
-          for md_file in "$ARTIFACTS"/*-report-github.md; do
-            [ -f "$md_file" ] || continue
-            # Strip namespace prefix, keep ClassName only:
-            # e.g. "CaeriusNet.Benchmark.Workshops.Benchs.Mapping.DtoMappingBench-report-github.md"
-            #   → "DtoMappingBench"
-            classname=$(basename "$md_file" "-report-github.md" | rev | cut -d'.' -f1 | rev)
-            out_file="$DOCS_DIR/${classname}.md"
-            awk '/^\|/' "$md_file" > "$out_file"
-            line_count=$(wc -l < "$out_file")
-            if [ "$line_count" -lt 3 ]; then
-              echo "  ⚠️  ${classname}.md has only ${line_count} line(s) — skipping (expected header + separator + ≥1 data row)."
-              rm -f "$out_file"
-              skipped=$((skipped + 1))
+          MODE="$REQUESTED_MODE"
+          if [ -z "$MODE" ]; then
+            if [ "$EVENT_NAME" = 'pull_request' ]; then
+              MODE='run'
             else
-              echo "  ✅ ${classname}.md (${line_count} lines)"
-              extracted=$((extracted + 1))
+              MODE='compare'
             fi
-          done
-          echo "📊 Extraction summary: ${extracted} file(s) written, ${skipped} skipped."
+          fi
+          echo "value=$MODE" >> "$GITHUB_OUTPUT"
 
-          echo "📋 Documentation results directory:"
-          ls -la "$DOCS_DIR"
+      - name: Restore benchmark dependencies
+        run: dotnet restore benchmarks/CaeriusNet.Benchmark.csproj --locked-mode
 
-      - name: Commit benchmark results to documentation
-        # Only auto-commit on GitHub Release events — never on manual workflow_dispatch
-        if: always() && github.event_name == 'release'
+      - name: Build benchmark runner
+        run: dotnet build benchmarks/CaeriusNet.Benchmark.csproj --configuration Release --no-restore
+
+      - name: Run benchmarks
+        id: run
+        env:
+          CI: 'true'
+          BENCHMARK_ARTIFACTS_PATH: ${{ runner.temp }}/caeriusnet-benchmarks
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Documentations/docs/benchmarks/results/ || true
+          CATEGORY="${{ inputs.category || 'all' }}"
+          echo "Running benchmark category: ${CATEGORY}"
+          dotnet run --project benchmarks/CaeriusNet.Benchmark.csproj --configuration Release --no-build -- "${CATEGORY}"
 
-          if git diff --staged --quiet; then
-            echo "ℹ️  No benchmark result changes to commit."
-          else
-            CATEGORY="${{ github.event.inputs.category || 'all' }}"
-            VERSION=$(grep -oP '(?<=<Version>)\d+\.\d+\.\d+(?=</Version>)' Src/CaeriusNet.csproj || echo "unknown")
-            COMMIT_SHA="${{ github.sha }}"
-            SHORT_SHA="${COMMIT_SHA:0:7}"
-            git commit -m "chore(bench): update benchmark results v${VERSION} [category:${CATEGORY}] [run:${SHORT_SHA}] [skip ci]"
-            git push
-            echo "✅ Benchmark results committed."
+          RESULTS="$BENCHMARK_ARTIFACTS_PATH/results"
+          test -d "$RESULTS"
+          test -n "$(find "$RESULTS" -type f -name '*-report-full*.json' -print -quit)"
+          # This records checksums for reports that BenchmarkDotNet has already declared successful. It does not
+          # create a synthetic timing baseline, and compare/record reject a result set without this manifest.
+          dotnet run --project benchmarks/CaeriusNet.Benchmark.csproj --configuration Release --no-build -- \
+            --write-environment "$RESULTS" "$CATEGORY"
+          echo "results=$RESULTS" >> "$GITHUB_OUTPUT"
+
+      - name: Validate baseline version input
+        if: steps.mode.outputs.value != 'run'
+        id: baseline
+        run: |
+          VERSION="${{ inputs.baseline_version || '11.2.0' }}"
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "baseline_version must be a version such as 11.2.0; got '$VERSION'." >&2
+            exit 64
+          fi
+          echo "directory=$GITHUB_WORKSPACE/benchmarks/baselines/$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Validate comparison scope
+        if: steps.mode.outputs.value != 'run'
+        run: |
+          CATEGORY="${{ inputs.category || 'all' }}"
+          if [ "$CATEGORY" != 'all' ]; then
+            echo "Baseline compare/record requires category=all so every benchmark identity is measured." >&2
+            echo "Use mode=run for an exploratory single-category execution." >&2
+            exit 64
           fi
 
-      - name: Upload benchmark artifacts
+      - name: Compare with the committed baseline
+        if: steps.mode.outputs.value == 'compare'
+        env:
+          BASELINE_DIRECTORY: ${{ steps.baseline.outputs.directory }}
+          CANDIDATE_DIRECTORY: ${{ steps.run.outputs.results }}
+        run: |
+          # A missing baseline is intentionally an error. Bootstrap it with workflow_dispatch mode=record,
+          # review the measured reports and caerius-benchmark-environment.v1.json, then commit them under
+          # benchmarks/baselines/11.2.0. The comparator rejects a different runner/runtime/job fingerprint.
+          dotnet run --project benchmarks/CaeriusNet.Benchmark.csproj --configuration Release --no-build -- \
+            --compare "$BASELINE_DIRECTORY" "$CANDIDATE_DIRECTORY" --max-time-regression 5
+
+      - name: Record candidate baseline
+        if: steps.mode.outputs.value == 'record'
+        id: record
+        env:
+          CANDIDATE_DIRECTORY: ${{ steps.run.outputs.results }}
+          BASELINE_CANDIDATE_DIRECTORY: ${{ runner.temp }}/caeriusnet-baseline
+        run: |
+          dotnet run --project benchmarks/CaeriusNet.Benchmark.csproj --configuration Release --no-build -- \
+            --record-baseline "$CANDIDATE_DIRECTORY" "$BASELINE_CANDIDATE_DIRECTORY"
+          echo "directory=$BASELINE_CANDIDATE_DIRECTORY" >> "$GITHUB_OUTPUT"
+
+      - name: Publish comparison summary
+        if: always()
+        env:
+          RESULTS_DIRECTORY: ${{ steps.run.outputs.results }}
+        run: |
+          REPORT="$RESULTS_DIRECTORY/caerius-benchmark-comparison.md"
+          if [ -f "$REPORT" ]; then
+            cat "$REPORT" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No comparison report was produced (record mode or an early baseline validation failure)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload benchmark reports
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: "benchmark-reports-${{ github.run_number }}"
-          path: |
-            ${{ github.workspace }}/BenchmarkDotNet.Artifacts/results/*-report-github.md
-            ${{ github.workspace }}/BenchmarkDotNet.Artifacts/results/*-report-full.json
-            Documentations/docs/benchmarks/results/
+          name: benchmark-reports-${{ github.run_number }}
+          path: ${{ steps.run.outputs.results }}
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: Upload baseline candidate
+        if: always() && steps.mode.outputs.value == 'record'
+        uses: actions/upload-artifact@v5
+        with:
+          name: benchmark-baseline-candidate-${{ github.run_number }}
+          path: ${{ steps.record.outputs.directory }}
           retention-days: 90
           if-no-files-found: warn
