@@ -37,11 +37,11 @@ printf '<Project />\n' > "$consumer_root/Directory.Build.props"
 printf '<Project />\n' > "$consumer_root/Directory.Build.targets"
 printf '<Project />\n' > "$consumer_root/Directory.Packages.props"
 dotnet new nugetconfig --force --output "$consumer_root" >/dev/null
-dotnet nuget add source "$package_directory" --name caeriusnet-local --configfile "$consumer_root/NuGet.Config" >/dev/null
+dotnet nuget add source "$package_directory" --name caeriusnet-local --configfile "$consumer_root/nuget.config" >/dev/null
 
 for package_id in CaeriusNet CaeriusNet.Redis CaeriusNet.Aspire CaeriusNet.Contracts; do
   consumer="$consumer_root/$package_id"
-  dotnet new classlib --framework net10.0 --no-restore --output "$consumer" >/dev/null
+  dotnet new classlib --name "Consumer.$package_id" --framework net10.0 --no-restore --output "$consumer" >/dev/null
   project="$(find "$consumer" -maxdepth 1 -type f -name '*.csproj' -print -quit)"
   dotnet add "$project" package "$package_id" --version "$version" >/dev/null
 
@@ -56,7 +56,8 @@ namespace Consumer.Core;
 public sealed partial record ConsumerDto(int Id, string Name);
 
 [GenerateTvp(Schema = "dbo", TvpName = "ConsumerRows")]
-public sealed partial record ConsumerRows(int Id);
+public sealed partial record ConsumerRows(
+    [SqlServerTvpColumn("Id", 0, System.Data.SqlDbType.Int, false)] int Id);
 
 public static class CoreSmoke
 {
