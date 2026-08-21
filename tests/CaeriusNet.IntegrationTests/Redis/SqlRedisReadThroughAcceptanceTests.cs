@@ -318,15 +318,17 @@ public sealed class SqlRedisReadThroughAcceptanceTests
         await using var survivorScope = provider.CreateAsyncScope();
         var cancelledDatabase = cancelledScope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
         var survivorDatabase = survivorScope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
-        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(75));
+        using var cancellation = new CancellationTokenSource();
 
         var cancelledWaiter = cancelledDatabase
             .QueryImmutableArrayAsync<CacheWidget>(command, cancellationToken: cancellation.Token)
             .AsTask();
-        await Task.Delay(TimeSpan.FromMilliseconds(25), cancellationToken);
         var survivingWaiter = survivorDatabase
             .QueryImmutableArrayAsync<CacheWidget>(command, cancellationToken: cancellationToken)
             .AsTask();
+        // Both calls have synchronously joined the same local flight. Cancel only the first waiter now so
+        // scheduler latency cannot let the SQL population finish before the cancellation callback runs.
+        cancellation.Cancel();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => cancelledWaiter);
         Assert.Equal(7, Assert.Single(await survivingWaiter).Id);
