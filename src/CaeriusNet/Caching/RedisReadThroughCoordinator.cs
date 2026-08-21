@@ -106,7 +106,7 @@ internal sealed class RedisReadThroughCoordinator
             flight.Completion.TrySetResult(
                 await factory(state, flight.PopulationCancellation.Token).ConfigureAwait(false));
         }
-        catch (Exception exception)
+        catch (Exception exception) when (IsNonFatal(exception))
         {
             flight.Completion.TrySetException(exception);
         }
@@ -120,6 +120,17 @@ internal sealed class RedisReadThroughCoordinator
 
             flight.PopulationCancellation.Dispose();
         }
+    }
+
+    private static bool IsNonFatal(Exception exception)
+    {
+        return exception is not OutOfMemoryException
+            and not StackOverflowException
+            and not AccessViolationException
+            and not AppDomainUnloadedException
+            and not BadImageFormatException
+            and not CannotUnloadAppDomainException
+            and not System.Threading.ThreadAbortException;
     }
 
     private interface IFlight;

@@ -186,7 +186,7 @@ internal sealed class InMemoryCacheManager : IInMemoryCacheManager, IDisposable
 
             flight.Completion.TrySetResult(value);
         }
-        catch (Exception exception)
+        catch (Exception exception) when (IsNonFatal(exception))
         {
             lock (_mutationLock)
             {
@@ -232,6 +232,17 @@ internal sealed class InMemoryCacheManager : IInMemoryCacheManager, IDisposable
     private static void ValidateKey(string key)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
+    }
+
+    private static bool IsNonFatal(Exception exception)
+    {
+        return exception is not OutOfMemoryException
+            and not StackOverflowException
+            and not AccessViolationException
+            and not AppDomainUnloadedException
+            and not BadImageFormatException
+            and not CannotUnloadAppDomainException
+            and not System.Threading.ThreadAbortException;
     }
 
     private async ValueTask<T> WaitForFlightAsync<T>(InFlight flight, CancellationToken cancellationToken)

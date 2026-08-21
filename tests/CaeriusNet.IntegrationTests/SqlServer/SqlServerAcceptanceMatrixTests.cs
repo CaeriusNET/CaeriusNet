@@ -287,6 +287,7 @@ public sealed class SqlServerAcceptanceMatrixTests
                 await foreach (var _ in transaction.StreamAsync<Widget>(
                                    StreamCommand(1, true), cancellation.Token))
                 {
+                    // Intentionally enumerate until cancellation invalidates the transaction.
                 }
             });
             Assert.False(transaction.IsActive);
@@ -320,6 +321,7 @@ public sealed class SqlServerAcceptanceMatrixTests
         {
             await foreach (var _ in transaction.StreamAsync<Widget>(command, cancellationToken))
             {
+                // Intentionally enumerate until the command failure invalidates the transaction.
             }
         });
         Assert.NotNull(failure);

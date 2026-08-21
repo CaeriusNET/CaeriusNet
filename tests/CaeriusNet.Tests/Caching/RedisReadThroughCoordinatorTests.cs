@@ -128,6 +128,39 @@ public sealed class RedisReadThroughCoordinatorTests
         await firstFinished.Task.WaitAsync(TestContext.Current.CancellationToken);
     }
 
+    [Fact]
+    public async Task PropagatesAFactoryFailureToAllWaitersAndAllowsRetry()
+    {
+        var coordinator = CreateCoordinator();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var factoryCalls = 0;
+
+        async ValueTask<int> FailingFactory(int _, CancellationToken __)
+        {
+            Interlocked.Increment(ref factoryCalls);
+            started.TrySetResult();
+            await release.Task.ConfigureAwait(false);
+            throw new InvalidOperationException("Factory failure.");
+        }
+
+        var first = coordinator.GetOrCreateAsync(
+            "factory-failure", 0, FailingFactory, TestContext.Current.CancellationToken).AsTask();
+        await started.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var second = coordinator.GetOrCreateAsync(
+            "factory-failure", 0, FailingFactory, TestContext.Current.CancellationToken).AsTask();
+
+        release.TrySetResult();
+
+        Assert.Equal("Factory failure.", (await Assert.ThrowsAsync<InvalidOperationException>(() => first)).Message);
+        Assert.Equal("Factory failure.", (await Assert.ThrowsAsync<InvalidOperationException>(() => second)).Message);
+        Assert.Equal(1, factoryCalls);
+
+        var retried = await coordinator.GetOrCreateAsync(
+            "factory-failure", 0, static (_, _) => ValueTask.FromResult(73), TestContext.Current.CancellationToken);
+        Assert.Equal(73, retried);
+    }
+
     private static RedisReadThroughCoordinator CreateCoordinator(int maxConcurrentPopulations = 256)
     {
         return new RedisReadThroughCoordinator(Options.Create(new CaeriusMemoryCacheOptions

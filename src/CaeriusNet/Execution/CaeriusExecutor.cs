@@ -330,15 +330,25 @@ internal static class CaeriusExecutor
             {
                 throw;
             }
-            catch (Exception exception)
+            catch (TimeoutException exception)
             {
-                CaeriusRuntimeLog.RedisLookupFailed(
-                    context.Logger,
-                    state.Command.FullName,
-                    exception.GetType().FullName ?? exception.GetType().Name);
-                context.Instrumentation.CacheError(CaeriusCacheTier.Redis);
-                snapshots[index] = new CaeriusCacheTagSnapshot(
-                    ImmutableArray.CreateRange(Enumerable.Repeat(0L, state.Command.DependencyTags.Length)));
+                RecordRedisLookupFailure(context, state, snapshots, index, exception);
+            }
+            catch (System.IO.IOException exception)
+            {
+                RecordRedisLookupFailure(context, state, snapshots, index, exception);
+            }
+            catch (System.Net.Sockets.SocketException exception)
+            {
+                RecordRedisLookupFailure(context, state, snapshots, index, exception);
+            }
+            catch (ObjectDisposedException exception)
+            {
+                RecordRedisLookupFailure(context, state, snapshots, index, exception);
+            }
+            catch (CaeriusCacheException exception)
+            {
+                RecordRedisLookupFailure(context, state, snapshots, index, exception);
             }
 
         var value = await state.SqlFactory(context, state.FactoryState, cancellationToken).ConfigureAwait(false);
@@ -360,16 +370,40 @@ internal static class CaeriusExecutor
             {
                 throw;
             }
-            catch (Exception exception)
+            catch (CaeriusCacheException exception)
             {
-                CaeriusRuntimeLog.RedisPopulationFailed(
-                    context.Logger,
-                    state.Command.FullName,
-                    exception.GetType().FullName ?? exception.GetType().Name);
-                context.Instrumentation.CacheError(CaeriusCacheTier.Redis);
+                RecordRedisPopulationFailure(context, state, exception);
             }
 
         return value;
+    }
+
+    private static void RecordRedisLookupFailure<TValue, TState>(
+        ICaeriusExecutionContext context,
+        RedisReadThroughState<TValue, TState> state,
+        CaeriusCacheTagSnapshot[] snapshots,
+        int index,
+        Exception exception) where TValue : notnull
+    {
+        CaeriusRuntimeLog.RedisLookupFailed(
+            context.Logger,
+            state.Command.FullName,
+            exception.GetType().FullName ?? exception.GetType().Name);
+        context.Instrumentation.CacheError(CaeriusCacheTier.Redis);
+        snapshots[index] = new CaeriusCacheTagSnapshot(
+            ImmutableArray.CreateRange(Enumerable.Repeat(0L, state.Command.DependencyTags.Length)));
+    }
+
+    private static void RecordRedisPopulationFailure<TValue, TState>(
+        ICaeriusExecutionContext context,
+        RedisReadThroughState<TValue, TState> state,
+        Exception exception) where TValue : notnull
+    {
+        CaeriusRuntimeLog.RedisPopulationFailed(
+            context.Logger,
+            state.Command.FullName,
+            exception.GetType().FullName ?? exception.GetType().Name);
+        context.Instrumentation.CacheError(CaeriusCacheTier.Redis);
     }
 
     internal static async ValueTask InvalidateStrictAsync(

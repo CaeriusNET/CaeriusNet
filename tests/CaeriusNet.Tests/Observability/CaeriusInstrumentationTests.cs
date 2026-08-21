@@ -24,7 +24,8 @@ public sealed class CaeriusInstrumentationTests
         var command = CreateCommand();
         var options = new CaeriusNetOptions();
         using var instrumentation = new CaeriusInstrumentation();
-        using var connection = new SqlConnection("Server=localhost;Database=telemetry");
+        using var connection = new SqlConnection(
+            "Server=localhost;Database=telemetry;Encrypt=Strict;TrustServerCertificate=False");
 
         // JIT and static initialization must not be part of the allocation assertion.
         ExecuteSuccessfulOperation(instrumentation, command, connection, options);
@@ -43,7 +44,8 @@ public sealed class CaeriusInstrumentationTests
         var measurements = new ConcurrentQueue<KeyValuePair<string, object?>[]>();
         using var listener = CreateMeterListener<double>("db.client.operation.duration", measurements);
         using var instrumentation = new CaeriusInstrumentation();
-        using var connection = new SqlConnection("Server=telemetry-host;Database=tenant_42");
+        using var connection = new SqlConnection(
+            "Server=telemetry-host;Database=tenant_42;Encrypt=Strict;TrustServerCertificate=False");
 
         ExecuteSuccessfulOperation(instrumentation, CreateCommand(), connection, new CaeriusNetOptions());
 
@@ -150,7 +152,8 @@ public sealed class CaeriusInstrumentationTests
             .Build();
 
         using var instrumentation = new CaeriusInstrumentation();
-        using var connection = new SqlConnection("Server=telemetry-host;Database=telemetry");
+        using var connection = new SqlConnection(
+            "Server=telemetry-host;Database=telemetry;Encrypt=Strict;TrustServerCertificate=False");
         ExecuteSuccessfulOperation(instrumentation, command, connection, options);
 
         Assert.Equal(0, redactorCalls);
@@ -168,7 +171,8 @@ public sealed class CaeriusInstrumentationTests
         };
         ActivitySource.AddActivityListener(listener);
         using var instrumentation = new CaeriusInstrumentation();
-        using var connection = new SqlConnection("Server=telemetry-host;Database=telemetry");
+        using var connection = new SqlConnection(
+            "Server=telemetry-host;Database=telemetry;Encrypt=Strict;TrustServerCertificate=False");
         const string secret = "cache-key=super-secret";
 
         using (var operation = instrumentation.Start(CreateCommand(), false, new CaeriusNetOptions()))

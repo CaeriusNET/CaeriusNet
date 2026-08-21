@@ -184,6 +184,44 @@ public sealed class CacheAcceptanceTests
     }
 
     [Fact]
+    public async Task InMemoryCachePropagatesAFactoryFailureToAllWaitersAndAllowsRetry()
+    {
+        using var provider = CreateProvider();
+        var cache = provider.GetRequiredService<IInMemoryCacheManager>();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var factoryCalls = 0;
+
+        async ValueTask<int> FailingFactory(CancellationToken _)
+        {
+            Interlocked.Increment(ref factoryCalls);
+            started.TrySetResult();
+            await release.Task.ConfigureAwait(false);
+            throw new InvalidOperationException("Factory failure.");
+        }
+
+        var first = cache.GetOrCreateAsync(
+            "factory-failure", TimeSpan.FromMinutes(1), false, FailingFactory, TestContext.Current.CancellationToken).AsTask();
+        await started.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var second = cache.GetOrCreateAsync(
+            "factory-failure", TimeSpan.FromMinutes(1), false, FailingFactory, TestContext.Current.CancellationToken).AsTask();
+
+        release.TrySetResult();
+
+        Assert.Equal("Factory failure.", (await Assert.ThrowsAsync<InvalidOperationException>(() => first)).Message);
+        Assert.Equal("Factory failure.", (await Assert.ThrowsAsync<InvalidOperationException>(() => second)).Message);
+        Assert.Equal(1, factoryCalls);
+
+        var retried = await cache.GetOrCreateAsync(
+            "factory-failure",
+            TimeSpan.FromMinutes(1),
+            false,
+            _ => ValueTask.FromResult(73),
+            TestContext.Current.CancellationToken);
+        Assert.Equal(73, retried);
+    }
+
+    [Fact]
     public async Task InMemoryCacheRemoveCannotBeUndoneByAnOlderInFlightPopulation()
     {
         using var provider = CreateProvider();
@@ -336,28 +374,113 @@ public sealed class CacheAcceptanceTests
     }
 
     [Fact]
-    public async Task RedisLookupAndPopulationFailuresFailOpenToTheSqlFactory()
+    public async Task RedisLookupOperationalFailuresFailOpenToTheSqlFactory()
+    {
+        var failures = new Exception[]
+        {
+            new TimeoutException("lookup timed out"),
+            new System.IO.IOException("lookup transport failed"),
+            new System.Net.Sockets.SocketException((int)System.Net.Sockets.SocketError.ConnectionReset),
+            new ObjectDisposedException("redis-multiplexer"),
+            new CaeriusCacheException("get", new TimeoutException("wrapped lookup timed out"))
+        };
+
+        foreach (var failure in failures)
+        {
+            var remote = new DeterministicRemoteCache { LookupFailure = failure };
+            using var provider = CreateProvider(remote);
+            using var scope = provider.CreateScope();
+            var context = (ICaeriusExecutionContext)scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
+            var calls = 0;
+
+            var result = await CaeriusExecutor.CachedAsync(
+                context,
+                RedisCommand($"Lookup{failure.GetType().Name}"),
+                "integer",
+                _ => ValueTask.FromResult(Interlocked.Increment(ref calls)),
+                TestContext.Current.CancellationToken,
+                new Int32Codec());
+
+            Assert.Equal(1, result);
+            Assert.Equal(1, calls);
+            Assert.Equal(1, remote.LookupCalls);
+            Assert.Equal(1, remote.SetCalls);
+        }
+    }
+
+    [Fact]
+    public async Task RedisPopulationCacheFailureReturnsTheSqlFactoryResult()
     {
         var remote = new DeterministicRemoteCache
         {
-            LookupFailure = new InvalidOperationException("lookup down"),
-            SetFailure = new InvalidOperationException("population down")
+            SetFailure = new CaeriusCacheException("set", new TimeoutException("population timed out"))
         };
         using var provider = CreateProvider(remote);
         using var scope = provider.CreateScope();
         var context = (ICaeriusExecutionContext)scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
-        var command = RedisCommand("FailOpen");
         var calls = 0;
 
         var result = await CaeriusExecutor.CachedAsync(
             context,
-            command,
+            RedisCommand("PopulationFailOpen"),
             "integer",
             _ => ValueTask.FromResult(Interlocked.Increment(ref calls)),
             TestContext.Current.CancellationToken,
             new Int32Codec());
 
         Assert.Equal(1, result);
+        Assert.Equal(1, calls);
+        Assert.Equal(1, remote.LookupCalls);
+        Assert.Equal(1, remote.SetCalls);
+    }
+
+    [Fact]
+    public async Task RedisLookupUnexpectedFailureIsPropagated()
+    {
+        var remote = new DeterministicRemoteCache
+        {
+            LookupFailure = new InvalidOperationException("lookup contract failure")
+        };
+        using var provider = CreateProvider(remote);
+        using var scope = provider.CreateScope();
+        var context = (ICaeriusExecutionContext)scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
+        var calls = 0;
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => CaeriusExecutor.CachedAsync(
+            context,
+            RedisCommand("LookupUnexpectedFailure"),
+            "integer",
+            _ => ValueTask.FromResult(Interlocked.Increment(ref calls)),
+            TestContext.Current.CancellationToken,
+            new Int32Codec()).AsTask());
+
+        Assert.Equal("lookup contract failure", exception.Message);
+        Assert.Equal(0, calls);
+        Assert.Equal(1, remote.LookupCalls);
+        Assert.Equal(0, remote.SetCalls);
+    }
+
+    [Fact]
+    public async Task RedisPopulationUnexpectedFailureIsPropagated()
+    {
+        var remote = new DeterministicRemoteCache
+        {
+            SetFailure = new InvalidOperationException("population contract failure")
+        };
+        using var provider = CreateProvider(remote);
+        using var scope = provider.CreateScope();
+        var context = (ICaeriusExecutionContext)scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
+        var calls = 0;
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => CaeriusExecutor.CachedAsync(
+            context,
+            RedisCommand("PopulationUnexpectedFailure"),
+            "integer",
+            _ => ValueTask.FromResult(Interlocked.Increment(ref calls)),
+            TestContext.Current.CancellationToken,
+            new Int32Codec()).AsTask());
+
+        Assert.Equal("population contract failure", exception.Message);
         Assert.Equal(1, calls);
         Assert.Equal(1, remote.LookupCalls);
         Assert.Equal(1, remote.SetCalls);

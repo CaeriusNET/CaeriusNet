@@ -599,9 +599,17 @@ public static class CaeriusNetCommandExtensions
         {
             await disposable.DisposeAsync().ConfigureAwait(false);
         }
-        catch when (originalFailure is not null)
+        catch (SqlException) when (originalFailure is not null)
         {
             // A provider cleanup failure must not replace the error which made streaming fail.
+        }
+        catch (ObjectDisposedException) when (originalFailure is not null)
+        {
+            // A redundant teardown must not replace the error which made streaming fail.
+        }
+        catch (InvalidOperationException) when (originalFailure is not null)
+        {
+            // A provider state transition during teardown must not replace the original failure.
         }
     }
 
@@ -613,10 +621,18 @@ public static class CaeriusNetCommandExtensions
         {
             sqlCommand.Cancel();
         }
-        catch
+        catch (SqlException)
         {
             // Cancellation during reader teardown is a best-effort protocol hint and must not hide the
-            // original mapping, cancellation, or contract failure.
+            // primary mapping, cancellation, or contract failure.
+        }
+        catch (ObjectDisposedException)
+        {
+            // The command can already be disposed by another teardown path; preserve the primary failure.
+        }
+        catch (InvalidOperationException)
+        {
+            // A closed connection or completed command cannot be cancelled and must not mask the primary failure.
         }
     }
 

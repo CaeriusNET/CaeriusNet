@@ -581,7 +581,7 @@ public sealed class RuntimeContractTests
         var remote = new RecordingRemoteCacheManager();
         var services = new ServiceCollection();
         services.AddCaeriusNet(options => options.UseSqlServer(_ => new SqlConnection(
-            "Server=server-alpha;Database=orders;Integrated Security=true;TrustServerCertificate=true")));
+            "Server=server-alpha;Database=orders;Integrated Security=true;Encrypt=Strict;TrustServerCertificate=False")));
         services.AddCaeriusCacheCodec<ManualCacheDto, ManualCacheDtoCodec>();
         services.AddSingleton<ICaeriusRemoteCacheManager>(remote);
         using var provider = services.BuildServiceProvider();
@@ -753,7 +753,8 @@ public sealed class RuntimeContractTests
         options.ParameterCaptureAllowList.Add("rows");
 
         using var instrumentation = new CaeriusInstrumentation();
-        using var connection = new SqlConnection("Data Source=localhost;Initial Catalog=caerius");
+        using var connection = new SqlConnection(
+            "Data Source=localhost;Initial Catalog=caerius;Encrypt=Strict;TrustServerCertificate=False");
         using (var operation = instrumentation.Start(
                    command,
                    connection,

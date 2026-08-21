@@ -791,7 +791,7 @@ internal static class AutoContractsManifestParser
             return _value is double value &&
                    value >= int.MinValue &&
                    value <= int.MaxValue &&
-                   Math.Truncate(value) == value
+                   IsInteger(value)
                 ? (int)value
                 : throw new FormatException("Expected JSON integer.");
         }
@@ -801,9 +801,17 @@ internal static class AutoContractsManifestParser
             return _value is double value &&
                    value >= byte.MinValue &&
                    value <= byte.MaxValue &&
-                   Math.Truncate(value) == value
+                   IsInteger(value)
                 ? (byte)value
                 : throw new FormatException("Expected JSON byte.");
+        }
+
+        private static bool IsInteger(double value)
+        {
+            // double.IsInteger is unavailable on the netstandard2.0 Roslyn component target.
+            return !double.IsNaN(value) &&
+                   !double.IsInfinity(value) &&
+                   value == Math.Floor(value);
         }
 
         internal bool AsBoolean()
