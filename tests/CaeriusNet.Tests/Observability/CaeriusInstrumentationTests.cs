@@ -92,7 +92,7 @@ public sealed class CaeriusInstrumentationTests
         using var listener = CreateMeterListener<long>("caerius.cache.lookups", measurements);
         var services = new ServiceCollection();
         services.AddCaeriusNet(options => options.UseSqlServer(
-            "Server=.;Database=telemetry_cache;Integrated Security=true;TrustServerCertificate=true"));
+            "Server=.;Database=telemetry_cache;Integrated Security=true;Encrypt=Strict;TrustServerCertificate=False"));
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
         var context = (ICaeriusExecutionContext)scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();

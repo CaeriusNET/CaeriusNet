@@ -330,23 +330,7 @@ internal static class CaeriusExecutor
             {
                 throw;
             }
-            catch (TimeoutException exception)
-            {
-                RecordRedisLookupFailure(context, state, snapshots, index, exception);
-            }
-            catch (System.IO.IOException exception)
-            {
-                RecordRedisLookupFailure(context, state, snapshots, index, exception);
-            }
-            catch (System.Net.Sockets.SocketException exception)
-            {
-                RecordRedisLookupFailure(context, state, snapshots, index, exception);
-            }
-            catch (ObjectDisposedException exception)
-            {
-                RecordRedisLookupFailure(context, state, snapshots, index, exception);
-            }
-            catch (CaeriusCacheException exception)
+            catch (Exception exception) when (IsNonFatal(exception))
             {
                 RecordRedisLookupFailure(context, state, snapshots, index, exception);
             }
@@ -370,7 +354,7 @@ internal static class CaeriusExecutor
             {
                 throw;
             }
-            catch (CaeriusCacheException exception)
+            catch (Exception exception) when (IsNonFatal(exception))
             {
                 RecordRedisPopulationFailure(context, state, exception);
             }
@@ -406,6 +390,17 @@ internal static class CaeriusExecutor
         context.Instrumentation.CacheError(CaeriusCacheTier.Redis);
     }
 
+    private static bool IsNonFatal(Exception exception)
+    {
+        return exception is not OutOfMemoryException
+            and not StackOverflowException
+            and not AccessViolationException
+            and not AppDomainUnloadedException
+            and not BadImageFormatException
+            and not CannotUnloadAppDomainException
+            and not System.Threading.ThreadAbortException;
+    }
+
     internal static async ValueTask InvalidateStrictAsync(
         ICaeriusExecutionContext context,
         IEnumerable<string> tags,
@@ -429,7 +424,7 @@ internal static class CaeriusExecutor
             {
                 throw;
             }
-            catch (Exception exception)
+            catch (Exception exception) when (IsNonFatal(exception))
             {
                 throw new CaeriusCacheException("invalidate-tags", exception);
             }
@@ -443,7 +438,7 @@ internal static class CaeriusExecutor
         {
             await InvalidateStrictAsync(context, tags, CancellationToken.None).ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is not CaeriusCacheInvalidationException)
+        catch (Exception exception) when (exception is not CaeriusCacheInvalidationException && IsNonFatal(exception))
         {
             throw new CaeriusCacheInvalidationException(exception);
         }
@@ -584,7 +579,7 @@ internal static class CaeriusExecutor
         {
             await disposable.DisposeAsync().ConfigureAwait(false);
         }
-        catch
+        catch (Exception exception) when (IsNonFatal(exception))
         {
             // Cleanup is best effort. A closed/broken pooled connection is discarded by SqlClient;
             // it must not make a durable-write outcome or its cache-invalidation exception ambiguous.
@@ -597,7 +592,7 @@ internal static class CaeriusExecutor
         {
             instrumentation.Dispose();
         }
-        catch
+        catch (Exception exception) when (IsNonFatal(exception))
         {
             // Observability is deliberately non-authoritative for database correctness.
         }

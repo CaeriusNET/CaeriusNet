@@ -811,7 +811,7 @@ internal static class AutoContractsManifestParser
             // double.IsInteger is unavailable on the netstandard2.0 Roslyn component target.
             return !double.IsNaN(value) &&
                    !double.IsInfinity(value) &&
-                   value == Math.Floor(value);
+                   value % 1d == 0d;
         }
 
         internal bool AsBoolean()

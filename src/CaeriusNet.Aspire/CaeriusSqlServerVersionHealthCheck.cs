@@ -59,7 +59,7 @@ internal sealed class CaeriusSqlServerVersionHealthCheck(
         {
             throw;
         }
-        catch (Exception exception)
+        catch (Exception exception) when (IsNonFatal(exception))
         {
             CaeriusAspireLog.SqlServerVersionCheckFailed(logger,
                 exception.GetType().FullName ?? exception.GetType().Name);
@@ -71,5 +71,16 @@ internal sealed class CaeriusSqlServerVersionHealthCheck(
         }
 
         return _cached.Value;
+    }
+
+    private static bool IsNonFatal(Exception exception)
+    {
+        return exception is not OutOfMemoryException
+            and not StackOverflowException
+            and not AccessViolationException
+            and not AppDomainUnloadedException
+            and not BadImageFormatException
+            and not CannotUnloadAppDomainException
+            and not System.Threading.ThreadAbortException;
     }
 }

@@ -431,7 +431,8 @@ public sealed class RuntimeContractTests
     {
         var services = new ServiceCollection();
         services.AddCaeriusNet(options =>
-            options.UseSqlServer("Server=.;Database=cache;Integrated Security=true;TrustServerCertificate=true"));
+            options.UseSqlServer(
+                "Server=.;Database=cache;Integrated Security=true;Encrypt=Strict;TrustServerCertificate=False"));
         services.AddCaeriusCacheCodec<ManualCacheDto, ManualCacheDtoCodec>();
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
@@ -455,11 +456,14 @@ public sealed class RuntimeContractTests
     {
         var services = new ServiceCollection();
         services.AddCaeriusNet(options =>
-            options.UseSqlServer("Server=.;Database=main;Integrated Security=true;TrustServerCertificate=true"));
+            options.UseSqlServer(
+                "Server=.;Database=main;Integrated Security=true;Encrypt=Strict;TrustServerCertificate=False"));
         services.AddCaeriusNet(options =>
-            options.UseSqlServer("Server=.;Database=main;Integrated Security=true;TrustServerCertificate=true"));
+            options.UseSqlServer(
+                "Server=.;Database=main;Integrated Security=true;Encrypt=Strict;TrustServerCertificate=False"));
         services.AddCaeriusNet("reporting", options =>
-            options.UseSqlServer("Server=.;Database=reporting;Integrated Security=true;TrustServerCertificate=true"));
+            options.UseSqlServer(
+                "Server=.;Database=reporting;Integrated Security=true;Encrypt=Strict;TrustServerCertificate=False"));
 
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
@@ -478,10 +482,12 @@ public sealed class RuntimeContractTests
     {
         var first = new CaeriusNetOptions()
             .UseSqlServer(
-                "Server=tcp:sql-a,1433;Database=orders;User ID=sa;Password=never-cache-this;TrustServerCertificate=true");
+                "Server=tcp:sql-a,1433;Database=orders;User ID=sa;Password=never-cache-this;Encrypt=Strict;" +
+                "TrustServerCertificate=False");
         var equivalent = new CaeriusNetOptions()
             .UseSqlServer(
-                "Data Source=tcp:sql-a,1433;Initial Catalog=orders;Integrated Security=true;Application Name=ignored");
+                "Data Source=tcp:sql-a,1433;Initial Catalog=orders;Integrated Security=true;Application Name=ignored;" +
+                "Encrypt=Strict;TrustServerCertificate=False");
 
         Assert.Equal(first.CacheDatabaseIdentity, equivalent.CacheDatabaseIdentity);
         Assert.DoesNotContain("Password", first.CacheDatabaseIdentity!, StringComparison.OrdinalIgnoreCase);
@@ -490,7 +496,8 @@ public sealed class RuntimeContractTests
         var invalid = new CaeriusNetOptions
         {
             CacheDatabaseIdentity = "Server=sql-a;Database=orders;Password=never-cache-this"
-        }.UseSqlServer("Server=sql-a;Database=orders;Integrated Security=true");
+        }.UseSqlServer(
+            "Server=sql-a;Database=orders;Integrated Security=true;Encrypt=Strict;TrustServerCertificate=False");
         var exception = Assert.Throws<ArgumentException>(() => invalid.Validate("default"));
         Assert.Contains("non-secret", exception.Message, StringComparison.Ordinal);
     }
@@ -517,7 +524,8 @@ public sealed class RuntimeContractTests
     {
         var services = new ServiceCollection();
         services.AddCaeriusNet(options =>
-            options.UseSqlServer("Server=.;Database=cache;Integrated Security=true;TrustServerCertificate=true"));
+            options.UseSqlServer(
+                "Server=.;Database=cache;Integrated Security=true;Encrypt=Strict;TrustServerCertificate=False"));
         using var provider = services.BuildServiceProvider();
         var cache = provider.GetRequiredService<IInMemoryCacheManager>();
 
@@ -537,10 +545,10 @@ public sealed class RuntimeContractTests
     {
         var remote = new RecordingRemoteCacheManager();
         using var firstProvider = CreateRedisReadThroughProvider(
-            "Server=server-alpha;Database=orders;Integrated Security=true;TrustServerCertificate=true",
+            "Server=server-alpha;Database=orders;Integrated Security=true;Encrypt=Strict;TrustServerCertificate=False",
             remote);
         using var secondProvider = CreateRedisReadThroughProvider(
-            "Server=server-beta;Database=orders;Integrated Security=true;TrustServerCertificate=true",
+            "Server=server-beta;Database=orders;Integrated Security=true;Encrypt=Strict;TrustServerCertificate=False",
             remote);
         using var firstScope = firstProvider.CreateScope();
         using var secondScope = secondProvider.CreateScope();
@@ -660,7 +668,8 @@ public sealed class RuntimeContractTests
     {
         var services = new ServiceCollection();
         services.AddCaeriusNet(options =>
-            options.UseSqlServer("Server=.;Database=cache;Integrated Security=true;TrustServerCertificate=true"));
+            options.UseSqlServer(
+                "Server=.;Database=cache;Integrated Security=true;Encrypt=Strict;TrustServerCertificate=False"));
         using var provider = services.BuildServiceProvider();
         var cache = provider.GetRequiredService<IInMemoryCacheManager>();
         var calls = 0;
@@ -691,7 +700,8 @@ public sealed class RuntimeContractTests
     {
         var services = new ServiceCollection();
         services.AddCaeriusNet(options =>
-            options.UseSqlServer("Server=.;Database=cache;Integrated Security=true;TrustServerCertificate=true"));
+            options.UseSqlServer(
+                "Server=.;Database=cache;Integrated Security=true;Encrypt=Strict;TrustServerCertificate=False"));
         using var provider = services.BuildServiceProvider();
         var cache = provider.GetRequiredService<IInMemoryCacheManager>();
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -775,7 +785,8 @@ public sealed class RuntimeContractTests
     {
         var services = new ServiceCollection();
         services.AddCaeriusNet(options =>
-            options.UseSqlServer("Server=invalid;Database=cache;Integrated Security=true;TrustServerCertificate=true"));
+            options.UseSqlServer(
+                "Server=invalid;Database=cache;Integrated Security=true;Encrypt=Strict;TrustServerCertificate=False"));
         services.AddGeneratedDtoCaeriusCodec();
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
@@ -797,7 +808,8 @@ public sealed class RuntimeContractTests
         var remote = new RecordingRemoteCacheManager();
         var services = new ServiceCollection();
         services.AddCaeriusNet(options =>
-            options.UseSqlServer("Server=.;Database=cache;Integrated Security=true;TrustServerCertificate=true"));
+            options.UseSqlServer(
+                "Server=.;Database=cache;Integrated Security=true;Encrypt=Strict;TrustServerCertificate=False"));
         services.AddSingleton<ICaeriusRemoteCacheManager>(remote);
         using var provider = services.BuildServiceProvider();
         using var scope = provider.CreateScope();
@@ -816,7 +828,8 @@ public sealed class RuntimeContractTests
     {
         var services = new ServiceCollection();
         services.AddCaeriusNet(options =>
-            options.UseSqlServer("Server=.;Database=frozen;Integrated Security=true;TrustServerCertificate=true"));
+            options.UseSqlServer(
+                "Server=.;Database=frozen;Integrated Security=true;Encrypt=Strict;TrustServerCertificate=False"));
         using var provider = services.BuildServiceProvider();
         var cache = provider.GetRequiredService<IFrozenCacheManager>();
         cache.ReplaceSnapshot(new[] { new KeyValuePair<string, int>("one", 1) });

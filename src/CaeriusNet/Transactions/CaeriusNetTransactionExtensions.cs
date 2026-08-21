@@ -568,7 +568,7 @@ public static class CaeriusNetTransactionExtensions
         {
             await disposable.DisposeAsync().ConfigureAwait(false);
         }
-        catch when (originalFailure is not null)
+        catch (Exception exception) when (originalFailure is not null && CaeriusNetTransaction.IsNonFatal(exception))
         {
             // Preserve the failure which made the command unusable over provider cleanup failures.
         }
@@ -582,10 +582,18 @@ public static class CaeriusNetTransactionExtensions
         {
             sqlCommand.Cancel();
         }
-        catch
+        catch (SqlException)
         {
-            // The command may already have completed or failed. Preserve the caller-visible failure while
-            // still giving SqlClient a chance to stop sending a partially consumed result stream.
+            // Cancellation during reader teardown is a best-effort protocol hint and must not hide the
+            // primary mapping, cancellation, or contract failure.
+        }
+        catch (ObjectDisposedException)
+        {
+            // The command can already be disposed by another teardown path; preserve the primary failure.
+        }
+        catch (InvalidOperationException)
+        {
+            // A closed connection or completed command cannot be cancelled and must not mask the primary failure.
         }
     }
 

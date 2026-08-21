@@ -1,3 +1,5 @@
+using CaeriusNet.Analyzer.AutoContracts;
+
 namespace CaeriusNet.Generator.Tests.AutoContracts;
 
 /// <summary>
@@ -108,6 +110,39 @@ public sealed class AutoContractsSourceGeneratorTests
         var diagnostic = Assert.Single(result.Diagnostics);
         Assert.Equal("CAERIUSG001", diagnostic.Id);
         Assert.DoesNotContain("connection", diagnostic.GetMessage(), StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("3", true)]
+    [InlineData("3e0", true)]
+    [InlineData("-3", true)]
+    [InlineData("3.5", false)]
+    [InlineData("3e-1", false)]
+    [InlineData("1e999", false)]
+    public void ManifestParser_AcceptsOnlyFiniteIntegerVersionValues(string version, bool isSuccess)
+    {
+        var manifest = new TestAdditionalText(
+            "caerius.contracts.json",
+            ValidManifest.Replace("\"version\": 3", $"\"version\": {version}", StringComparison.Ordinal));
+
+        var parsed = AutoContractsManifestParser.ParseManifest(manifest, TestContext.Current.CancellationToken);
+
+        Assert.Equal(isSuccess, parsed.IsSuccess);
+    }
+
+    [Theory]
+    [InlineData("NaN")]
+    [InlineData("Infinity")]
+    [InlineData("-Infinity")]
+    public void ManifestParser_RejectsNonJsonSpecialFloatingPointVersionValues(string version)
+    {
+        var manifest = new TestAdditionalText(
+            "caerius.contracts.json",
+            ValidManifest.Replace("\"version\": 3", $"\"version\": {version}", StringComparison.Ordinal));
+
+        var parsed = AutoContractsManifestParser.ParseManifest(manifest, TestContext.Current.CancellationToken);
+
+        Assert.False(parsed.IsSuccess);
     }
 
     [Fact]

@@ -14,7 +14,6 @@ internal static class CaeriusCacheDatabaseIdentity
     internal static string? TryCreateFromConnectionString(string connectionString)
     {
         // This only parses the endpoint and catalog; it never opens a SQL connection or sends data on the wire.
-        // codeql[cs/insecure-sql-connection]
         var builder = new SqlConnectionStringBuilder(connectionString);
         var dataSource = builder.DataSource.Trim();
         var initialCatalog = builder.InitialCatalog.Trim();

@@ -45,7 +45,8 @@ public class CacheCodecBenchmarks
         _payloads["hit"] = Encode(_value);
 
         var services = new ServiceCollection();
-        services.AddCaeriusNet(options => options.UseSqlServer("Server=benchmark.invalid;Database=CaeriusNet;"));
+        services.AddCaeriusNet(options => options.UseSqlServer(
+            "Server=benchmark.invalid;Database=CaeriusNet;Encrypt=Strict;TrustServerCertificate=False"));
         services.AddCaeriusCacheCodec<BenchmarkDto, BenchmarkDtoCaeriusCacheCodec>();
         _services = services.BuildServiceProvider();
         _memory = _services.GetRequiredService<IInMemoryCacheManager>();
