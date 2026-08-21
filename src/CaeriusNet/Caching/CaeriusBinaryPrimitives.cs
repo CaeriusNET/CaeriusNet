@@ -1,4 +1,12 @@
+using System.Data.SqlTypes;
+using Microsoft.Data.SqlTypes;
+
 namespace CaeriusNet.Caching;
+
+internal static class CaeriusBinaryEncoding
+{
+    internal static readonly UTF8Encoding StrictUtf8 = new(false, true);
+}
 
 public readonly ref struct CaeriusBinaryWriter(IBufferWriter<byte> writer)
 {
@@ -105,13 +113,37 @@ public readonly ref struct CaeriusBinaryWriter(IBufferWriter<byte> writer)
             WriteInt32(part);
     }
 
+    public void WriteSqlDecimal(SqlDecimal value)
+    {
+        if (value.IsNull)
+            throw new ArgumentNullException(nameof(value));
+        WriteByte(value.Precision);
+        WriteByte(value.Scale);
+        WriteBoolean(value.IsPositive);
+        var data = value.Data;
+        if (data.Length != 4)
+            throw new InvalidOperationException("SqlDecimal must expose four 32-bit data words.");
+        for (var index = 0; index < data.Length; index++)
+            WriteInt32(data[index]);
+    }
+
+    /// <summary>Writes a non-null SQL Server 2025 float32 vector with its exact dimension.</summary>
+    public void WriteSqlVector(SqlVector<float> value)
+    {
+        if (value.IsNull)
+            throw new ArgumentNullException(nameof(value));
+        WriteInt32(value.Length);
+        foreach (var element in value.Memory.Span)
+            WriteSingle(element);
+    }
+
     public void WriteString(string value)
     {
         ArgumentNullException.ThrowIfNull(value);
-        var byteCount = Encoding.UTF8.GetByteCount(value);
+        var byteCount = CaeriusBinaryEncoding.StrictUtf8.GetByteCount(value);
         WriteInt32(byteCount);
         var span = _writer.GetSpan(byteCount);
-        Encoding.UTF8.GetBytes(value, span);
+        CaeriusBinaryEncoding.StrictUtf8.GetBytes(value, span);
         _writer.Advance(byteCount);
     }
 
@@ -249,9 +281,46 @@ public ref struct CaeriusBinaryReader
         return new decimal(low, middle, high, flags < 0, scale);
     }
 
+    public SqlDecimal ReadSqlDecimal()
+    {
+        var precision = ReadByte();
+        var scale = ReadByte();
+        var positive = ReadBoolean();
+        if (precision is 0 or > 38 || scale > precision)
+            throw InvalidPayload();
+        var data = new[] { ReadInt32(), ReadInt32(), ReadInt32(), ReadInt32() };
+        try
+        {
+            return new SqlDecimal(precision, scale, positive, data);
+        }
+        catch (SqlTypeException)
+        {
+            throw InvalidPayload();
+        }
+    }
+
+    /// <summary>Reads a SQL Server 2025 float32 vector written by <see cref="CaeriusBinaryWriter.WriteSqlVector" />.</summary>
+    public SqlVector<float> ReadSqlVector()
+    {
+        var length = ReadInt32();
+        if (length is < 1 or > 1998)
+            throw InvalidPayload();
+        var values = new float[length];
+        for (var index = 0; index < values.Length; index++)
+            values[index] = ReadSingle();
+        return new SqlVector<float>(values);
+    }
+
     public string ReadString()
     {
-        return Encoding.UTF8.GetString(ReadLengthPrefixedBytes());
+        try
+        {
+            return CaeriusBinaryEncoding.StrictUtf8.GetString(ReadLengthPrefixedBytes());
+        }
+        catch (DecoderFallbackException)
+        {
+            throw InvalidPayload();
+        }
     }
 
     public byte[] ReadBytes()

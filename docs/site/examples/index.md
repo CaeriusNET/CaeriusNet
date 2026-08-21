@@ -18,12 +18,12 @@ The examples use SQL Server stored procedures and TVPs. C# parameter builder cal
 - **Repositories** inject `ICaeriusNetDbContext` via primary-constructor DI (or `[FromKeyedServices]` for a named database) and expose intent-revealing async methods.
 - **DTOs and TVPs** use `[GenerateDto]` / `[GenerateTvp]` — sealed partial records with primary constructors.
 - **All examples** propagate `CancellationToken` and use `await using` for transaction scopes.
-- **SQL snippets** use explicit schemas and `SET NOCOUNT ON`; all application calls remain stored-procedure calls.
+- **SQL snippets** use explicit schemas and recommend `SET NOCOUNT ON`; all application calls remain stored-procedure calls. CaeriusNet also skips rowless frames, so `NOCOUNT` is not a hidden result-set precondition.
 - **Telemetry callouts** describe the stable database conventions and intentionally never expose connection strings, parameter values, cache keys or TVP values.
 
 ## Running a sample
 
-Register the runtime with `services.AddCaeriusNet(options => options.UseSqlServer(connectionString))`, then adapt the SQL objects and repository snippets to your schema. For Redis, install `CaeriusNet.Redis`, register the shared multiplexer and add a generated or hand-written `ICaeriusCacheCodec<T>`. For Aspire, use `CaeriusNet.Aspire` so SQL/Redis client registration and health checks remain in the host.
+Register the runtime with `services.AddCaeriusNet(options => options.UseSqlServer(connectionString))`, then adapt the SQL objects and repository snippets to your schema. Production connection strings use `Encrypt=Strict;TrustServerCertificate=False`. For Redis, install `CaeriusNet.Redis`, register the shared multiplexer and add a generated or hand-written `ICaeriusCacheCodec<T>`. For Aspire, use `CaeriusNet.Aspire` so SQL/Redis client registration and health checks remain in the host.
 
 The runnable applications live under [`examples/`](https://github.com/CaeriusNET/CaeriusNet/tree/main/examples). The snippets on this site use the same dependency-injection and stored-procedure contracts.
 

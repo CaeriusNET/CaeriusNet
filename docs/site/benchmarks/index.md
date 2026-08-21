@@ -27,3 +27,9 @@ dotnet run -c Release --project benchmarks/CaeriusNet.Benchmark.csproj -- --filt
 ```
 
 Use BenchmarkDotNet filters to run a narrower class, for example `*TvpBenchmarks*`. The normal local job includes warmup and repeated iterations; preserve the generated reports when comparing revisions.
+
+The `sql-server` and `redis` categories are opt-in integration measurements and are excluded from `all` and the portable
+performance gate. Set `CAERIUS_BENCHMARK_SQL_CONNECTION` for SQL Server and also
+`CAERIUS_BENCHMARK_REDIS_CONNECTION` for Redis. Use disposable instances: the runner needs `CREATE OR ALTER PROCEDURE`
+and creates only `dbo.caerius_benchmark_reader_{1,2,5,10}` and `dbo.caerius_benchmark_redis_reader`. Connection,
+parameter and result values are never logged.

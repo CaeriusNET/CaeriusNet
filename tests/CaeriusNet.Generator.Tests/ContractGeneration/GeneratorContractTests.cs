@@ -1,4 +1,3 @@
-using CaeriusNet;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
@@ -36,7 +35,9 @@ public sealed class GeneratorContractTests
     {
         const string manifest = """
                                 {
-                                  "version": 2,
+                                  "version": 3,
+                                  "serverMajor": 16,
+                                  "features": [],
                                   "namespace": "Consumer.Contracts",
                                   "tableTypes": [],
                                   "procedures": [{
@@ -52,7 +53,7 @@ public sealed class GeneratorContractTests
                                       "index": 0,
                                       "clrName": "GetReportResult",
                                       "status": "Available",
-                                      "columns": [{ "ordinal": 1, "name": "Id", "sqlType": "int", "clrType": "int", "nullable": false }],
+                                      "columns": [{ "ordinal": 0, "name": "Id", "sqlType": "int", "clrType": "int", "nullable": false }],
                                       "contractHash": "sha256:first"
                                     }],
                                     "contractHash": "sha256:procedure"
@@ -61,7 +62,7 @@ public sealed class GeneratorContractTests
                                 """;
         const string overrides = """
                                  {
-                                   "version": 2,
+                                   "version": 3,
                                    "procedures": [{
                                      "schema": "dbo",
                                      "name": "GetReport",
@@ -69,7 +70,7 @@ public sealed class GeneratorContractTests
                                        "index": 1,
                                        "clrName": "GetReportSummary",
                                        "status": "Available",
-                                       "columns": [{ "ordinal": 1, "name": "Total", "sqlType": "bigint", "clrType": "long", "nullable": false }],
+                                       "columns": [{ "ordinal": 0, "name": "Total", "sqlType": "bigint", "clrType": "long", "nullable": false }],
                                        "contractHash": "sha256:second"
                                      }]
                                    }]
@@ -104,7 +105,9 @@ public sealed class GeneratorContractTests
     {
         const string manifest = """
                                 {
-                                  "version": 2,
+                                  "version": 3,
+                                  "serverMajor": 16,
+                                  "features": [],
                                   "namespace": "Consumer.Contracts",
                                   "tableTypes": [],
                                   "procedures": [{
@@ -121,7 +124,7 @@ public sealed class GeneratorContractTests
                                       "index": 0,
                                       "clrName": "ApplyDiscountResult",
                                       "status": "Available",
-                                      "columns": [{ "ordinal": 1, "name": "Id", "sqlType": "int", "clrType": "int", "nullable": false }]
+                                      "columns": [{ "ordinal": 0, "name": "Id", "sqlType": "int", "clrType": "int", "nullable": false }]
                                     }]
                                   }]
                                 }
@@ -152,7 +155,9 @@ public sealed class GeneratorContractTests
     {
         const string manifest = """
                                 {
-                                  "version": 2,
+                                  "version": 3,
+                                  "serverMajor": 16,
+                                  "features": [],
                                   "namespace": "Consumer.Contracts",
                                   "tableTypes": [],
                                   "procedures": [{
@@ -170,7 +175,7 @@ public sealed class GeneratorContractTests
                                 """;
         const string overrides = """
                                  {
-                                   "version": 2,
+                                   "version": 3,
                                    "procedures": [{
                                      "schema": "dbo",
                                      "name": "ApplyDiscount",
@@ -205,7 +210,9 @@ public sealed class GeneratorContractTests
     {
         const string validManifest = """
                                      {
-                                       "version": 2,
+                                       "version": 3,
+                                       "serverMajor": 16,
+                                       "features": [],
                                        "namespace": "Consumer.Contracts",
                                        "tableTypes": [],
                                        "procedures": [{
@@ -218,7 +225,7 @@ public sealed class GeneratorContractTests
                                            "index": 0,
                                            "clrName": "SearchResult",
                                            "status": "Available",
-                                           "columns": [{ "ordinal": 1, "name": "Name", "sqlType": "nvarchar(64)", "clrType": "string", "nullable": false, "maxLength": 128 }],
+                                           "columns": [{ "ordinal": 0, "name": "Name", "sqlType": "nvarchar(64)", "clrType": "string", "nullable": false, "maxLength": 128, "localeId": 1033, "sqlCompareOptions": 1, "collation": "Latin1_General_100_CI_AS" }],
                                            "contractHash": "sha256:untrusted"
                                          }],
                                          "contractHash": "sha256:untrusted"
@@ -243,7 +250,7 @@ public sealed class GeneratorContractTests
         Assert.Empty(malformed.GeneratedTrees);
 
         const string unknownOverride = """
-                                       { "version": 2, "procedures": [{ "schema": "dbo", "name": "Unknown", "parameters": [], "resultSets": [] }] }
+                                       { "version": 3, "procedures": [{ "schema": "dbo", "name": "Unknown", "parameters": [], "resultSets": [] }] }
                                        """;
         var unknown = RunAutoContracts(validManifest, unknownOverride);
         Assert.Contains(unknown.Diagnostics, diagnostic => diagnostic.Id == "CAERIUSG003" &&
@@ -257,13 +264,15 @@ public sealed class GeneratorContractTests
     {
         const string manifest = """
                                 {
-                                  "version": 2,
+                                  "version": 3,
+                                  "serverMajor": 16,
+                                  "features": [],
                                   "namespace": "Consumer.Contracts",
                                   "tableTypes": [{
                                     "schema": "dbo",
                                     "name": "Ids",
                                     "clrName": "IdsTvp",
-                                    "columns": [{ "ordinal": 1, "name": "Id", "sqlType": "int", "clrType": "int", "nullable": false }]
+                                    "columns": [{ "ordinal": 0, "name": "Id", "sqlType": "int", "clrType": "int", "nullable": false }]
                                   }],
                                   "procedures": []
                                 }
@@ -283,7 +292,9 @@ public sealed class GeneratorContractTests
     {
         const string manifest = """
                                 {
-                                  "version": 2,
+                                  "version": 3,
+                                  "serverMajor": 16,
+                                  "features": [],
                                   "namespace": "Consumer.Contracts",
                                   "tableTypes": [],
                                   "procedures": [{
@@ -296,7 +307,7 @@ public sealed class GeneratorContractTests
                                       "index": 0,
                                       "clrName": "GetOptionalCountResult",
                                       "status": "Available",
-                                      "columns": [{ "ordinal": 1, "name": "Count", "sqlType": "int", "clrType": "int", "nullable": true }]
+                                      "columns": [{ "ordinal": 0, "name": "Count", "sqlType": "int", "clrType": "int", "nullable": true }]
                                     }]
                                   }]
                                 }

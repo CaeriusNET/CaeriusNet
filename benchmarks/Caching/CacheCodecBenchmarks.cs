@@ -1,11 +1,8 @@
 using CaeriusNet.Benchmark.Infrastructure;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CaeriusNet.Benchmark.Caching;
 
 [MemoryDiagnoser]
-[WarmupCount(3)]
-[IterationCount(10)]
 [BenchmarkCategory("cache", "codec")]
 public class CacheCodecBenchmarks
 {

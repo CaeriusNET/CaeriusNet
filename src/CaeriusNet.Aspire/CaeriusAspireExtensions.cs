@@ -1,9 +1,8 @@
 using Aspire.Microsoft.Data.SqlClient;
 using CaeriusNet.Abstractions;
-using CaeriusNet;
-using Microsoft.Extensions.DependencyInjection;
 using CaeriusNet.Redis;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;

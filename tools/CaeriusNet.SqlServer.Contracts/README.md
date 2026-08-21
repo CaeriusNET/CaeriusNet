@@ -1,17 +1,18 @@
 # CaeriusNet SQL Server AutoContracts tool
 
-This executable is an implementation detail of the `CaeriusNet.Contracts` 12.0.0 package. It discovers SQL Server
-2022/2025 **metadata only** and writes the v2 AutoContracts manifest consumed by the CaeriusNet source generator. It is
-not installed from NuGet as a separate tool package.
+This executable is an implementation detail of the `CaeriusNet.Contracts` 11.2.0 package. It discovers SQL Server
+2022/2025 **metadata only** and writes the canonical v3 AutoContracts manifest consumed by the CaeriusNet source
+generator. It is not installed from NuGet as a separate tool package.
 
 Install the package that owns the opt-in MSBuild integration:
 
 ```bash
-dotnet add package CaeriusNet.Contracts --version 12.0.0
+dotnet add package CaeriusNet.Contracts --version 11.2.0
 ```
 
 Use a named connection locally and an environment-variable name in CI. A raw `--connection-string` remains available for
-direct troubleshooting but is deprecated because shell and build logs can expose it.
+direct troubleshooting but is deprecated because shell logs can expose it; the MSBuild integration intentionally never
+accepts a raw connection string. Errors redact connection values.
 
 ```bash
 dotnet CaeriusNet.SqlServer.Contracts.dll pull \
@@ -25,18 +26,24 @@ dotnet CaeriusNet.SqlServer.Contracts.dll verify \
   --manifest caerius.contracts.json
 ```
 
-`Pull` and `Verify` execute one read-only metadata command. They never execute a user stored procedure and never read
-table data. Discovery includes server/database identity, table types and columns, procedures and parameters, and SQL
-Server’s first-result-set description. SQL Server cannot statically describe later result sets, so declare result sets
-2–10 in `caerius.contracts.overrides.json`.
+`Pull` and `Verify` execute read-only metadata commands. They never execute a user stored procedure and never read table
+data. Discovery includes server/database identity, server major/features, table types and columns, procedures and
+parameters, and SQL Server’s first-result-set description. `--include`/`--exclude` are applied before expensive result
+metadata discovery, and only TVPs used by selected procedures are discovered.
+
+`Pull` writes atomically only after every selected contract validates, with LF line endings. `Verify` reparses,
+normalizes and recomputes every semantic hash; a manual edit retaining a previous hash fails. SQL Server cannot
+statically describe later result sets, dynamic SQL or `#temp` results, so declare result sets 2–10 in the one optional
+`caerius.contracts.overrides.json` file. It may replace set 0 only when that set was `None`/`Undetermined`, then add
+continuous sets 1–9.
 
 SQL Server’s catalog likewise describes an output-capable parameter but cannot distinguish `Output` from caller-supplied
-`InputOutput`. The generated v2 manifest chooses `Output`. When a procedure intentionally requires an input value and
+`InputOutput`. The generated v3 manifest chooses `Output`. When a procedure intentionally requires an input value and
 returns its replacement, make that decision explicitly in the override file without executing it:
 
 ```json
 {
-  "version": 2,
+  "version": 3,
   "procedures": [
     {
       "schema": "dbo",

@@ -1,5 +1,4 @@
 using CaeriusNet.Benchmark.Infrastructure;
-using Microsoft.Extensions.DependencyInjection;
 using CaeriusNet.Execution;
 
 namespace CaeriusNet.Benchmark.Caching;
@@ -10,8 +9,6 @@ namespace CaeriusNet.Benchmark.Caching;
 ///     baseline for this allocation-sensitive hot path.
 /// </summary>
 [MemoryDiagnoser]
-[WarmupCount(3)]
-[IterationCount(10)]
 [BenchmarkCategory("cache", "executor")]
 public class CachedAsyncMemoryHitBenchmarks
 {
@@ -78,7 +75,7 @@ public class CachedAsyncMemoryHitBenchmarks
             _command,
             "benchmark:dto",
             _value,
-            static (state, _) => ValueTask.FromResult(state),
+            static (_, state, _) => ValueTask.FromResult(state),
             CancellationToken.None);
     }
 }

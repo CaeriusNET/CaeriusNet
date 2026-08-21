@@ -55,3 +55,21 @@ public sealed class CaeriusCacheException : Exception
 
     public string Operation { get; }
 }
+
+/// <summary>
+///     Indicates that SQL Server completed the requested durable operation, but the mandatory
+///     follow-up cache invalidation failed. Retrying the stored procedure may therefore duplicate
+///     a non-idempotent write.
+/// </summary>
+public sealed class CaeriusCacheInvalidationException : Exception
+{
+    internal CaeriusCacheInvalidationException(Exception innerException)
+        : base(
+            "SQL Server completed the operation, but cache invalidation failed. Do not blindly retry a non-idempotent stored procedure.",
+            innerException)
+    {
+        SqlWasCommitted = true;
+    }
+
+    public bool SqlWasCommitted { get; }
+}

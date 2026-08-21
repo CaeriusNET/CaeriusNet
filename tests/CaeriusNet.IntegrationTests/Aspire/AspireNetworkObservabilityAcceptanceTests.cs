@@ -1,10 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using CaeriusNet.Aspire;
-using CaeriusNet.Execution;
 using CaeriusNet.IntegrationTests.Infrastructure;
-using CaeriusNet.Telemetry;
-using CaeriusNet.Transactions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
@@ -21,7 +18,12 @@ namespace CaeriusNet.IntegrationTests.Aspire;
 /// </summary>
 public sealed class AspireNetworkObservabilityAcceptanceTests
 {
+    private const string TestOperationActivitySourceName =
+        "CaeriusNet.IntegrationTests.Aspire.NetworkObservability";
+
     private const string Secret = "caerius-network-secret";
+
+    private static readonly ActivitySource TestOperationActivitySource = new(TestOperationActivitySourceName);
 
     [Theory]
     [MemberData(nameof(ContainerTestGate.SqlServerImages), MemberType = typeof(ContainerTestGate))]
@@ -48,7 +50,9 @@ public sealed class AspireNetworkObservabilityAcceptanceTests
             ["ConnectionStrings:sql"] = sqlConnectionString,
             ["ConnectionStrings:cache"] = redis.GetConnectionString()
         });
-        builder.Services.AddOpenTelemetry().WithTracing(tracing => tracing.AddProcessor(activities));
+        builder.Services.AddOpenTelemetry().WithTracing(tracing => tracing
+            .AddSource(TestOperationActivitySourceName)
+            .AddProcessor(activities));
         builder.AddCaeriusNetAspire(
             "sql",
             options =>
@@ -101,8 +105,13 @@ public sealed class AspireNetworkObservabilityAcceptanceTests
             .Build();
 
         activities.Clear();
-        Assert.Equal(42, await database.ExecuteScalarAsync<int>(scalarCommand, cancellationToken));
-        var successSpan = AssertSingleCaeriusSpan(activities.Snapshot());
+        ActivitySnapshot successSpan;
+        using (var successfulOperation = StartOperationActivity())
+        {
+            Assert.Equal(42, await database.ExecuteScalarAsync<int>(scalarCommand, cancellationToken));
+            successSpan = AssertSingleCaeriusSpan(activities.Snapshot(), successfulOperation.TraceId);
+        }
+
         AssertStableSuccessTags(successSpan, "dbo.caerius_aspire_observability");
         Assert.Equal("<redacted>", successSpan.Tags["caerius.db.parameter.secret"]);
         Assert.DoesNotContain(successSpan.Tags, static tag =>
@@ -111,12 +120,18 @@ public sealed class AspireNetworkObservabilityAcceptanceTests
         Assert.Equal(2, leaseScopes.Disposed);
 
         activities.Clear();
-        var sqlFailure = await Assert.ThrowsAsync<CaeriusNetSqlException>(async () =>
-            await database.ExecuteScalarAsync<int>(
-                new StoredProcedureCommandBuilder("dbo", "caerius_aspire_observability_failure").Build(),
-                cancellationToken));
+        CaeriusNetSqlException sqlFailure;
+        ActivitySnapshot failureSpan;
+        using (var failedOperation = StartOperationActivity())
+        {
+            sqlFailure = await Assert.ThrowsAsync<CaeriusNetSqlException>(async () =>
+                await database.ExecuteScalarAsync<int>(
+                    new StoredProcedureCommandBuilder("dbo", "caerius_aspire_observability_failure").Build(),
+                    cancellationToken));
+            failureSpan = AssertSingleCaeriusSpan(activities.Snapshot(), failedOperation.TraceId);
+        }
+
         Assert.Equal(51000, sqlFailure.Number);
-        var failureSpan = AssertSingleCaeriusSpan(activities.Snapshot());
         Assert.Equal(ActivityStatusCode.Error, failureSpan.Status);
         Assert.Null(failureSpan.StatusDescription);
         Assert.Equal(typeof(CaeriusNetSqlException).FullName, failureSpan.Tags["error.type"]);
@@ -167,7 +182,9 @@ public sealed class AspireNetworkObservabilityAcceptanceTests
         {
             ["ConnectionStrings:sql"] = sqlConnectionString
         });
-        builder.Services.AddOpenTelemetry().WithTracing(tracing => tracing.AddProcessor(activities));
+        builder.Services.AddOpenTelemetry().WithTracing(tracing => tracing
+            .AddSource(TestOperationActivitySourceName)
+            .AddProcessor(activities));
         builder.AddCaeriusNetAspire(
             "sql",
             configureAspire: options => options.EnableLowLevelSqlClientTracing = true);
@@ -177,6 +194,7 @@ public sealed class AspireNetworkObservabilityAcceptanceTests
         var database = scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
 
         activities.Clear();
+        using var operation = StartOperationActivity();
         Assert.Equal(8, await database.ExecuteScalarAsync<int>(
             new StoredProcedureCommandBuilder("dbo", "caerius_aspire_observability")
                 .AddParameter("@value", 7, SqlDbType.Int)
@@ -184,19 +202,35 @@ public sealed class AspireNetworkObservabilityAcceptanceTests
                 .Build(),
             cancellationToken));
 
-        var spans = activities.Snapshot();
+        var spans = activities.Snapshot()
+            .Where(candidate => candidate.TraceId == operation.TraceId)
+            .ToArray();
         var caerius = Assert.Single(spans, static span => span.SourceName == CaeriusTelemetry.ActivitySourceName);
-        var sqlClient = Assert.Single(spans, static span => span.SourceName != CaeriusTelemetry.ActivitySourceName);
+        var sqlClient = Assert.Single(spans, static span =>
+            span.SourceName != CaeriusTelemetry.ActivitySourceName &&
+            span.SourceName != TestOperationActivitySourceName);
         Assert.Contains("SqlClient", sqlClient.SourceName, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(caerius.TraceId, sqlClient.TraceId);
         Assert.Equal(caerius.SpanId, sqlClient.ParentSpanId);
     }
 
-    private static ActivitySnapshot AssertSingleCaeriusSpan(IReadOnlyList<ActivitySnapshot> spans)
+    private static Activity StartOperationActivity()
     {
-        var span = Assert.Single(spans,
+        return TestOperationActivitySource.StartActivity(
+                   "CaeriusNet.IntegrationTests.Aspire.Operation") ??
+               throw new InvalidOperationException(
+                   "The test operation ActivitySource must be registered with the test TracerProvider.");
+    }
+
+    private static ActivitySnapshot AssertSingleCaeriusSpan(IReadOnlyList<ActivitySnapshot> spans,
+        ActivityTraceId traceId)
+    {
+        var operationSpans = spans.Where(candidate => candidate.TraceId == traceId).ToArray();
+        var span = Assert.Single(operationSpans,
             static candidate => candidate.SourceName == CaeriusTelemetry.ActivitySourceName);
-        Assert.Single(spans);
+        Assert.DoesNotContain(operationSpans,
+            static candidate => candidate.SourceName != CaeriusTelemetry.ActivitySourceName &&
+                                candidate.SourceName != TestOperationActivitySourceName);
         return span;
     }
 

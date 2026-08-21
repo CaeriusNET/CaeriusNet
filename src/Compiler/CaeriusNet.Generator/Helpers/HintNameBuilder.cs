@@ -31,7 +31,7 @@ internal static class HintNameBuilder
 
             encoded = true;
             builder.Append('_')
-                .Append(((int)character).ToString("x4", System.Globalization.CultureInfo.InvariantCulture))
+                .Append(((int)character).ToString("x4", CultureInfo.InvariantCulture))
                 .Append('_');
         }
 
@@ -53,7 +53,7 @@ internal static class HintNameBuilder
                 hash *= prime;
             }
 
-            return hash.ToString("x16", System.Globalization.CultureInfo.InvariantCulture);
+            return hash.ToString("x16", CultureInfo.InvariantCulture);
         }
     }
 }

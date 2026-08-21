@@ -11,12 +11,12 @@
 ## Objet et documents liés
 
 Ce document fixe le périmètre, les invariants et les critères de sortie de la
-release majeure `12.0.0`. Il est destiné aux mainteneurs : ce n’est pas un guide
+release `11.2.0`. Il est destiné aux mainteneurs : ce n’est pas un guide
 de migration pour un consommateur.
 
 - [Présentation et démarrage](../../README.md)
-- [Guide de migration v11 vers v12](../../MIGRATION-v11-v12.md)
-- [Rapport des ruptures d’API v11.1.2 vers v12.0.0](../../API-BREAKS-v11-v12.md)
+- [Guide de migration v11 vers v12](../MIGRATION-v11-v12.md)
+- [Rapport des ruptures d’API v11.1.2 vers v11.2.0](../API-BREAKS-v11-v12.md)
 - [Documentation publique](../site/index.md)
 - [Contributions](../../CONTRIBUTING.md)
 - [Guide de validation des artefacts](../../.github/scripts/ValidatePackage.ps1)
@@ -27,7 +27,7 @@ transition ; le rapport d’API en conserve la preuve de compatibilité rompue.
 
 ## Règle de nomenclature : release ≠ arborescence de code
 
-`12.0.0` est l’identité de la release NuGet et sa future baseline de validation
+`11.2.0` est l’identité de la release NuGet et sa future baseline de validation
 d’API. Ce n’est pas un espace de noms ni une couche de code. Aucun dossier
 source, test, exemple, benchmark ou outil ne doit être nommé `v12`,
 `versionning`, `versions` ou équivalent.
@@ -47,8 +47,8 @@ introduits.
 
 | Décision | Contrat |
 | --- | --- |
-| Version | `12.0.0`, rupture majeure volontaire ; aucun shim `Obsolete` v11. |
-| Plateforme | `net10.0`, C# `14.0`, SDK `10.0.303` avec `rollForward: latestPatch`. |
+| Version | `11.2.0`, avec les ruptures documentées ; aucun shim `Obsolete` v11. |
+| Plateforme | `net10.0`, C# `14.0`, SDK `10.0.400` avec `rollForward: latestPatch`, Roslyn `5.9.0` ou supérieur. |
 | Serveur | SQL Server 2022 (major 16) et 2025 (major 17) uniquement. |
 | Modèle SQL | Runtime exclusivement `CommandType.StoredProcedure` ; aucun SQL inline, EF Core, query builder ni autre moteur. |
 | Exécution | Une commande « fire and forget » est attendue et sans résultat métier ; elle ne crée jamais de tâche SQL détachée. |
@@ -88,11 +88,11 @@ build-only ; elles ne sont pas embarquées comme générateur consommateur.
   `AddWithValue` est interdit.
 - Les TVP implémentent un contrat statique de ligne : nom SQL, métadonnées
   immuables et écriture d’une ligne dans un `SqlDataRecord`. Un record est
-  réutilisé pendant l’énumération. Pour contourner correctement la contrainte
-  du provider SqlClient sur un TVP vide, l’exécuteur détecte au plus une ligne
-  et la rejoue : un flux non vide reste paresseux et un flux vide est envoyé
-  sous la forme structurée attendue par SQL Server 2022 et 2025, sans
-  matérialisation du flux complet.
+  réutilisé pendant l’énumération. L’API distingue une collection rejouable
+  `IReadOnlyCollection<T>` d’une factory streaming
+  `Func<CancellationToken,IEnumerable<T>>` ; seule la collection peut être
+  cachée. Les TVP manuels portent une métadonnée complète
+  `SqlServerTvpColumnAttribute` par paramètre.
 
 ### Lecture, scalaires et sorties
 
@@ -192,9 +192,9 @@ calcul single-flight déjà en cours ne republie pas une valeur invalidée.
   laisse l’exécution continuer vers SQL. Une écriture, suppression ou
   invalidation explicite est stricte et échoue.
 - Une flight locale couvre la lecture Redis, le fallback SQL et la population
-  Redis pour une clé canonique. L’annulation d’un appelant cesse uniquement son
-  attente ; elle n’annule pas le travail partagé encore utile aux autres. Ce
-  mécanisme n’est volontairement pas un verrou distribué.
+  Redis pour une clé canonique. L’annulation d’un appelant cesse son attente ;
+  lorsque le dernier waiter part, la factory partagée est annulée. Ce mécanisme
+  n’est volontairement pas un verrou distribué.
 - Payload corrompu ou codec incompatible : miss contrôlé, suppression
   best-effort et métrique dédiée ; aucune donnée cachée invalide ne remonte à
   l’appelant.
@@ -224,8 +224,8 @@ de connexion, clé de cache, paramètre ou payload.
 
 ## Contrat générateurs, Analyzer et AutoContracts
 
-- Générateur et analyzer ciblent `Microsoft.CodeAnalysis.CSharp 5.0.0` pour
-  les consommateurs .NET 10 ; leurs tests peuvent employer le compilateur
+- Générateur et analyzer ciblent `Microsoft.CodeAnalysis.CSharp 5.9.0` et les
+  analyzers 5.9.0 pour les consommateurs .NET 10 ; leurs tests peuvent employer le compilateur
   courant. `LangVersion` est fixé à `14.0`, jamais à `latest`.
 - La sélection de constructeurs est déterministe par symboles et s’appuie sur
   exactement la même logique partagée.
@@ -236,33 +236,37 @@ de connexion, clé de cache, paramètre ou payload.
   identifiants Unicode et indices de colonnes) sont échappés et construits de
   façon déterministe. Les hint names sont normalisés séparément pour éviter
   les collisions de fichiers générés.
-- AutoContracts utilise le manifeste v2 :
-  `caerius.contracts.json` contient les métadonnées découvertes et le premier
-  jeu ; `caerius.contracts.overrides.json` déclare les jeux 2 à 10. Les indices
-  sont continus, uniques et bornés de 0 à 9.
-- Les hashes couvrent paramètres, directions, TVP, chaque jeu et l’agrégat.
+- AutoContracts utilise un manifeste v3 canonique :
+  `caerius.contracts.json` contient le serveur majeur/features, les métadonnées
+  découvertes, facettes/collations et jeux ordonnés ; un unique override peut
+  remplacer le jeu 0 si `None`/`Undetermined` puis déclarer les jeux 1 à 9.
+  Les indices sont continus, uniques et bornés de 0 à 9.
+- Les hashes couvrent paramètres, directions, TVP, types SQL, facettes,
+  collations, chaque jeu et l’agrégat.
   La découverte SQL est une commande de métadonnées à plusieurs jeux
   (serveur/base, table types/colonnes, procédures/paramètres, premiers jeux),
   avec filtres include/exclude, timeout, annulation et diagnostics sans secret.
   Aucune procédure n’est exécutée pendant la génération.
 - Seul `CaeriusNet.Contracts` livre `buildTransitive`. Ses props/targets
   reposent sur `MSBuildThisFileDirectory`, sont opt-in pour `Pull`/`Verify`,
-  privilégient un nom de connexion ou une variable d’environnement et marquent
-  la chaîne brute comme dépréciée.
+  privilégient un nom de connexion ou une variable d’environnement ; aucune
+  chaîne de connexion brute ne passe par MSBuild.
 
 ## Packaging, API et chaîne de livraison
 
 ### Artefacts publiables
 
-- Les quatre packages partagent version `12.0.0`, licence MIT, readme NuGet
+- Les quatre packages partagent version `11.2.0`, licence MIT, readme NuGet
   spécifique, icône PNG transparente 128×128, description/tags, URLs de projet
   et de dépôt, commit, Source Link, build déterministe, sources embarquées,
-  symboles `.snupkg` et `PackageIcon`.
+  symboles `.snupkg` et `PackageIcon`. Le runtime embarque uniquement Generator
+  et Analyzer sous `analyzers/dotnet/cs`, chacun avec son PDB Source Link ; le
+  générateur multi-résultats est déjà compilé dans `CaeriusNet.dll`.
 - Central Package Management est appliqué : aucune version de package ne vit
   dans un `.csproj`; les dépendances analyzer sont `PrivateAssets=all`.
 - `EnablePackageValidation`, `PublicAPI.Shipped.txt` et une baseline API font
-  partie de la sortie. Le rapport v11.1.2→12.0.0 est unique ; les releases
-  postérieures se comparent à `12.0.0`.
+  partie de la sortie. Le rapport v11.1.2→11.2.0 est unique ; les releases
+  postérieures se comparent à `11.2.0`.
 - Les 19 projets utilisent des fichiers de verrouillage NuGet et les restores
   de CI se font en `--locked-mode`. La validation Source Link est exécutée par
   script sur les PDB des artefacts packés ; elle requiert un commit distant qui
@@ -337,7 +341,7 @@ mesurée : ce n’est pas un défaut de complétude de l’implémentation v12.
 | Bloqueur | Pourquoi il bloque une release légitime |
 | --- | --- |
 | Source Link post-commit/post-push | Les nouveaux chemins doivent être présents dans le commit distant afin que les PDB pointent vers des sources résolubles. Une vérification locale sur un état non poussé ne suffit pas. |
-| Baseline BenchmarkDotNet Ubuntu | La baseline `12.0.0` doit être produite par `benchmark.yml` sur Ubuntu 24.04, examinée puis conservée dans le dépôt. |
+| Baseline BenchmarkDotNet Ubuntu | La baseline `11.2.0` doit être produite par `benchmark.yml` sur Ubuntu 24.04, examinée puis conservée dans le dépôt. |
 | NuGet Trusted Publishing | La politique OIDC NuGet.org et l’environnement GitHub `production`/`NUGET_USER` nécessitent une configuration et une validation hors du dépôt. |
 
 Docker est désormais disponible et les validations Docker SQL 2022, SQL 2025,
@@ -395,6 +399,6 @@ maintenance.
 - Toute modification de package, surface publique, convention de télémétrie ou
   format de cache doit mettre à jour ce document, le README de package concerné
   et, le cas échéant, le guide de migration.
-- Une fois `12.0.0` publié, déplacer les sujets restants vers la planification
+- Une fois `11.2.0` publié, déplacer les sujets restants vers la planification
   de la prochaine release sans créer de dossier source dépendant du numéro de
   version.

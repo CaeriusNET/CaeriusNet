@@ -38,7 +38,7 @@ internal static class AutoContractsNaming
                 "real" or "float" or "decimal" or "numeric" or "money" or "smallmoney" or
                 "date" or "time" or "datetime" or "datetime2" or "smalldatetime" or "datetimeoffset" or
                 "uniqueidentifier" or "nvarchar" or "varchar" or "nchar" or "char" or
-                "varbinary" or "binary" => true,
+                "varbinary" or "binary" or "json" or "vector" => true,
             _ => false
         };
     }
@@ -48,7 +48,7 @@ internal static class AutoContractsNaming
         if (string.IsNullOrWhiteSpace(name))
             return "Value";
 
-        var builder = new System.Text.StringBuilder(name.Length + 1);
+        var builder = new StringBuilder(name.Length + 1);
         if (!IsIdentifierStart(name[0]))
             builder.Append('_');
 

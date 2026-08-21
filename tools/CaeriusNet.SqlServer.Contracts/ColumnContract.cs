@@ -8,4 +8,7 @@ internal sealed record ColumnContract(
     bool Nullable,
     int? MaxLength,
     byte? Precision,
-    byte? Scale);
+    byte? Scale,
+    int? LocaleId = null,
+    int? SqlCompareOptions = null,
+    string? Collation = null);

@@ -4,6 +4,8 @@ internal static class AnalyzerTestHelper
 {
     private const string AttributeDefinitions = """
                                                 using System;
+                                                using System.Data;
+                                                using System.Data.SqlTypes;
 
                                                 namespace CaeriusNet
                                                 {
@@ -17,6 +19,27 @@ internal static class AnalyzerTestHelper
                                                         public string Schema { get; init; } = "dbo";
 
                                                         public string TvpName { get; init; } = string.Empty;
+                                                    }
+                                                    [AttributeUsage(AttributeTargets.Parameter, Inherited = false)]
+                                                    public sealed class SqlServerTvpColumnAttribute : Attribute
+                                                    {
+                                                        public SqlServerTvpColumnAttribute(string name, int ordinal, SqlDbType sqlDbType, bool isNullable)
+                                                        {
+                                                            Name = name;
+                                                            Ordinal = ordinal;
+                                                            SqlDbType = sqlDbType;
+                                                            IsNullable = isNullable;
+                                                        }
+
+                                                        public string Name { get; }
+                                                        public int Ordinal { get; }
+                                                        public SqlDbType SqlDbType { get; }
+                                                        public bool IsNullable { get; }
+                                                        public long MaxLength { get; init; } = long.MinValue;
+                                                        public byte Precision { get; init; } = byte.MaxValue;
+                                                        public byte Scale { get; init; } = byte.MaxValue;
+                                                        public long LocaleId { get; init; } = -1;
+                                                        public SqlCompareOptions CompareOptions { get; init; } = (SqlCompareOptions)(-1);
                                                     }
                                                 }
                                                 """;

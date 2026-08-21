@@ -5,8 +5,9 @@
 
 ## Cause
 
-A type decorated with `[GenerateDto]` or `[GenerateTvp]` is either a generic type or a nested
-type. CaeriusNet generators currently only support non-generic, top-level types.
+A generator target is generic/nested or has a shape that CaeriusNet cannot generate safely. Targets must be non-generic
+top-level partial types. `[GenerateDto]` is a sealed reference type; `[GenerateTvp]` is either a sealed positional
+record class or a readonly positional record struct. An ordinary class with a primary constructor is not a TVP target.
 
 ## Why
 
@@ -17,5 +18,5 @@ currently supported.
 
 ## How to fix
 
-Move the type to the top level and remove any generic type parameters.
-
+Move the type to the top level and remove any generic type parameters. Use a sealed positional record class or readonly
+positional record struct for a TVP.

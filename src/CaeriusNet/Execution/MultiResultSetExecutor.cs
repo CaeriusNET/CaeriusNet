@@ -175,10 +175,10 @@ internal readonly struct MultiResultSetCapacities
             throw new ArgumentException("Multi-result capacities must match the generated result-set arity.");
 
         for (var index = 0; index < Count; index++)
-            if (this[index] < 0)
+            if (this[index] < StoredProcedureCommand.UnspecifiedResultSetCapacity)
                 throw new ArgumentOutOfRangeException(
                     capacityParameterName,
-                    "Result-set capacities cannot be negative.");
+                    "Result-set capacities must be -1 or non-negative.");
     }
 }
 
@@ -204,9 +204,9 @@ internal static class MultiResultSetExecutor
             execution,
             command,
             plan.GetCacheShape(policy),
-            new MultiResultCacheState(execution, command, capacities, policy, plan),
-            static (state, token) => ExecuteSqlAsync(
-                state.Execution,
+            new MultiResultCacheState(command, capacities, policy, plan),
+            static (activeContext, state, token) => ExecuteSqlAsync(
+                activeContext,
                 state.Command,
                 state.Capacities,
                 state.Policy,
@@ -280,8 +280,6 @@ internal static class MultiResultSetExecutor
             },
             null,
             cancellationToken).ConfigureAwait(false);
-        await CaeriusExecutor.InvalidateStrictAsync(execution, command.InvalidationKeys, cancellationToken)
-            .ConfigureAwait(false);
         return result;
     }
 
@@ -395,7 +393,8 @@ internal static class MultiResultSetExecutor
         CancellationToken cancellationToken)
     {
         var results = new object[plan.Arity];
-        var missing = reader.FieldCount == 0;
+        var missing = !await CaeriusExecutor.MoveToFirstColumnResultAsync(reader, cancellationToken)
+            .ConfigureAwait(false);
         for (var index = 0; index < plan.Arity; index++)
         {
             if (missing)
@@ -412,13 +411,16 @@ internal static class MultiResultSetExecutor
                 break;
             }
 
-            results[index] = await plan.Readers[index](reader, command, index, capacities[index], cancellationToken)
+            var capacity = CaeriusNetCommandExtensions.ResolveCapacity(command, capacities[index], index);
+            results[index] = await plan.Readers[index](reader, command, index, capacity, cancellationToken)
                 .ConfigureAwait(false);
             if (index < plan.Arity - 1)
-                missing = !await reader.NextResultAsync(cancellationToken).ConfigureAwait(false);
+                missing = !await CaeriusExecutor.MoveToNextColumnResultAsync(reader, cancellationToken)
+                    .ConfigureAwait(false);
         }
 
-        if (!missing && await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+        if (!missing && await CaeriusExecutor.MoveToNextColumnResultAsync(reader, cancellationToken)
+                .ConfigureAwait(false))
         {
             await CaeriusExecutor.DrainRemainingAsync(reader, cancellationToken).ConfigureAwait(false);
             if (!AllowsAdditional(policy))
@@ -519,7 +521,6 @@ internal static class MultiResultSetExecutor
         CancellationToken cancellationToken);
 
     private readonly record struct MultiResultCacheState(
-        ICaeriusExecutionContext Execution,
         StoredProcedureCommand Command,
         MultiResultSetCapacities Capacities,
         CaeriusResultSetCountPolicy Policy,

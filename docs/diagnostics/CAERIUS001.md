@@ -5,7 +5,8 @@
 
 ## Cause
 
-A type decorated with `[GenerateDto]` or `[GenerateTvp]` is not declared `sealed`.
+A `[GenerateDto]` type, or a class decorated with `[GenerateTvp]`, is not declared `sealed`. A TVP record struct is
+instead required to be `readonly` and is diagnosed as an unsupported target shape when it is not.
 
 ## Why
 
@@ -22,3 +23,5 @@ Add the `sealed` modifier:
 [GenerateDto]
 public sealed partial record FooDto(int Id, string Name);
 ```
+
+A valid TVP value type is `public readonly partial record struct FooTvp(int Id);`.

@@ -1,10 +1,8 @@
 using System.Collections;
+using System.Data.SqlTypes;
 using System.Runtime.CompilerServices;
-using Microsoft.Extensions.DependencyInjection;
-using CaeriusNet.Execution;
 using CaeriusNet.IntegrationTests.Infrastructure;
 using CaeriusNet.Mappers;
-using CaeriusNet.Transactions;
 
 namespace CaeriusNet.IntegrationTests.SqlServer;
 
@@ -45,6 +43,7 @@ public sealed class SqlServerAcceptanceMatrixTests
 
         await AssertCardinalityAndScalarContractsAsync(database, cancellationToken);
         await AssertOutputContractsAsync(database, cancellationToken);
+        await AssertSqlDecimalAndRowlessFrameContractsAsync(database, cancellationToken);
         await AssertNoResultContractsAsync(database, cancellationToken);
         await AssertTvpContractsAsync(database, cancellationToken);
         await AssertStreamingContractsAsync(database, cancellationToken);
@@ -130,6 +129,28 @@ public sealed class SqlServerAcceptanceMatrixTests
         Assert.Equal(94, noDataResult.Output.Get<int>("@returnValue"));
     }
 
+    private static async Task AssertSqlDecimalAndRowlessFrameContractsAsync(
+        ICaeriusNetDbContext database,
+        CancellationToken cancellationToken)
+    {
+        var inputOutput = SqlDecimal.Parse("9876543210987654321098765434.0987654321");
+        var command = new StoredProcedureCommandBuilder("dbo", "caerius_test_sql_decimal_no_count_off")
+            .AddReturnValue()
+            .AddInputOutputParameter("@inputOutput", inputOutput, SqlDbType.Decimal, precision: 38, scale: 10)
+            .AddOutputParameter("@output", SqlDbType.Decimal, precision: 38, scale: 10)
+            .Build();
+
+        var result = await database.QueryImmutableArrayWithOutputsAsync<SqlDecimalRow>(
+            command,
+            cancellationToken: cancellationToken);
+
+        const string Expected = "1234567890123456789012345678.1234567890";
+        Assert.Equal(Expected, Assert.Single(result.Data).Value.ToString());
+        Assert.Equal(Expected, result.Output.Get<SqlDecimal>("@output").ToString());
+        Assert.Equal(inputOutput.ToString(), result.Output.Get<SqlDecimal>("@inputOutput").ToString());
+        Assert.Equal(96, result.Output.Get<int>("@returnValue"));
+    }
+
     private static async Task AssertNoResultContractsAsync(
         ICaeriusNetDbContext database,
         CancellationToken cancellationToken)
@@ -157,7 +178,7 @@ public sealed class SqlServerAcceptanceMatrixTests
     {
         foreach (var expectedCount in new[] { 0, 1, 1_000 })
         {
-            var rows = CreateRows(expectedCount);
+            var rows = CreateRows(expectedCount).ToArray();
             var command = new StoredProcedureCommandBuilder("dbo", "caerius_test_count_ints")
                 .AddTvpParameter("@values", rows)
                 .Build();
@@ -170,7 +191,7 @@ public sealed class SqlServerAcceptanceMatrixTests
         // that a large source is neither restarted nor enumerated twice.
         var oneShotRows = new OneShotRows(100_000);
         var largeLazyCommand = new StoredProcedureCommandBuilder("dbo", "caerius_test_count_ints")
-            .AddTvpParameter("@values", oneShotRows)
+            .AddTvpParameter("@values", _ => oneShotRows)
             .Build();
         Assert.Equal(100_000, await database.ExecuteScalarAsync<int>(largeLazyCommand, cancellationToken));
         Assert.Equal(1, oneShotRows.EnumerationCount);
@@ -315,7 +336,7 @@ public sealed class SqlServerAcceptanceMatrixTests
         // Each generated overload is called directly. This is intentionally not reflection-based: a consumer
         // compiles every arity (2..10) and each of the three promised materialized collection families.
         var enumerable2 = await database.QueryMultipleAsync<Widget, Widget>(
-            MultiCommand(2), capacity1: 1, capacity2: 1, cancellationToken: cancellationToken);
+            MultiCommand(2), 1, 1, cancellationToken: cancellationToken);
         AssertAllMultiResultSets(enumerable2);
         var readOnly2 =
             await database.QueryMultipleReadOnlyCollectionAsync<Widget, Widget>(MultiCommand(2),
@@ -539,7 +560,7 @@ public sealed class SqlServerAcceptanceMatrixTests
     {
         var write = new StoredProcedureCommandBuilder("dbo", "caerius_test_increment_counter")
             .AddParameter("@id", 1, SqlDbType.Int)
-            .Invalidate("test:counter:1")
+            .Invalidates("test:counter:1")
             .Build();
 
         await using (var transaction = await database.BeginTransactionAsync(cancellationToken: cancellationToken))
@@ -715,10 +736,10 @@ public sealed class SqlServerAcceptanceMatrixTests
     private static StoredProcedureCommand OutputCommand(string procedure, int input, int inputOutput)
     {
         return new StoredProcedureCommandBuilder("dbo", procedure)
+            .AddReturnValue()
             .AddParameter("@input", input, SqlDbType.Int)
             .AddInputOutputParameter("@inOut", inputOutput, SqlDbType.Int)
             .AddOutputParameter("@out", SqlDbType.Int)
-            .AddReturnValue()
             .Build();
     }
 
@@ -845,6 +866,21 @@ public sealed class SqlServerAcceptanceMatrixTests
                                        END
                                        """, cancellationToken);
         await ExecuteAsync(connection, """
+                                       CREATE OR ALTER PROCEDURE dbo.caerius_test_sql_decimal_no_count_off
+                                           @inputOutput decimal(38,10) OUTPUT,
+                                           @output decimal(38,10) OUTPUT
+                                       AS
+                                       BEGIN
+                                           SET NOCOUNT OFF;
+                                           UPDATE dbo.CaeriusTestCounters SET Value = Value WHERE Id = 1;
+                                           SET @inputOutput = @inputOutput;
+                                           SET @output = CAST(1234567890123456789012345678.1234567890 AS decimal(38,10));
+                                           SELECT @output AS Value;
+                                           UPDATE dbo.CaeriusTestCounters SET Value = Value WHERE Id = 1;
+                                           RETURN 96;
+                                       END
+                                       """, cancellationToken);
+        await ExecuteAsync(connection, """
                                        CREATE OR ALTER PROCEDURE dbo.caerius_test_unexpected_result
                                            @mode int
                                        AS
@@ -943,6 +979,14 @@ public sealed class SqlServerAcceptanceMatrixTests
         public static Widget MapFromDataReader(SqlDataReader reader)
         {
             return new Widget(reader.GetInt32(0), reader.GetString(1));
+        }
+    }
+
+    private sealed record SqlDecimalRow(SqlDecimal Value) : ISpMapper<SqlDecimalRow>
+    {
+        public static SqlDecimalRow MapFromDataReader(SqlDataReader reader)
+        {
+            return new SqlDecimalRow(reader.GetSqlDecimal(0));
         }
     }
 

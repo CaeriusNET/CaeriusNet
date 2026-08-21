@@ -17,9 +17,9 @@ public sealed partial class UsersRepository
         var (users, orders, stats) = await dbContext
             .QueryMultipleReadOnlyCollectionAsync<UserDto, OrderDto, UserStatsDto>(
                 command,
-                capacity1: 16,
-                capacity2: 32,
-                capacity3: 16,
+                16,
+                32,
+                16,
                 cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
@@ -33,7 +33,7 @@ public sealed partial class UsersRepository
             IReadOnlyCollection<int> userIds,
             CancellationToken cancellationToken = default)
     {
-        var tvp = userIds.Select(id => new UsersIntTvp(id));
+        var tvp = userIds.Select(static id => new UsersIntTvp(id)).ToArray();
 
         var command = new StoredProcedureCommandBuilder("Users", "usp_Get_Users_With_Orders_By_Tvp", 25)
             .AddTvpParameter("tvp", tvp)
@@ -43,8 +43,8 @@ public sealed partial class UsersRepository
         var (users, orders) = await dbContext
             .QueryMultipleReadOnlyCollectionAsync<UserDto, OrderDto>(
                 command,
-                capacity1: 16,
-                capacity2: 32,
+                16,
+                32,
                 cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 

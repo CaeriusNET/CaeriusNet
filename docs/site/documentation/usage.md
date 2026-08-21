@@ -15,11 +15,12 @@ CaeriusNet 12 is composed from four packages. The runtime only executes stored p
 2. Define a result mapper or use `[GenerateDto]`; define a TVP writer or use `[GenerateTvp]`.
 3. Build an immutable `StoredProcedureCommand` with `StoredProcedureCommandBuilder`.
 4. Select an explicit cardinality, collection or streaming API.
-5. Add a cache policy only to safe reads; declare invalidations on successful writes.
+5. Add a cache policy only to safe reads; declare `DependsOn(...)` tags on reads and matching `Invalidates(...)` tags on successful writes.
 
 ```csharp
 var command = new StoredProcedureCommandBuilder("dbo", "usp_User_ByAge")
     .AddParameter("Age", age, SqlDbType.Int)
+    .DependsOn("user")
     .UseInMemoryCache(TimeSpan.FromMinutes(1))
     .Build();
 
@@ -32,7 +33,7 @@ var users = await database.QueryImmutableArrayAsync<User>(command, cancellationT
 | --- | --- |
 | Cardinality | `QueryFirstAsync`, `QueryFirstOrDefaultAsync`, `QuerySingleAsync`, `QuerySingleOrDefaultAsync` |
 | Materialized results | `QueryAsync`, `QueryReadOnlyCollectionAsync`, `QueryImmutableArrayAsync` |
-| Streaming | `StreamAsync` for one result set and no cache |
+| Streaming | `StreamAsync` for one result set, no cache and no output parameters |
 | Scalars and writes | `ExecuteScalarAsync`, `ExecuteScalarOrDefaultAsync`, `ExecuteAsync`, `ExecuteNonQueryAsync` |
 | Outputs | `ExecuteWithOutputsAsync`, `ExecuteNonQueryWithOutputsAsync` |
 | Transactions | `BeginTransactionAsync`, `CommitAsync`, `RollbackAsync` |

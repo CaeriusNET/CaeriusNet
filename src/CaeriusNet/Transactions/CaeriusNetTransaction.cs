@@ -52,6 +52,7 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransaction
             _deferredInvalidations.Clear();
         }
 
+        var committed = false;
         try
         {
             // A caller may cancel while the provider is writing COMMIT or waiting for its acknowledgement. At
@@ -60,6 +61,7 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransaction
             // deliberately observed only by the pre-check above; once terminal ownership is reserved, commit
             // and its strictly-correct cache follow-up run to completion without caller cancellation.
             await Transaction.CommitAsync(CancellationToken.None).ConfigureAwait(false);
+            committed = true;
         }
         catch (SqlException exception)
         {
@@ -67,28 +69,15 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransaction
         }
         finally
         {
-            try
-            {
-                await Transaction.DisposeAsync().ConfigureAwait(false);
-            }
-            finally
-            {
-                try
-                {
-                    await _lease.DisposeAsync().ConfigureAwait(false);
-                }
-                finally
-                {
-                    Volatile.Write(ref _state, Completed);
-                }
-            }
+            // Once COMMIT completed, cleanup is no longer allowed to prevent the mandatory cache
+            // invalidation below.  Always attempt both resources and preserve the original SQL failure.
+            await DisposeWithoutMaskingAsync(Transaction).ConfigureAwait(false);
+            await DisposeWithoutMaskingAsync(_lease).ConfigureAwait(false);
+            Volatile.Write(ref _state, Completed);
         }
 
-        // COMMIT succeeded. Do not let a token cancelled after the pre-check leave durable SQL data behind a
-        // stale cache entry. A cache mutation failure is still surfaced as CaeriusCacheException by this strict
-        // path, but caller cancellation can no longer interrupt it.
-        await CaeriusExecutor.InvalidateStrictAsync(Context, invalidations, CancellationToken.None)
-            .ConfigureAwait(false);
+        if (committed)
+            await CaeriusExecutor.InvalidateAfterDurableSqlAsync(Context, invalidations).ConfigureAwait(false);
     }
 
     public async ValueTask RollbackAsync(CancellationToken cancellationToken = default)
@@ -118,21 +107,9 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransaction
         }
         finally
         {
-            try
-            {
-                await Transaction.DisposeAsync().ConfigureAwait(false);
-            }
-            finally
-            {
-                try
-                {
-                    await _lease.DisposeAsync().ConfigureAwait(false);
-                }
-                finally
-                {
-                    Volatile.Write(ref _state, Completed);
-                }
-            }
+            await DisposeWithoutMaskingAsync(Transaction).ConfigureAwait(false);
+            await DisposeWithoutMaskingAsync(_lease).ConfigureAwait(false);
+            Volatile.Write(ref _state, Completed);
         }
     }
 
@@ -153,26 +130,16 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransaction
         {
             await Transaction.RollbackAsync(CancellationToken.None).ConfigureAwait(false);
         }
-        catch (SqlException)
+        catch
         {
+            // Dispose is teardown only.  There is no pending SQL success to report here, and both
+            // underlying resources still need an opportunity to release their connection state.
         }
         finally
         {
-            try
-            {
-                await Transaction.DisposeAsync().ConfigureAwait(false);
-            }
-            finally
-            {
-                try
-                {
-                    await _lease.DisposeAsync().ConfigureAwait(false);
-                }
-                finally
-                {
-                    Volatile.Write(ref _state, Disposed);
-                }
-            }
+            await DisposeWithoutMaskingAsync(Transaction).ConfigureAwait(false);
+            await DisposeWithoutMaskingAsync(_lease).ConfigureAwait(false);
+            Volatile.Write(ref _state, Disposed);
         }
     }
 
@@ -181,6 +148,7 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransaction
         IsolationLevel isolationLevel,
         CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var lease = await context.OpenLeaseAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -191,18 +159,31 @@ internal sealed class CaeriusNetTransaction : ICaeriusNetTransaction
         }
         catch (OperationCanceledException)
         {
-            await lease.DisposeAsync().ConfigureAwait(false);
+            await DisposeWithoutMaskingAsync(lease).ConfigureAwait(false);
             throw;
         }
         catch (SqlException exception)
         {
-            await lease.DisposeAsync().ConfigureAwait(false);
+            await DisposeWithoutMaskingAsync(lease).ConfigureAwait(false);
             throw new CaeriusNetSqlException("<begin-transaction>", exception);
         }
         catch
         {
-            await lease.DisposeAsync().ConfigureAwait(false);
+            await DisposeWithoutMaskingAsync(lease).ConfigureAwait(false);
             throw;
+        }
+    }
+
+    private static async ValueTask DisposeWithoutMaskingAsync(IAsyncDisposable disposable)
+    {
+        try
+        {
+            await disposable.DisposeAsync().ConfigureAwait(false);
+        }
+        catch
+        {
+            // A teardown failure must not hide the primary TDS exception and cannot prevent the
+            // remaining resource from being released.
         }
     }
 

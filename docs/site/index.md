@@ -11,7 +11,7 @@ hero:
       link: /quickstart/getting-started
     - theme: alt
       text: Migrate from v11
-      link: https://github.com/CaeriusNET/CaeriusNet/blob/main/MIGRATION-v11-v12.md
+      link: https://github.com/CaeriusNET/CaeriusNet/blob/main/docs/MIGRATION-v11-v12.md
     - theme: alt
       text: Package guide
       link: /documentation/usage
@@ -32,7 +32,7 @@ features:
 ---
 
 ::: info Version 12
-CaeriusNet v12 is a major release for .NET 10, C# 14 and SQL Server 2022/2025 only. Its DI-first API replaces all v11 builder and global-state APIs. See the [migration guide](https://github.com/CaeriusNET/CaeriusNet/blob/main/MIGRATION-v11-v12.md).
+CaeriusNet v12 is a major release for .NET 10, C# 14 and SQL Server 2022/2025 only. Its DI-first API replaces all v11 builder and global-state APIs. See the [migration guide](https://github.com/CaeriusNET/CaeriusNet/blob/main/docs/MIGRATION-v11-v12.md).
 :::
 
 ## Start here

@@ -5,10 +5,10 @@ namespace CaeriusNet.Commands;
 
 public sealed class StoredProcedureCommandBuilder
 {
-    private const int DefaultCapacity = 16;
-    private readonly HashSet<string> _invalidationKeys = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _dependencyTags = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _invalidationTags = new(StringComparer.Ordinal);
     private readonly List<StoredProcedureParameterDescriptor> _parameters = new(4);
-    private readonly List<int> _resultSetCapacities = [DefaultCapacity];
+    private readonly List<int> _resultSetCapacities = [StoredProcedureCommand.UnspecifiedResultSetCapacity];
     private CaeriusCachePolicy? _cachePolicy;
     private string? _contractHash;
 
@@ -81,7 +81,7 @@ public sealed class StoredProcedureCommandBuilder
 
     public StoredProcedureCommandBuilder AddTvpParameter<T>(
         string name,
-        IEnumerable<T> rows,
+        IReadOnlyCollection<T> rows,
         int? ordinal = null)
         where T : ITvpMapper<T>
     {
@@ -106,7 +106,7 @@ public sealed class StoredProcedureCommandBuilder
 
         _parameters.Add(new StoredProcedureParameterDescriptor(
             normalizedName,
-            new TvpParameterValue<T>(rows),
+            new ReplayableTvpParameterValue<T>(rows),
             SqlDbType.Structured,
             ParameterDirection.Input,
             actualOrdinal,
@@ -117,13 +117,33 @@ public sealed class StoredProcedureCommandBuilder
         return this;
     }
 
+    public StoredProcedureCommandBuilder AddTvpParameter<T>(
+        string name,
+        Func<CancellationToken, IEnumerable<T>> rowsFactory,
+        int? ordinal = null)
+        where T : ITvpMapper<T>
+    {
+        ArgumentNullException.ThrowIfNull(rowsFactory);
+        ValidateTvpMapper<T>();
+        var normalizedName = NormalizeParameterName(name);
+        var actualOrdinal = ordinal ?? _parameters.Count;
+        var value = new StreamingTvpParameterValue<T>(rowsFactory);
+        ValidateDescriptor(normalizedName, value, SqlDbType.Structured, ParameterDirection.Input, actualOrdinal,
+            null, null, null, T.SqlTypeName);
+        _parameters.Add(new StoredProcedureParameterDescriptor(
+            normalizedName, value, SqlDbType.Structured, ParameterDirection.Input, actualOrdinal,
+            null, null, null, T.SqlTypeName));
+        return this;
+    }
+
     public StoredProcedureCommandBuilder WithResultSetCapacities(params int[] capacities)
     {
         ArgumentNullException.ThrowIfNull(capacities);
         if (capacities is not { Length: >= 1 and <= 10 })
             throw new ArgumentOutOfRangeException(nameof(capacities), "Between one and ten capacities are required.");
-        if (capacities.Any(static capacity => capacity < 0))
-            throw new ArgumentOutOfRangeException(nameof(capacities), "Result-set capacities cannot be negative.");
+        if (capacities.Any(static capacity => capacity < StoredProcedureCommand.UnspecifiedResultSetCapacity))
+            throw new ArgumentOutOfRangeException(nameof(capacities),
+                "Result-set capacities must be -1 or non-negative.");
         _resultSetCapacities.Clear();
         _resultSetCapacities.AddRange(capacities);
         return this;
@@ -157,15 +177,15 @@ public sealed class StoredProcedureCommandBuilder
         return this;
     }
 
-    public StoredProcedureCommandBuilder Invalidate(params string[] cacheKeys)
+    public StoredProcedureCommandBuilder DependsOn(params string[] tags)
     {
-        ArgumentNullException.ThrowIfNull(cacheKeys);
-        foreach (var key in cacheKeys)
-        {
-            ArgumentException.ThrowIfNullOrWhiteSpace(key);
-            _invalidationKeys.Add(key);
-        }
+        AddTags(tags, _dependencyTags);
+        return this;
+    }
 
+    public StoredProcedureCommandBuilder Invalidates(params string[] tags)
+    {
+        AddTags(tags, _invalidationTags);
         return this;
     }
 
@@ -192,10 +212,9 @@ public sealed class StoredProcedureCommandBuilder
                 throw new CaeriusContractException(
                     $"Parameter ordinals must be continuous from zero; expected {index}, found {ordered[index].Ordinal}.");
 
-        var contractHash = _contractHash ?? CaeriusCacheKeyBuilder.HashContract(
-            SchemaName,
-            ProcedureName,
-            ordered);
+        if (_cachePolicy is not null && ordered.Any(static parameter =>
+                parameter.Value is ITvpParameterValue { IsCacheable: false }))
+            throw new CaeriusContractException("Commands with a streaming TVP parameter cannot be cached.");
 
         return new StoredProcedureCommand(
             SchemaName,
@@ -203,9 +222,10 @@ public sealed class StoredProcedureCommandBuilder
             CommandTimeout,
             ordered,
             _resultSetCapacities.ToImmutableArray(),
-            contractHash,
+            _contractHash,
             _cachePolicy,
-            _invalidationKeys.ToImmutableArray());
+            _dependencyTags.Order(StringComparer.Ordinal).ToImmutableArray(),
+            _invalidationTags.Order(StringComparer.Ordinal).ToImmutableArray());
     }
 
     public static string NormalizeParameterName(string parameterName)
@@ -218,7 +238,7 @@ public sealed class StoredProcedureCommandBuilder
         if (name.Length == 1 || (name.Length > 1 && name[1] == '@'))
             throw new ArgumentException("SQL parameter names require one leading '@' and a name.",
                 nameof(parameterName));
-        ValidateIdentifier(name[1..], nameof(parameterName));
+        ValidateIdentifier(name.AsSpan(1), nameof(parameterName));
         return name;
     }
 
@@ -250,6 +270,16 @@ public sealed class StoredProcedureCommandBuilder
                 $"Structured parameter '{name}' must be input-only and declare a SQL type name.");
         if (direction == ParameterDirection.ReturnValue && dbType == SqlDbType.Structured)
             throw new CaeriusContractException("A return value cannot be structured.");
+        if (direction == ParameterDirection.ReturnValue && (dbType != SqlDbType.Int || ordinal != 0))
+            throw new CaeriusContractException("A return value must be SqlDbType.Int at ordinal 0.");
+        if (direction is ParameterDirection.Output or ParameterDirection.ReturnValue && !IsNullValue(value))
+            throw new CaeriusContractException($"Output parameter '{name}' cannot declare an input value.");
+        if (size is not null && !IsSizedType(dbType))
+            throw new CaeriusContractException($"Size is not valid for SQL type {dbType} on parameter '{name}'.");
+        if (precision is not null && dbType != SqlDbType.Decimal)
+            throw new CaeriusContractException($"Precision is only valid for Decimal parameters ('{name}').");
+        if (scale is not null && dbType != SqlDbType.Decimal && !IsScaleSensitiveDateTimeType(dbType))
+            throw new CaeriusContractException($"Scale is not valid for SQL type {dbType} on parameter '{name}'.");
 
         var requiresStableFacets =
             IsNullValue(value) || direction is ParameterDirection.Output or ParameterDirection.InputOutput;
@@ -268,7 +298,7 @@ public sealed class StoredProcedureCommandBuilder
     {
         return dbType is SqlDbType.Binary or SqlDbType.VarBinary or
             SqlDbType.Char or SqlDbType.NChar or SqlDbType.VarChar or SqlDbType.NVarChar or
-            SqlDbType.Image or SqlDbType.Text or SqlDbType.NText;
+            SqlDbType.Image or SqlDbType.Text or SqlDbType.NText or SqlDbType.Vector;
     }
 
     private static bool IsScaleSensitiveDateTimeType(SqlDbType dbType)
@@ -300,11 +330,37 @@ public sealed class StoredProcedureCommandBuilder
 
     internal static void ValidateIdentifier(string value, string parameterName)
     {
-        if (string.IsNullOrWhiteSpace(value) || !(char.IsLetter(value[0]) || value[0] == '_'))
-            throw new ArgumentException($"'{value}' is not a valid SQL identifier.", parameterName);
+        ValidateIdentifier(value.AsSpan(), parameterName);
+    }
+
+    private static void ValidateIdentifier(ReadOnlySpan<char> value, string parameterName)
+    {
+        if (value.IsEmpty || value.Length > 128 || value.IsWhiteSpace() ||
+            !(char.IsLetter(value[0]) || value[0] == '_'))
+            throw new ArgumentException("The value is not a valid SQL identifier.", parameterName);
         for (var index = 1; index < value.Length; index++)
             if (!(char.IsLetterOrDigit(value[index]) || value[index] == '_'))
-                throw new ArgumentException($"'{value}' is not a valid SQL identifier.", parameterName);
+                throw new ArgumentException("The value is not a valid SQL identifier.", parameterName);
+    }
+
+    private static void ValidateTvpMapper<T>() where T : ITvpMapper<T>
+    {
+        if (string.IsNullOrWhiteSpace(T.SqlTypeName))
+            throw new CaeriusContractException($"{typeof(T).FullName} declares an empty SQL TVP type name.");
+        if (T.Metadata.Length == 0)
+            throw new CaeriusContractException($"{typeof(T).FullName} declares no TVP columns.");
+    }
+
+    private static void AddTags(string[] tags, HashSet<string> destination)
+    {
+        ArgumentNullException.ThrowIfNull(tags);
+        foreach (var tag in tags)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(tag);
+            if (tag.Length > 256)
+                throw new ArgumentOutOfRangeException(nameof(tags), "Cache tags cannot exceed 256 characters.");
+            destination.Add(tag);
+        }
     }
 }
 
@@ -356,11 +412,21 @@ public sealed class StoredProcedureCommandBuilder<TProcedure>
         return this;
     }
 
-    public StoredProcedureCommandBuilder<TProcedure> AddTvpParameter<T>(string name, IEnumerable<T> rows,
+    public StoredProcedureCommandBuilder<TProcedure> AddTvpParameter<T>(string name, IReadOnlyCollection<T> rows,
         int? ordinal = null)
         where T : ITvpMapper<T>
     {
         _builder.AddTvpParameter(name, rows, ordinal);
+        return this;
+    }
+
+    public StoredProcedureCommandBuilder<TProcedure> AddTvpParameter<T>(
+        string name,
+        Func<CancellationToken, IEnumerable<T>> rowsFactory,
+        int? ordinal = null)
+        where T : ITvpMapper<T>
+    {
+        _builder.AddTvpParameter(name, rowsFactory, ordinal);
         return this;
     }
 
@@ -388,9 +454,15 @@ public sealed class StoredProcedureCommandBuilder<TProcedure>
         return this;
     }
 
-    public StoredProcedureCommandBuilder<TProcedure> Invalidate(params string[] cacheKeys)
+    public StoredProcedureCommandBuilder<TProcedure> DependsOn(params string[] tags)
     {
-        _builder.Invalidate(cacheKeys);
+        _builder.DependsOn(tags);
+        return this;
+    }
+
+    public StoredProcedureCommandBuilder<TProcedure> Invalidates(params string[] tags)
+    {
+        _builder.Invalidates(tags);
         return this;
     }
 

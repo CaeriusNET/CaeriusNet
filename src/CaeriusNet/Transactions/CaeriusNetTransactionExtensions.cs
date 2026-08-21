@@ -74,6 +74,8 @@ public static class CaeriusNetTransactionExtensions
         where T : class, ISpMapper<T>
     {
         ArgumentNullException.ThrowIfNull(command);
+        CaeriusExecutor.EnsureStreamHasNoOutputs(command);
+        cancellationToken.ThrowIfCancellationRequested();
         var tx = GetTransaction(transaction);
         SqlCommand? sqlCommand = null;
         SqlDataReader? reader = null;
@@ -85,14 +87,22 @@ public static class CaeriusNetTransactionExtensions
         tx.AcquireCommandSlot();
         try
         {
-            sqlCommand = command.CreateSqlCommand(tx.Connection, tx.Transaction);
+            sqlCommand = command.CreateSqlCommand(tx.Connection, tx.Transaction, cancellationToken);
             instrumentation = tx.Context.Instrumentation.Start(command, tx.Connection, true, tx.Context.Options);
             reader = await ExecuteTransactionReaderAsync(sqlCommand, command, tx, cancellationToken)
                 .ConfigureAwait(false);
 
             // Unlike materialized operations this command remains live while the caller enumerates. Register
             // invalidations now, while the slot is owned; rollback clears them if the stream subsequently fails.
-            tx.DeferInvalidations(command.InvalidationKeys);
+            tx.DeferInvalidations(command.InvalidationTags);
+
+            if (!await CaeriusExecutor.MoveToFirstColumnResultAsync(reader, cancellationToken)
+                    .ConfigureAwait(false))
+            {
+                instrumentation.Success();
+                succeeded = true;
+                yield break;
+            }
 
             while (true)
             {
@@ -276,7 +286,9 @@ public static class CaeriusNetTransactionExtensions
             {
                 await using var reader = await sqlCommand.ExecuteReaderAsync(CommandBehavior.Default, token)
                     .ConfigureAwait(false);
-                if (!await reader.ReadAsync(token).ConfigureAwait(false))
+                var hasResultSet = await CaeriusExecutor.MoveToFirstColumnResultAsync(reader, token)
+                    .ConfigureAwait(false);
+                if (!hasResultSet || !await reader.ReadAsync(token).ConfigureAwait(false))
                 {
                     await CaeriusExecutor.EnsureNoAdditionalResultSetsAsync(reader, command, token)
                         .ConfigureAwait(false);
@@ -328,7 +340,9 @@ public static class CaeriusNetTransactionExtensions
             {
                 await using var reader = await sqlCommand.ExecuteReaderAsync(CommandBehavior.Default, token)
                     .ConfigureAwait(false);
-                if (!await reader.ReadAsync(token).ConfigureAwait(false))
+                var hasResultSet = await CaeriusExecutor.MoveToFirstColumnResultAsync(reader, token)
+                    .ConfigureAwait(false);
+                if (!hasResultSet || !await reader.ReadAsync(token).ConfigureAwait(false))
                 {
                     await CaeriusExecutor.EnsureNoAdditionalResultSetsAsync(reader, command, token)
                         .ConfigureAwait(false);
@@ -515,7 +529,9 @@ public static class CaeriusNetTransactionExtensions
                 long row = 0;
                 try
                 {
-                    while (await reader.ReadAsync(token).ConfigureAwait(false))
+                    var hasResultSet = await CaeriusExecutor.MoveToFirstColumnResultAsync(reader, token)
+                        .ConfigureAwait(false);
+                    while (hasResultSet && await reader.ReadAsync(token).ConfigureAwait(false))
                     {
                         try
                         {
@@ -637,7 +653,13 @@ public static class CaeriusNetTransactionExtensions
     {
         try
         {
-            return await reader.NextResultAsync(cancellationToken).ConfigureAwait(false);
+            // Keep the transactional streaming contract identical to the regular one:
+            // command-completion frames have FieldCount == 0 and must not be interpreted as
+            // an additional business result set.
+            while (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+                if (reader.FieldCount > 0)
+                    return true;
+            return false;
         }
         catch (OperationCanceledException)
         {

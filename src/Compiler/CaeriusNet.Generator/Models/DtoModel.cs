@@ -1,6 +1,4 @@
-﻿using CaeriusNet.Analyzer.Roslyn;
-
-namespace CaeriusNet.Generator.Models;
+﻿namespace CaeriusNet.Generator.Models;
 
 /// <summary>
 ///     Value-equatable description of a <c>[GenerateDto]</c> target, ready for emission.

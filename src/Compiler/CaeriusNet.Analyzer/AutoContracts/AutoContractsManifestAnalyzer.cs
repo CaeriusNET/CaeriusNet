@@ -1,5 +1,3 @@
-using CaeriusNet.Analyzer.Roslyn;
-
 namespace CaeriusNet.Analyzer.AutoContracts;
 
 /// <summary>
@@ -59,12 +57,31 @@ public sealed class AutoContractsManifestAnalyzer : DiagnosticAnalyzer
                 Location.None,
                 AutoContractsManifestFile.ManifestFileName));
 
-        foreach (var manifest in manifests)
-            ValidateManifest(
-                context,
-                MergeOverrides(manifest.Manifest, overrides),
-                manifest.Path,
-                manifest.Location);
+        if (manifests.Count > 1)
+        {
+            context.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.ContractPossibleIncompatibility,
+                Location.None,
+                AutoContractsManifestFile.ManifestFileName,
+                "Only one AutoContracts manifest AdditionalFile is allowed per compilation."));
+        }
+        else if (manifests.Count == 1)
+        {
+            var manifest = manifests[0];
+            var merge = AutoContractsManifestParser.Merge(
+                manifest.Manifest,
+                new EquatableArray<AutoContractsOverrides>(
+                    overrides.Select(value => value.Overrides).ToImmutableArray()),
+                AutoContractsSqlServer2025.IsEnabled(
+                    context.Options.AnalyzerConfigOptionsProvider.GlobalOptions));
+            foreach (var issue in merge.Issues)
+                context.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.ContractPossibleIncompatibility,
+                    manifest.Location,
+                    issue.SourcePath,
+                    issue.Message));
+            ValidateManifest(context, merge.Manifest, manifest.Path, manifest.Location);
+        }
 
         ValidateUnmatchedOverrides(context, manifests, overrides);
     }
@@ -104,10 +121,14 @@ public sealed class AutoContractsManifestAnalyzer : DiagnosticAnalyzer
             var parsed = AutoContractsManifestParser.ParseManifest(manifestFile, context.CancellationToken);
             if (!parsed.IsSuccess)
                 throw new FormatException(parsed.Error ??
-                                          "The JSON does not match the AutoContracts v2 manifest schema.");
+                                          "The JSON does not match the AutoContracts v3 manifest schema.");
 
             manifest = new ParsedManifest(parsed.Value!, manifestFile.Path, location);
             return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -145,10 +166,14 @@ public sealed class AutoContractsManifestAnalyzer : DiagnosticAnalyzer
             var parsed = AutoContractsManifestParser.ParseOverrides(overridesFile, context.CancellationToken);
             if (!parsed.IsSuccess)
                 throw new FormatException(parsed.Error ??
-                                          "The JSON does not match the AutoContracts v2 overrides schema.");
+                                          "The JSON does not match the AutoContracts v3 overrides schema.");
 
             overrides = new ParsedOverrides(parsed.Value!, overridesFile.Path, location);
             return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

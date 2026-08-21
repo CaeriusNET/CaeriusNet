@@ -14,10 +14,12 @@ This quickstart creates a .NET 10 / C# 14 client for a SQL Server 2022 or 2025 s
 ## Install
 
 ```bash
-dotnet add package CaeriusNet --version 12.0.0
+dotnet add package CaeriusNet --version 11.2.0
 ```
 
 `CaeriusNet.Redis`, `CaeriusNet.Aspire` and `CaeriusNet.Contracts` are optional packages. Install them only for their corresponding integration.
+
+Build v12 with SDK `10.0.400` (patch roll-forward) and Roslyn 5.9 or later.
 
 ## Register the database
 
@@ -29,6 +31,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCaeriusNet(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("Orders")!));
 ```
+
+For production, the configured connection string must use `Encrypt=Strict;TrustServerCertificate=False` and a server
+certificate trusted by the application host.
 
 For more than one database, give each additional registration a key and request it with the standard keyed-service mechanism:
 
@@ -58,7 +63,8 @@ BEGIN
 END
 ```
 
-`SET NOCOUNT ON` prevents unintended row-count messages from affecting a multiple-result-set contract.
+`SET NOCOUNT ON` is recommended to reduce protocol noise. CaeriusNet also skips rowless frames, so it is not a hidden
+precondition for a multiple-result-set contract.
 
 ## Map a row and call the procedure
 
@@ -112,4 +118,4 @@ Cache identity comes from the stored procedure contract, result shape and canoni
 - [Read multiple result sets](/documentation/multi-results)
 - [Use Redis caching](/documentation/cache)
 - [Configure Aspire](/documentation/aspire)
-- [Migrate an existing v11 application](https://github.com/CaeriusNET/CaeriusNet/blob/main/MIGRATION-v11-v12.md)
+- [Migrate an existing v11 application](https://github.com/CaeriusNET/CaeriusNet/blob/main/docs/MIGRATION-v11-v12.md)

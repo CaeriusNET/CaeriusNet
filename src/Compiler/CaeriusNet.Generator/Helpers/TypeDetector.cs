@@ -73,7 +73,7 @@ internal static class TypeDetector
     /// <param name="type">The type symbol to map.</param>
     /// <returns>
     ///     A string representing the SQL Server data type name (e.g., "int", "nvarchar", "datetime2").
-    ///     Returns "sql_variant" for unmapped types.
+    ///     Returns an empty string for unmapped types. Callers must reject the model before emission.
     /// </returns>
     /// <remarks>
     ///     This method handles nullable types, enums, and special BCL types like <see cref="DateOnly" /> and
@@ -117,7 +117,8 @@ internal static class TypeDetector
                 "System.TimeOnly" => "time",
                 "System.Half" => "real",
                 "byte[]" or "System.Byte[]" => "varbinary",
-                _ => "sql_variant"
+                "System.Data.SqlTypes.SqlDecimal" => "decimal",
+                _ => string.Empty
             }
         };
     }
@@ -180,7 +181,7 @@ internal static class TypeDetector
     /// <param name="sqlType">The SQL Server data type name.</param>
     /// <returns>
     ///     The name of the SqlDataReader method to use (e.g., "GetInt32", "GetString", "GetDateTime").
-    ///     Returns "GetValue" for unmapped or variant types.
+    ///     Returns an empty string for unmapped types.
     /// </returns>
     /// <remarks>
     ///     This method maps SQL Server types to their corresponding strongly-typed reader methods
@@ -203,7 +204,8 @@ internal static class TypeDetector
             "uniqueidentifier" => "GetGuid",
             "datetimeoffset" => "GetDateTimeOffset",
             "time" => "GetTimeSpan",
-            _ => "GetValue"
+            "varbinary" or "binary" => "GetFieldValue",
+            _ => string.Empty
         };
     }
 }

@@ -106,7 +106,7 @@ public sealed class GeneratorUsageAnalyzerTests
 
         var diagnostics = AnalyzerTestHelper.RunAnalyzer(source);
 
-        AssertDiagnostic(diagnostics, "CAERIUS005", DiagnosticSeverity.Warning);
+        AssertDiagnostic(diagnostics, "CAERIUS005", DiagnosticSeverity.Error);
     }
 
     [Fact]
@@ -123,7 +123,7 @@ public sealed class GeneratorUsageAnalyzerTests
 
         var diagnostics = AnalyzerTestHelper.RunAnalyzer(source);
 
-        AssertDiagnostic(diagnostics, "CAERIUS005", DiagnosticSeverity.Warning);
+        AssertDiagnostic(diagnostics, "CAERIUS005", DiagnosticSeverity.Error);
     }
 
     [Fact]
@@ -156,7 +156,9 @@ public sealed class GeneratorUsageAnalyzerTests
                               public sealed partial record FooDto(int Id, string Name);
 
                               [GenerateTvp(TvpName = "tvp_Foo")]
-                              public sealed partial record FooTvp(int Id, string Name);
+                              public sealed partial record FooTvp(
+                                  [SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id,
+                                  [SqlServerTvpColumn("Name", 1, global::System.Data.SqlDbType.NVarChar, false, MaxLength = 128, LocaleId = 1033, CompareOptions = global::System.Data.SqlTypes.SqlCompareOptions.None)] string Name);
                               """;
 
         var diagnostics = AnalyzerTestHelper.RunAnalyzer(source);
@@ -202,6 +204,37 @@ public sealed class GeneratorUsageAnalyzerTests
     }
 
     [Fact]
+    public void GenerateTvp_Ordinary_PrimaryConstructor_Class_Reports_CAERIUS006()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace TestNs;
+                              [GenerateTvp(TvpName = "tvp_Foo")]
+                              public sealed partial class FooTvp(int Id);
+                              """;
+
+        var diagnostics = AnalyzerTestHelper.RunAnalyzer(source);
+
+        AssertDiagnostic(diagnostics, "CAERIUS006", DiagnosticSeverity.Error);
+    }
+
+    [Fact]
+    public void GenerateTvp_Readonly_Record_Struct_Reports_NoCaeriusDiagnostics()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace TestNs;
+                              [GenerateTvp(TvpName = "tvp_Foo")]
+                              public readonly partial record struct FooTvp(
+                                  [SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id);
+                              """;
+
+        var diagnostics = AnalyzerTestHelper.RunAnalyzer(source);
+
+        Assert.Empty(FilterCaeriusDiagnostics(diagnostics));
+    }
+
+    [Fact]
     public void AttributeAlias_Is_Analyzed()
     {
         const string source = """
@@ -241,6 +274,59 @@ public sealed class GeneratorUsageAnalyzerTests
 
         var diagnostic = Assert.Single(diagnostics);
         Assert.Equal("CAERIUS001", diagnostic.Id);
+    }
+
+    [Fact]
+    public void GenerateTvp_MissingColumnAttribute_Reports_CAERIUS007()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace TestNs;
+                              [GenerateTvp(TvpName = "tvp_Foo")]
+                              public sealed partial record FooTvp(int Id);
+                              """;
+
+        var diagnostics = AnalyzerTestHelper.RunAnalyzer(source);
+
+        AssertDiagnostic(diagnostics, "CAERIUS007", DiagnosticSeverity.Error);
+    }
+
+    [Fact]
+    public void GenerateTvp_ExplicitManualColumns_WithFacets_Report_NoCaeriusDiagnostics()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace TestNs;
+                              [GenerateTvp(TvpName = "tvp_Foo")]
+                              public sealed partial record FooTvp(
+                                  [SqlServerTvpColumn("Name", 1, global::System.Data.SqlDbType.VarChar, false, MaxLength = 64, LocaleId = 1033, CompareOptions = global::System.Data.SqlTypes.SqlCompareOptions.IgnoreCase)] string Name,
+                                  [SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id,
+                                  [SqlServerTvpColumn("Amount", 2, global::System.Data.SqlDbType.Decimal, false, Precision = 18, Scale = 4)] decimal Amount);
+                              """;
+
+        var diagnostics = AnalyzerTestHelper.RunAnalyzer(source);
+
+        Assert.Empty(FilterCaeriusDiagnostics(diagnostics));
+    }
+
+    [Theory]
+    [InlineData(
+        "public sealed partial record FooTvp([SqlServerTvpColumn(\"Name\", 0, global::System.Data.SqlDbType.NVarChar, false)] string Name);")]
+    [InlineData(
+        "public sealed partial record FooTvp([SqlServerTvpColumn(\"Name\", 2, global::System.Data.SqlDbType.NVarChar, false, MaxLength = 128, LocaleId = 1033, CompareOptions = global::System.Data.SqlTypes.SqlCompareOptions.None)] string Name);")]
+    [InlineData(
+        "public sealed partial record FooTvp([SqlServerTvpColumn(\"Amount\", 0, global::System.Data.SqlDbType.Decimal, false, Precision = 38, Scale = 4)] decimal Amount);")]
+    public void GenerateTvp_InvalidManualColumnMetadata_Reports_CAERIUS007(string declaration)
+    {
+        var source = """
+                     using CaeriusNet;
+                     namespace TestNs;
+                     [GenerateTvp(TvpName = "tvp_Foo")]
+                     """ + declaration;
+
+        var diagnostics = AnalyzerTestHelper.RunAnalyzer(source);
+
+        AssertDiagnostic(diagnostics, "CAERIUS007", DiagnosticSeverity.Error);
     }
 
     private static IEnumerable<Diagnostic> FilterCaeriusDiagnostics(IEnumerable<Diagnostic> diagnostics)

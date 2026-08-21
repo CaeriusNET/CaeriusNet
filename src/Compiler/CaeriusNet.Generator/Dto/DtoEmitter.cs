@@ -1,4 +1,6 @@
-﻿namespace CaeriusNet.Generator.Dto;
+﻿using System.Security.Cryptography;
+
+namespace CaeriusNet.Generator.Dto;
 
 /// <summary>
 ///     Pure source emitter for <see cref="DtoModel" />. Takes a fully-resolved value-equatable model and
@@ -17,16 +19,6 @@ internal static class DtoEmitter
         sb.AppendLine("#nullable enable");
         sb.AppendLine("#pragma warning disable CS1591 // Missing XML comment for publicly visible type or member");
         sb.AppendLine();
-        sb.AppendLine("using System;");
-        sb.AppendLine("using System.Buffers;");
-        sb.AppendLine("using System.CodeDom.Compiler;");
-        sb.AppendLine("using Microsoft.Data.SqlClient;");
-        sb.AppendLine("using Microsoft.Extensions.DependencyInjection;");
-        sb.AppendLine("using CaeriusNet.Abstractions;");
-        sb.AppendLine("using CaeriusNet.Caching;");
-        sb.AppendLine("using CaeriusNet.Mappers;");
-        sb.AppendLine();
-
         if (!string.IsNullOrEmpty(model.Namespace))
         {
             sb.Append("namespace ").Append(model.Namespace).AppendLine(";");
@@ -34,7 +26,7 @@ internal static class DtoEmitter
         }
 
         sb.Append(model.AccessibilityKeyword).Append(" sealed partial ").Append(model.TypeKindKeyword).Append(' ')
-            .Append(typeName).Append(" : ISpMapper<").Append(typeName).AppendLine(">");
+            .Append(typeName).Append(" : global::CaeriusNet.Mappers.ISpMapper<").Append(typeName).AppendLine(">");
         sb.AppendLine("{");
 
         if (useOrdinalConstants)
@@ -47,10 +39,11 @@ internal static class DtoEmitter
         }
 
         sb.AppendLine(
-            "    /// <summary>Maps a single row from the <see cref=\"SqlDataReader\"/> into a new instance.</summary>");
+            "    /// <summary>Maps a single row from the <see cref=\"global::Microsoft.Data.SqlClient.SqlDataReader\"/> into a new instance.</summary>");
         sb.AppendLine(
-            $"    [GeneratedCode(\"{GeneratorMetadata.ToolName}\", \"{GeneratorMetadata.Version}\")]");
-        sb.Append("    public static ").Append(typeName).AppendLine(" MapFromDataReader(SqlDataReader reader)");
+            $"    [global::System.CodeDom.Compiler.GeneratedCode(\"{GeneratorMetadata.ToolName}\", \"{GeneratorMetadata.Version}\")]");
+        sb.Append("    public static ").Append(typeName)
+            .AppendLine(" MapFromDataReader(global::Microsoft.Data.SqlClient.SqlDataReader reader)");
         sb.AppendLine("    {");
         sb.Append("        return new ").Append(typeName).AppendLine("(");
 
@@ -77,17 +70,20 @@ internal static class DtoEmitter
         var bitmapLength = (model.Columns.Count + 7) / 8;
         sb.AppendLine();
         sb.Append(model.AccessibilityKeyword).Append(" sealed class ").Append(codecName)
-            .Append(" : ICaeriusCacheCodec<").Append(typeName).AppendLine(">");
+            .Append(" : global::CaeriusNet.Abstractions.ICaeriusCacheCodec<").Append(typeName).AppendLine(">");
         sb.AppendLine("{");
         sb.Append("    public string CodecId => \"").Append(Escape(model.Namespace)).Append('.')
-            .Append(Escape(model.TypeName)).AppendLine("/dto/v1\";");
+            .Append(Escape(model.TypeName)).AppendLine("/dto/v2\";");
         sb.Append("    public string ContractHash => \"").Append(ComputeContractHash(model)).AppendLine("\";");
         sb.AppendLine();
-        sb.Append("    public void Encode(IBufferWriter<byte> writer, ").Append(typeName).AppendLine(" value)");
+        sb.Append("    public void Encode(global::System.Buffers.IBufferWriter<byte> writer, ").Append(typeName)
+            .AppendLine(" value)");
         sb.AppendLine("    {");
-        sb.AppendLine("        ArgumentNullException.ThrowIfNull(writer);");
-        sb.AppendLine("        ArgumentNullException.ThrowIfNull(value);");
-        sb.Append("        Span<byte> nullBitmap = stackalloc byte[").Append(bitmapLength).AppendLine("];");
+        sb.AppendLine("        global::System.ArgumentNullException.ThrowIfNull(writer);");
+        sb.AppendLine("        global::System.ArgumentNullException.ThrowIfNull(value);");
+        sb.Append("        global::System.Span<byte> nullBitmap = stackalloc byte[").Append(bitmapLength)
+            .AppendLine("];");
+        sb.AppendLine("        nullBitmap.Clear();");
         for (var i = 0; i < model.Columns.Count; i++)
         {
             var column = model.Columns[i];
@@ -97,7 +93,7 @@ internal static class DtoEmitter
                     .Append(i / 8).Append("] |= ").Append(1 << (i % 8)).AppendLine(";");
         }
 
-        sb.AppendLine("        var binary = new CaeriusBinaryWriter(writer);");
+        sb.AppendLine("        var binary = new global::CaeriusNet.Caching.CaeriusBinaryWriter(writer);");
         sb.AppendLine("        binary.WriteBytes(nullBitmap);");
         for (var i = 0; i < model.Columns.Count; i++)
         {
@@ -114,9 +110,10 @@ internal static class DtoEmitter
 
         sb.AppendLine("    }");
         sb.AppendLine();
-        sb.Append("    public ").Append(typeName).AppendLine(" Decode(ReadOnlySpan<byte> payload)");
+        sb.Append("    public ").Append(typeName)
+            .AppendLine(" Decode(global::System.ReadOnlySpan<byte> payload)");
         sb.AppendLine("    {");
-        sb.AppendLine("        var binary = new CaeriusBinaryReader(payload);");
+        sb.AppendLine("        var binary = new global::CaeriusNet.Caching.CaeriusBinaryReader(payload);");
         sb.AppendLine("        var nullBitmap = binary.ReadLengthPrefixedBytes();");
         sb.Append("        if (nullBitmap.Length != ").Append(bitmapLength)
             .AppendLine(
@@ -142,10 +139,14 @@ internal static class DtoEmitter
         sb.Append(model.AccessibilityKeyword).Append(" static class ").Append(model.TypeName)
             .AppendLine("CaeriusServiceCollectionExtensions");
         sb.AppendLine("{");
-        sb.Append("    public static IServiceCollection Add").Append(model.TypeName)
-            .AppendLine("CaeriusCodec(this IServiceCollection services) =>");
-        sb.Append("        services.AddCaeriusGeneratedCacheCodecs<").Append(typeName).Append(", ")
-            .Append(codecName).AppendLine(">();");
+        sb.Append("    public static global::Microsoft.Extensions.DependencyInjection.IServiceCollection Add")
+            .Append(model.TypeName)
+            .AppendLine(
+                "CaeriusCodec(this global::Microsoft.Extensions.DependencyInjection.IServiceCollection services) =>");
+        sb.Append(
+                "        global::Microsoft.Extensions.DependencyInjection.CaeriusNetServiceCollectionExtensions.AddCaeriusGeneratedCacheCodecs<")
+            .Append(typeName).Append(", ")
+            .Append(codecName).AppendLine(">(services);");
         sb.AppendLine("}");
     }
 
@@ -159,7 +160,8 @@ internal static class DtoEmitter
             ColumnKind.DateOnly => $"binary.WriteDateOnly({value})",
             ColumnKind.TimeOnly => $"binary.WriteTimeOnly({value})",
             ColumnKind.Char => $"binary.WriteChar({value})",
-            ColumnKind.Half => $"binary.WriteInt16(BitConverter.HalfToInt16Bits({value}))",
+            ColumnKind.Half => $"binary.WriteInt16(global::System.BitConverter.HalfToInt16Bits({value}))",
+            ColumnKind.SqlDecimal => $"binary.WriteSqlDecimal({value})",
             _ => BuildPrimitiveWrite(column.TypeName.TrimEnd('?'), value)
         };
     }
@@ -199,7 +201,8 @@ internal static class DtoEmitter
             ColumnKind.DateOnly => "binary.ReadDateOnly()",
             ColumnKind.TimeOnly => "binary.ReadTimeOnly()",
             ColumnKind.Char => "binary.ReadChar()",
-            ColumnKind.Half => "BitConverter.Int16BitsToHalf(binary.ReadInt16())",
+            ColumnKind.Half => "global::System.BitConverter.Int16BitsToHalf(binary.ReadInt16())",
+            ColumnKind.SqlDecimal => "binary.ReadSqlDecimal()",
             _ => BuildPrimitiveRead(column.TypeName.TrimEnd('?'))
         };
     }
@@ -234,8 +237,10 @@ internal static class DtoEmitter
         var contract = new StringBuilder(model.Namespace).Append('|').Append(model.TypeName);
         foreach (var column in model.Columns)
             contract.Append('|').Append(column.OrdinalPosition).Append(':').Append(column.Name).Append(':')
-                .Append(column.TypeName).Append(':').Append(column.IsNullable ? '1' : '0');
-        using var algorithm = System.Security.Cryptography.SHA256.Create();
+                .Append(column.TypeName).Append(':').Append(column.SqlType).Append(':')
+                .Append(column.Kind == ColumnKind.Enum ? column.EnumUnderlyingType : string.Empty).Append(':')
+                .Append(column.IsNullable ? '1' : '0');
+        using var algorithm = SHA256.Create();
         var hash = algorithm.ComputeHash(Encoding.UTF8.GetBytes(contract.ToString()));
         return BitConverter.ToString(hash).Replace("-", string.Empty).ToLowerInvariant();
     }
@@ -253,17 +258,18 @@ internal static class DtoEmitter
     private static string BuildReaderExpression(ColumnModel column, bool useOrdinalConstants)
     {
         var ordinal = useOrdinalConstants
-            ? "ColumnOrdinal" + column.OrdinalPosition.ToString(System.Globalization.CultureInfo.InvariantCulture)
-            : column.OrdinalPosition.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            ? "ColumnOrdinal" + column.OrdinalPosition.ToString(CultureInfo.InvariantCulture)
+            : column.OrdinalPosition.ToString(CultureInfo.InvariantCulture);
         var prefix = column.IsNullable ? $"reader.IsDBNull({ordinal}) ? null : " : string.Empty;
 
         return column.Kind switch
         {
             ColumnKind.ByteArray => $"{prefix}reader.GetFieldValue<byte[]>({ordinal})",
-            ColumnKind.DateOnly => $"{prefix}DateOnly.FromDateTime(reader.GetDateTime({ordinal}))",
-            ColumnKind.TimeOnly => $"{prefix}TimeOnly.FromTimeSpan(reader.GetTimeSpan({ordinal}))",
+            ColumnKind.DateOnly => $"{prefix}global::System.DateOnly.FromDateTime(reader.GetDateTime({ordinal}))",
+            ColumnKind.TimeOnly => $"{prefix}global::System.TimeOnly.FromTimeSpan(reader.GetTimeSpan({ordinal}))",
             ColumnKind.Char => $"{prefix}reader.GetString({ordinal})[0]",
-            ColumnKind.Half => $"{prefix}(Half)reader.GetFloat({ordinal})",
+            ColumnKind.Half => $"{prefix}checked((global::System.Half)reader.GetFloat({ordinal}))",
+            ColumnKind.SqlDecimal => $"{prefix}reader.GetSqlDecimal({ordinal})",
             ColumnKind.Enum => BuildEnumReaderExpression(column, ordinal, prefix),
             _ => $"{prefix}{BuildStandardReaderExpression(column, ordinal)}"
         };
@@ -271,10 +277,16 @@ internal static class DtoEmitter
 
     private static string BuildEnumReaderExpression(ColumnModel column, string ordinal, string prefix)
     {
-        var typeName = column.TypeName.TrimEnd('?');
+        var typeName = "global::" + column.TypeName.TrimEnd('?');
         var valueExpression = $"reader.{column.ReaderMethod}({ordinal})";
-        if (column.EnumUnderlyingType is "ulong" or "System.UInt64")
-            valueExpression = $"(ulong){valueExpression}";
+        valueExpression = column.EnumUnderlyingType switch
+        {
+            "sbyte" or "System.SByte" => $"checked((sbyte){valueExpression})",
+            "ushort" or "System.UInt16" => $"checked((ushort){valueExpression})",
+            "uint" or "System.UInt32" => $"checked((uint){valueExpression})",
+            "ulong" or "System.UInt64" => $"checked((ulong){valueExpression})",
+            _ => valueExpression
+        };
 
         return $"{prefix}({typeName}){valueExpression}";
     }
@@ -284,10 +296,10 @@ internal static class DtoEmitter
         var expression = $"reader.{column.ReaderMethod}({ordinal})";
         return column.TypeName.TrimEnd('?') switch
         {
-            "sbyte" or "System.SByte" => $"(sbyte){expression}",
-            "ushort" or "System.UInt16" => $"(ushort){expression}",
-            "uint" or "System.UInt32" => $"(uint){expression}",
-            "ulong" or "System.UInt64" => $"(ulong){expression}",
+            "sbyte" or "System.SByte" => $"checked((sbyte){expression})",
+            "ushort" or "System.UInt16" => $"checked((ushort){expression})",
+            "uint" or "System.UInt32" => $"checked((uint){expression})",
+            "ulong" or "System.UInt64" => $"checked((ulong){expression})",
             _ => expression
         };
     }

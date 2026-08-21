@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Reflection;
 using CaeriusNet.Mappers;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.DependencyInjection;
@@ -78,6 +79,31 @@ internal static class SourceGeneratorTestHelper
         return (driver.GetRunResult(), outputCompilation);
     }
 
+    internal static (GeneratorDriverRunResult RunResult, Compilation Compilation)
+        RunGeneratorWithCompilation<TGenerator>(
+            string source,
+            IReadOnlyDictionary<string, string> globalOptions,
+            params AdditionalText[] additionalTexts)
+        where TGenerator : IIncrementalGenerator, new()
+    {
+        var parseOptions = CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.CSharp14);
+        var syntaxTree = CSharpSyntaxTree.ParseText(source, parseOptions);
+        var compilation = CreateCompilation(syntaxTree);
+
+        var generator = new TGenerator();
+        var driver = CSharpGeneratorDriver.Create(generator)
+            .AddAdditionalTexts(additionalTexts.ToImmutableArray())
+            .WithUpdatedParseOptions(parseOptions)
+            .WithUpdatedAnalyzerConfigOptions(new TestAnalyzerConfigOptionsProvider(additionalTexts, globalOptions));
+
+        driver = driver.RunGeneratorsAndUpdateCompilation(
+            compilation,
+            out var outputCompilation,
+            out _,
+            TestContext.Current.CancellationToken);
+        return (driver.GetRunResult(), outputCompilation);
+    }
+
     /// <summary>
     ///     Builds a test compilation seeded with the same references as <see cref="RunGenerator{TGenerator}" />.
     ///     Exposed so caching tests can drive the generator across multiple runs on the same compilation.
@@ -118,11 +144,12 @@ internal static class SourceGeneratorTestHelper
         foreach (var dll in Directory.EnumerateFiles(dotnetDir, "*.dll"))
             try
             {
+                _ = AssemblyName.GetAssemblyName(dll);
                 references.Add(MetadataReference.CreateFromFile(dll));
             }
-            catch
+            catch (BadImageFormatException)
             {
-                // Skip DLLs that cannot be loaded as metadata (e.g., native helpers)
+                // Native runtime helpers share the .dll extension but are not metadata references.
             }
 
         // Add CaeriusNet assembly — required for attribute and interface resolution

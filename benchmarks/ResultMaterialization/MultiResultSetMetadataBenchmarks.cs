@@ -1,5 +1,4 @@
 using CaeriusNet.Benchmark.Infrastructure;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace CaeriusNet.Benchmark.ResultMaterialization;
 
@@ -9,8 +8,6 @@ namespace CaeriusNet.Benchmark.ResultMaterialization;
 ///     shape construction against the generic-static-holder pattern now emitted by the build-only generator.
 /// </summary>
 [MemoryDiagnoser]
-[WarmupCount(3)]
-[IterationCount(10)]
 [BenchmarkCategory("multi-result", "metadata", "cache")]
 public class MultiResultSetMetadataBenchmarks
 {

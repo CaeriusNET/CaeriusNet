@@ -13,7 +13,11 @@ internal static class SqlServerContractDiscoverer
                                            FROM sys.databases WHERE database_id = DB_ID();
 
                                            SELECT s.name, tt.name, tt.user_type_id, c.column_id, c.name,
-                                                  COALESCE(system_type.name, user_type.name), c.max_length, c.precision, c.scale, c.is_nullable
+                                                  COALESCE(system_type.name, user_type.name), c.max_length, c.precision, c.scale, c.is_nullable,
+                                                  c.collation_name,
+                                                  CONVERT(int, COLLATIONPROPERTY(c.collation_name, 'LCID')),
+                                                  CONVERT(int, COLLATIONPROPERTY(c.collation_name, 'ComparisonStyle')),
+                                                  tt.type_table_object_id
                                            FROM sys.table_types AS tt
                                            JOIN sys.columns AS c ON c.object_id = tt.type_table_object_id
                                            JOIN sys.types AS user_type ON user_type.user_type_id = c.user_type_id
@@ -47,7 +51,9 @@ internal static class SqlServerContractDiscoverer
 
                                            SELECT p.object_id, described.column_ordinal, described.name, described.is_nullable,
                                                   described.system_type_name, described.max_length, described.precision, described.scale,
-                                                  described.error_number, described.error_message
+                                                  described.error_number, described.error_message, described.collation_name,
+                                                  CONVERT(int, COLLATIONPROPERTY(described.collation_name, 'LCID')),
+                                                  CONVERT(int, COLLATIONPROPERTY(described.collation_name, 'ComparisonStyle'))
                                            FROM sys.procedures AS p
                                            JOIN sys.schemas AS s ON s.schema_id = p.schema_id
                                            OUTER APPLY sys.dm_exec_describe_first_result_set_for_object(p.object_id, 0) AS described
@@ -57,6 +63,20 @@ internal static class SqlServerContractDiscoverer
                                            ORDER BY p.object_id, described.column_ordinal;
                                            """;
 
+    // vector_dimensions/vector_base_type do not exist in SQL Server 2022 catalog views.  Execute this
+    // query only after a major-17 preflight so the main discovery query remains valid against both servers.
+    private const string VectorMetadataCommand = """
+                                                 SET NOCOUNT ON;
+
+                                                 SELECT object_id, column_id, vector_dimensions, vector_base_type
+                                                 FROM sys.columns
+                                                 WHERE vector_dimensions IS NOT NULL;
+
+                                                 SELECT object_id, parameter_id, vector_dimensions, vector_base_type
+                                                 FROM sys.parameters
+                                                 WHERE vector_dimensions IS NOT NULL;
+                                                 """;
+
     internal static async Task<ContractManifest> DiscoverAsync(
         CommandLineOptions options,
         ContractDiagnosticSink diagnostics,
@@ -65,6 +85,14 @@ internal static class SqlServerContractDiscoverer
         var connectionString = ConnectionStringResolver.Resolve(options);
         await using var connection = new SqlConnection(connectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
+        var serverMajor = await ReadServerMajorAsync(connection, options.TimeoutSeconds, cancellationToken)
+            .ConfigureAwait(false);
+        var vectorMetadata = await ReadVectorMetadataAsync(
+                connection,
+                serverMajor,
+                options.TimeoutSeconds,
+                cancellationToken)
+            .ConfigureAwait(false);
         await using var command = connection.CreateCommand();
         command.CommandText = MetadataCommand;
         command.CommandTimeout = options.TimeoutSeconds;
@@ -72,20 +100,24 @@ internal static class SqlServerContractDiscoverer
 
         var database = await ReadDatabaseAsync(reader, diagnostics, cancellationToken).ConfigureAwait(false);
         await MoveNextResultAsync(reader, cancellationToken).ConfigureAwait(false);
-        var tableTypes = await ReadTableTypesAsync(reader, diagnostics, cancellationToken).ConfigureAwait(false);
+        var tableTypes = await ReadTableTypesAsync(reader, diagnostics, vectorMetadata, cancellationToken)
+            .ConfigureAwait(false);
         await MoveNextResultAsync(reader, cancellationToken).ConfigureAwait(false);
         var procedures = await ReadProcedureHeadersAsync(reader, options, cancellationToken).ConfigureAwait(false);
         await MoveNextResultAsync(reader, cancellationToken).ConfigureAwait(false);
-        await ReadParametersAsync(reader, procedures, tableTypes, diagnostics, cancellationToken).ConfigureAwait(false);
+        await ReadParametersAsync(reader, procedures, tableTypes, diagnostics, vectorMetadata, cancellationToken)
+            .ConfigureAwait(false);
         await MoveNextResultAsync(reader, cancellationToken).ConfigureAwait(false);
         await ReadFirstResultsAsync(reader, procedures, diagnostics, cancellationToken).ConfigureAwait(false);
 
         return new ContractManifest(
-            2,
+            3,
             "CaeriusNet.Generated",
             database,
-            BuildTableTypeContracts(tableTypes),
-            BuildProcedureContracts(procedures, diagnostics));
+            BuildTableTypeContracts(tableTypes, procedures),
+            BuildProcedureContracts(procedures, diagnostics),
+            database.ServerMajor,
+            database.ServerMajor == 17 ? ["SqlServer2025Types"] : []);
     }
 
     private static async Task<DatabaseInfo> ReadDatabaseAsync(
@@ -100,12 +132,65 @@ internal static class SqlServerContractDiscoverer
         if (!int.TryParse(majorText, NumberStyles.None, CultureInfo.InvariantCulture, out var major) ||
             major is not (16 or 17))
             diagnostics.Error("CAERIUS212", "AutoContracts supports SQL Server product major versions 16 and 17 only.");
-        return new DatabaseInfo(reader.GetString(0), version, reader.GetByte(2));
+        return new DatabaseInfo(reader.GetString(0), version, major, reader.GetByte(2));
+    }
+
+    private static async Task<int> ReadServerMajorAsync(
+        SqlConnection connection,
+        int timeoutSeconds,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT CAST(SERVERPROPERTY('ProductVersion') AS nvarchar(128));";
+        command.CommandTimeout = timeoutSeconds;
+        var value = await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) as string;
+        var majorText = value?.Split('.')[0];
+        return int.TryParse(majorText, NumberStyles.None, CultureInfo.InvariantCulture, out var major)
+            ? major
+            : 0;
+    }
+
+    private static async Task<VectorMetadataLookup> ReadVectorMetadataAsync(
+        SqlConnection connection,
+        int serverMajor,
+        int timeoutSeconds,
+        CancellationToken cancellationToken)
+    {
+        if (serverMajor != 17)
+            return VectorMetadataLookup.Empty;
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = VectorMetadataCommand;
+        command.CommandTimeout = timeoutSeconds;
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        var columns = await ReadVectorRowsAsync(reader, cancellationToken).ConfigureAwait(false);
+        if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+            throw new InvalidOperationException("SQL Server returned incomplete vector metadata.");
+        var parameters = await ReadVectorRowsAsync(reader, cancellationToken).ConfigureAwait(false);
+        return new VectorMetadataLookup(columns, parameters);
+    }
+
+    private static async Task<Dictionary<(int ObjectId, int Ordinal), VectorMetadata>> ReadVectorRowsAsync(
+        SqlDataReader reader,
+        CancellationToken cancellationToken)
+    {
+        var values = new Dictionary<(int ObjectId, int Ordinal), VectorMetadata>();
+        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            if (reader.IsDBNull(2) || reader.IsDBNull(3))
+                continue;
+            values[(reader.GetInt32(0), reader.GetInt32(1))] = new VectorMetadata(
+                reader.GetInt32(2),
+                reader.GetByte(3));
+        }
+
+        return values;
     }
 
     private static async Task<Dictionary<string, MutableTableType>> ReadTableTypesAsync(
         SqlDataReader reader,
         ContractDiagnosticSink diagnostics,
+        VectorMetadataLookup vectorMetadata,
         CancellationToken cancellationToken)
     {
         var tableTypes = new Dictionary<string, MutableTableType>(StringComparer.OrdinalIgnoreCase);
@@ -123,15 +208,21 @@ internal static class SqlServerContractDiscoverer
             var maxLength = reader.GetInt16(6);
             var precision = reader.GetByte(7);
             var scale = reader.GetByte(8);
-            var sqlType = SqlServerTypeName.Format(reader.GetString(5), maxLength, precision, scale);
+            var typeName = reader.GetString(5);
+            var vector = vectorMetadata.GetColumn(reader.GetInt32(13), reader.GetInt32(3));
+            var sqlType = SqlServerTypeName.Format(typeName, maxLength, precision, scale, vector?.Dimensions);
             var columnName = reader.GetString(4);
             var nullable = reader.GetBoolean(9);
-            if (!SqlServerTypeMapper.IsSupported(sqlType))
+            if (!SqlServerTypeMapper.IsSupported(sqlType) ||
+                !ValidateVectorMetadata(typeName, vector))
                 diagnostics.Error("CAERIUS203",
                     $"TVP column '{key}.{columnName}' uses unsupported SQL type '{sqlType}'.");
             tableType.Columns.Add(new ColumnContract(
-                reader.GetInt32(3), columnName, sqlType, SqlServerTypeMapper.GetClrType(sqlType, nullable),
-                nullable, maxLength, precision, scale));
+                reader.GetInt32(3) - 1, columnName, sqlType, SqlServerTypeMapper.GetClrType(sqlType, nullable),
+                nullable, maxLength, precision, scale,
+                reader.IsDBNull(11) ? null : reader.GetInt32(11),
+                reader.IsDBNull(12) ? null : reader.GetInt32(12),
+                reader.IsDBNull(10) ? null : reader.GetString(10)));
         }
 
         return tableTypes;
@@ -158,6 +249,7 @@ internal static class SqlServerContractDiscoverer
         Dictionary<int, MutableProcedure> procedures,
         Dictionary<string, MutableTableType> tableTypes,
         ContractDiagnosticSink diagnostics,
+        VectorMetadataLookup vectorMetadata,
         CancellationToken cancellationToken)
     {
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
@@ -172,7 +264,8 @@ internal static class SqlServerContractDiscoverer
             var scale = reader.GetByte(7);
             var typeName = reader.GetString(8);
             var isTableType = reader.GetBoolean(9);
-            var sqlType = SqlServerTypeName.Format(typeName, maxLength, precision, scale);
+            var vector = vectorMetadata.GetParameter(reader.GetInt32(0), ordinal);
+            var sqlType = SqlServerTypeName.Format(typeName, maxLength, precision, scale, vector?.Dimensions);
             var clrType = SqlServerTypeMapper.GetClrType(sqlType, false);
             // sys.parameters only tells us that a parameter is output-capable.  It cannot tell
             // whether a caller must also supply an input value, so discovery deliberately chooses
@@ -186,13 +279,14 @@ internal static class SqlServerContractDiscoverer
                 var name = reader.IsDBNull(11) ? typeName : reader.GetString(11);
                 sqlType = schema + "." + name;
                 clrType = tableTypes.TryGetValue(sqlType, out var tableType)
-                    ? $"IReadOnlyList<{CSharpName.FromSqlName(tableType.Name)}Tvp>"
+                    ? $"IReadOnlyList<{BuildClrPrefix(tableType.Schema, tableType.Name)}Tvp>"
                     : "IReadOnlyList<object>";
                 if (!tableTypes.ContainsKey(sqlType))
                     diagnostics.Error("CAERIUS202",
                         $"TVP '{sqlType}' is referenced but is missing from the contract manifest.");
             }
-            else if (!SqlServerTypeMapper.IsSupported(sqlType))
+            else if (!SqlServerTypeMapper.IsSupported(sqlType) ||
+                     !ValidateVectorMetadata(typeName, vector))
             {
                 diagnostics.Error("CAERIUS207", $"SQL type '{sqlType}' cannot be mapped to generated C# code.");
             }
@@ -223,10 +317,11 @@ internal static class SqlServerContractDiscoverer
 
             if (reader.IsDBNull(1))
                 continue;
-            var ordinal = reader.GetInt32(1);
+            var sqlOrdinal = reader.GetInt32(1);
+            var ordinal = sqlOrdinal - 1;
             var procedureName = procedure.Header.Schema + "." + procedure.Header.Name;
             var columnName = reader.IsDBNull(2)
-                ? "Column" + ordinal.ToString(CultureInfo.InvariantCulture)
+                ? "Column" + sqlOrdinal.ToString(CultureInfo.InvariantCulture)
                 : reader.GetString(2);
             if (reader.IsDBNull(2))
                 diagnostics.Warning("CAERIUS210",
@@ -238,24 +333,35 @@ internal static class SqlServerContractDiscoverer
             var sqlType = reader.IsDBNull(4)
                 ? "unknown"
                 : SqlServerTypeName.Format(reader.GetString(4), maxLength, precision, scale);
-            if (!SqlServerTypeMapper.IsSupported(sqlType))
+            if (!SqlServerTypeMapper.IsSupported(sqlType) ||
+                (IsVectorType(sqlType) && !HasVectorDimensions(sqlType)))
                 diagnostics.Error("CAERIUS207", $"SQL type '{sqlType}' cannot be mapped to generated C# code.");
             procedure.FirstResultColumns.Add(new ColumnContract(
                 ordinal, columnName, sqlType, SqlServerTypeMapper.GetClrType(sqlType, nullable), nullable,
-                maxLength, precision, scale));
+                maxLength, precision, scale,
+                reader.IsDBNull(11) ? null : reader.GetInt32(11),
+                reader.IsDBNull(12) ? null : reader.GetInt32(12),
+                reader.IsDBNull(10) ? null : reader.GetString(10)));
         }
     }
 
     private static TableTypeContract[] BuildTableTypeContracts(
-        Dictionary<string, MutableTableType> tableTypes)
+        Dictionary<string, MutableTableType> tableTypes,
+        Dictionary<int, MutableProcedure> procedures)
     {
+        var usedTableTypes = procedures.Values
+            .SelectMany(procedure => procedure.Parameters)
+            .Where(parameter => parameter.IsTableType)
+            .Select(parameter => parameter.SqlType)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
         return tableTypes.Values
+            .Where(value => usedTableTypes.Contains(value.Schema + "." + value.Name))
             .OrderBy(value => value.Schema, StringComparer.OrdinalIgnoreCase)
             .ThenBy(value => value.Name, StringComparer.OrdinalIgnoreCase)
             .Select(value =>
             {
                 var columns = value.Columns.OrderBy(column => column.Ordinal).ToArray();
-                var clrName = CSharpName.FromSqlName(value.Name) + "Tvp";
+                var clrName = BuildClrPrefix(value.Schema, value.Name) + "Tvp";
                 return new TableTypeContract(value.Schema, value.Name, clrName,
                     columns, ContractHasher.HashTableType(value.Schema, value.Name, clrName, columns));
             }).ToArray();
@@ -290,7 +396,8 @@ internal static class SqlServerContractDiscoverer
                 }
 
                 var columns = value.FirstResultColumns.OrderBy(column => column.Ordinal).ToArray();
-                var resultClrName = status == "Available" ? CSharpName.FromSqlName(value.Header.Name) + "Result" : null;
+                var clrPrefix = BuildClrPrefix(value.Header.Schema, value.Header.Name);
+                var resultClrName = status == "Available" ? clrPrefix + "Result" : null;
                 var resultHash = ContractHasher.HashResultSet(0, resultClrName, status, value.ResultSetError, columns);
                 var resultSets = new[]
                 {
@@ -304,8 +411,8 @@ internal static class SqlServerContractDiscoverer
                         0, "returnValue", "int", "int", false, "ReturnValue", false,
                         4, 10, 0));
                 var parameters = parameterList.ToArray();
-                var clrName = CSharpName.FromSqlName(value.Header.Name) + "Procedure";
-                var parametersClrName = CSharpName.FromSqlName(value.Header.Name) + "Parameters";
+                var clrName = clrPrefix + "Procedure";
+                var parametersClrName = clrPrefix + "Parameters";
                 var hash = ContractHasher.HashProcedure(
                     value.Header.Schema, value.Header.Name, clrName, parametersClrName, parameters, resultSets);
                 return new ProcedureContract(value.Header.Schema, value.Header.Name,
@@ -315,17 +422,67 @@ internal static class SqlServerContractDiscoverer
             }).ToArray();
     }
 
+    private static string BuildClrPrefix(string schema, string name)
+    {
+        return CSharpName.FromSqlName(schema) + "_" + CSharpName.FromSqlName(name);
+    }
+
     private static bool IsSelected(string fullName, CommandLineOptions options)
     {
         var included = options.Includes.Count == 0 || options.Includes.Any(pattern =>
-            FileSystemName.MatchesSimpleExpression(pattern, fullName, true));
+            FileSystemName.MatchesSimpleExpression(pattern, fullName));
         return included && !options.Excludes.Any(pattern =>
-            FileSystemName.MatchesSimpleExpression(pattern, fullName, true));
+            FileSystemName.MatchesSimpleExpression(pattern, fullName));
     }
 
     private static async Task MoveNextResultAsync(SqlDataReader reader, CancellationToken cancellationToken)
     {
         if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
             throw new InvalidOperationException("SQL Server returned an incomplete AutoContracts metadata response.");
+    }
+
+    private static bool ValidateVectorMetadata(string typeName, VectorMetadata? metadata)
+    {
+        if (!IsVectorType(typeName))
+            return true;
+
+        return metadata is { Dimensions: >= 1 and <= 1998, BaseType: 0 };
+    }
+
+    private static bool IsVectorType(string sqlType)
+    {
+        var span = sqlType.AsSpan().Trim();
+        var open = span.IndexOf('(');
+        if (open >= 0)
+            span = span.Slice(0, open);
+        var dot = span.LastIndexOf('.');
+        if (dot >= 0)
+            span = span.Slice(dot + 1);
+        return string.Equals(span.ToString(), "vector", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool HasVectorDimensions(string sqlType)
+    {
+        return sqlType.StartsWith("vector(", StringComparison.OrdinalIgnoreCase) &&
+               sqlType.EndsWith(')');
+    }
+
+    private sealed record VectorMetadata(int Dimensions, byte BaseType);
+
+    private sealed class VectorMetadataLookup(
+        Dictionary<(int ObjectId, int Ordinal), VectorMetadata> columns,
+        Dictionary<(int ObjectId, int Ordinal), VectorMetadata> parameters)
+    {
+        internal static VectorMetadataLookup Empty { get; } = new([], []);
+
+        internal VectorMetadata? GetColumn(int objectId, int ordinal)
+        {
+            return columns.TryGetValue((objectId, ordinal), out var value) ? value : null;
+        }
+
+        internal VectorMetadata? GetParameter(int objectId, int ordinal)
+        {
+            return parameters.TryGetValue((objectId, ordinal), out var value) ? value : null;
+        }
     }
 }

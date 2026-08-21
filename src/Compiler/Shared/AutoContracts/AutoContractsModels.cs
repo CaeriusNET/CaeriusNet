@@ -1,5 +1,3 @@
-using CaeriusNet.Analyzer.Roslyn;
-
 namespace CaeriusNet.Analyzer.AutoContracts;
 
 internal sealed record AutoContractsManifest(
@@ -7,7 +5,9 @@ internal sealed record AutoContractsManifest(
     int Version,
     string Namespace,
     EquatableArray<AutoContractsTableType> TableTypes,
-    EquatableArray<AutoContractsProcedure> Procedures);
+    EquatableArray<AutoContractsProcedure> Procedures,
+    int ServerMajor = 0,
+    EquatableArray<string> Features = default);
 
 internal sealed record AutoContractsTableType(
     string Schema,
@@ -87,4 +87,7 @@ internal sealed record AutoContractsColumn(
     bool Nullable,
     int? MaxLength,
     byte? Precision,
-    byte? Scale);
+    byte? Scale,
+    int? LocaleId = null,
+    int? SqlCompareOptions = null,
+    string? Collation = null);

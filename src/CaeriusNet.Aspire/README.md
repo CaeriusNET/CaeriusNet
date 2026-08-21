@@ -6,12 +6,12 @@ by default instead of duplicate low-level SqlClient spans.
 
 ## Prerequisites
 
-- .NET 10 and C# 14
-- `CaeriusNet` 12.0.0
+- SDK 10.0.400 (patch roll-forward), Roslyn 5.9+ and C# 14
+- `CaeriusNet` 11.2.0
 - SQL Server 2022 (major version 16) or SQL Server 2025 (major version 17)
 
 ```bash
-dotnet add package CaeriusNet.Aspire --version 12.0.0
+dotnet add package CaeriusNet.Aspire --version 11.2.0
 ```
 
 ## Configure an Aspire host
@@ -41,4 +41,4 @@ public sealed class Reports(
 The optional Caerius health check validates `SERVERPROPERTY('ProductMajorVersion')` once at startup and accepts only 16
 or 17. Enable low-level SqlClient tracing only when you intentionally want those spans in addition to Caerius telemetry.
 
-[Documentation](https://caerius.net) · [Migration guide](https://github.com/CaeriusNET/CaeriusNet/blob/main/MIGRATION-v11-v12.md) · [Issues](https://github.com/CaeriusNET/CaeriusNet/issues)
+[Documentation](https://caerius.net) · [Migration guide](https://github.com/CaeriusNET/CaeriusNet/blob/main/docs/MIGRATION-v11-v12.md) · [Issues](https://github.com/CaeriusNET/CaeriusNet/issues)

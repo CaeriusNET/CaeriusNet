@@ -1,5 +1,6 @@
 using CaeriusNet.Benchmark.Caching;
 using CaeriusNet.Benchmark.CommandConstruction;
+using CaeriusNet.Benchmark.Generator;
 using CaeriusNet.Benchmark.ResultMaterialization;
 using CaeriusNet.Benchmark.TableValuedParameters;
 
@@ -14,7 +15,8 @@ internal static class BenchmarkCommandLine
         typeof(MaterializationBenchmarks),
         typeof(MultiResultSetMetadataBenchmarks),
         typeof(CacheCodecBenchmarks),
-        typeof(CachedAsyncMemoryHitBenchmarks)
+        typeof(CachedAsyncMemoryHitBenchmarks),
+        typeof(GeneratorDriverBenchmarks)
     ];
 
     public static int Run(string[] args)
@@ -25,6 +27,8 @@ internal static class BenchmarkCommandLine
             return BenchmarkPerformanceGate.Compare(args[1..]);
         if (args.Length > 0 && string.Equals(args[0], "--record-baseline", StringComparison.Ordinal))
             return BenchmarkPerformanceGate.Record(args[1..]);
+        if (args.Length > 0 && string.Equals(args[0], "--write-environment", StringComparison.Ordinal))
+            return BenchmarkPerformanceGate.WriteEnvironmentManifest(args[1..]);
         if (args.Length > 0 && (string.Equals(args[0], "--help", StringComparison.Ordinal) ||
                                 string.Equals(args[0], "-h", StringComparison.Ordinal)))
         {
@@ -47,7 +51,15 @@ internal static class BenchmarkCommandLine
             return 64;
         }
 
-        var summaries = BenchmarkRunner.Run(benchmarkTypes, new BenchmarkConfiguration(), benchmarkDotNetArguments);
+        var summaries = BenchmarkRunner.Run(
+            benchmarkTypes,
+            new BenchmarkConfiguration(!HasExplicitJobOrRuntime(benchmarkDotNetArguments)),
+            benchmarkDotNetArguments);
+        // `--list` is a discovery command: BenchmarkDotNet intentionally produces no measurements or reports.
+        // Treat a successful listing as success instead of applying the full-run/baseline completeness invariant.
+        if (HasListRequest(benchmarkDotNetArguments))
+            return summaries.Any(static summary => summary.HasCriticalValidationErrors) ? 1 : 0;
+
         var reports = summaries.SelectMany(static summary => summary.Reports).ToArray();
         if (reports.Length == 0 || summaries.Any(static summary => summary.HasCriticalValidationErrors) ||
             reports.Any(static report => !report.Success || report.ResultStatistics is null))
@@ -70,18 +82,39 @@ internal static class BenchmarkCommandLine
             "materialization" or "mapping" or "scalar" or "collections" => [typeof(MaterializationBenchmarks)],
             "multi-result" or "multi-results" => [typeof(MultiResultSetMetadataBenchmarks)],
             "cache" or "codec" => [typeof(CacheCodecBenchmarks), typeof(CachedAsyncMemoryHitBenchmarks)],
+            "sql-server" or "reader" => [typeof(SqlServerReaderBenchmarks)],
+            "redis" => [typeof(RedisReadThroughBenchmarks)],
+            "generator" or "generators" => [typeof(GeneratorDriverBenchmarks)],
             _ => []
         };
         return benchmarkTypes.Length != 0;
+    }
+
+    private static bool HasExplicitJobOrRuntime(IEnumerable<string> arguments)
+    {
+        foreach (var argument in arguments)
+            if (argument is "--job" or "-j" or "--runtimes" or "-r" ||
+                argument.StartsWith("--job=", StringComparison.Ordinal) ||
+                argument.StartsWith("--runtimes=", StringComparison.Ordinal))
+                return true;
+
+        return false;
+    }
+
+    private static bool HasListRequest(IEnumerable<string> arguments)
+    {
+        return arguments.Any(static argument =>
+            argument is "--list" or "-l" || argument.StartsWith("--list=", StringComparison.Ordinal));
     }
 
     private static void PrintUsage()
     {
         Console.WriteLine("CaeriusNet 12.0 benchmarks");
         Console.WriteLine(
-            "  dotnet run -c Release -- [all|command|tvp|materialization|multi-result|cache] [BenchmarkDotNet options]");
+            "  dotnet run -c Release -- [all|command|tvp|materialization|multi-result|cache|sql-server|redis|generator] [BenchmarkDotNet options]");
         Console.WriteLine(
             "  dotnet run -c Release -- --compare <baseline-results-dir> <candidate-results-dir> [--max-time-regression <percent>]");
+        Console.WriteLine("  dotnet run -c Release -- --write-environment <candidate-results-dir> <suite-category>");
         Console.WriteLine("  dotnet run -c Release -- --record-baseline <candidate-results-dir> <empty-output-dir>");
     }
 }

@@ -1,6 +1,4 @@
-﻿using CaeriusNet.Analyzer.Roslyn;
-
-namespace CaeriusNet.Generator.Tvp;
+﻿namespace CaeriusNet.Generator.Tvp;
 
 /// <summary>
 ///     Semantic-phase extractor for <c>[GenerateTvp]</c> targets.
@@ -9,7 +7,7 @@ internal static class TvpExtractor
 {
     private const string GenerateTvpAttributeShortName = "GenerateTvpAttribute";
 
-    internal static TvpModel? Extract(
+    internal static TvpExtractionResult Extract(
         GeneratorAttributeSyntaxContext context,
         CancellationToken cancellationToken)
     {
@@ -17,34 +15,50 @@ internal static class TvpExtractor
 
         if (context.TargetSymbol is not INamedTypeSymbol typeSymbol ||
             context.TargetNode is not TypeDeclarationSyntax)
-            return null;
+            return TvpExtractionResult.Empty;
 
         var validation = TypeStructureValidator.Validate(typeSymbol);
-        if (!validation.IsSealed || !validation.IsPartial || !validation.IsTopLevel || !validation.IsNonGeneric ||
+        if (!validation.IsPartial || !validation.IsTopLevel || !validation.IsNonGeneric ||
+            !IsSupportedTvpShape(typeSymbol) ||
             validation.PrimaryConstructorDeclaration is null)
-            return null;
+            return TvpExtractionResult.Empty;
 
         var (schema, tvpName) = ExtractAttribute(context);
         if (tvpName is null)
-            return null;
+            return TvpExtractionResult.Empty;
 
         cancellationToken.ThrowIfCancellationRequested();
 
         var primaryCtorDecl = validation.PrimaryConstructorDeclaration!;
-        var columns = ExtractColumns(primaryCtorDecl, validation.PrimaryConstructor!);
+        var columnValidation = ManualTvpColumnValidator.Validate(validation.PrimaryConstructor!, cancellationToken);
+        if (columnValidation.Issues.Count != 0)
+            return new TvpExtractionResult(null, columnValidation.Issues);
+
+        var columns = ExtractColumns(validation.PrimaryConstructor!, columnValidation.Columns, cancellationToken);
 
         if (columns.Count == 0)
-            return null;
+            return TvpExtractionResult.Empty;
 
-        var typeKindKeyword = primaryCtorDecl.Kind() == SyntaxKind.ClassDeclaration ? "class" : "record";
-        return new TvpModel(
-            NamespaceHelper.GetNamespace(typeSymbol),
-            typeSymbol.Name,
-            GetAccessibilityKeyword(typeSymbol.DeclaredAccessibility),
-            typeKindKeyword,
-            schema,
-            tvpName,
-            columns);
+        var declarationKeywords = typeSymbol.TypeKind == TypeKind.Struct
+            ? "readonly partial record struct"
+            : "sealed partial record";
+        return new TvpExtractionResult(
+            new TvpModel(
+                NamespaceHelper.GetNamespace(typeSymbol),
+                typeSymbol.Name,
+                GetAccessibilityKeyword(typeSymbol.DeclaredAccessibility),
+                declarationKeywords,
+                schema,
+                tvpName,
+                columns),
+            EquatableArray<ManualTvpColumnIssue>.Empty);
+    }
+
+    private static bool IsSupportedTvpShape(INamedTypeSymbol typeSymbol)
+    {
+        return typeSymbol.IsRecord &&
+               ((typeSymbol.TypeKind == TypeKind.Class && typeSymbol.IsSealed) ||
+                (typeSymbol.TypeKind == TypeKind.Struct && typeSymbol.IsReadOnly));
     }
 
     private static string GetAccessibilityKeyword(Accessibility accessibility)
@@ -73,26 +87,36 @@ internal static class TvpExtractor
     }
 
     private static EquatableArray<ColumnModel> ExtractColumns(
-        TypeDeclarationSyntax primaryCtorDecl,
-        IMethodSymbol primaryConstructor)
+        IMethodSymbol primaryConstructor,
+        EquatableArray<ManualTvpColumnContract> contracts,
+        CancellationToken cancellationToken)
     {
-        var parameterList = primaryCtorDecl switch
-        {
-            RecordDeclarationSyntax r => r.ParameterList,
-            ClassDeclarationSyntax c => c.ParameterList,
-            _ => null
-        };
-
-        if (parameterList is null || parameterList.Parameters.Count == 0)
+        if (primaryConstructor.Parameters.Length == 0 || contracts.Count != primaryConstructor.Parameters.Length)
             return EquatableArray<ColumnModel>.Empty;
 
         var builder = ImmutableArray.CreateBuilder<ColumnModel>(primaryConstructor.Parameters.Length);
-        for (var i = 0; i < primaryConstructor.Parameters.Length; i++)
+        foreach (var contract in contracts.OrderBy(static contract => contract.Ordinal))
         {
-            var parameter = primaryConstructor.Parameters[i];
-            builder.Add(ColumnExtractor.Extract(parameter, i));
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (contract.ParameterIndex < 0 || contract.ParameterIndex >= primaryConstructor.Parameters.Length)
+                return EquatableArray<ColumnModel>.Empty;
+
+            var parameter = primaryConstructor.Parameters[contract.ParameterIndex];
+            var column = ManualTvpColumnMapper.Create(parameter, contract);
+            if (column is null)
+                return EquatableArray<ColumnModel>.Empty;
+            builder.Add(column);
         }
 
         return new EquatableArray<ColumnModel>(builder.ToImmutable());
     }
+}
+
+/// <summary>Value-equatable result of manual TVP extraction, including blocking generator diagnostics.</summary>
+internal sealed record TvpExtractionResult(
+    TvpModel? Model,
+    EquatableArray<ManualTvpColumnIssue> Issues)
+{
+    internal static TvpExtractionResult Empty { get; } = new(null, EquatableArray<ManualTvpColumnIssue>.Empty);
 }

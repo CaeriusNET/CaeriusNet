@@ -1,4 +1,5 @@
 using System.Data.SqlTypes;
+using Microsoft.Data.SqlTypes;
 
 namespace CaeriusNet.Caching;
 
@@ -13,7 +14,7 @@ namespace CaeriusNet.Caching;
 public static class CaeriusCacheKeyBuilder
 {
     private const byte HashFormatMagic = 0xC7;
-    private const byte HashFormatVersion = 1;
+    private const byte HashFormatVersion = 2;
 
     public static string Create(
         string applicationNamespace,
@@ -29,6 +30,15 @@ public static class CaeriusCacheKeyBuilder
 
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
         Start(hash, HashPurpose.Parameters);
+        AppendCanonicalValue(hash, applicationNamespace);
+        AppendCanonicalValue(hash, databaseIdentity);
+        AppendCanonicalValue(hash, command.FullName);
+        AppendCanonicalValue(hash, command.ContractHash);
+        AppendCanonicalValue(hash, resultContractHash ?? "runtime");
+        AppendCanonicalValue(hash, resultShape);
+        AppendCanonicalValue(hash, command.DependencyTags.Length);
+        foreach (var tag in command.DependencyTags)
+            AppendCanonicalValue(hash, tag);
         foreach (var parameter in command.Parameters)
         {
             AppendCanonicalValue(hash, parameter.Name);
@@ -37,16 +47,7 @@ public static class CaeriusCacheKeyBuilder
             AppendCanonicalValue(hash, parameter.Value);
         }
 
-        var parameterHash = FinalizeHash(hash);
-        var databaseToken = string.Concat("database-", HashDatabaseIdentity(databaseIdentity));
-        return string.Join(':',
-            applicationNamespace,
-            databaseToken,
-            command.FullName,
-            command.ContractHash,
-            resultContractHash ?? "runtime",
-            resultShape,
-            parameterHash);
+        return "caerius:v2:" + FinalizeHash(hash);
     }
 
     private static string HashDatabaseIdentity(string databaseIdentity)
@@ -179,6 +180,9 @@ public static class CaeriusCacheKeyBuilder
             case SqlDecimal sqlDecimal:
                 AppendSqlDecimal(hash, sqlDecimal);
                 return;
+            case SqlVector<float> sqlVector:
+                AppendSqlVector(hash, sqlVector);
+                return;
             case SqlMoney sqlMoney:
                 if (sqlMoney.IsNull) AppendTag(hash, CanonicalTag.Null);
                 else AppendDecimal(hash, sqlMoney.Value);
@@ -290,6 +294,20 @@ public static class CaeriusCacheKeyBuilder
         AppendLengthPrefixedBytes(hash, value.BinData);
     }
 
+    private static void AppendSqlVector(IncrementalHash hash, SqlVector<float> value)
+    {
+        if (value.IsNull)
+        {
+            AppendTag(hash, CanonicalTag.Null);
+            return;
+        }
+
+        AppendTag(hash, CanonicalTag.SqlVectorFloat32);
+        AppendRawInt32(hash, value.Length);
+        foreach (var element in value.Memory.Span)
+            AppendRawInt32(hash, BitConverter.SingleToInt32Bits(element));
+    }
+
     private static void AppendEnum(IncrementalHash hash, Enum value)
     {
         switch (Type.GetTypeCode(Enum.GetUnderlyingType(value.GetType())))
@@ -380,29 +398,38 @@ public static class CaeriusCacheKeyBuilder
     private static void AppendUtf8(IncrementalHash hash, CanonicalTag tag, ReadOnlySpan<char> value)
     {
         AppendTag(hash, tag);
-        var byteCount = Encoding.UTF8.GetByteCount(value);
-        AppendRawInt32(hash, byteCount);
-        if (byteCount == 0)
-            return;
-
-        const int StackThreshold = 256;
-        if (byteCount <= StackThreshold)
-        {
-            Span<byte> buffer = stackalloc byte[StackThreshold];
-            var written = Encoding.UTF8.GetBytes(value, buffer);
-            hash.AppendData(buffer[..written]);
-            return;
-        }
-
-        var rented = ArrayPool<byte>.Shared.Rent(byteCount);
         try
         {
-            var written = Encoding.UTF8.GetBytes(value, rented);
-            hash.AppendData(rented.AsSpan(0, written));
+            var byteCount = CaeriusBinaryEncoding.StrictUtf8.GetByteCount(value);
+            AppendRawInt32(hash, byteCount);
+            if (byteCount == 0)
+                return;
+
+            const int StackThreshold = 256;
+            if (byteCount <= StackThreshold)
+            {
+                Span<byte> buffer = stackalloc byte[StackThreshold];
+                var written = CaeriusBinaryEncoding.StrictUtf8.GetBytes(value, buffer);
+                hash.AppendData(buffer[..written]);
+                return;
+            }
+
+            var rented = ArrayPool<byte>.Shared.Rent(byteCount);
+            try
+            {
+                var written = CaeriusBinaryEncoding.StrictUtf8.GetBytes(value, rented);
+                hash.AppendData(rented.AsSpan(0, written));
+            }
+            finally
+            {
+                ArrayPool<byte>.Shared.Return(rented);
+            }
         }
-        finally
+        catch (EncoderFallbackException exception)
         {
-            ArrayPool<byte>.Shared.Return(rented);
+            throw new CaeriusContractException(
+                "Cache-key text must contain only valid UTF-16 scalar sequences.",
+                exception);
         }
     }
 
@@ -516,7 +543,7 @@ public static class CaeriusCacheKeyBuilder
 
     private static string ToLowerUtf8Hex(string value)
     {
-        var byteCount = Encoding.UTF8.GetByteCount(value);
+        var byteCount = CaeriusBinaryEncoding.StrictUtf8.GetByteCount(value);
         if (byteCount == 0)
             return string.Empty;
 
@@ -524,14 +551,14 @@ public static class CaeriusCacheKeyBuilder
         if (byteCount <= StackThreshold)
         {
             Span<byte> bytes = stackalloc byte[StackThreshold];
-            var written = Encoding.UTF8.GetBytes(value, bytes);
+            var written = CaeriusBinaryEncoding.StrictUtf8.GetBytes(value, bytes);
             return Convert.ToHexStringLower(bytes[..written]);
         }
 
         var rented = ArrayPool<byte>.Shared.Rent(byteCount);
         try
         {
-            var written = Encoding.UTF8.GetBytes(value, rented);
+            var written = CaeriusBinaryEncoding.StrictUtf8.GetBytes(value, rented);
             return Convert.ToHexStringLower(rented.AsSpan(0, written));
         }
         finally
@@ -573,6 +600,7 @@ public static class CaeriusCacheKeyBuilder
         TimeSpan = 20,
         Guid = 21,
         Character = 22,
-        SqlDecimal = 23
+        SqlDecimal = 23,
+        SqlVectorFloat32 = 24
     }
 }

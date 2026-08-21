@@ -70,6 +70,8 @@ public sealed class CaeriusNetOptions
 public sealed class CaeriusMemoryCacheOptions
 {
     public long SizeLimit { get; set; } = 1024;
+    public long MaxEntryWeight { get; set; } = 1;
+    public int MaxConcurrentPopulations { get; set; } = 256;
 }
 
 internal sealed class OwnedSqlConnectionLease(SqlConnection connection) : ICaeriusSqlConnectionLease

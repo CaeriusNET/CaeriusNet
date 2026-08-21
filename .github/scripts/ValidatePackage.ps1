@@ -130,6 +130,20 @@ function Assert-PackageEntries {
     }
 }
 
+function Assert-PackageExcludesEntries {
+    param(
+        [Parameter(Mandatory = $true)][System.IO.FileInfo]$Package,
+        [Parameter(Mandatory = $true)][string[]]$ForbiddenEntries
+    )
+
+    $entries = Get-PackageEntries -Package $Package
+    foreach ($forbiddenEntry in $ForbiddenEntries) {
+        if ($entries.Contains($forbiddenEntry)) {
+            throw "Package '$($Package.Name)' must not contain '$forbiddenEntry'."
+        }
+    }
+}
+
 function Get-PackageEntryText {
     param(
         [Parameter(Mandatory = $true)][System.IO.FileInfo]$Package,
@@ -196,9 +210,15 @@ function Validate-CaeriusNetPackage {
         "lib/net10.0/CaeriusNet.dll",
         "lib/net10.0/CaeriusNet.xml",
         "analyzers/dotnet/cs/CaeriusNet.Generator.dll",
-        "analyzers/dotnet/cs/CaeriusNet.Analyzer.dll"
+        "analyzers/dotnet/cs/CaeriusNet.Generator.pdb",
+        "analyzers/dotnet/cs/CaeriusNet.Analyzer.dll",
+        "analyzers/dotnet/cs/CaeriusNet.Analyzer.pdb"
     )
     Assert-Nuspec -Package $Package -PackageId "CaeriusNet"
+    Assert-PackageExcludesEntries -Package $Package -ForbiddenEntries @(
+        "analyzers/dotnet/cs/CaeriusNet.MultiResults.Generator.dll",
+        "analyzers/dotnet/cs/CaeriusNet.MultiResults.Generator.pdb"
+    )
     Assert-SymbolPackage -Package $Package
 }
 
@@ -252,6 +272,10 @@ function Validate-CaeriusNetContractsPackage {
         "tools/net10.0/any/CaeriusNet.SqlServer.Contracts.runtimeconfig.json"
     )
     Assert-Nuspec -Package $Package -PackageId "CaeriusNet.Contracts"
+    Assert-PackageExcludesEntries -Package $Package -ForbiddenEntries @(
+        "tools/net10.0/any/CaeriusNet.SqlServer.Contracts.exe",
+        "tools/net10.0/any/CaeriusNet.SqlServer.Contracts.pdb"
+    )
     Assert-SymbolPackage -Package $Package
 
     $contractsProps = Get-PackageEntryText -Package $Package -EntryName "buildTransitive/CaeriusNet.Contracts.props"
@@ -369,6 +393,9 @@ try {
 
     # Keep the smoke consumer independent even when OutputDirectory is located under the repository.
     # These nearest, empty files prevent the repository's build and central-package settings from leaking in.
+    # The copied SDK policy makes this a .NET 10.0.400 package-consumer check, rather than a check against
+    # whichever SDK happens to be available on the validation machine.
+    Copy-Item -LiteralPath (Join-Path $repoRoot "global.json") -Destination (Join-Path $consumerDirectory "global.json")
     '<Project />' | Set-Content -LiteralPath (Join-Path $consumerDirectory "Directory.Build.props") -Encoding UTF8
     '<Project />' | Set-Content -LiteralPath (Join-Path $consumerDirectory "Directory.Build.targets") -Encoding UTF8
     '<Project />' | Set-Content -LiteralPath (Join-Path $consumerDirectory "Directory.Packages.props") -Encoding UTF8
@@ -414,9 +441,50 @@ try {
 "@ | Set-Content -LiteralPath (Join-Path $consumerDirectory "CaeriusNet.PackageSmoke.csproj") -Encoding UTF8
 
     @"
+{
+  "version": 3,
+  "serverMajor": 16,
+  "features": [],
+  "namespace": "PackageSmoke.AutoContracts",
+  "tableTypes": [],
+  "procedures": [
+    {
+      "schema": "dbo",
+      "name": "PackageLookup",
+      "clrName": "PackageLookupProcedure",
+      "parametersClrName": "PackageLookupParameters",
+      "parameters": [
+        { "ordinal": 1, "name": "id", "sqlType": "int", "clrType": "int", "isTableType": false, "direction": "Input", "nullable": false }
+      ],
+      "resultSets": [
+        {
+          "index": 0,
+          "clrName": "PackageLookupRow",
+          "status": "Available",
+          "columns": [
+            { "ordinal": 0, "name": "Id", "sqlType": "int", "clrType": "int", "nullable": false }
+          ]
+        },
+        {
+          "index": 1,
+          "clrName": "PackageLookupSummary",
+          "status": "Available",
+          "columns": [
+            { "ordinal": 0, "name": "Total", "sqlType": "bigint", "clrType": "long", "nullable": false }
+          ]
+        }
+      ]
+    }
+  ]
+}
+"@ | Set-Content -LiteralPath (Join-Path $consumerDirectory "caerius.contracts.json") -Encoding UTF8
+
+    @"
+using CaeriusNet;
 using CaeriusNet.Commands;
 using CaeriusNet.Contracts;
 using CaeriusNet.Redis;
+using PackageSmoke;
 using System.Data;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -426,19 +494,64 @@ services.AddCaeriusNet("reporting", options => options.UseSqlServer("Server=loca
 services.AddCaeriusNetRedis();
 
 var command = new StoredProcedureCommandBuilder("dbo", "HealthProbe")
+    .AddReturnValue()
     .AddParameter("id", 42, SqlDbType.Int)
     .AddOutputParameter("rows", SqlDbType.Int)
-    .AddReturnValue()
     .WithResultSetCapacities(8, 4)
     .Build();
 
-if (command.FullName != "dbo.HealthProbe" || command.Parameters.Length != 3 || ContractsPackage.ManifestVersion != 2)
+var dto = new PackageDto(42, "package-only");
+var dtoCodec = new PackageDtoCaeriusCacheCodec();
+var tvpRows = (IReadOnlyCollection<PackageTvpRow>)[new PackageTvpRow(42)];
+var tvpCommand = new StoredProcedureCommandBuilder("dbo", "WriteRows")
+    .AddTvpParameter<PackageTvpRow>("rows", tvpRows)
+    .Build();
+
+if (command.FullName != "dbo.HealthProbe" || command.Parameters.Length != 3 ||
+    dtoCodec.CodecId.Length == 0 || PackageTvpRow.SqlTypeName != "dbo.PackageRows" ||
+    tvpCommand.Parameters.Length != 1 || ContractsPackage.ManifestVersion != 3)
 {
     return 1;
 }
 
 return 0;
 "@ | Set-Content -LiteralPath (Join-Path $consumerDirectory "Program.cs") -Encoding UTF8
+
+    @"
+using CaeriusNet;
+using CaeriusNet.Abstractions;
+using CaeriusNet.Commands;
+using PackageSmoke.AutoContracts;
+using System.Collections.Immutable;
+
+namespace PackageSmoke;
+
+[GenerateDto]
+public sealed partial record PackageDto(int Id, string Name);
+
+[GenerateTvp(Schema = "dbo", TvpName = "PackageRows")]
+public sealed partial record PackageTvpRow(
+    [SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id);
+
+internal static class PackageOnlyCompileSurface
+{
+    // These bodies are intentionally never executed. Their compilation verifies that the analyzer/generator
+    // assemblies from CaeriusNet.nupkg and the buildTransitive AutoContracts manifest both supply usable APIs.
+    internal static ValueTask<(ImmutableArray<PackageDto> Set1, ImmutableArray<PackageDto> Set2)> UseCoreMultiResult(
+        ICaeriusNetDbContext context,
+        StoredProcedureCommand command) =>
+        CaeriusNetMultiResultSetExtensions.QueryMultipleImmutableArrayAsync<PackageDto, PackageDto>(context, command);
+
+    internal static ValueTask<(ImmutableArray<PackageLookupRow> Set1, ImmutableArray<PackageLookupSummary> Set2)> UseAutoContracts(
+        ICaeriusNetDbContext context)
+    {
+        var command = PackageLookupProcedureBuilderExtensions
+            .CreateBuilder(new PackageLookupParameters(42))
+            .Build();
+        return PackageLookupProcedureExecutionExtensions.QueryAsync(context, command);
+    }
+}
+"@ | Set-Content -LiteralPath (Join-Path $consumerDirectory "Contracts.cs") -Encoding UTF8
 
     if (Get-ChildItem -LiteralPath $consumerDirectory -Recurse -Filter "*.csproj" |
             Select-String -Quiet -Pattern "<ProjectReference") {

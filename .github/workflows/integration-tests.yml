@@ -78,19 +78,22 @@ jobs:
 
       - name: Run integration tests
         run: |
-          dotnet test tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj \
+          dotnet test --project tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj \
             --configuration Release \
             --no-restore \
             --no-build \
-            --logger "trx;LogFileName=integration-results.trx" \
-            --logger "console;verbosity=normal" \
-            --results-directory ./artifacts/integration-results
+            --results-directory ./artifacts/integration-results \
+            --report-trx \
+            --report-trx-filename integration-results.trx \
+            --coverage \
+            --coverage-output integration.coverage.cobertura.xml \
+            --coverage-output-format cobertura
 
       - name: Upload integration test results
         if: always()
         uses: actions/upload-artifact@v5
         with:
           name: integration-results-${{ matrix.sql.name }}
-          path: artifacts/integration-results/**/*.trx
+          path: artifacts/integration-results/**/*
           retention-days: 14
           if-no-files-found: warn

@@ -2,9 +2,40 @@ namespace CaeriusNet.Analyzer.Tests;
 
 public sealed class AutoContractsManifestAnalyzerTests
 {
+    private const string SqlServer2025Manifest = """
+                                                 {
+                                                   "version": 3,
+                                                   "serverMajor": 17,
+                                                   "features": ["SqlServer2025Types"],
+                                                   "namespace": "Consumer.Contracts",
+                                                   "tableTypes": [],
+                                                   "procedures": [{
+                                                     "schema": "dbo",
+                                                     "name": "SearchEmbeddings",
+                                                     "clrName": "SearchEmbeddingsProcedure",
+                                                     "parametersClrName": "SearchEmbeddingsParameters",
+                                                     "parameters": [
+                                                       { "ordinal": 0, "name": "returnValue", "sqlType": "int", "clrType": "int", "direction": "ReturnValue" },
+                                                       { "ordinal": 1, "name": "filter", "sqlType": "json", "clrType": "string", "direction": "Input" }
+                                                     ],
+                                                     "resultSets": [{
+                                                       "index": 0,
+                                                       "clrName": "SearchEmbeddingsResult",
+                                                       "status": "Available",
+                                                       "columns": [
+                                                         { "ordinal": 0, "name": "Payload", "sqlType": "json", "clrType": "string", "nullable": false },
+                                                         { "ordinal": 1, "name": "Embedding", "sqlType": "vector(3)", "clrType": "global::Microsoft.Data.SqlTypes.SqlVector<float>", "nullable": false }
+                                                       ]
+                                                     }]
+                                                   }]
+                                                 }
+                                                 """;
+
     private const string ValidEmptyManifest = """
                                               {
-                                                "version": 2,
+                                                "version": 3,
+                                                "serverMajor": 16,
+                                                "features": [],
                                                 "namespace": "Consumer.Contracts",
                                                 "tableTypes": [],
                                                 "procedures": []
@@ -70,7 +101,9 @@ public sealed class AutoContractsManifestAnalyzerTests
             "namespace Consumer;",
             Manifest("""
                      {
-                       "version": 2,
+                       "version": 3,
+                       "serverMajor": 16,
+                       "features": [],
                        "namespace": "Consumer.Contracts",
                        "tableTypes": [],
                        "procedures": [
@@ -136,7 +169,9 @@ public sealed class AutoContractsManifestAnalyzerTests
             "namespace Consumer;",
             Manifest("""
                      {
-                       "version": 2,
+                       "version": 3,
+                       "serverMajor": 16,
+                       "features": [],
                        "namespace": "Consumer.Contracts",
                        "tableTypes": [],
                        "procedures": [
@@ -165,7 +200,9 @@ public sealed class AutoContractsManifestAnalyzerTests
             "namespace Consumer;",
             Manifest("""
                      {
-                       "version": 2,
+                       "version": 3,
+                       "serverMajor": 16,
+                       "features": [],
                        "namespace": "Consumer.Contracts",
                        "tableTypes": [],
                        "procedures": [
@@ -186,7 +223,7 @@ public sealed class AutoContractsManifestAnalyzerTests
                                "clrName": "SaveOrderResult",
                                "status": "Available",
                                "columns": [
-                                 { "ordinal": 1, "name": "OrderId", "sqlType": "int", "clrType": "int", "nullable": false }
+                                 { "ordinal": 0, "name": "OrderId", "sqlType": "int", "clrType": "int", "nullable": false }
                                ]
                              }
                            ],
@@ -206,7 +243,9 @@ public sealed class AutoContractsManifestAnalyzerTests
             "namespace Consumer;",
             Manifest("""
                      {
-                       "version": 2,
+                       "version": 3,
+                       "serverMajor": 16,
+                       "features": [],
                        "namespace": "Consumer.Contracts",
                        "tableTypes": [],
                        "procedures": [
@@ -236,7 +275,9 @@ public sealed class AutoContractsManifestAnalyzerTests
             "namespace Consumer;",
             Manifest("""
                      {
-                       "version": 2,
+                       "version": 3,
+                       "serverMajor": 16,
+                       "features": [],
                        "namespace": "Consumer.Contracts",
                        "tableTypes": [
                          {
@@ -244,7 +285,7 @@ public sealed class AutoContractsManifestAnalyzerTests
                            "name": "Rows",
                            "clrName": "RowsTvp",
                            "columns": [
-                             { "ordinal": 1, "name": "Id", "sqlType": "int", "clrType": "int", "nullable": false }
+                             { "ordinal": 0, "name": "Id", "sqlType": "int", "clrType": "int", "nullable": false }
                            ]
                          }
                        ],
@@ -275,7 +316,9 @@ public sealed class AutoContractsManifestAnalyzerTests
             "namespace Consumer;",
             Manifest("""
                      {
-                       "version": 2,
+                       "version": 3,
+                       "serverMajor": 16,
+                       "features": [],
                        "namespace": "Consumer.Contracts",
                        "tableTypes": [],
                        "procedures": [
@@ -286,9 +329,9 @@ public sealed class AutoContractsManifestAnalyzerTests
                            "parametersClrName": "SearchParameters",
                            "parameters": [],
                            "resultSets": [
-                             { "index": 0, "clrName": "SearchHeader", "status": "Available", "columns": [{ "ordinal": 1, "name": "Id", "sqlType": "int", "clrType": "int", "nullable": false }] },
-                             { "index": 2, "clrName": "SearchDetail", "status": "Available", "columns": [{ "ordinal": 1, "name": "Id", "sqlType": "int", "clrType": "int", "nullable": false }] },
-                             { "index": 2, "clrName": "SearchDuplicate", "status": "Available", "columns": [{ "ordinal": 1, "name": "Id", "sqlType": "int", "clrType": "int", "nullable": false }] }
+                             { "index": 0, "clrName": "SearchHeader", "status": "Available", "columns": [{ "ordinal": 0, "name": "Id", "sqlType": "int", "clrType": "int", "nullable": false }] },
+                             { "index": 2, "clrName": "SearchDetail", "status": "Available", "columns": [{ "ordinal": 0, "name": "Id", "sqlType": "int", "clrType": "int", "nullable": false }] },
+                             { "index": 2, "clrName": "SearchDuplicate", "status": "Available", "columns": [{ "ordinal": 0, "name": "Id", "sqlType": "int", "clrType": "int", "nullable": false }] }
                            ]
                          }
                        ]
@@ -305,7 +348,9 @@ public sealed class AutoContractsManifestAnalyzerTests
             "namespace Consumer;",
             Manifest("""
                      {
-                       "version": 2,
+                       "version": 3,
+                       "serverMajor": 16,
+                       "features": [],
                        "namespace": "Consumer.Contracts",
                        "tableTypes": [],
                        "procedures": [
@@ -316,7 +361,7 @@ public sealed class AutoContractsManifestAnalyzerTests
                            "parametersClrName": "SearchParameters",
                            "parameters": [],
                            "resultSets": [
-                             { "index": 0, "clrName": "SearchHeader", "status": "Available", "columns": [{ "ordinal": 1, "name": "Id", "sqlType": "int", "clrType": "int", "nullable": false }] }
+                             { "index": 0, "clrName": "SearchHeader", "status": "Available", "columns": [{ "ordinal": 0, "name": "Id", "sqlType": "int", "clrType": "int", "nullable": false }] }
                            ]
                          }
                        ]
@@ -324,13 +369,13 @@ public sealed class AutoContractsManifestAnalyzerTests
                      """),
             Overrides("""
                       {
-                        "version": 2,
+                        "version": 3,
                         "procedures": [
                           {
                             "schema": "dbo",
                             "name": "Search",
                             "resultSets": [
-                              { "index": 1, "clrName": "SearchDetail", "status": "Available", "columns": [{ "ordinal": 1, "name": "Id", "sqlType": "int", "clrType": "int", "nullable": false }] }
+                              { "index": 1, "clrName": "SearchDetail", "status": "Available", "columns": [{ "ordinal": 0, "name": "Id", "sqlType": "int", "clrType": "int", "nullable": false }] }
                             ]
                           }
                         ]
@@ -347,7 +392,9 @@ public sealed class AutoContractsManifestAnalyzerTests
             "namespace Consumer;",
             Manifest("""
                      {
-                       "version": 2,
+                       "version": 3,
+                       "serverMajor": 16,
+                       "features": [],
                        "namespace": "Consumer.Contracts",
                        "tableTypes": [
                          {
@@ -355,7 +402,7 @@ public sealed class AutoContractsManifestAnalyzerTests
                            "name": "InputRows",
                            "clrName": "InputRowsTvp",
                            "columns": [
-                             { "ordinal": 1, "name": "Payload", "sqlType": "xml", "clrType": "string", "nullable": false }
+                             { "ordinal": 0, "name": "Payload", "sqlType": "xml", "clrType": "string", "nullable": false }
                            ],
                            "contractHash": "sha256:table"
                          }
@@ -377,7 +424,7 @@ public sealed class AutoContractsManifestAnalyzerTests
                                "clrName": "SearchResult",
                                "status": "Available",
                                "columns": [
-                                 { "ordinal": 1, "name": "UserId", "sqlType": "int", "clrType": "int", "nullable": true },
+                                 { "ordinal": 0, "name": "UserId", "sqlType": "int", "clrType": "int", "nullable": true },
                                  { "ordinal": 2, "name": "Legacy", "sqlType": "cursor", "clrType": "object", "nullable": false }
                                ]
                              }
@@ -402,7 +449,9 @@ public sealed class AutoContractsManifestAnalyzerTests
             "namespace Consumer;",
             Manifest("""
                      {
-                       "version": 2,
+                       "version": 3,
+                       "serverMajor": 16,
+                       "features": [],
                        "namespace": "Consumer.Contracts",
                        "tableTypes": [
                          {
@@ -410,7 +459,7 @@ public sealed class AutoContractsManifestAnalyzerTests
                            "name": "InputRows",
                            "clrName": "InputRowsTvp",
                            "columns": [
-                             { "ordinal": 1, "name": "Payload", "sqlType": "xml", "clrType": "string", "nullable": false }
+                             { "ordinal": 0, "name": "Payload", "sqlType": "xml", "clrType": "string", "nullable": false }
                            ],
                            "contractHash": "sha256:table"
                          }
@@ -431,6 +480,32 @@ public sealed class AutoContractsManifestAnalyzerTests
 
         Assert.DoesNotContain(diagnostics,
             diagnostic => diagnostic.Id.StartsWith("CAERIUS2", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void SqlServer2025NativeTypes_WithoutOptIn_ReportManifestIncompatibility()
+    {
+        var diagnostics = AnalyzerTestHelper.RunAnalyzer(
+            "namespace Consumer;",
+            Manifest(SqlServer2025Manifest));
+
+        Assert.Contains(diagnostics, diagnostic => diagnostic.Id == "CAERIUS210" &&
+                                                   diagnostic.GetMessage().Contains("CaeriusSqlServer2025Types=Enabled",
+                                                       StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void SqlServer2025NativeTypes_WithOptInAndServer17_AreNotReportedAsUnsupported()
+    {
+        var diagnostics = AnalyzerTestHelper.RunAnalyzer(
+            "namespace Consumer;",
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["build_property.CaeriusSqlServer2025Types"] = "Enabled"
+            },
+            Manifest(SqlServer2025Manifest));
+
+        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id is "CAERIUS207" or "CAERIUS210");
     }
 
     private static TestAdditionalText Manifest(

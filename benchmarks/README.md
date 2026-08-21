@@ -1,69 +1,85 @@
 # CaeriusNet v12 benchmarks
 
-The benchmark project measures v12 hot paths without requiring a SQL Server instance: immutable stored-procedure
-commands, canonical parameter keys, source-generated TVP row writers (including an empty TVP), materialization of
-1/2/5/10 result sets, injected memory/Frozen cache hits and read-through misses, and the source-generated binary DTO
-codec. It targets .NET 10 and writes BenchmarkDotNet full JSON reports that are used by the CI performance gate.
+The benchmark project measures the v12 hot paths rather than synthetic helper loops: immutable stored-procedure commands
+and `SqlCommand` binding, generated TVP writers, scalar/reader materialization, 1/2/5/10 result-set metadata, cache and
+Redis paths, binary DTO codecs, and GeneratorDriver cold/incremental execution. It targets .NET 10 and uses
+BenchmarkDotNet 0.15.8 with full JSON reports and `MemoryDiagnoser`.
+
+The `sql-server` and `redis` categories are opt-in integration benchmarks. `sql-server` requires a disposable instance
+through `CAERIUS_BENCHMARK_SQL_CONNECTION`; `redis` also requires `CAERIUS_BENCHMARK_REDIS_CONNECTION`. They are
+deliberately excluded from the default `all` suite and portable gate. The SQL connection needs `CREATE OR ALTER
+PROCEDURE` rights on a disposable database: the runner creates only `dbo.caerius_benchmark_reader_{1,2,5,10}` and
+`dbo.caerius_benchmark_redis_reader`, never logs parameter or result values.
 
 ## Run locally
 
+Use a dry run first to validate setup, then a normal or CI-like run. BenchmarkDotNet arguments are passed after the
+category.
+
 ```powershell
+dotnet run --project benchmarks/CaeriusNet.Benchmark.csproj -c Release -- generator --job Dry --filter "*"
+dotnet run --project benchmarks/CaeriusNet.Benchmark.csproj -c Release -- cache --filter "*Codec*"
 dotnet run --project benchmarks/CaeriusNet.Benchmark.csproj -c Release -- all
 ```
 
-The available categories are `all`, `command`, `tvp`, `materialization`, and `cache`. BenchmarkDotNet arguments are
-passed through after the category; for example, the following runs only the cache codec methods:
+Available categories are `all`, `command`, `tvp`, `materialization`, `multi-result`, `cache`, `generator`,
+`sql-server`, and `redis`. Reports default to `BenchmarkDotNet.Artifacts/results`; set
+`BENCHMARK_ARTIFACTS_PATH` to place them elsewhere. CI uses five warmups and 15 measurement iterations per job; a local
+run uses three and 10. The runner exits non-zero for BenchmarkDotNet validation, build, execution, or missing-statistics
+failures, so an empty JSON export cannot become a baseline.
+
+## Baseline 11.2.0 and performance gate
+
+There is intentionally no invented workstation baseline in the repository. The first v12 baseline must be measured by
+the manual GitHub workflow on `ubuntu-24.04`, then reviewed and committed at
+`benchmarks/baselines/11.2.0/` (no `v` prefix). A baseline directory contains only measured
+`*-report-full*.json` files plus `caerius-benchmark-environment.v1.json`.
+
+The environment manifest is written only after a successful BenchmarkDotNet run. It records checksums and measurement
+counts for every JSON report, BenchmarkDotNet and SDK/runtime versions, OS and architecture, processor signature, runner
+image, and the warmup/iteration/memory-diagnoser job settings. Its SHA-256 compatibility fingerprint covers the fields
+that influence a measurement. The image version is retained for investigation but is not by itself a comparison axis.
+
+The comparator verifies those report checksums before reading timings. It refuses to compare unlike fingerprints: it
+creates a diagnostic Markdown report but does not label timing noise as a regression. This means a baseline recorded on
+Windows, a different CPU, a different SDK/runtime/BDN, or a different benchmark job cannot silently govern the
+GitHub-hosted CI gate.
+
+In the manual **CaeriusNet benchmarks** workflow, use `mode=run` for an exploratory category. `mode=compare` and
+`mode=record` require `category=all`, which prevents a subset from becoming a false full-suite baseline. `mode=record`
+uploads an artifact containing the measured reports and manifest; review both and commit the artifact contents to
+`benchmarks/baselines/11.2.0/`. A missing baseline is intentionally a failing bootstrap signal, not a zero-valued
+baseline.
+
+For a CI-run result set already present locally, the equivalent sequence is:
 
 ```powershell
-dotnet run --project benchmarks/CaeriusNet.Benchmark.csproj -c Release -- cache --filter *Codec*
+$results = "<candidate-results-dir>"
+dotnet run --project benchmarks/CaeriusNet.Benchmark.csproj -c Release -- --write-environment $results all
+dotnet run --project benchmarks/CaeriusNet.Benchmark.csproj -c Release -- --record-baseline $results "<empty-baseline-dir>"
 ```
 
-Reports default to `BenchmarkDotNet.Artifacts/results`. Set `BENCHMARK_ARTIFACTS_PATH` to place them elsewhere. The CI
-configuration uses 5 warmups and 15 measurements per job and never uses the `Dry` job. The runner exits non-zero when
-BenchmarkDotNet has a build, validation, execution, or missing-statistics failure, so an empty JSON export can never be
-recorded or compared as a baseline.
+The gate compares a complete, environment-compatible identity set and fails when any of these hold:
 
-## Baseline workflow and gate
+- a benchmark or parameter combination is missing or newly introduced without a reviewed baseline;
+- its **median** is more than 5% slower than the baseline;
+- it allocates even one additional byte per operation;
+- reports or manifest are malformed, incomplete, altered after recording, or captured from a non-comparable environment.
 
-The repository baseline for this major line lives at `benchmarks/baselines/v12.0.0/` and contains the raw
-`*-report-full*.json` files generated on the GitHub-hosted Linux runner. Never create it from a workstation run:
-the CPU, OS and runtime are part of a microbenchmark result.
-
-In the manual workflow, use `mode=run` for an exploratory category, and `mode=compare` or `mode=record` only with
-`category=all`. The gate compares a complete benchmark identity set; comparing a subset would make missing methods look
-like a regression.
-
-To create a candidate baseline after the manual **Benchmarks** workflow has run with `mode=record`, download its
-`benchmark-baseline-candidate-*` artifact and commit the contained JSON reports after review. The same operation can be
-performed locally only when the source results were produced by the comparable CI runner:
+Run a comparison manually with:
 
 ```powershell
 dotnet run --project benchmarks/CaeriusNet.Benchmark.csproj -c Release -- `
-  --record-baseline <candidate-results-dir> <empty-baseline-dir>
+  --compare benchmarks/baselines/11.2.0 <candidate-results-dir> --max-time-regression 5
 ```
 
-The comparison is intentionally strict:
-
-- every v12 benchmark and parameter combination must exist on both sides;
-- candidate median time may not exceed its baseline by more than 5%;
-- any increase in allocated bytes per operation fails the gate;
-- missing, malformed or empty baseline data fails with a clear bootstrap message.
-
-Run the comparator manually with:
-
-```powershell
-dotnet run --project benchmarks/CaeriusNet.Benchmark.csproj -c Release -- `
-  --compare benchmarks/baselines/v12.0.0 <candidate-results-dir> --max-time-regression 5
-```
-
-It writes `caerius-benchmark-comparison.md` next to the candidate results and exits non-zero on a regression. The
-workflow runs this gate on pull requests and release publication. A release trigger happens after publication, so the
-pull-request gate is the enforcement point before merging.
+It writes `caerius-benchmark-comparison.md` next to the candidate results and exits non-zero on an environment mismatch
+or performance/allocation regression. The pull-request workflow is the enforcement point; release runs retain the same
+guard and publish the diagnostic artifacts.
 
 ## Reproducibility limits
 
-The gate uses a pinned GitHub runner image and fixed BenchmarkDotNet configuration, but GitHub-hosted runners do not
-guarantee identical CPU silicon, turbo state, or background load. A failure is therefore a release-quality signal to
-investigate using the attached full JSON report, not proof of a regression in isolation. New baselines must be captured
-on the same CI runner family, and deliberate performance/allocations changes require an explicitly reviewed baseline
-update.
+GitHub-hosted runners do not guarantee identical CPU silicon, turbo state, or background load. A matching fingerprint is
+a precondition for comparison, not a claim that microbenchmarks are perfectly deterministic. Investigate a failing gate
+with the attached full JSON and comparison report, repeat on the same runner family when needed, and update the baseline
+only through a reviewed, measured workflow artifact.

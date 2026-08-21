@@ -23,9 +23,9 @@ public sealed class TypeDetectorTests
     [InlineData("uniqueidentifier", "GetGuid")]
     [InlineData("datetimeoffset", "GetDateTimeOffset")]
     [InlineData("time", "GetTimeSpan")]
-    [InlineData("varbinary", "GetValue")]
-    [InlineData("sql_variant", "GetValue")]
-    [InlineData("unknown_type", "GetValue")]
+    [InlineData("varbinary", "GetFieldValue")]
+    [InlineData("sql_variant", "")]
+    [InlineData("unknown_type", "")]
     public void GetReaderMethodForSqlType_Returns_Expected_Method(string sqlType, string expectedMethod)
     {
         var actual = TypeDetector.GetReaderMethodForSqlType(sqlType);

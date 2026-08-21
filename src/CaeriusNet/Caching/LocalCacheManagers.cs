@@ -1,4 +1,3 @@
-using CaeriusNet;
 using Microsoft.Extensions.Internal;
 
 namespace CaeriusNet.Caching;
@@ -15,6 +14,8 @@ internal sealed class InMemoryCacheManager : IInMemoryCacheManager, IDisposable
 {
     private readonly MemoryCache _cache;
     private readonly Dictionary<string, InFlight> _flights = new(StringComparer.Ordinal);
+    private readonly int _maxConcurrentPopulations;
+    private readonly long _maxEntryWeight;
     private readonly object _mutationLock = new();
     private long _clearGeneration;
 
@@ -33,6 +34,15 @@ internal sealed class InMemoryCacheManager : IInMemoryCacheManager, IDisposable
         if (sizeLimit <= 0)
             throw new ArgumentOutOfRangeException(nameof(options), "Memory cache size limit must be positive.");
         _cache = new MemoryCache(new MemoryCacheOptions { SizeLimit = sizeLimit, Clock = clock });
+        if (options.Value.MaxEntryWeight <= 0 || options.Value.MaxEntryWeight > sizeLimit)
+            throw new ArgumentOutOfRangeException(nameof(options),
+                "Maximum entry weight must be positive and not exceed the size limit.");
+        // The generic cache API deliberately has no object-size estimator. Reserve the configured
+        // worst-case weight for every value so SizeLimit remains a real bound even for arbitrary DTOs.
+        _maxEntryWeight = options.Value.MaxEntryWeight;
+        _maxConcurrentPopulations = options.Value.MaxConcurrentPopulations;
+        if (_maxConcurrentPopulations <= 0)
+            throw new ArgumentOutOfRangeException(nameof(options), "Maximum concurrent populations must be positive.");
     }
 
     public void Dispose()
@@ -103,16 +113,25 @@ internal sealed class InMemoryCacheManager : IInMemoryCacheManager, IDisposable
 
             if (!_flights.TryGetValue(key, out flight!))
             {
+                if (_flights.Count >= _maxConcurrentPopulations)
+                    throw new CaeriusCacheException(
+                        "populate-limit",
+                        new InvalidOperationException("The in-memory cache population limit was reached."));
                 flight = new InFlight(_clearGeneration);
                 _flights.Add(key, flight);
                 ownsFlight = true;
+            }
+
+            checked
+            {
+                flight.Waiters++;
             }
         }
 
         if (ownsFlight)
             _ = PopulateAsync(key, flight, expiration, slidingExpiration, state, factory);
 
-        return (T)await flight.Completion.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+        return await WaitForFlightAsync<T>(flight, cancellationToken).ConfigureAwait(false);
     }
 
     public void Remove(string key)
@@ -135,7 +154,11 @@ internal sealed class InMemoryCacheManager : IInMemoryCacheManager, IDisposable
             }
 
             foreach (var flight in _flights.Values)
+            {
                 flight.Invalidated = true;
+                flight.PopulationCancellation.Cancel();
+            }
+
             _flights.Clear();
             _cache.Clear();
         }
@@ -153,7 +176,7 @@ internal sealed class InMemoryCacheManager : IInMemoryCacheManager, IDisposable
         {
             // The population belongs to the cache key rather than its first waiter. A cancelled caller therefore
             // only stops waiting; it must not cancel the shared work and make every other waiter fail.
-            var value = await factory(state, CancellationToken.None).ConfigureAwait(false);
+            var value = await factory(state, flight.PopulationCancellation.Token).ConfigureAwait(false);
             lock (_mutationLock)
             {
                 if (!flight.Invalidated && flight.ClearGeneration == _clearGeneration)
@@ -174,12 +197,19 @@ internal sealed class InMemoryCacheManager : IInMemoryCacheManager, IDisposable
             // A shared work item can fault after every waiter cancelled. Explicitly observe that exception.
             _ = flight.Completion.Task.Exception;
         }
+        finally
+        {
+            flight.PopulationCancellation.Dispose();
+        }
     }
 
     private void InvalidateFlightUnderLock(string key)
     {
         if (_flights.Remove(key, out var flight))
+        {
             flight.Invalidated = true;
+            flight.PopulationCancellation.Cancel();
+        }
     }
 
     private void RemoveFlightIfCurrentUnderLock(string key, InFlight flight)
@@ -191,7 +221,7 @@ internal sealed class InMemoryCacheManager : IInMemoryCacheManager, IDisposable
     private void SetEntryUnderLock<T>(string key, T value, TimeSpan expiration, bool slidingExpiration)
         where T : notnull
     {
-        var options = new MemoryCacheEntryOptions().SetSize(1);
+        var options = new MemoryCacheEntryOptions().SetSize(_maxEntryWeight);
         if (slidingExpiration)
             options.SetSlidingExpiration(expiration);
         else
@@ -204,13 +234,36 @@ internal sealed class InMemoryCacheManager : IInMemoryCacheManager, IDisposable
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
     }
 
+    private async ValueTask<T> WaitForFlightAsync<T>(InFlight flight, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return (T)await flight.Completion.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            var cancel = false;
+            lock (_mutationLock)
+            {
+                flight.Waiters--;
+                cancel = flight.Waiters == 0 && !flight.Completion.Task.IsCompleted;
+            }
+
+            if (cancel)
+                flight.PopulationCancellation.Cancel();
+        }
+    }
+
     private sealed class InFlight(long clearGeneration)
     {
         internal TaskCompletionSource<object> Completion { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+        internal CancellationTokenSource PopulationCancellation { get; } = new();
+
         internal long ClearGeneration { get; } = clearGeneration;
         internal bool Invalidated { get; set; }
+        internal int Waiters { get; set; }
     }
 }
 

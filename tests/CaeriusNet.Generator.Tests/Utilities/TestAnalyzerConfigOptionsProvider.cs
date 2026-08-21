@@ -3,14 +3,15 @@
 namespace CaeriusNet.Generator.Tests.Utilities;
 
 internal sealed class TestAnalyzerConfigOptionsProvider(
-    IReadOnlyList<AdditionalText>? additionalTexts = null) : AnalyzerConfigOptionsProvider
+    IReadOnlyList<AdditionalText>? additionalTexts = null,
+    IReadOnlyDictionary<string, string>? globalOptions = null) : AnalyzerConfigOptionsProvider
 {
     private static readonly AnalyzerConfigOptions EmptyOptions = new TestAnalyzerConfigOptions(null);
 
     private readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> _additionalOptions =
         BuildAdditionalOptions(additionalTexts);
 
-    public override AnalyzerConfigOptions GlobalOptions => EmptyOptions;
+    public override AnalyzerConfigOptions GlobalOptions { get; } = new TestAnalyzerConfigOptions(globalOptions);
 
     public override AnalyzerConfigOptions GetOptions(SyntaxTree tree)
     {

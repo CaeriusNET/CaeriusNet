@@ -44,7 +44,8 @@ internal static class SqlTypeDetector
                 "System.TimeOnly" => "time",
                 "System.Half" => "real",
                 "byte[]" or "System.Byte[]" => "varbinary",
-                _ => "sql_variant"
+                "System.Data.SqlTypes.SqlDecimal" => "decimal",
+                _ => string.Empty
             }
         };
     }

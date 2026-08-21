@@ -1,6 +1,7 @@
 # API reference
 
-This reference covers the v12 public surface. All runtime APIs target `net10.0`, C# 14 and SQL Server 2022/2025.
+This reference covers the v12 public surface. All runtime APIs target `net10.0`, C# 14 and SQL Server 2022/2025; build
+with SDK 10.0.400 (patch roll-forward) and Roslyn 5.9 or later.
 
 ## Registration
 
@@ -28,13 +29,13 @@ var command = new StoredProcedureCommandBuilder("dbo", "usp_Product_Get", comman
 | --- | --- |
 | `AddParameter` | Input, output, input/output or return parameter with SQL facets. |
 | `AddOutputParameter` / `AddInputOutputParameter` / `AddReturnValue` | Explicit output directions. |
-| `AddTvpParameter<T>` | Structured input where `T : ITvpMapper<T>`. |
-| `WithResultSetCapacities` | One to ten expected capacities. |
+| `AddTvpParameter<T>` | Structured replayable `IReadOnlyCollection<T>` or streaming `Func<CancellationToken, IEnumerable<T>>` input where `T : ITvpMapper<T>`. |
+| `WithResultSetCapacities` | One to ten expected capacities; `-1` means unspecified. Explicit non-negative capacity wins, then command capacity, then 16. |
 | `WithContractHash` | Explicit generated-contract identity. |
 | `UseInMemoryCache` / `UseFrozenCache` / `UseRedisCache` | One cache policy for a read. |
-| `Invalidate` | Cache invalidations to run after accepted write/commit. |
+| `DependsOn` / `Invalidates` | Logical read dependencies / cache-tag invalidations after durable write or commit. |
 
-`StoredProcedureCommand` is immutable. Its parameters are materialized as `SqlParameter` only when a command is created, and always have `CommandType.StoredProcedure`.
+`StoredProcedureCommand` is immutable. Its parameters are materialized as `SqlParameter` only when a command is created, and always have `CommandType.StoredProcedure`. A command with a streaming TVP cannot be cached. `ReturnValue` is `SqlDbType.Int` at ordinal 0; outputs cannot carry an input value.
 
 ## Mapping contracts
 
@@ -66,13 +67,13 @@ All methods below are extensions on `ICaeriusNetDbContext` and accept a `StoredP
 | `QueryAsync<T>` | Materialized `IEnumerable<T>`. |
 | `QueryReadOnlyCollectionAsync<T>` | Materialized `ReadOnlyCollection<T>`. |
 | `QueryImmutableArrayAsync<T>` | Materialized `ImmutableArray<T>`. |
-| `StreamAsync<T>` | Reader-backed `IAsyncEnumerable<T>` for one set, with no cache. |
+| `StreamAsync<T>` | Reader-backed `IAsyncEnumerable<T>` for one set, with no cache or output/input-output/return parameters. |
 | `ExecuteScalarAsync<T>` / `ExecuteScalarOrDefaultAsync<T>` | Required or defaultable scalar. |
 | `ExecuteNonQueryAsync` / `ExecuteAsync` | Affected-row count or awaited no-result command. |
 | `ExecuteWithOutputsAsync` | `CaeriusCommandResult<CaeriusOutputValues>`. |
 | `ExecuteNonQueryWithOutputsAsync` | `CaeriusExecutionResult<int, CaeriusOutputValues>`. |
 
-`QueryMultipleAsync`, `QueryMultipleReadOnlyCollectionAsync` and `QueryMultipleImmutableArrayAsync` are supplied for every arity from 2 to 10. They accept a per-result-set capacity and `CaeriusResultSetCountPolicy`, whose default is `Exactly`.
+`QueryMultipleAsync`, `QueryMultipleReadOnlyCollectionAsync` and `QueryMultipleImmutableArrayAsync` are supplied for every arity from 2 to 10. They accept a per-result-set capacity and `CaeriusResultSetCountPolicy`, whose default is `Exactly`. The executor skips rowless `SET NOCOUNT OFF` frames; a `SELECT` with zero rows remains a present result set.
 
 ## Transactions
 
@@ -86,7 +87,7 @@ await transaction.CommitAsync(ct);
 
 ## Caching
 
-`IInMemoryCacheManager` provides dynamic TTL/sliding entries and local single-flight, including a stateful `GetOrCreateAsync<T, TState>` overload for a static factory call site with no closure or boxed state. `IFrozenCacheManager` atomically replaces immutable snapshots. `ICaeriusRemoteCacheManager` is implemented by `IRedisCacheManager` from `CaeriusNet.Redis`; its runtime read-through is also single-flight per canonical key within a host.
+`IInMemoryCacheManager` provides dynamic TTL/sliding entries and local single-flight, including a stateful `GetOrCreateAsync<T, TState>` overload for a static factory call site with no closure or boxed state. `CaeriusMemoryCacheOptions` sets total size, maximum entry weight and concurrent population ceiling (256 by default). `IFrozenCacheManager` atomically replaces immutable snapshots. `ICaeriusRemoteCacheManager` is implemented by `IRedisCacheManager` from `CaeriusNet.Redis`; its runtime read-through is also single-flight per canonical key within a host. `CaeriusRedisOptions.MaxPayloadBytes` is 1 MiB by default.
 
 ```csharp
 var multiplexer = await ConnectionMultiplexer.ConnectAsync(redisConnectionString);
@@ -107,6 +108,7 @@ The codec contract is `ICaeriusCacheCodec<T>` with `CodecId`, `ContractHash`, `E
 | `CaeriusContractException` | Cardinality, schema or result-set contract failure. |
 | `CaeriusMappingException` | Mapper failure, including result-set and row index. |
 | `CaeriusCacheException` | Strict cache mutation failure. |
+| `CaeriusCacheInvalidationException` | SQL has committed, but mandatory post-write/post-commit cache invalidation failed; `SqlWasCommitted` is `true`. |
 | `OperationCanceledException` | Cancellation; not wrapped. |
 
 See [reading data](/documentation/reading-data), [caching](/documentation/cache), [transactions](/documentation/transactions) and [Aspire integration](/documentation/aspire) for usage examples.

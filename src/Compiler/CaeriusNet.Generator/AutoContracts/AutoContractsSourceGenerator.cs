@@ -1,5 +1,3 @@
-using CaeriusNet.Analyzer.Roslyn;
-
 namespace CaeriusNet.Generator.AutoContracts;
 
 #pragma warning disable RS1007 // Generator diagnostics intentionally use invariant, secret-free text.
@@ -18,7 +16,7 @@ public sealed class AutoContractsSourceGenerator : IIncrementalGenerator
         "AutoContracts manifest '{0}' is invalid: {1}",
         "CaeriusNet.AutoContracts",
         DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+        true);
 
     private static readonly DiagnosticDescriptor InvalidOverrides = new(
         "CAERIUSG002",
@@ -26,19 +24,24 @@ public sealed class AutoContractsSourceGenerator : IIncrementalGenerator
         "AutoContracts overrides '{0}' are invalid: {1}",
         "CaeriusNet.AutoContracts",
         DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+        true);
 
     private static readonly DiagnosticDescriptor InvalidContract = new(
         "CAERIUSG003",
-        "Invalid AutoContracts v2 contract",
+        "Invalid AutoContracts v3 contract",
         "AutoContracts contract '{0}' is invalid: {1}",
         "CaeriusNet.AutoContracts",
         DiagnosticSeverity.Error,
-        isEnabledByDefault: true);
+        true);
 
     /// <inheritdoc />
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
+        // The build-transitive Contracts props marks this property compiler-visible.  Keep the value
+        // as a scalar in the incremental graph so toggling the opt-in invalidates only this generator.
+        var sqlServer2025TypesEnabled = context.AnalyzerConfigOptionsProvider
+            .Select(static (options, _) => AutoContractsSqlServer2025.IsEnabled(options.GlobalOptions));
+
         var manifestFiles = context.AdditionalTextsProvider
             .Combine(context.AnalyzerConfigOptionsProvider)
             .Where(static pair => AutoContractsManifestFile.IsManifest(pair.Left, pair.Right));
@@ -52,13 +55,28 @@ public sealed class AutoContractsSourceGenerator : IIncrementalGenerator
                 spc.ReportDiagnostic(Diagnostic.Create(
                     InvalidManifest,
                     Location.None,
-                    System.IO.Path.GetFileName(result.SourcePath),
+                    Path.GetFileName(result.SourcePath),
                     result.Error ?? "The manifest could not be read."));
         });
 
-        var manifests = parsedManifests
+        var manifestCollection = parsedManifests
             .Where(static result => result.IsSuccess)
-            .Select(static (result, _) => result.Value!);
+            .Select(static (result, _) => result.Value!)
+            .Collect();
+
+        context.RegisterSourceOutput(manifestCollection, static (spc, manifests) =>
+        {
+            if (manifests.Length <= 1)
+                return;
+            spc.ReportDiagnostic(Diagnostic.Create(
+                InvalidContract,
+                Location.None,
+                AutoContractsManifestFile.ManifestFileName,
+                "Only one AutoContracts manifest AdditionalFile is allowed per compilation."));
+        });
+
+        var manifests = manifestCollection
+            .Select(static (values, _) => values.Length == 1 ? values[0] : null);
 
         var overrideFiles = context.AdditionalTextsProvider
             .Combine(context.AnalyzerConfigOptionsProvider)
@@ -73,7 +91,7 @@ public sealed class AutoContractsSourceGenerator : IIncrementalGenerator
                 spc.ReportDiagnostic(Diagnostic.Create(
                     InvalidOverrides,
                     Location.None,
-                    System.IO.Path.GetFileName(result.SourcePath),
+                    Path.GetFileName(result.SourcePath),
                     result.Error ?? "The overrides could not be read."));
         });
 
@@ -82,21 +100,31 @@ public sealed class AutoContractsSourceGenerator : IIncrementalGenerator
             .Select(static (result, _) => result.Value!)
             .Collect();
 
-        var mergedManifests = manifests.Combine(overrides)
-            .Select(static (pair, _) => AutoContractsManifestParser.Merge(
-                pair.Left,
-                new EquatableArray<AutoContractsOverrides>(pair.Right)));
+        var mergedManifests = manifests.Combine(overrides).Combine(sqlServer2025TypesEnabled)
+            .Select(static (pair, _) => (
+                Manifest: pair.Left.Left is null
+                    ? null
+                    : AutoContractsManifestParser.Merge(
+                        pair.Left.Left,
+                        new EquatableArray<AutoContractsOverrides>(pair.Left.Right),
+                        pair.Right),
+                SqlServer2025TypesEnabled: pair.Right));
 
-        context.RegisterSourceOutput(mergedManifests, static (spc, manifest) =>
+        context.RegisterSourceOutput(mergedManifests, static (spc, configured) =>
         {
+            var manifest = configured.Manifest;
+            if (manifest is null)
+                return;
             foreach (var issue in manifest.Issues)
                 spc.ReportDiagnostic(Diagnostic.Create(
                     InvalidContract,
                     Location.None,
-                    System.IO.Path.GetFileName(issue.SourcePath),
+                    Path.GetFileName(issue.SourcePath),
                     issue.Message));
 
-            if (manifest.Issues.Count != 0 || !AutoContractsEmissionGuard.CanEmit(manifest.Manifest))
+            var sqlServer2025TypesEnabled = configured.SqlServer2025TypesEnabled;
+            if (manifest.Issues.Count != 0 ||
+                !AutoContractsEmissionGuard.CanEmit(manifest.Manifest, sqlServer2025TypesEnabled))
                 return;
 
             spc.AddSource(

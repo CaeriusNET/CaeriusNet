@@ -5,4 +5,6 @@ internal sealed record ContractManifest(
     string Namespace,
     DatabaseInfo Database,
     IReadOnlyList<TableTypeContract> TableTypes,
-    IReadOnlyList<ProcedureContract> Procedures);
+    IReadOnlyList<ProcedureContract> Procedures,
+    int ServerMajor,
+    IReadOnlyList<string> Features);

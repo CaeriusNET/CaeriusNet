@@ -1,10 +1,12 @@
-using CaeriusNet.Analyzer.Roslyn;
+using System.Security.Cryptography;
 
 namespace CaeriusNet.Analyzer.AutoContracts;
 
 internal static class AutoContractsManifestParser
 {
-    internal const int SupportedManifestVersion = 2;
+    internal const int SupportedManifestVersion = 3;
+    internal const int MaxAdditionalFileBytes = 8 * 1024 * 1024;
+    internal const int MaxJsonDepth = 64;
 
     internal static AutoContractsParseResult<AutoContractsManifest> ParseManifest(
         AdditionalText text,
@@ -14,25 +16,31 @@ internal static class AutoContractsManifestParser
         if (string.IsNullOrWhiteSpace(source))
             return new AutoContractsParseResult<AutoContractsManifest>(
                 text.Path, null, "The manifest is empty.");
+        if (Encoding.UTF8.GetByteCount(source!) > MaxAdditionalFileBytes)
+            return new AutoContractsParseResult<AutoContractsManifest>(
+                text.Path, null, "The manifest exceeds the 8 MiB AdditionalFile limit.");
 
         try
         {
-            var json = SimpleJsonParser.Parse(source!);
+            var json = SimpleJsonParser.Parse(source!, cancellationToken);
             var root = json.AsObject();
             var version = root.GetRequiredInt32("version");
             var ns = root.GetRequiredString("namespace");
             var tableTypes = ParseTableTypes(root.GetRequiredArray("tableTypes"));
             var procedures = ParseProcedures(root.GetRequiredArray("procedures"));
+            var serverMajor = root.GetInt32("serverMajor", 0);
+            var features = ParseFeatures(root.GetArray("features"));
 
             return new AutoContractsParseResult<AutoContractsManifest>(
                 text.Path,
-                NormalizeManifest(new AutoContractsManifest(text.Path, version, ns, tableTypes, procedures)),
+                NormalizeManifest(new AutoContractsManifest(
+                    text.Path, version, ns, tableTypes, procedures, serverMajor, features)),
                 null);
         }
         catch (Exception ex) when (ex is FormatException or ArgumentException or OverflowException)
         {
             return new AutoContractsParseResult<AutoContractsManifest>(
-                text.Path, null, "The JSON does not match the AutoContracts v2 manifest schema.");
+                text.Path, null, "The JSON does not match the AutoContracts v3 manifest schema.");
         }
     }
 
@@ -44,9 +52,12 @@ internal static class AutoContractsManifestParser
         if (string.IsNullOrWhiteSpace(source))
             return new AutoContractsParseResult<AutoContractsOverrides>(
                 text.Path, null, "The overrides file is empty.");
+        if (Encoding.UTF8.GetByteCount(source!) > MaxAdditionalFileBytes)
+            return new AutoContractsParseResult<AutoContractsOverrides>(
+                text.Path, null, "The overrides file exceeds the 8 MiB AdditionalFile limit.");
         try
         {
-            var root = SimpleJsonParser.Parse(source!).AsObject();
+            var root = SimpleJsonParser.Parse(source!, cancellationToken).AsObject();
             var proceduresJson = root.GetRequiredArray("procedures");
             var procedures = new AutoContractsProcedureOverride[proceduresJson.Count];
             for (var index = 0; index < proceduresJson.Count; index++)
@@ -70,15 +81,21 @@ internal static class AutoContractsManifestParser
         catch (Exception ex) when (ex is FormatException or ArgumentException or OverflowException)
         {
             return new AutoContractsParseResult<AutoContractsOverrides>(
-                text.Path, null, "The JSON does not match the AutoContracts v2 overrides schema.");
+                text.Path, null, "The JSON does not match the AutoContracts v3 overrides schema.");
         }
     }
 
     internal static AutoContractsMergeResult Merge(
         AutoContractsManifest manifest,
-        EquatableArray<AutoContractsOverrides> overrides)
+        EquatableArray<AutoContractsOverrides> overrides,
+        bool sqlServer2025TypesEnabled = false)
     {
         var issues = ImmutableArray.CreateBuilder<AutoContractsGeneratorIssue>();
+        if (overrides.Count > 1)
+            issues.Add(new AutoContractsGeneratorIssue(
+                manifest.SourcePath,
+                "CAERIUSG005",
+                "Only one AutoContracts overrides AdditionalFile is allowed per compilation."));
         var byProcedure = new Dictionary<string, List<AutoContractsResultSet>>(StringComparer.OrdinalIgnoreCase);
         var directionsByProcedure =
             new Dictionary<string, List<AutoContractsParameterDirectionOverride>>(StringComparer.OrdinalIgnoreCase);
@@ -98,7 +115,7 @@ internal static class AutoContractsManifestParser
             manifestProcedures.Add(key, procedure);
         }
 
-        foreach (var file in overrides)
+        foreach (var file in overrides.Take(1))
         {
             if (file.Version != SupportedManifestVersion)
             {
@@ -144,7 +161,29 @@ internal static class AutoContractsManifestParser
             var key = BuildFullName(procedure.Schema, procedure.Name);
             var sets = procedure.ResultSets.AsImmutableArray();
             if (byProcedure.TryGetValue(key, out var additional))
-                sets = sets.Concat(additional).OrderBy(set => set.Index).ToImmutableArray();
+            {
+                var additions = additional.OrderBy(set => set.Index).ToImmutableArray();
+                if (additions.Any(set => set.Index == 0))
+                {
+                    if (sets.Length == 0 || sets[0].Index != 0 ||
+                        sets[0].Status is not ("None" or "Undetermined"))
+                        issues.Add(new AutoContractsGeneratorIssue(
+                            manifest.SourcePath,
+                            "CAERIUSG005",
+                            $"Procedure '{key}' can override result set 0 only when discovery marked it None or Undetermined."));
+                    else
+                        sets = sets.RemoveAt(0);
+                }
+
+                sets = sets.Concat(additions).OrderBy(set => set.Index).ToImmutableArray();
+                for (var index = 0; index < sets.Length; index++)
+                    if (sets[index].Index != index ||
+                        (index < sets.Length - 1 && sets[index].Status is "None" or "Undetermined"))
+                        issues.Add(new AutoContractsGeneratorIssue(
+                            manifest.SourcePath,
+                            "CAERIUSG005",
+                            $"Procedure '{key}' overrides must form continuous available result sets 0 through {sets.Length - 1}."));
+            }
 
             var parameters = procedure.Parameters.AsImmutableArray();
             if (directionsByProcedure.TryGetValue(key, out var directionOverrides))
@@ -198,7 +237,7 @@ internal static class AutoContractsManifestParser
         }).ToImmutableArray();
         var merged = manifest with { Procedures = new EquatableArray<AutoContractsProcedure>(procedures) };
 
-        foreach (var message in AutoContractsEmissionGuard.GetValidationErrors(merged))
+        foreach (var message in AutoContractsEmissionGuard.GetValidationErrors(merged, sqlServer2025TypesEnabled))
             issues.Add(new AutoContractsGeneratorIssue(merged.SourcePath, "CAERIUSG005", message));
 
         return new AutoContractsMergeResult(
@@ -269,7 +308,7 @@ internal static class AutoContractsManifestParser
         {
             var value = values[i].AsObject();
             parameters[i] = new AutoContractsParameter(
-                value.GetInt32("ordinal", i + 1),
+                value.GetInt32("ordinal", i),
                 value.GetRequiredString("name"),
                 value.GetRequiredString("sqlType"),
                 value.GetRequiredString("clrType"),
@@ -282,6 +321,14 @@ internal static class AutoContractsManifestParser
         }
 
         return new EquatableArray<AutoContractsParameter>(parameters.ToImmutableArray());
+    }
+
+    private static EquatableArray<string> ParseFeatures(IReadOnlyList<JsonValue> values)
+    {
+        var features = new string[values.Count];
+        for (var index = 0; index < values.Count; index++)
+            features[index] = values[index].AsString();
+        return new EquatableArray<string>(features.ToImmutableArray());
     }
 
     private static EquatableArray<AutoContractsParameterDirectionOverride> ParseParameterDirectionOverrides(
@@ -309,7 +356,18 @@ internal static class AutoContractsManifestParser
         return manifest with
         {
             TableTypes = new EquatableArray<AutoContractsTableType>(tableTypes),
-            Procedures = new EquatableArray<AutoContractsProcedure>(procedures)
+            Procedures = new EquatableArray<AutoContractsProcedure>(procedures),
+            Features = new EquatableArray<string>(manifest.Features.AsImmutableArray()
+                .Where(static feature => !string.IsNullOrWhiteSpace(feature))
+                .Select(static feature => string.Equals(
+                    feature.Trim(),
+                    AutoContractsSqlServer2025.FeatureName,
+                    StringComparison.OrdinalIgnoreCase)
+                    ? AutoContractsSqlServer2025.FeatureName
+                    : feature.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(static feature => feature, StringComparer.OrdinalIgnoreCase)
+                .ToImmutableArray())
         };
     }
 
@@ -395,6 +453,9 @@ internal static class AutoContractsManifestParser
         AppendValue(builder, column.MaxLength);
         AppendValue(builder, column.Precision);
         AppendValue(builder, column.Scale);
+        AppendValue(builder, column.LocaleId);
+        AppendValue(builder, column.SqlCompareOptions);
+        AppendValue(builder, column.Collation);
     }
 
     private static void AppendValue(StringBuilder builder, string? value)
@@ -430,7 +491,7 @@ internal static class AutoContractsManifestParser
 
     private static string HashText(StringBuilder builder)
     {
-        using var algorithm = System.Security.Cryptography.SHA256.Create();
+        using var algorithm = SHA256.Create();
         var hash = algorithm.ComputeHash(Encoding.UTF8.GetBytes(builder.ToString()));
         return "sha256:" + BitConverter.ToString(hash).Replace("-", string.Empty).ToLowerInvariant();
     }
@@ -447,29 +508,32 @@ internal static class AutoContractsManifestParser
         {
             var value = values[i].AsObject();
             columns[i] = new AutoContractsColumn(
-                value.GetInt32("ordinal", i + 1),
+                value.GetInt32("ordinal", i),
                 value.GetRequiredString("name"),
                 value.GetRequiredString("sqlType"),
                 value.GetRequiredString("clrType"),
                 value.GetBoolean("nullable", false),
                 value.GetNullableInt32("maxLength"),
                 value.GetNullableByte("precision"),
-                value.GetNullableByte("scale"));
+                value.GetNullableByte("scale"),
+                value.GetNullableInt32("localeId"),
+                value.GetNullableInt32("sqlCompareOptions"),
+                value.GetNullableString("collation"));
         }
 
         return new EquatableArray<AutoContractsColumn>(columns.ToImmutableArray());
     }
 
-    private sealed class SimpleJsonParser(string text)
+    private sealed class SimpleJsonParser(string text, CancellationToken cancellationToken)
     {
         private int _position;
 
         private bool IsEnd => _position >= text.Length;
 
-        internal static JsonValue Parse(string text)
+        internal static JsonValue Parse(string text, CancellationToken cancellationToken)
         {
-            var parser = new SimpleJsonParser(text);
-            var value = parser.ParseValue();
+            var parser = new SimpleJsonParser(text, cancellationToken);
+            var value = parser.ParseValue(0);
             parser.SkipWhiteSpace();
             if (!parser.IsEnd)
                 throw new FormatException("Unexpected trailing content in contract manifest.");
@@ -477,16 +541,19 @@ internal static class AutoContractsManifestParser
             return value;
         }
 
-        private JsonValue ParseValue()
+        private JsonValue ParseValue(int depth)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (depth > MaxJsonDepth)
+                throw new FormatException($"JSON nesting exceeds the maximum depth of {MaxJsonDepth}.");
             SkipWhiteSpace();
             if (IsEnd)
                 throw new FormatException("Unexpected end of JSON.");
 
             return text[_position] switch
             {
-                '{' => ParseObject(),
-                '[' => ParseArray(),
+                '{' => ParseObject(depth + 1),
+                '[' => ParseArray(depth + 1),
                 '"' => new JsonValue(ParseString()),
                 't' => ParseLiteral("true", new JsonValue(true)),
                 'f' => ParseLiteral("false", new JsonValue(false)),
@@ -496,7 +563,7 @@ internal static class AutoContractsManifestParser
             };
         }
 
-        private JsonValue ParseObject()
+        private JsonValue ParseObject(int depth)
         {
             Expect('{');
             var values = new Dictionary<string, JsonValue>(StringComparer.Ordinal);
@@ -510,7 +577,7 @@ internal static class AutoContractsManifestParser
                 var name = ParseString();
                 SkipWhiteSpace();
                 Expect(':');
-                values[name] = ParseValue();
+                values[name] = ParseValue(depth);
                 SkipWhiteSpace();
                 if (TryConsume('}'))
                     return new JsonValue(new JsonObject(values));
@@ -518,7 +585,7 @@ internal static class AutoContractsManifestParser
             }
         }
 
-        private JsonValue ParseArray()
+        private JsonValue ParseArray(int depth)
         {
             Expect('[');
             var values = new List<JsonValue>();
@@ -528,7 +595,7 @@ internal static class AutoContractsManifestParser
 
             while (true)
             {
-                values.Add(ParseValue());
+                values.Add(ParseValue(depth));
                 SkipWhiteSpace();
                 if (TryConsume(']'))
                     return new JsonValue(values);

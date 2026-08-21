@@ -11,7 +11,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "dbo", TvpName = "tvp_int")]
-                              public sealed partial record UserIdTvp(int Id);
+                              public sealed partial record UserIdTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id);
                               """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
@@ -30,7 +30,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "dbo", TvpName = "tvp_int")]
-                              public sealed partial record UserIdTvp(int Id);
+                              public sealed partial record UserIdTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id);
                               """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
@@ -47,7 +47,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "db\"o", TvpName = "tvp\\int")]
-                              public sealed partial record UserIdTvp(int Id);
+                              public sealed partial record UserIdTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id);
                               """;
 
         var (result, compilation) =
@@ -67,7 +67,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "dbo", TvpName = "tvp_int")]
-                              public sealed partial record UserIdTvp(int Id);
+                              public sealed partial record UserIdTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id);
                               """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
@@ -84,7 +84,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "Types", TvpName = "tvp_UserId")]
-                              public sealed partial record UserIdTvp(int Id);
+                              public sealed partial record UserIdTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id);
                               """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
@@ -100,7 +100,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "dbo", TvpName = "tvp_opt")]
-                              public sealed partial record OptionalTvp(int Id, int? OptionalValue);
+                              public sealed partial record OptionalTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id, [SqlServerTvpColumn("OptionalValue", 1, global::System.Data.SqlDbType.Int, true)] int? OptionalValue);
                               """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
@@ -116,7 +116,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "dbo", TvpName = "tvp_date")]
-                              public sealed partial record DateTvp(int Id, System.DateOnly EventDate);
+                              public sealed partial record DateTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id, [SqlServerTvpColumn("EventDate", 1, global::System.Data.SqlDbType.Date, false)] System.DateOnly EventDate);
                               """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
@@ -132,7 +132,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "dbo", TvpName = "tvp_time")]
-                              public sealed partial record TimeTvp(int Id, System.TimeOnly StartTime);
+                              public sealed partial record TimeTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id, [SqlServerTvpColumn("StartTime", 1, global::System.Data.SqlDbType.Time, false, Scale = 7)] System.TimeOnly StartTime);
                               """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
@@ -148,7 +148,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "dbo", TvpName = "tvp_str")]
-                              public sealed partial record StringTvp(int Id, string Name);
+                              public sealed partial record StringTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id, [SqlServerTvpColumn("Name", 1, global::System.Data.SqlDbType.NVarChar, false, MaxLength = 128, LocaleId = 1033, CompareOptions = global::System.Data.SqlTypes.SqlCompareOptions.None)] string Name);
                               """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
@@ -164,7 +164,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "dbo", TvpName = "tvp_item")]
-                              public sealed partial record ItemTvp(int Id);
+                              public sealed partial record ItemTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id);
                               """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
@@ -181,12 +181,12 @@ public sealed class TvpSourceGeneratorTests
                               namespace Alpha.Models
                               {
                                   [GenerateTvp(Schema = "dbo", TvpName = "tvp_user")]
-                                  public sealed partial record UserTvp(int Id);
+                                  public sealed partial record UserTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id);
                               }
                               namespace Beta.Models
                               {
                                   [GenerateTvp(Schema = "dbo", TvpName = "tvp_user")]
-                                  public sealed partial record UserTvp(int Id);
+                                  public sealed partial record UserTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id);
                               }
                               """;
 
@@ -209,7 +209,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "dbo", TvpName = "tvp_int")]
-                              public sealed partial record UserIdTvp(int Id);
+                              public sealed partial record UserIdTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id);
                               """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
@@ -226,7 +226,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "dbo", TvpName = "tvp_int")]
-                              public sealed partial record UserIdTvp(int Id);
+                              public sealed partial record UserIdTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id);
                               """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
@@ -243,7 +243,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "dbo", TvpName = "tvp_flag")]
-                              public sealed partial record FlagTvp(int Id, bool IsActive);
+                              public sealed partial record FlagTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id, [SqlServerTvpColumn("IsActive", 1, global::System.Data.SqlDbType.Bit, false)] bool IsActive);
                               """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
@@ -259,7 +259,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "dbo", TvpName = "tvp_big")]
-                              public sealed partial record BigIntTvp(int Id, long Ticks);
+                              public sealed partial record BigIntTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id, [SqlServerTvpColumn("Ticks", 1, global::System.Data.SqlDbType.BigInt, false)] long Ticks);
                               """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
@@ -275,7 +275,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "dbo", TvpName = "tvp_price")]
-                              public sealed partial record PriceTvp(int Id, decimal Price);
+                              public sealed partial record PriceTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id, [SqlServerTvpColumn("Price", 1, global::System.Data.SqlDbType.Decimal, false, Precision = 18, Scale = 4)] decimal Price);
                               """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
@@ -291,7 +291,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "dbo", TvpName = "tvp_guid")]
-                              public sealed partial record GuidTvp(int Id, System.Guid TraceId);
+                              public sealed partial record GuidTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id, [SqlServerTvpColumn("TraceId", 1, global::System.Data.SqlDbType.UniqueIdentifier, false)] System.Guid TraceId);
                               """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
@@ -308,7 +308,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "dbo", TvpName = "tvp_optstr")]
-                              public sealed partial record OptStrTvp(int Id, string? Name);
+                              public sealed partial record OptStrTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id, [SqlServerTvpColumn("Name", 1, global::System.Data.SqlDbType.NVarChar, true, MaxLength = 128, LocaleId = 1033, CompareOptions = global::System.Data.SqlTypes.SqlCompareOptions.None)] string? Name);
                               """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
@@ -325,7 +325,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "dbo", TvpName = "tvp_multi")]
-                              public sealed partial record MultiTvp(int Id, string Name, decimal Price, bool IsActive);
+                              public sealed partial record MultiTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id, [SqlServerTvpColumn("Name", 1, global::System.Data.SqlDbType.NVarChar, false, MaxLength = 128, LocaleId = 1033, CompareOptions = global::System.Data.SqlTypes.SqlCompareOptions.None)] string Name, [SqlServerTvpColumn("Price", 2, global::System.Data.SqlDbType.Decimal, false, Precision = 18, Scale = 4)] decimal Price, [SqlServerTvpColumn("IsActive", 3, global::System.Data.SqlDbType.Bit, false)] bool IsActive);
                               """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
@@ -373,7 +373,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "dbo", TvpName = "tvp_sensor")]
-                              public sealed partial record SensorTvp(int Id, System.Half Temperature);
+                              public sealed partial record SensorTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id, [SqlServerTvpColumn("Temperature", 1, global::System.Data.SqlDbType.Real, false)] System.Half Temperature);
                               """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
@@ -392,7 +392,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "dbo", TvpName = "tvp_sensor")]
-                              public sealed partial record SensorTvp(int Id, System.Half? Temperature);
+                              public sealed partial record SensorTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id, [SqlServerTvpColumn("Temperature", 1, global::System.Data.SqlDbType.Real, true)] System.Half? Temperature);
                               """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
@@ -411,7 +411,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "dbo", TvpName = "tvp_test")]
-                              public sealed partial record TestTvp(int Id, string Name);
+                              public sealed partial record TestTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id, [SqlServerTvpColumn("Name", 1, global::System.Data.SqlDbType.NVarChar, false, MaxLength = 128, LocaleId = 1033, CompareOptions = global::System.Data.SqlTypes.SqlCompareOptions.None)] string Name);
                               """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
@@ -427,7 +427,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "dbo", TvpName = "tvp_test")]
-                              public sealed partial record TestTvp(int Id, string Name);
+                              public sealed partial record TestTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id, [SqlServerTvpColumn("Name", 1, global::System.Data.SqlDbType.NVarChar, false, MaxLength = 128, LocaleId = 1033, CompareOptions = global::System.Data.SqlTypes.SqlCompareOptions.None)] string Name);
                               """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
@@ -443,7 +443,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "dbo", TvpName = "tvp_test")]
-                              public sealed partial record TestTvp(int Id, string Name);
+                              public sealed partial record TestTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id, [SqlServerTvpColumn("Name", 1, global::System.Data.SqlDbType.NVarChar, false, MaxLength = 128, LocaleId = 1033, CompareOptions = global::System.Data.SqlTypes.SqlCompareOptions.None)] string Name);
                               """;
 
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
@@ -453,7 +453,7 @@ public sealed class TvpSourceGeneratorTests
     }
 
     [Fact]
-    public void Class_With_Attribute_Generates_Class_Keyword()
+    public void Ordinary_PrimaryConstructor_Class_Does_Not_Generate()
     {
         const string source = """
                               using CaeriusNet;
@@ -464,10 +464,28 @@ public sealed class TvpSourceGeneratorTests
 
         var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
 
-        Assert.Single(result.GeneratedTrees);
-        var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
-        Assert.Contains("partial class ClassTvp", generated);
-        Assert.DoesNotContain("partial record ClassTvp", generated);
+        Assert.Empty(result.GeneratedTrees);
+        Assert.Null(Assert.Single(result.Results).Exception);
+    }
+
+    [Fact]
+    public void Readonly_Record_Struct_Generates_And_Compiles()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateTvp(Schema = "dbo", TvpName = "tvp_struct")]
+                              public readonly partial record struct StructTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id, [SqlServerTvpColumn("Name", 1, global::System.Data.SqlDbType.NVarChar, false, MaxLength = 128, LocaleId = 1033, CompareOptions = global::System.Data.SqlTypes.SqlCompareOptions.None)] string Name);
+                              """;
+
+        var (result, compilation) =
+            SourceGeneratorTestHelper.RunGeneratorWithCompilation<TvpSourceGenerator>(source);
+
+        Assert.Null(Assert.Single(result.Results).Exception);
+        var generated = Assert.Single(result.GeneratedTrees).GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("public readonly partial record struct StructTvp", generated);
+        Assert.Empty(compilation.GetDiagnostics(TestContext.Current.CancellationToken).Where(static diagnostic =>
+            diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Id != "CS0009"));
     }
 
     [Fact]
@@ -477,7 +495,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace Test.Models;
                               [GenerateTvp(Schema = "dbo", TvpName = "tvp_internal")]
-                              internal sealed partial record InternalTvp(int Id);
+                              internal sealed partial record InternalTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id);
                               """;
 
         var (result, compilation) =
@@ -517,7 +535,7 @@ public sealed class TvpSourceGeneratorTests
                               using CaeriusNet;
                               namespace @event;
                               [GenerateTvp(Schema = "dbo", TvpName = "tvp_keywords")]
-                              public sealed partial record @class(int foo, int Foo, string café);
+                              public sealed partial record @class([SqlServerTvpColumn("FooLower", 0, global::System.Data.SqlDbType.Int, false)] int foo, [SqlServerTvpColumn("FooUpper", 1, global::System.Data.SqlDbType.Int, false)] int Foo, [SqlServerTvpColumn("Cafe", 2, global::System.Data.SqlDbType.NVarChar, false, MaxLength = 128, LocaleId = 1033, CompareOptions = global::System.Data.SqlTypes.SqlCompareOptions.None)] string café);
                               """;
 
         var (result, compilation) =
@@ -532,5 +550,109 @@ public sealed class TvpSourceGeneratorTests
         Assert.Contains("item.café", generated);
         Assert.Empty(compilation.GetDiagnostics(TestContext.Current.CancellationToken).Where(static diagnostic =>
             diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Id != "CS0009"));
+    }
+
+    [Fact]
+    public void ManualColumns_UseExplicitFacetsAndSqlOrdinal_WhenGeneratedCodeCompiles()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateTvp(TvpName = "tvp_explicit")]
+                              public sealed partial record ExplicitTvp(
+                                  [SqlServerTvpColumn("Name", 1, global::System.Data.SqlDbType.VarChar, false, MaxLength = 64, LocaleId = 1033, CompareOptions = global::System.Data.SqlTypes.SqlCompareOptions.IgnoreCase)] string Name,
+                                  [SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id,
+                                  [SqlServerTvpColumn("Amount", 2, global::System.Data.SqlDbType.Decimal, false, Precision = 18, Scale = 4)] decimal Amount);
+                              """;
+
+        var (result, compilation) =
+            SourceGeneratorTestHelper.RunGeneratorWithCompilation<TvpSourceGenerator>(source);
+
+        Assert.Null(Assert.Single(result.Results).Exception);
+        var generated = Assert.Single(result.GeneratedTrees).GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("new SqlMetaData(\"Name\", SqlDbType.VarChar, 64, 1033", generated);
+        Assert.Contains("new SqlMetaData(\"Amount\", SqlDbType.Decimal, 18, 4)", generated);
+        Assert.Contains("record.SetInt32(0, item.Id);", generated);
+        Assert.Contains("record.SetString(1, item.Name);", generated);
+        Assert.Empty(compilation.GetDiagnostics(TestContext.Current.CancellationToken).Where(static diagnostic =>
+            diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Id != "CS0009"));
+    }
+
+    [Fact]
+    public void SqlDecimalPrecision38_UsesExactMetadataAndSetSqlDecimal_WhenGeneratedCodeCompiles()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateTvp(TvpName = "tvp_decimal38")]
+                              public sealed partial record Decimal38Tvp(
+                                  [SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id,
+                                  [SqlServerTvpColumn("Amount", 1, global::System.Data.SqlDbType.Decimal, false, Precision = 38, Scale = 12)] global::System.Data.SqlTypes.SqlDecimal Amount);
+                              """;
+
+        var (result, compilation) =
+            SourceGeneratorTestHelper.RunGeneratorWithCompilation<TvpSourceGenerator>(source);
+
+        Assert.Null(Assert.Single(result.Results).Exception);
+        var generated = Assert.Single(result.GeneratedTrees).GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("new SqlMetaData(\"Amount\", SqlDbType.Decimal, 38, 12)", generated);
+        Assert.Contains("record.SetSqlDecimal(1, item.Amount);", generated);
+        Assert.Empty(compilation.GetDiagnostics(TestContext.Current.CancellationToken).Where(static diagnostic =>
+            diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Id != "CS0009"));
+    }
+
+    [Fact]
+    public void UInt64DecimalColumn_UsesCheckedConversion_WhenGeneratedCodeCompiles()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateTvp(TvpName = "tvp_uint64")]
+                              public sealed partial record UInt64Tvp(
+                                  [SqlServerTvpColumn("Value", 0, global::System.Data.SqlDbType.Decimal, false, Precision = 20, Scale = 0)] ulong Value);
+                              """;
+
+        var (result, compilation) =
+            SourceGeneratorTestHelper.RunGeneratorWithCompilation<TvpSourceGenerator>(source);
+
+        Assert.Null(Assert.Single(result.Results).Exception);
+        var generated = Assert.Single(result.GeneratedTrees).GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("record.SetDecimal(0, checked((decimal)item.Value));", generated);
+        Assert.Empty(compilation.GetDiagnostics(TestContext.Current.CancellationToken).Where(static diagnostic =>
+            diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Id != "CS0009"));
+    }
+
+    [Theory]
+    [InlineData("public sealed partial record MissingAttributeTvp(int Id);", "CAERIUS007")]
+    [InlineData(
+        "public sealed partial record BadFacetsTvp([SqlServerTvpColumn(\"Name\", 0, global::System.Data.SqlDbType.NVarChar, false)] string Name);",
+        "CAERIUS007")]
+    [InlineData(
+        "public sealed partial record BadNameTvp([SqlServerTvpColumn(\"not-valid\", 0, global::System.Data.SqlDbType.Int, false)] int Id);",
+        "CAERIUS007")]
+    [InlineData(
+        "public sealed partial record BadNullabilityTvp([SqlServerTvpColumn(\"Id\", 0, global::System.Data.SqlDbType.Int, false)] int? Id);",
+        "CAERIUS007")]
+    [InlineData(
+        "public sealed partial record BadDecimalTvp([SqlServerTvpColumn(\"Amount\", 0, global::System.Data.SqlDbType.Decimal, false, Precision = 38, Scale = 0)] decimal Amount);",
+        "CAERIUS007")]
+    [InlineData(
+        "public sealed partial record UnsupportedTvp([SqlServerTvpColumn(\"Endpoint\", 0, global::System.Data.SqlDbType.NVarChar, false, MaxLength = 64, LocaleId = 1033, CompareOptions = global::System.Data.SqlTypes.SqlCompareOptions.None)] System.Uri Endpoint);",
+        "CAERIUS005")]
+    public void InvalidManualTvpContract_ReportsBlockingDiagnosticAndDoesNotGenerate(string declaration,
+        string diagnosticId)
+    {
+        var source = """
+                     using CaeriusNet;
+                     namespace Test.Models;
+                     [GenerateTvp(TvpName = "tvp_invalid")]
+                     """ + declaration;
+
+        var result = SourceGeneratorTestHelper.RunGenerator<TvpSourceGenerator>(source);
+
+        Assert.Null(Assert.Single(result.Results).Exception);
+        Assert.Contains(result.Diagnostics, diagnostic => diagnostic.Id == diagnosticId &&
+                                                          diagnostic.Severity == DiagnosticSeverity.Error);
+        Assert.Empty(result.GeneratedTrees);
     }
 }

@@ -1,6 +1,4 @@
-﻿using CaeriusNet.Analyzer.Roslyn;
-
-namespace CaeriusNet.Generator.Tvp;
+﻿namespace CaeriusNet.Generator.Tvp;
 
 /// <summary>
 ///     Pure source emitter for <see cref="TvpModel" />. Outputs an <see cref="ITvpMapper{T}" /> implementation
@@ -50,7 +48,7 @@ internal static class TvpEmitter
     private static void AppendBody(StringBuilder sb, TvpModel model)
     {
         var typeName = CSharpIdentifier.Escape(model.TypeName);
-        sb.Append(model.AccessibilityKeyword).Append(" sealed partial ").Append(model.TypeKindKeyword).Append(' ')
+        sb.Append(model.AccessibilityKeyword).Append(' ').Append(model.DeclarationKeywords).Append(' ')
             .Append(typeName)
             .Append(" : ITvpMapper<").Append(typeName).AppendLine(">");
         sb.AppendLine("{");
@@ -123,9 +121,13 @@ internal static class TvpEmitter
             ColumnKind.ByteArray =>
                 $"record.SetValue({ordinal}, {assignmentTarget})",
             ColumnKind.Char =>
-                $"record.SetString({ordinal}, {assignmentTarget}{valueAccess}.ToString())",
+                $"record.SetChar({ordinal}, {assignmentTarget}{valueAccess})",
             ColumnKind.Half =>
                 $"record.SetFloat({ordinal}, (float){assignmentTarget}{valueAccess})",
+            ColumnKind.SqlDecimal =>
+                $"record.SetSqlDecimal({ordinal}, {assignmentTarget}{valueAccess})",
+            ColumnKind.UInt64 =>
+                $"record.SetDecimal({ordinal}, checked((decimal){assignmentTarget}{valueAccess}))",
             ColumnKind.Enum when column.EnumUnderlyingType is not null =>
                 $"record.{setMethod}({ordinal}, ({column.EnumUnderlyingType}){assignmentTarget}{valueAccess})",
             _ => $"record.{setMethod}({ordinal}, {assignmentTarget}{valueAccess})"
@@ -176,7 +178,7 @@ internal static class TvpEmitter
                 default:
                     if (char.IsControl(ch))
                         sb.Append(@"\u")
-                            .Append(((int)ch).ToString("x4", System.Globalization.CultureInfo.InvariantCulture));
+                            .Append(((int)ch).ToString("x4", CultureInfo.InvariantCulture));
                     else
                         sb.Append(ch);
                     break;

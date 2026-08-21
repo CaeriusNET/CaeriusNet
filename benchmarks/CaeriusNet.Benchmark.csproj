@@ -11,20 +11,19 @@
 
     <ItemGroup>
         <PackageReference Include="BenchmarkDotNet"/>
+        <PackageReference Include="Microsoft.CodeAnalysis.CSharp"/>
         <PackageReference Include="Microsoft.Data.SqlClient"/>
     </ItemGroup>
 
     <ItemGroup>
         <!-- Reference main CaeriusNet library for accessing builder/mapper types -->
         <ProjectReference Include="..\src\CaeriusNet\CaeriusNet.csproj"/>
+        <!-- Redis benchmarks are opt-in at runtime, but compile against the real distributed-cache implementation. -->
+        <ProjectReference Include="..\src\CaeriusNet.Redis\CaeriusNet.Redis.csproj"/>
         <!-- Source generator must also run on THIS project to generate [GenerateDto] / [GenerateTvp] implementations -->
-        <ProjectReference Include="..\src\Compiler\CaeriusNet.Generator\CaeriusNet.Generator.csproj"
-                          ReferenceOutputAssembly="false"
-                          OutputItemType="Analyzer"
-                          PrivateAssets="all"/>
-        <ProjectReference Include="..\src\Compiler\CaeriusNet.Analyzer\CaeriusNet.Analyzer.csproj"
-                          ReferenceOutputAssembly="false"
-                          OutputItemType="Analyzer"
-                          PrivateAssets="all"/>
+        <ProjectReference Include="..\src\Compiler\CaeriusNet.Generator\CaeriusNet.Generator.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" PrivateAssets="all"/>
+        <!-- The benchmarks instantiate the generator through GeneratorDriver as well as running it for benchmark DTO/TVP types. -->
+        <ProjectReference Include="..\src\Compiler\CaeriusNet.Generator\CaeriusNet.Generator.csproj"/>
+        <ProjectReference Include="..\src\Compiler\CaeriusNet.Analyzer\CaeriusNet.Analyzer.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" PrivateAssets="all"/>
     </ItemGroup>
 </Project>

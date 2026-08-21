@@ -42,6 +42,6 @@ await foreach (var user in database.StreamAsync<User>(command, ct))
 }
 ```
 
-The active async enumeration owns the connection and reader. Do not begin another operation on the same transaction during the enumeration; streaming is for a single result set and bypasses caches.
+The active async enumeration owns the connection and reader. Do not begin another operation on the same transaction during the enumeration; streaming is for a single result set, bypasses caches, and rejects a command declaring output, input/output or return parameters.
 
 Next: [Writing data](/documentation/writing-data).

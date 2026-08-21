@@ -53,22 +53,32 @@ internal static class DiagnosticDescriptors
     internal static readonly DiagnosticDescriptor UnsupportedSqlMapping = new(
         "CAERIUS005",
         "Parameter type has no native SQL Server mapping",
-        "Parameter '{0}' of type '{1}' on '{2}' has no native SQL Server mapping and will be emitted as 'sql_variant'",
+        "Parameter '{0}' of type '{1}' on '{2}' has no faithful SQL Server mapping",
         Category,
-        DiagnosticSeverity.Warning,
+        DiagnosticSeverity.Error,
         true,
-        "Falling back to sql_variant works but carries performance, indexing, and type-safety penalties.",
+        "Unsupported parameter types block source emission; choose a faithful SQL Server/CLR mapping.",
         HelpLinkBase + "CAERIUS005.md");
 
     internal static readonly DiagnosticDescriptor UnsupportedGeneratorTarget = new(
         "CAERIUS006",
         "Generator target shape is not supported",
-        "'{0}' is decorated with '{1}' but generator targets must be non-generic top-level types",
+        "'{0}' is decorated with '{1}' but its generator target shape is unsupported",
         Category,
         DiagnosticSeverity.Error,
         true,
-        "CaeriusNet generators emit companion partial declarations and currently support only non-generic top-level types.",
+        "Targets must be non-generic top-level types; [GenerateTvp] requires a sealed positional record class or readonly positional record struct.",
         HelpLinkBase + "CAERIUS006.md");
+
+    internal static readonly DiagnosticDescriptor InvalidManualTvpColumn = new(
+        "CAERIUS007",
+        "Manual TVP column metadata is invalid",
+        "TVP parameter '{0}' has invalid SqlServerTvpColumn metadata: {1}",
+        Category,
+        DiagnosticSeverity.Error,
+        true,
+        "Every parameter of a manually generated TVP must declare exact, faithful SQL Server column metadata.",
+        HelpLinkBase + "CAERIUS007.md");
 
     internal static readonly DiagnosticDescriptor ContractManifestMissing = CreateCompilationEnd(
         "CAERIUS200",

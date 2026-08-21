@@ -3,7 +3,7 @@
 Install `CaeriusNet.Aspire` in the service that consumes Aspire SQL Server or Redis resources. The integration calls Aspire's SQL Server and Redis client registrations directly; it does not parse connection strings itself.
 
 ```bash
-dotnet add package CaeriusNet.Aspire --version 12.0.0
+dotnet add package CaeriusNet.Aspire --version 11.2.0
 ```
 
 ## Service configuration

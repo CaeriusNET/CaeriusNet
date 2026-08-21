@@ -8,12 +8,15 @@
         <CaeriusContractsConfigurationEnvironment Condition="'$(CaeriusContractsConfigurationEnvironment)' == ''">$(DOTNET_ENVIRONMENT)</CaeriusContractsConfigurationEnvironment>
         <CaeriusContractsUserSecretsId Condition="'$(CaeriusContractsUserSecretsId)' == ''">$(UserSecretsId)</CaeriusContractsUserSecretsId>
         <CaeriusContractsTimeout Condition="'$(CaeriusContractsTimeout)' == ''">30</CaeriusContractsTimeout>
+        <!-- SQL Server 2025 native JSON/vector generation is intentionally opt-in. -->
+        <CaeriusSqlServer2025Types Condition="'$(CaeriusSqlServer2025Types)' == ''">Disabled</CaeriusSqlServer2025Types>
         <CaeriusContractsToolPath Condition="'$(CaeriusContractsToolPath)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../tools/net10.0/any/CaeriusNet.SqlServer.Contracts.dll'))</CaeriusContractsToolPath>
         <CaeriusContractsToolCommand Condition="'$(CaeriusContractsToolCommand)' == ''">dotnet &quot;$(CaeriusContractsToolPath)&quot;</CaeriusContractsToolCommand>
     </PropertyGroup>
     <ItemGroup>
         <CompilerVisibleProperty Include="CaeriusContractsMode"/>
         <CompilerVisibleProperty Include="CaeriusContractsOutput"/>
+        <CompilerVisibleProperty Include="CaeriusSqlServer2025Types"/>
         <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="CaeriusContractManifest"/>
         <CompilerVisibleItemMetadata Include="AdditionalFiles" MetadataName="CaeriusContractOverrides"/>
     </ItemGroup>

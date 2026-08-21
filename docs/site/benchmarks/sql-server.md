@@ -21,6 +21,11 @@ The release baseline covers:
 
 Use real stored procedures only. v12 always sets `CommandType.StoredProcedure`; no benchmark should compare a runtime inline-SQL path because it is not a supported API.
 
+Run this opt-in category only against a disposable database configured in `CAERIUS_BENCHMARK_SQL_CONNECTION`. The
+benchmark identity provisions `dbo.caerius_benchmark_reader_{1,2,5,10}` and needs `CREATE OR ALTER PROCEDURE`; it does
+not touch application procedures or log connection/parameter/result values. This category remains outside `all` and the
+portable regression gate.
+
 ## Interpreting end-to-end results
 
 Record the SQL Server image, host CPU, connection-pool state, data cardinality and result-shape capacities. Network and plan-cache effects commonly dominate a small client-side change. Compare allocation alongside latency, and investigate any repeatable regression above 5 percent before release.

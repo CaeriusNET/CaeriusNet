@@ -1,4 +1,44 @@
 #nullable enable
+CaeriusNet.Exceptions.CaeriusCacheInvalidationException
+CaeriusNet.Exceptions.CaeriusCacheInvalidationException.SqlWasCommitted.get -> bool
 CaeriusNet.CaeriusNetOptions.CacheDatabaseIdentity.get -> string?
 CaeriusNet.CaeriusNetOptions.CacheDatabaseIdentity.set -> void
 CaeriusNet.Abstractions.IInMemoryCacheManager.GetOrCreateAsync<T, TState>(string! key, System.TimeSpan expiration, bool slidingExpiration, TState state, System.Func<TState, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<T>>! factory, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<T>
+CaeriusNet.SqlServerTvpColumnAttribute
+CaeriusNet.SqlServerTvpColumnAttribute.CompareOptions.get -> System.Data.SqlTypes.SqlCompareOptions
+CaeriusNet.SqlServerTvpColumnAttribute.CompareOptions.init -> void
+CaeriusNet.SqlServerTvpColumnAttribute.IsNullable.get -> bool
+CaeriusNet.SqlServerTvpColumnAttribute.LocaleId.get -> long
+CaeriusNet.SqlServerTvpColumnAttribute.LocaleId.init -> void
+CaeriusNet.SqlServerTvpColumnAttribute.MaxLength.get -> long
+CaeriusNet.SqlServerTvpColumnAttribute.MaxLength.init -> void
+CaeriusNet.SqlServerTvpColumnAttribute.Name.get -> string!
+CaeriusNet.SqlServerTvpColumnAttribute.Ordinal.get -> int
+CaeriusNet.SqlServerTvpColumnAttribute.Precision.get -> byte
+CaeriusNet.SqlServerTvpColumnAttribute.Precision.init -> void
+CaeriusNet.SqlServerTvpColumnAttribute.Scale.get -> byte
+CaeriusNet.SqlServerTvpColumnAttribute.Scale.init -> void
+CaeriusNet.SqlServerTvpColumnAttribute.SqlDbType.get -> System.Data.SqlDbType
+CaeriusNet.SqlServerTvpColumnAttribute.SqlServerTvpColumnAttribute(string! name, int ordinal, System.Data.SqlDbType sqlDbType, bool isNullable) -> void
+CaeriusNet.Caching.CaeriusBinaryReader.ReadSqlDecimal() -> System.Data.SqlTypes.SqlDecimal
+CaeriusNet.Caching.CaeriusBinaryWriter.WriteSqlDecimal(System.Data.SqlTypes.SqlDecimal value) -> void
+CaeriusNet.Caching.CaeriusBinaryReader.ReadSqlVector() -> Microsoft.Data.SqlTypes.SqlVector<float>
+CaeriusNet.Caching.CaeriusBinaryWriter.WriteSqlVector(Microsoft.Data.SqlTypes.SqlVector<float> value) -> void
+const CaeriusNet.Commands.StoredProcedureCommand.UnspecifiedResultSetCapacity = -1 -> int
+CaeriusNet.Commands.StoredProcedureCommand.InvalidationTags.get -> System.Collections.Immutable.ImmutableArray<string!>
+CaeriusNet.Commands.StoredProcedureCommandBuilder.AddTvpParameter<T>(string! name, System.Func<System.Threading.CancellationToken, System.Collections.Generic.IEnumerable<T>!>! rowsFactory, int? ordinal = null) -> CaeriusNet.Commands.StoredProcedureCommandBuilder!
+CaeriusNet.Commands.StoredProcedureCommandBuilder.Invalidates(params string![]! tags) -> CaeriusNet.Commands.StoredProcedureCommandBuilder!
+CaeriusNet.Commands.StoredProcedureCommandBuilder<TProcedure>.AddTvpParameter<T>(string! name, System.Func<System.Threading.CancellationToken, System.Collections.Generic.IEnumerable<T>!>! rowsFactory, int? ordinal = null) -> CaeriusNet.Commands.StoredProcedureCommandBuilder<TProcedure>!
+CaeriusNet.Commands.StoredProcedureCommandBuilder<TProcedure>.Invalidates(params string![]! tags) -> CaeriusNet.Commands.StoredProcedureCommandBuilder<TProcedure>!
+CaeriusNet.Abstractions.CaeriusCacheTagSnapshot
+CaeriusNet.Abstractions.CaeriusCacheTagSnapshot.CaeriusCacheTagSnapshot(System.Collections.Immutable.ImmutableArray<long> generations) -> void
+CaeriusNet.Abstractions.CaeriusCacheTagSnapshot.Generations.get -> System.Collections.Immutable.ImmutableArray<long>
+static CaeriusNet.Abstractions.CaeriusCacheTagSnapshot.Empty.get -> CaeriusNet.Abstractions.CaeriusCacheTagSnapshot!
+CaeriusNet.Abstractions.ICaeriusRemoteCacheManager.CaptureTagSnapshotAsync(System.Collections.Generic.IReadOnlyList<string!>! tags, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<CaeriusNet.Abstractions.CaeriusCacheTagSnapshot!>
+CaeriusNet.Abstractions.ICaeriusRemoteCacheManager.InvalidateTagsAsync(System.Collections.Generic.IReadOnlyList<string!>! tags, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+CaeriusNet.Abstractions.ICaeriusRemoteCacheManager.SetIfTagSnapshotUnchangedAsync<T>(string! key, T value, System.Collections.Generic.IReadOnlyList<string!>! tags, CaeriusNet.Abstractions.CaeriusCacheTagSnapshot! snapshot, CaeriusNet.Abstractions.ICaeriusCacheCodec<T>! codec, System.TimeSpan? expiration, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
+CaeriusNet.Abstractions.ICaeriusRemoteCacheManager.TryGetAsync<T>(string! key, System.Collections.Generic.IReadOnlyList<string!>! tags, CaeriusNet.Abstractions.ICaeriusCacheCodec<T>! codec, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<CaeriusNet.Abstractions.CaeriusCacheLookup<T>>
+CaeriusNet.CaeriusMemoryCacheOptions.MaxConcurrentPopulations.get -> int
+CaeriusNet.CaeriusMemoryCacheOptions.MaxConcurrentPopulations.set -> void
+CaeriusNet.CaeriusMemoryCacheOptions.MaxEntryWeight.get -> long
+CaeriusNet.CaeriusMemoryCacheOptions.MaxEntryWeight.set -> void

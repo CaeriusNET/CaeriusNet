@@ -9,16 +9,12 @@
     <Target Name="CaeriusPrepareContracts" Condition="'$(DesignTimeBuild)' != 'true'">
         <PropertyGroup>
             <CaeriusContractsModeNormalized>$(CaeriusContractsMode.Trim().ToUpperInvariant())</CaeriusContractsModeNormalized>
-            <CaeriusContractsResolvedConnectionArguments Condition="'$(CaeriusContractsConnectionArguments)' != ''">$(CaeriusContractsConnectionArguments)</CaeriusContractsResolvedConnectionArguments>
-            <CaeriusContractsResolvedConnectionArguments Condition="'$(CaeriusContractsResolvedConnectionArguments)' == '' and '$(CaeriusContractsConnectionStringEnv)' != ''">--connection-env &quot;$(CaeriusContractsConnectionStringEnv)&quot;</CaeriusContractsResolvedConnectionArguments>
-            <CaeriusContractsResolvedConnectionArguments Condition="'$(CaeriusContractsResolvedConnectionArguments)' == '' and '$(CaeriusContractsConnectionString)' != ''">--connection-string &quot;$(CaeriusContractsConnectionString)&quot;</CaeriusContractsResolvedConnectionArguments>
+            <CaeriusContractsResolvedConnectionArguments Condition="'$(CaeriusContractsConnectionStringEnv)' != ''">--connection-env &quot;$(CaeriusContractsConnectionStringEnv)&quot;</CaeriusContractsResolvedConnectionArguments>
             <CaeriusContractsResolvedConnectionArguments Condition="'$(CaeriusContractsResolvedConnectionArguments)' == ''">--connection-name &quot;$(CaeriusContractsConnectionName)&quot; --configuration-base-path &quot;$(CaeriusContractsConfigurationBasePath)&quot;</CaeriusContractsResolvedConnectionArguments>
             <CaeriusContractsResolvedConnectionArguments Condition="'$(CaeriusContractsConfigurationEnvironment)' != ''">$(CaeriusContractsResolvedConnectionArguments) --configuration-environment &quot;$(CaeriusContractsConfigurationEnvironment)&quot;</CaeriusContractsResolvedConnectionArguments>
             <CaeriusContractsResolvedConnectionArguments Condition="'$(CaeriusContractsUserSecretsId)' != ''">$(CaeriusContractsResolvedConnectionArguments) --user-secrets-id &quot;$(CaeriusContractsUserSecretsId)&quot;</CaeriusContractsResolvedConnectionArguments>
             <CaeriusContractsResolvedConnectionArguments>$(CaeriusContractsResolvedConnectionArguments) --timeout &quot;$(CaeriusContractsTimeout)&quot;</CaeriusContractsResolvedConnectionArguments>
         </PropertyGroup>
-        <Warning Text="CaeriusContractsConnectionString is deprecated because MSBuild logs may expose secrets; prefer CaeriusContractsConnectionName or CaeriusContractsConnectionStringEnv."
-                 Condition="'$(CaeriusContractsConnectionString)' != ''"/>
     </Target>
 
     <Target Name="CaeriusValidateContractsMode" DependsOnTargets="CaeriusPrepareContracts" Condition="'$(DesignTimeBuild)' != 'true'">

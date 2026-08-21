@@ -1,5 +1,3 @@
-using CaeriusNet.Analyzer.Roslyn;
-
 namespace CaeriusNet.Generator.AutoContracts;
 
 internal static class AutoContractsEmitter
@@ -196,13 +194,14 @@ internal static class AutoContractsEmitter
         sb.Append("public sealed class ").Append(codecName).Append(" : ICaeriusCacheCodec<").Append(clrName)
             .AppendLine(">");
         sb.AppendLine("{");
-        sb.Append("    public string CodecId => ").Append(Literal(clrName + "/autocontract/v1")).AppendLine(";");
+        sb.Append("    public string CodecId => ").Append(Literal(clrName + "/autocontract/v2")).AppendLine(";");
         sb.Append("    public string ContractHash => ").Append(Literal(resultSet.ContractHash)).AppendLine(";");
         sb.Append("    public void Encode(IBufferWriter<byte> writer, ").Append(clrName).AppendLine(" value)");
         sb.AppendLine("    {");
         sb.AppendLine("        ArgumentNullException.ThrowIfNull(writer);");
         sb.AppendLine("        ArgumentNullException.ThrowIfNull(value);");
         sb.Append("        Span<byte> nullBitmap = stackalloc byte[").Append(bitmapLength).AppendLine("];");
+        sb.AppendLine("        nullBitmap.Clear();");
         for (var index = 0; index < resultSet.Columns.Count; index++)
         {
             var column = resultSet.Columns[index];
@@ -219,13 +218,13 @@ internal static class AutoContractsEmitter
             if (column.Nullable)
             {
                 var nonNullValue = "item" + index;
-                var write = BuildWrite(column.SqlType, nonNullValue);
+                var write = BuildWrite(column, nonNullValue);
                 sb.Append("        if (value.").Append(Identifier(column.Name)).Append(" is { } ")
                     .Append(nonNullValue).Append(") ").Append(write).AppendLine(";");
             }
             else
             {
-                sb.Append("        ").Append(BuildWrite(column.SqlType, "value." + Identifier(column.Name)))
+                sb.Append("        ").Append(BuildWrite(column, "value." + Identifier(column.Name)))
                     .AppendLine(";");
             }
         }
@@ -241,7 +240,7 @@ internal static class AutoContractsEmitter
         for (var index = 0; index < resultSet.Columns.Count; index++)
         {
             var column = resultSet.Columns[index];
-            var read = BuildRead(column.SqlType);
+            var read = BuildRead(column);
             if (column.Nullable)
                 read =
                     $"(nullBitmap[{index / 8}] & {1 << (index % 8)}) != 0 ? ({AutoContractsSqlEmitter.ToNullableClrType(column)})null : {read}";
@@ -287,8 +286,19 @@ internal static class AutoContractsEmitter
                 .Append(", ").Append(property).Append(", ")
                 .Append(AutoContractsSqlEmitter.BuildSqlDbTypeExpression(parameter.SqlType))
                 .Append(", ParameterDirection.").Append(parameter.Direction);
-            var facets = AutoContractsSqlFacets.BuildParameterArguments(parameter);
-            if (!string.IsNullOrEmpty(facets)) sb.Append(", ").Append(facets);
+            if (AutoContractsSqlEmitter.NormalizeSqlType(parameter.SqlType) == "vector")
+            {
+                // SqlClient infers vector size from the value, but an output/null vector needs its SQL
+                // dimension to create SqlVector<float>.CreateNull at command materialization time.
+                _ = AutoContractsSqlServer2025.TryGetVectorDimensions(parameter.SqlType, out var dimensions);
+                sb.Append(", size: ").Append(dimensions);
+            }
+            else
+            {
+                var facets = AutoContractsSqlFacets.BuildParameterArguments(parameter);
+                if (!string.IsNullOrEmpty(facets)) sb.Append(", ").Append(facets);
+            }
+
             sb.Append(", ordinal: ").Append(parameter.Ordinal).AppendLine(");");
         }
 
@@ -447,7 +457,7 @@ internal static class AutoContractsEmitter
             .Append("> ").Append(publicMethodName).Append("(this ").Append(receiverType).Append(' ')
             .Append(receiverName).AppendLine(", StoredProcedureCommand command,");
         for (var index = 0; index < resultSets.Length; index++)
-            sb.Append("        int capacity").Append(index).AppendLine(" = 16,");
+            sb.Append("        int capacity").Append(index).AppendLine(" = -1,");
         sb.AppendLine("        CaeriusResultSetCountPolicy countPolicy = CaeriusResultSetCountPolicy.Exactly,");
         sb.AppendLine("        CancellationToken cancellationToken = default)");
         sb.AppendLine("    {");
@@ -519,8 +529,9 @@ internal static class AutoContractsEmitter
         }
     }
 
-    private static string BuildWrite(string sqlType, string value)
+    private static string BuildWrite(AutoContractsColumn column, string value)
     {
+        var sqlType = column.SqlType;
         return AutoContractsSqlEmitter.NormalizeSqlType(sqlType) switch
         {
             "bit" => $"binary.WriteBoolean({value})",
@@ -530,6 +541,8 @@ internal static class AutoContractsEmitter
             "bigint" => $"binary.WriteInt64({value})",
             "real" => $"binary.WriteSingle({value})",
             "float" => $"binary.WriteDouble({value})",
+            "decimal" or "numeric" when AutoContractsClrTypes.IsSqlDecimal(column.ClrType) =>
+                $"binary.WriteSqlDecimal({value})",
             "decimal" or "numeric" or "money" or "smallmoney" => $"binary.WriteDecimal({value})",
             "date" => $"binary.WriteDateOnly({value})",
             "time" => $"binary.WriteTimeOnly({value})",
@@ -538,12 +551,15 @@ internal static class AutoContractsEmitter
             "uniqueidentifier" => $"binary.WriteGuid({value})",
             "nvarchar" or "varchar" or "nchar" or "char" => $"binary.WriteString({value})",
             "varbinary" or "binary" => $"binary.WriteBytes({value})",
+            "json" => $"binary.WriteString({value})",
+            "vector" => $"binary.WriteSqlVector({value})",
             _ => throw new InvalidOperationException("Unsupported AutoContracts codec type: " + sqlType)
         };
     }
 
-    private static string BuildRead(string sqlType)
+    private static string BuildRead(AutoContractsColumn column)
     {
+        var sqlType = column.SqlType;
         return AutoContractsSqlEmitter.NormalizeSqlType(sqlType) switch
         {
             "bit" => "binary.ReadBoolean()",
@@ -553,6 +569,8 @@ internal static class AutoContractsEmitter
             "bigint" => "binary.ReadInt64()",
             "real" => "binary.ReadSingle()",
             "float" => "binary.ReadDouble()",
+            "decimal" or "numeric" when AutoContractsClrTypes.IsSqlDecimal(column.ClrType) =>
+                "binary.ReadSqlDecimal()",
             "decimal" or "numeric" or "money" or "smallmoney" => "binary.ReadDecimal()",
             "date" => "binary.ReadDateOnly()",
             "time" => "binary.ReadTimeOnly()",
@@ -561,6 +579,8 @@ internal static class AutoContractsEmitter
             "uniqueidentifier" => "binary.ReadGuid()",
             "nvarchar" or "varchar" or "nchar" or "char" => "binary.ReadString()",
             "varbinary" or "binary" => "binary.ReadBytes()",
+            "json" => "binary.ReadString()",
+            "vector" => "binary.ReadSqlVector()",
             _ => throw new InvalidOperationException("Unsupported AutoContracts codec type: " + sqlType)
         };
     }

@@ -1,8 +1,7 @@
 using System.Globalization;
-using Microsoft.Extensions.DependencyInjection;
-using CaeriusNet.Execution;
 using CaeriusNet.IntegrationTests.Infrastructure;
 using CaeriusNet.Mappers;
+using Xunit.Sdk;
 
 namespace CaeriusNet.IntegrationTests.Redis;
 
@@ -43,7 +42,12 @@ public sealed class SqlRedisReadThroughAcceptanceTests
         await AssertConcurrentReadThroughUsesOneLocalPopulationAsync(provider, connectionString, redis,
             cancellationToken);
         await AssertCorruptionAndCodecCompatibilityAsync(provider, connectionString, redis, cancellationToken);
-        await AssertStrictInvalidationAsync(provider, redis, cancellationToken);
+        await AssertStrictInvalidationAsync(provider, connectionString, redis, cancellationToken);
+        await AssertSlowReadCannotRepublishAStaleRedisValueAfterInvalidationAsync(
+            provider,
+            connectionString,
+            redis,
+            cancellationToken);
         await AssertMultiResultAggregateIsStoredUnderOneKeyAsync(provider, connectionString, redis, cancellationToken);
         await AssertCancelledReadThroughWaiterDoesNotCancelSharedPopulationAsync(provider, connectionString, redis,
             cancellationToken);
@@ -164,23 +168,75 @@ public sealed class SqlRedisReadThroughAcceptanceTests
         var lookup = await manager.TryGetAsync(incompatibleKey, new Int32Codec("sql-redis-counter", "v2"),
             cancellationToken);
         Assert.False(lookup.Found);
-        Assert.False(await redis.KeyExistsAsync("caerius:" + incompatibleKey));
+        Assert.False(await redis.KeyExistsAsync(incompatibleKey));
     }
 
     private static async Task AssertStrictInvalidationAsync(
         ServiceProvider provider,
+        string connectionString,
         IDatabase redis,
         CancellationToken cancellationToken)
     {
-        await redis.StringSetAsync("caerius:strict-invalidate", "value");
+        await ResetCountersAsync(connectionString, cancellationToken);
+        await redis.ExecuteAsync("FLUSHDB");
         await using var scope = provider.CreateAsyncScope();
         var database = scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
+        var read = CachedWidgetCommand("caerius_redis_read_widget", TimeSpan.FromMinutes(1), "strict-invalidate");
+        _ = await database.QueryImmutableArrayAsync<CacheWidget>(read, cancellationToken: cancellationToken);
+        Assert.Equal(1, await ReadCounterAsync(connectionString, "read", cancellationToken));
+
         var command = new StoredProcedureCommandBuilder("dbo", "caerius_redis_invalidate")
-            .Invalidate("strict-invalidate")
+            .Invalidates("strict-invalidate")
             .Build();
 
         await database.ExecuteAsync(command, cancellationToken);
-        Assert.False(await redis.KeyExistsAsync("caerius:strict-invalidate"));
+        _ = await database.QueryImmutableArrayAsync<CacheWidget>(read, cancellationToken: cancellationToken);
+        Assert.Equal(2, await ReadCounterAsync(connectionString, "read", cancellationToken));
+    }
+
+    /// <summary>
+    ///     Captures a database value before a deliberately slow result is released, commits a SQL write and invalidates
+    ///     the same logical tag while that reader is still live. The stale reader must return its pre-write snapshot to
+    ///     its own caller, but it must never republish that value to Redis after the generation has advanced.
+    /// </summary>
+    private static async Task AssertSlowReadCannotRepublishAStaleRedisValueAfterInvalidationAsync(
+        ServiceProvider provider,
+        string connectionString,
+        IDatabase redis,
+        CancellationToken cancellationToken)
+    {
+        await ResetCountersAsync(connectionString, cancellationToken);
+        await redis.ExecuteAsync("FLUSHDB");
+        // Use a procedure identity dedicated to this race. Reusing the earlier single-flight
+        // scenario's command can legitimately overlap its asynchronous flight teardown and make
+        // an unrelated completed population look like a stale re-publication.
+        var read = CachedWidgetCommand("caerius_redis_read_widget_snapshot_slow", TimeSpan.FromMinutes(1));
+        var write = new StoredProcedureCommandBuilder("dbo", "caerius_redis_update_widget")
+            .AddParameter("@name", "redis widget updated", SqlDbType.NVarChar, size: 80)
+            .Invalidates("widget:7")
+            .Build();
+
+        await using var readScope = provider.CreateAsyncScope();
+        await using var writeScope = provider.CreateAsyncScope();
+        var reader = readScope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
+        var writer = writeScope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
+        var staleRead = reader.QueryImmutableArrayAsync<CacheWidget>(read, cancellationToken: cancellationToken)
+            .AsTask();
+
+        await WaitForCounterAsync(connectionString, "snapshot", 1, cancellationToken);
+        await writer.ExecuteAsync(write, cancellationToken);
+
+        var stale = Assert.Single(await staleRead);
+        Assert.Equal("redis widget", stale.Name);
+        Assert.Empty(await GetCaeriusKeysAsync(redis));
+
+        await using var freshScope = provider.CreateAsyncScope();
+        var freshReader = freshScope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
+        var fresh = Assert.Single(await freshReader.QueryImmutableArrayAsync<CacheWidget>(read,
+            cancellationToken: cancellationToken));
+        Assert.Equal("redis widget updated", fresh.Name);
+        Assert.Equal(2, await ReadCounterAsync(connectionString, "slow", cancellationToken));
+        Assert.Single(await GetCaeriusKeysAsync(redis));
     }
 
     private static async Task AssertMultiResultAggregateIsStoredUnderOneKeyAsync(
@@ -193,7 +249,11 @@ public sealed class SqlRedisReadThroughAcceptanceTests
         await redis.ExecuteAsync("FLUSHDB");
         var command = new StoredProcedureCommandBuilder("dbo", "caerius_redis_read_multi")
             .WithResultSetCapacities(1, 1)
+            .DependsOn("widgets:multi")
             .UseRedisCache(TimeSpan.FromMinutes(1))
+            .Build();
+        var invalidate = new StoredProcedureCommandBuilder("dbo", "caerius_redis_invalidate")
+            .Invalidates("widgets:multi")
             .Build();
 
         await using (var scope = provider.CreateAsyncScope())
@@ -210,9 +270,16 @@ public sealed class SqlRedisReadThroughAcceptanceTests
                 cancellationToken: cancellationToken);
             Assert.Equal(1, Assert.Single(cached.Set1).Id);
             Assert.Equal(2, Assert.Single(cached.Set2).Id);
+
+            await database.ExecuteAsync(invalidate, cancellationToken);
+            var repopulated = await database.QueryMultipleImmutableArrayAsync<CacheWidget, CacheWidget>(
+                command,
+                cancellationToken: cancellationToken);
+            Assert.Equal(1, Assert.Single(repopulated.Set1).Id);
+            Assert.Equal(2, Assert.Single(repopulated.Set2).Id);
         }
 
-        Assert.Equal(1, await ReadCounterAsync(connectionString, "multi", cancellationToken));
+        Assert.Equal(2, await ReadCounterAsync(connectionString, "multi", cancellationToken));
         Assert.Equal(1L, await DatabaseSizeAsync(redis));
     }
 
@@ -285,21 +352,27 @@ public sealed class SqlRedisReadThroughAcceptanceTests
         var database = scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
 
         var value = await database.QueryImmutableArrayAsync<CacheWidget>(
-            CachedWidgetCommand("caerius_redis_read_widget", TimeSpan.FromMinutes(1)),
+            CachedWidgetCommand("caerius_redis_read_widget", TimeSpan.FromMinutes(1), "strict-failure"),
             cancellationToken: cancellationToken);
         Assert.Equal(7, Assert.Single(value).Id);
         Assert.Equal(1, await ReadCounterAsync(connectionString, "read", cancellationToken));
 
         var strict = new StoredProcedureCommandBuilder("dbo", "caerius_redis_invalidate")
-            .Invalidate("strict-failure")
+            .Invalidates("strict-failure")
             .Build();
-        await Assert.ThrowsAsync<CaeriusCacheException>(() =>
+        var invalidationException = await Assert.ThrowsAsync<CaeriusCacheInvalidationException>(() =>
             database.ExecuteAsync(strict, cancellationToken).AsTask());
+        Assert.True(invalidationException.SqlWasCommitted);
+        Assert.IsType<CaeriusCacheException>(invalidationException.InnerException);
     }
 
-    private static StoredProcedureCommand CachedWidgetCommand(string procedure, TimeSpan expiration)
+    private static StoredProcedureCommand CachedWidgetCommand(
+        string procedure,
+        TimeSpan expiration,
+        string dependencyTag = "widget:7")
     {
         return new StoredProcedureCommandBuilder("dbo", procedure)
+            .DependsOn(dependencyTag)
             .UseRedisCache(expiration)
             .Build();
     }
@@ -312,7 +385,7 @@ public sealed class SqlRedisReadThroughAcceptanceTests
                                        IF OBJECT_ID(N'dbo.CaeriusRedisAcceptanceCounter', N'U') IS NULL
                                            CREATE TABLE dbo.CaeriusRedisAcceptanceCounter (Name nvarchar(32) NOT NULL PRIMARY KEY, Value int NOT NULL);
                                        DELETE FROM dbo.CaeriusRedisAcceptanceCounter;
-                                       INSERT dbo.CaeriusRedisAcceptanceCounter (Name, Value) VALUES (N'read', 0), (N'slow', 0), (N'multi', 0);
+                                       INSERT dbo.CaeriusRedisAcceptanceCounter (Name, Value) VALUES (N'read', 0), (N'slow', 0), (N'multi', 0), (N'snapshot', 0);
                                        """, cancellationToken);
         await ExecuteAsync(connection, """
                                        IF OBJECT_ID(N'dbo.CaeriusRedisAcceptanceWidget', N'U') IS NULL
@@ -335,8 +408,24 @@ public sealed class SqlRedisReadThroughAcceptanceTests
                                        BEGIN
                                            SET NOCOUNT ON;
                                            UPDATE dbo.CaeriusRedisAcceptanceCounter SET Value = Value + 1 WHERE Name = N'slow';
+                                           DECLARE @snapshot TABLE (Id int NOT NULL, Name nvarchar(80) NOT NULL);
+                                           INSERT @snapshot (Id, Name) SELECT Id, Name FROM dbo.CaeriusRedisAcceptanceWidget;
+                                           UPDATE dbo.CaeriusRedisAcceptanceCounter SET Value = Value + 1 WHERE Name = N'snapshot';
                                            WAITFOR DELAY '00:00:00.300';
-                                           SELECT Id, Name FROM dbo.CaeriusRedisAcceptanceWidget;
+                                           SELECT Id, Name FROM @snapshot;
+                                       END
+                                       """, cancellationToken);
+        await ExecuteAsync(connection, """
+                                       CREATE OR ALTER PROCEDURE dbo.caerius_redis_read_widget_snapshot_slow
+                                       AS
+                                       BEGIN
+                                           SET NOCOUNT ON;
+                                           UPDATE dbo.CaeriusRedisAcceptanceCounter SET Value = Value + 1 WHERE Name = N'slow';
+                                           DECLARE @snapshot TABLE (Id int NOT NULL, Name nvarchar(80) NOT NULL);
+                                           INSERT @snapshot (Id, Name) SELECT Id, Name FROM dbo.CaeriusRedisAcceptanceWidget;
+                                           UPDATE dbo.CaeriusRedisAcceptanceCounter SET Value = Value + 1 WHERE Name = N'snapshot';
+                                           WAITFOR DELAY '00:00:00.300';
+                                           SELECT Id, Name FROM @snapshot;
                                        END
                                        """, cancellationToken);
         await ExecuteAsync(connection, """
@@ -354,6 +443,15 @@ public sealed class SqlRedisReadThroughAcceptanceTests
                                        AS
                                        BEGIN
                                            SET NOCOUNT ON;
+                                       END
+                                       """, cancellationToken);
+        await ExecuteAsync(connection, """
+                                       CREATE OR ALTER PROCEDURE dbo.caerius_redis_update_widget
+                                           @name nvarchar(80)
+                                       AS
+                                       BEGIN
+                                           SET NOCOUNT ON;
+                                           UPDATE dbo.CaeriusRedisAcceptanceWidget SET Name = @name WHERE Id = 7;
                                        END
                                        """, cancellationToken);
     }
@@ -385,7 +483,7 @@ public sealed class SqlRedisReadThroughAcceptanceTests
 
     private static async Task<long> DatabaseSizeAsync(IDatabase database)
     {
-        return (long)await database.ExecuteAsync("DBSIZE");
+        return (await GetCaeriusKeysAsync(database)).LongLength;
     }
 
     private static async Task<RedisKey[]> GetCaeriusKeysAsync(IDatabase database)
@@ -397,7 +495,28 @@ public sealed class SqlRedisReadThroughAcceptanceTests
         var values = (RedisResult[]?)response;
         return values is null
             ? []
-            : values.Select(static value => (RedisKey)value.ToString()).ToArray();
+            : values
+                .Select(static value => (RedisKey)value.ToString())
+                .Where(static key => !key.ToString().StartsWith("caerius:v2:tag:", StringComparison.Ordinal))
+                .ToArray();
+    }
+
+    private static async Task WaitForCounterAsync(
+        string connectionString,
+        string name,
+        int expected,
+        CancellationToken cancellationToken)
+    {
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(5);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            if (await ReadCounterAsync(connectionString, name, cancellationToken) >= expected)
+                return;
+            await Task.Delay(TimeSpan.FromMilliseconds(25), cancellationToken);
+        }
+
+        throw new XunitException(
+            $"The '{name}' SQL read did not reach counter value {expected} before its stale-cache race was exercised.");
     }
 
     private sealed record CacheWidget(int Id, string Name) : ISpMapper<CacheWidget>

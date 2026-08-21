@@ -19,5 +19,6 @@ global using CaeriusNet.Abstractions;
 global using CaeriusNet.Caching;
 global using CaeriusNet.Commands;
 global using CaeriusNet.Internal;
+global using Microsoft.Data.SqlClient;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Data.SqlClient.Server;

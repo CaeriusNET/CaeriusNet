@@ -3,11 +3,10 @@ using System.Collections.Concurrent;
 using CaeriusNet.Abstractions;
 using CaeriusNet.Caching;
 using CaeriusNet.Commands;
-using CaeriusNet;
-using Microsoft.Extensions.DependencyInjection;
 using CaeriusNet.Exceptions;
 using CaeriusNet.Execution;
 using CaeriusNet.Internal;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Internal;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -59,6 +58,22 @@ public sealed class CacheAcceptanceTests
     }
 
     [Fact]
+    public void InMemoryCacheReservesTheConfiguredMaximumWeightForEveryEntry()
+    {
+        using var cache = new InMemoryCacheManager(
+            Options.Create(new CaeriusMemoryCacheOptions { SizeLimit = 3, MaxEntryWeight = 2 }),
+            null);
+
+        cache.SetEntry("first", 1, TimeSpan.FromMinutes(1));
+        cache.SetEntry("second", 2, TimeSpan.FromMinutes(1));
+
+        var retained = 0;
+        retained += cache.TryGet<int>("first", out _) ? 1 : 0;
+        retained += cache.TryGet<int>("second", out _) ? 1 : 0;
+        Assert.InRange(retained, 0, 1);
+    }
+
+    [Fact]
     public async Task InMemoryCacheSingleFlightSurvivesACancelledFirstWaiter()
     {
         using var provider = CreateProvider();
@@ -69,7 +84,7 @@ public sealed class CacheAcceptanceTests
 
         async ValueTask<int> Factory(CancellationToken token)
         {
-            Assert.False(token.CanBeCanceled);
+            Assert.True(token.CanBeCanceled);
             Interlocked.Increment(ref factoryCalls);
             started.TrySetResult();
             await release.Task.ConfigureAwait(false);
@@ -92,6 +107,80 @@ public sealed class CacheAcceptanceTests
 
         Assert.All(await Task.WhenAll(others), static value => Assert.Equal(73, value));
         Assert.Equal(1, factoryCalls);
+    }
+
+    [Fact]
+    public async Task InMemoryCacheCancelsTheSharedFactoryWhenTheLastWaiterLeaves()
+    {
+        using var provider = CreateProvider();
+        var cache = provider.GetRequiredService<IInMemoryCacheManager>();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var factoryCancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        async ValueTask<int> Factory(CancellationToken token)
+        {
+            started.TrySetResult();
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, token).ConfigureAwait(false);
+                return 1;
+            }
+            catch (OperationCanceledException)
+            {
+                factoryCancelled.TrySetResult();
+                throw;
+            }
+        }
+
+        using var firstCancellation = new CancellationTokenSource();
+        using var secondCancellation = new CancellationTokenSource();
+        var first = cache.GetOrCreateAsync(
+            "all-waiters-left", TimeSpan.FromMinutes(1), false, Factory, firstCancellation.Token).AsTask();
+        await started.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var second = cache.GetOrCreateAsync(
+            "all-waiters-left", TimeSpan.FromMinutes(1), false, Factory, secondCancellation.Token).AsTask();
+
+        firstCancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first);
+        Assert.False(factoryCancelled.Task.IsCompleted);
+        secondCancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => second);
+        await factoryCancelled.Task.WaitAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task InMemoryCacheKeepsTheSharedFactoryRunningWhileAnotherWaiterRemains()
+    {
+        using var provider = CreateProvider();
+        var cache = provider.GetRequiredService<IInMemoryCacheManager>();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var factoryCancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        async ValueTask<int> Factory(CancellationToken token)
+        {
+            started.TrySetResult();
+            using var registration = token.Register(static state =>
+                ((TaskCompletionSource)state!).TrySetResult(), factoryCancelled);
+            await release.Task.WaitAsync(token).ConfigureAwait(false);
+            return 73;
+        }
+
+        using var firstCancellation = new CancellationTokenSource();
+        var first = cache.GetOrCreateAsync(
+            "one-waiter-remains", TimeSpan.FromMinutes(1), false, Factory, firstCancellation.Token).AsTask();
+        await started.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var second = cache.GetOrCreateAsync(
+                "one-waiter-remains", TimeSpan.FromMinutes(1), false, Factory, TestContext.Current.CancellationToken)
+            .AsTask();
+
+        firstCancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first);
+        Assert.False(factoryCancelled.Task.IsCompleted);
+
+        release.TrySetResult();
+        Assert.Equal(73, await second);
+        Assert.False(factoryCancelled.Task.IsCompleted);
     }
 
     [Fact]
@@ -295,6 +384,68 @@ public sealed class CacheAcceptanceTests
     }
 
     [Fact]
+    public async Task RedisReadThroughPopulationOwnsANewDependencyInjectionScope()
+    {
+        var remote = new DeterministicRemoteCache();
+        using var provider = CreateProvider(remote);
+        using var requestScope = provider.CreateScope();
+        var requestContext =
+            (ICaeriusExecutionContext)requestScope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
+        var state = new ScopeCaptureState(requestContext);
+
+        var value = await CaeriusExecutor.CachedAsync(
+            requestContext,
+            RedisCommand("OwnedPopulationScope"),
+            "integer",
+            state,
+            static (populationContext, factoryState, _) =>
+            {
+                factoryState.PopulationContext = populationContext;
+                return ValueTask.FromResult(17);
+            },
+            TestContext.Current.CancellationToken,
+            new Int32Codec());
+
+        Assert.Equal(17, value);
+        Assert.NotNull(state.PopulationContext);
+        Assert.NotSame(state.RequestContext, state.PopulationContext);
+        Assert.Equal(state.RequestContext.Name, state.PopulationContext!.Name);
+    }
+
+    [Fact]
+    public async Task RedisReadThroughPopulationResolvesTheSameKeyedContextInItsOwnedScope()
+    {
+        var remote = new DeterministicRemoteCache();
+        var services = new ServiceCollection();
+        services.AddCaeriusNet("reporting", options => options.UseSqlServer(
+            "Server=.;Database=cache_reporting;Integrated Security=true;TrustServerCertificate=true"));
+        services.AddSingleton<ICaeriusRemoteCacheManager>(remote);
+        using var provider = services.BuildServiceProvider();
+        using var requestScope = provider.CreateScope();
+        var requestContext = (ICaeriusExecutionContext)requestScope.ServiceProvider
+            .GetRequiredKeyedService<ICaeriusNetDbContext>("reporting");
+        var state = new ScopeCaptureState(requestContext);
+
+        var value = await CaeriusExecutor.CachedAsync(
+            requestContext,
+            RedisCommand("OwnedKeyedPopulationScope"),
+            "integer",
+            state,
+            static (populationContext, factoryState, _) =>
+            {
+                factoryState.PopulationContext = populationContext;
+                return ValueTask.FromResult(19);
+            },
+            TestContext.Current.CancellationToken,
+            new Int32Codec());
+
+        Assert.Equal(19, value);
+        Assert.NotNull(state.PopulationContext);
+        Assert.NotSame(state.RequestContext, state.PopulationContext);
+        Assert.Equal("reporting", state.PopulationContext!.Name);
+    }
+
+    [Fact]
     public async Task RemoteInvalidationIsStrictAndWrapsTransportFailures()
     {
         var remote = new DeterministicRemoteCache { RemoveFailure = new InvalidOperationException("remove down") };
@@ -305,8 +456,24 @@ public sealed class CacheAcceptanceTests
         var exception = await Assert.ThrowsAsync<CaeriusCacheException>(() =>
             CaeriusExecutor.InvalidateStrictAsync(context, ["one"], TestContext.Current.CancellationToken).AsTask());
 
-        Assert.Equal("remove", exception.Operation);
+        Assert.Equal("invalidate-tags", exception.Operation);
         Assert.Equal(1, remote.RemoveCalls);
+    }
+
+    [Fact]
+    public async Task DurableSqlInvalidationFailureHasANonRetryableStateException()
+    {
+        var remote = new DeterministicRemoteCache { RemoveFailure = new InvalidOperationException("remove down") };
+        using var provider = CreateProvider(remote);
+        using var scope = provider.CreateScope();
+        var context = (ICaeriusExecutionContext)scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
+
+        var exception = await Assert.ThrowsAsync<CaeriusCacheInvalidationException>(() =>
+            CaeriusExecutor.InvalidateAfterDurableSqlAsync(context, ["orders"]).AsTask());
+
+        Assert.True(exception.SqlWasCommitted);
+        Assert.IsType<CaeriusCacheException>(exception.InnerException);
+        Assert.Contains("Do not blindly retry", exception.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -432,6 +599,12 @@ public sealed class CacheAcceptanceTests
             _values.Remove(key);
             return ValueTask.CompletedTask;
         }
+    }
+
+    private sealed class ScopeCaptureState(ICaeriusExecutionContext requestContext)
+    {
+        internal ICaeriusExecutionContext RequestContext { get; } = requestContext;
+        internal ICaeriusExecutionContext? PopulationContext { get; set; }
     }
 
     private sealed class Int32Codec : ICaeriusCacheCodec<int>

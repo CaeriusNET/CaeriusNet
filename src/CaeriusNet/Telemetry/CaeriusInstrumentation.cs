@@ -8,7 +8,7 @@ internal sealed class CaeriusInstrumentation : IDisposable
     private static readonly KeyValuePair<string, object?> ExecuteOperationTag = new("db.operation.name", "EXECUTE");
 
     private static readonly string InstrumentationVersion =
-        typeof(CaeriusInstrumentation).Assembly.GetName().Version?.ToString(3) ?? "12.0.0";
+        typeof(CaeriusInstrumentation).Assembly.GetName().Version?.ToString(3) ?? "11.2.0";
 
     private readonly ActivitySource _activitySource = new(CaeriusTelemetry.ActivitySourceName, InstrumentationVersion);
     private readonly Counter<long> _cacheErrors;

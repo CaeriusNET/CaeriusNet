@@ -1,13 +1,32 @@
-﻿using CaeriusNet.Analyzer.Roslyn;
-
-namespace CaeriusNet.Generator.Dto;
+﻿namespace CaeriusNet.Generator.Dto;
 
 /// <summary>
 ///     Semantic-phase extractor for <c>[GenerateDto]</c> targets.
 /// </summary>
 internal static class DtoExtractor
 {
-    internal static DtoModel? Extract(
+    internal static DtoExtractionResult Extract(
+        GeneratorAttributeSyntaxContext context,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return new DtoExtractionResult(ExtractCore(context, cancellationToken), null);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            // Do not let an unusual, incomplete user symbol surface as Roslyn's CS8785
+            // generator-failure diagnostic.  The source-output phase reports the stable CAERIUS008
+            // diagnostic instead, without retaining an exception object in incremental state.
+            return new DtoExtractionResult(null, exception.GetType().Name);
+        }
+    }
+
+    private static DtoModel? ExtractCore(
         GeneratorAttributeSyntaxContext context,
         CancellationToken cancellationToken)
     {
@@ -25,7 +44,7 @@ internal static class DtoExtractor
         cancellationToken.ThrowIfCancellationRequested();
 
         var primaryCtorDecl = validation.PrimaryConstructorDeclaration!;
-        var columns = ExtractColumns(primaryCtorDecl, validation.PrimaryConstructor!);
+        var columns = ExtractColumns(primaryCtorDecl, validation.PrimaryConstructor!, cancellationToken);
 
         if (columns.Count == 0)
             return null;
@@ -37,14 +56,23 @@ internal static class DtoExtractor
             GetAccessibilityKeyword(typeSymbol.DeclaredAccessibility),
             typeKindKeyword,
             columns,
-            typeKindKeyword == "record" || HasReadableProperties(typeSymbol, columns));
+            typeKindKeyword == "record" || HasReadableProperties(typeSymbol, columns, cancellationToken));
     }
 
-    private static bool HasReadableProperties(INamedTypeSymbol typeSymbol, EquatableArray<ColumnModel> columns)
+    private static bool HasReadableProperties(
+        INamedTypeSymbol typeSymbol,
+        EquatableArray<ColumnModel> columns,
+        CancellationToken cancellationToken)
     {
-        return columns.All(column =>
-            typeSymbol.GetMembers(column.Name).OfType<IPropertySymbol>()
-                .Any(property => property.GetMethod is not null));
+        foreach (var column in columns)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!typeSymbol.GetMembers(column.Name).OfType<IPropertySymbol>()
+                    .Any(property => property.GetMethod is not null))
+                return false;
+        }
+
+        return true;
     }
 
     private static string GetAccessibilityKeyword(Accessibility accessibility)
@@ -57,7 +85,8 @@ internal static class DtoExtractor
     /// </summary>
     private static EquatableArray<ColumnModel> ExtractColumns(
         TypeDeclarationSyntax primaryCtorDecl,
-        IMethodSymbol primaryConstructor)
+        IMethodSymbol primaryConstructor,
+        CancellationToken cancellationToken)
     {
         var parameterList = primaryCtorDecl switch
         {
@@ -72,10 +101,20 @@ internal static class DtoExtractor
         var builder = ImmutableArray.CreateBuilder<ColumnModel>(primaryConstructor.Parameters.Length);
         for (var i = 0; i < primaryConstructor.Parameters.Length; i++)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var parameter = primaryConstructor.Parameters[i];
-            builder.Add(ColumnExtractor.Extract(parameter, i));
+            var column = ColumnExtractor.Extract(parameter, i);
+            if (column is null)
+                return EquatableArray<ColumnModel>.Empty;
+            builder.Add(column);
         }
 
         return new EquatableArray<ColumnModel>(builder.ToImmutable());
     }
 }
+
+/// <summary>
+///     The equatable result of extracting a DTO candidate.  A failure message is deliberately a compact
+///     string rather than an exception so Roslyn can cache the incremental value safely.
+/// </summary>
+internal sealed record DtoExtractionResult(DtoModel? Model, string? FailureMessage);

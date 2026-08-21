@@ -19,13 +19,15 @@ public sealed class IncrementalCachingTests
         using CaeriusNet;
         namespace Test.Models;
         [GenerateTvp(Schema = "dbo", TvpName = "tvp_int")]
-        public sealed partial record UserIdTvp(int Id);
+        public sealed partial record UserIdTvp([SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id);
         """;
 
     private const string AutoContractsManifest =
         """
         {
-          "version": 2,
+          "version": 3,
+          "serverMajor": 16,
+          "features": [],
           "namespace": "Test.Contracts",
           "tableTypes": [],
           "procedures": []

@@ -5,12 +5,11 @@ using System.Diagnostics.Metrics;
 using System.Runtime.CompilerServices;
 using CaeriusNet.Abstractions;
 using CaeriusNet.Commands;
-using CaeriusNet;
-using Microsoft.Extensions.DependencyInjection;
 using CaeriusNet.Execution;
 using CaeriusNet.Internal;
 using CaeriusNet.Telemetry;
 using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Xunit;
 
@@ -195,7 +194,7 @@ public sealed class CaeriusInstrumentationTests
     {
         var logger = new CapturingLogger();
 
-        Telemetry.CaeriusRuntimeLog.RedisLookupFailed(
+        CaeriusRuntimeLog.RedisLookupFailed(
             logger,
             "dbo.GetWidgets",
             typeof(InvalidOperationException).FullName!);

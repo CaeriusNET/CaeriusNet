@@ -1,5 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
-using CaeriusNet.Execution;
 using CaeriusNet.IntegrationTests.Infrastructure;
 using CaeriusNet.Mappers;
 
@@ -42,7 +40,7 @@ public sealed class SqlServerStoredProcedureAcceptanceTests
 
         foreach (var expectedCount in new[] { 0, 1, 1_000 })
         {
-            var rows = Enumerable.Range(1, expectedCount).Select(static value => new IntRow(value));
+            var rows = Enumerable.Range(1, expectedCount).Select(static value => new IntRow(value)).ToArray();
             var command = new StoredProcedureCommandBuilder("dbo", "caerius_test_count_ints")
                 .AddTvpParameter("@values", rows)
                 .Build();
@@ -60,6 +58,7 @@ public sealed class SqlServerStoredProcedureAcceptanceTests
 
         var readThroughCommand = new StoredProcedureCommandBuilder("dbo", "caerius_test_widget_by_id")
             .AddParameter("@id", 7, SqlDbType.Int)
+            .DependsOn("widget:7")
             .UseRedisCache(TimeSpan.FromMinutes(1))
             .Build();
         var readThroughValue = await unavailableRedisDatabase.QueryImmutableArrayAsync<Widget>(
@@ -68,10 +67,12 @@ public sealed class SqlServerStoredProcedureAcceptanceTests
         Assert.Equal(widget, Assert.Single(readThroughValue));
 
         var strictInvalidation = new StoredProcedureCommandBuilder("dbo", "caerius_test_noop")
-            .Invalidate("widget:7")
+            .Invalidates("widget:7")
             .Build();
-        await Assert.ThrowsAsync<CaeriusCacheException>(async () =>
+        var invalidationException = await Assert.ThrowsAsync<CaeriusCacheInvalidationException>(async () =>
             await unavailableRedisDatabase.ExecuteAsync(strictInvalidation, cancellationToken));
+        Assert.True(invalidationException.SqlWasCommitted);
+        Assert.IsType<CaeriusCacheException>(invalidationException.InnerException);
     }
 
     private static async Task ProvisionAsync(string connectionString, CancellationToken cancellationToken)

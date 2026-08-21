@@ -1,9 +1,19 @@
+using System.Data.SqlTypes;
+using CaeriusNet.Telemetry;
 using CaeriusNet.Transactions;
 
 namespace CaeriusNet.Execution;
 
 internal static class CaeriusExecutor
 {
+    internal static void EnsureStreamHasNoOutputs(StoredProcedureCommand command)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        if (command.Parameters.Any(static parameter => parameter.Direction != ParameterDirection.Input))
+            throw new CaeriusContractException(
+                $"Stored procedure '{command.FullName}' declares output, input/output, or return-value parameters; StreamAsync cannot expose their values.");
+    }
+
     internal static ICaeriusExecutionContext GetContext(ICaeriusNetDbContext context)
     {
         ArgumentNullException.ThrowIfNull(context);
@@ -20,17 +30,18 @@ internal static class CaeriusExecutor
     {
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(operation);
-        RethrowCancellationIfRequested(cancellationToken, transaction);
+        cancellationToken.ThrowIfCancellationRequested();
 
         ICaeriusSqlConnectionLease? lease = null;
         var ownsLease = transaction is null;
         if (transaction is not null)
             transaction.AcquireCommandSlot();
 
-        using var instrumentation = context.Instrumentation.Start(
+        var instrumentation = context.Instrumentation.Start(
             command,
             transaction is not null,
             context.Options);
+        SqlCommand? sqlCommand = null;
         try
         {
             var connection = transaction?.Connection;
@@ -61,7 +72,10 @@ internal static class CaeriusExecutor
             else
                 instrumentation.SetConnection(connection);
 
-            await using var sqlCommand = command.CreateSqlCommand(connection, transaction?.Transaction);
+            sqlCommand = command.CreateSqlCommand(
+                connection,
+                transaction?.Transaction,
+                cancellationToken);
             try
             {
                 var result = await operation(sqlCommand, cancellationToken).ConfigureAwait(false);
@@ -69,7 +83,13 @@ internal static class CaeriusExecutor
                 // enclosing SQL transaction has committed. Register it while the command still owns
                 // the transaction slot; CommitAsync performs the strict invalidation afterwards.
                 // Applying this here also covers procedures which return rows or output parameters.
-                transaction?.DeferInvalidations(command.InvalidationKeys);
+                if (transaction is null)
+                    // The procedure has completed successfully at this point, but SqlCommand/lease
+                    // disposal still remains.  Invalidate before that best-effort cleanup so a
+                    // cleanup failure cannot leave a durable SQL write behind stale cache data.
+                    await InvalidateAfterDurableSqlAsync(context, command.InvalidationTags).ConfigureAwait(false);
+                else
+                    transaction.DeferInvalidations(command.InvalidationTags);
                 instrumentation.Success();
                 return result;
             }
@@ -97,10 +117,16 @@ internal static class CaeriusExecutor
         }
         finally
         {
+            // Cleanup occurs after the durable-SQL invalidation above.  Every resource gets an
+            // opportunity to clean up, and a provider teardown fault cannot replace the SQL,
+            // mapper, cancellation, or cache-invalidation failure which brought us here.
+            if (sqlCommand is not null)
+                await DisposeWithoutMaskingAsync(sqlCommand).ConfigureAwait(false);
+            DisposeInstrumentationWithoutMasking(instrumentation);
             if (transaction is not null)
                 transaction.ReleaseCommandSlot();
             if (ownsLease && lease is not null)
-                await lease.DisposeAsync().ConfigureAwait(false);
+                await DisposeWithoutMaskingAsync(lease).ConfigureAwait(false);
         }
     }
 
@@ -117,6 +143,9 @@ internal static class CaeriusExecutor
     {
         await using var reader = await sqlCommand.ExecuteReaderAsync(CommandBehavior.Default, cancellationToken)
             .ConfigureAwait(false);
+
+        if (!await MoveToFirstColumnResultAsync(reader, cancellationToken).ConfigureAwait(false))
+            return CaeriusScalarRow.None;
 
         if (reader.FieldCount != 1)
         {
@@ -184,7 +213,7 @@ internal static class CaeriusExecutor
             command,
             shape,
             sqlFactory,
-            static (factoryState, token) => factoryState(token),
+            static (_, factoryState, token) => factoryState(token),
             cancellationToken,
             codecOverride);
     }
@@ -194,14 +223,14 @@ internal static class CaeriusExecutor
         StoredProcedureCommand command,
         string shape,
         TState state,
-        Func<TState, CancellationToken, ValueTask<TValue>> sqlFactory,
+        Func<ICaeriusExecutionContext, TState, CancellationToken, ValueTask<TValue>> sqlFactory,
         CancellationToken cancellationToken,
         ICaeriusCacheCodec<TValue>? codecOverride = null) where TValue : notnull
     {
         ArgumentNullException.ThrowIfNull(sqlFactory);
         var policy = command.CachePolicy;
         if (policy is null)
-            return await sqlFactory(state, cancellationToken).ConfigureAwait(false);
+            return await sqlFactory(context, state, cancellationToken).ConfigureAwait(false);
 
         var databaseIdentity = context.Options.CacheDatabaseIdentity;
         if (policy.Tier == CaeriusCacheTier.Redis && string.IsNullOrWhiteSpace(databaseIdentity))
@@ -215,28 +244,29 @@ internal static class CaeriusExecutor
             command,
             shape,
             codec?.ContractHash);
+        var localKey = context.CacheTags.CreateVersionedKey(key, command.DependencyTags);
 
         switch (policy.Tier)
         {
             case CaeriusCacheTier.Memory:
-                var memoryHit = context.MemoryCache.TryGet<TValue>(key, out var memoryValue);
+                var memoryHit = context.MemoryCache.TryGet<TValue>(localKey, out var memoryValue);
                 context.Instrumentation.CacheLookup(CaeriusCacheTier.Memory, memoryHit);
                 if (memoryHit)
                     return memoryValue!;
                 return await context.MemoryCache.GetOrCreateAsync(
-                    key,
+                    localKey,
                     policy.Expiration ?? throw new CaeriusContractException("Memory cache requires an expiration."),
                     policy.SlidingExpiration,
                     state,
-                    sqlFactory,
+                    (factoryState, token) => sqlFactory(context, factoryState, token),
                     cancellationToken).ConfigureAwait(false);
 
             case CaeriusCacheTier.Frozen:
-                var frozenHit = context.FrozenCache.TryGet<TValue>(key, out var frozenValue);
+                var frozenHit = context.FrozenCache.TryGet<TValue>(localKey, out var frozenValue);
                 context.Instrumentation.CacheLookup(CaeriusCacheTier.Frozen, frozenHit);
                 return frozenHit
                     ? frozenValue!
-                    : await sqlFactory(state, cancellationToken).ConfigureAwait(false);
+                    : await sqlFactory(context, state, cancellationToken).ConfigureAwait(false);
 
             case CaeriusCacheTier.Redis:
                 if (codec is null)
@@ -246,7 +276,9 @@ internal static class CaeriusExecutor
                     throw new CaeriusContractException(
                         $"Redis caching '{shape}' requires an IRedisCacheManager registration. Call AddCaeriusNetRedis(...).");
                 var redisState = new RedisReadThroughState<TValue, TState>(
-                    context,
+                    context.ScopeFactory,
+                    context.Name,
+                    context.IsKeyed,
                     command,
                     key,
                     policy.Expiration,
@@ -269,11 +301,28 @@ internal static class CaeriusExecutor
         RedisReadThroughState<TValue, TState> state,
         CancellationToken cancellationToken) where TValue : notnull
     {
-        foreach (var remote in state.Context.RemoteCaches)
+        // A singleton coordinator must not retain a request scope. Every shared population owns a fresh child scope,
+        // so an early caller can dispose or cancel its own scope without invalidating a surviving cache miss.
+        await using var scope = state.ScopeFactory.CreateAsyncScope();
+        var database = state.IsKeyed
+            ? scope.ServiceProvider.GetRequiredKeyedService<ICaeriusNetDbContext>(state.ContextName)
+            : scope.ServiceProvider.GetRequiredService<ICaeriusNetDbContext>();
+        var context = GetContext(database);
+
+        var snapshots = new CaeriusCacheTagSnapshot[context.RemoteCaches.Count];
+        for (var index = 0; index < context.RemoteCaches.Count; index++)
             try
             {
-                var lookup = await remote.TryGetAsync(state.Key, state.Codec, cancellationToken).ConfigureAwait(false);
-                state.Context.Instrumentation.CacheLookup(CaeriusCacheTier.Redis, lookup.Found);
+                var remote = context.RemoteCaches[index];
+                snapshots[index] = await remote.CaptureTagSnapshotAsync(
+                    state.Command.DependencyTags,
+                    cancellationToken).ConfigureAwait(false);
+                var lookup = await remote.TryGetAsync(
+                    state.Key,
+                    state.Command.DependencyTags,
+                    state.Codec,
+                    cancellationToken).ConfigureAwait(false);
+                context.Instrumentation.CacheLookup(CaeriusCacheTier.Redis, lookup.Found);
                 if (lookup.Found)
                     return lookup.Value!;
             }
@@ -283,18 +332,28 @@ internal static class CaeriusExecutor
             }
             catch (Exception exception)
             {
-                Telemetry.CaeriusRuntimeLog.RedisLookupFailed(
-                    state.Context.Logger,
+                CaeriusRuntimeLog.RedisLookupFailed(
+                    context.Logger,
                     state.Command.FullName,
                     exception.GetType().FullName ?? exception.GetType().Name);
-                state.Context.Instrumentation.CacheError(CaeriusCacheTier.Redis);
+                context.Instrumentation.CacheError(CaeriusCacheTier.Redis);
+                snapshots[index] = new CaeriusCacheTagSnapshot(
+                    ImmutableArray.CreateRange(Enumerable.Repeat(0L, state.Command.DependencyTags.Length)));
             }
 
-        var value = await state.SqlFactory(state.FactoryState, cancellationToken).ConfigureAwait(false);
-        foreach (var remote in state.Context.RemoteCaches)
+        var value = await state.SqlFactory(context, state.FactoryState, cancellationToken).ConfigureAwait(false);
+        for (var index = 0; index < context.RemoteCaches.Count; index++)
             try
             {
-                await remote.SetAsync(state.Key, value, state.Codec, state.Expiration, cancellationToken)
+                var remote = context.RemoteCaches[index];
+                _ = await remote.SetIfTagSnapshotUnchangedAsync(
+                        state.Key,
+                        value,
+                        state.Command.DependencyTags,
+                        snapshots[index],
+                        state.Codec,
+                        state.Expiration,
+                        cancellationToken)
                     .ConfigureAwait(false);
             }
             catch (OperationCanceledException)
@@ -303,11 +362,11 @@ internal static class CaeriusExecutor
             }
             catch (Exception exception)
             {
-                Telemetry.CaeriusRuntimeLog.RedisPopulationFailed(
-                    state.Context.Logger,
+                CaeriusRuntimeLog.RedisPopulationFailed(
+                    context.Logger,
                     state.Command.FullName,
                     exception.GetType().FullName ?? exception.GetType().Name);
-                state.Context.Instrumentation.CacheError(CaeriusCacheTier.Redis);
+                context.Instrumentation.CacheError(CaeriusCacheTier.Redis);
             }
 
         return value;
@@ -315,30 +374,44 @@ internal static class CaeriusExecutor
 
     internal static async ValueTask InvalidateStrictAsync(
         ICaeriusExecutionContext context,
-        IEnumerable<string> keys,
+        IEnumerable<string> tags,
         CancellationToken cancellationToken)
     {
-        foreach (var key in keys.Distinct(StringComparer.Ordinal))
+        var distinctTags = tags.Distinct(StringComparer.Ordinal).ToArray();
+        if (distinctTags.Length == 0)
+            return;
+
+        context.CacheTags.Invalidate(distinctTags);
+        foreach (var remote in context.RemoteCaches)
+            try
+            {
+                await remote.InvalidateTagsAsync(distinctTags, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (CaeriusCacheException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw new CaeriusCacheException("invalidate-tags", exception);
+            }
+    }
+
+    internal static async ValueTask InvalidateAfterDurableSqlAsync(
+        ICaeriusExecutionContext context,
+        IEnumerable<string> tags)
+    {
+        try
         {
-            context.MemoryCache.Remove(key);
-            context.FrozenCache.Remove(key);
-            foreach (var remote in context.RemoteCaches)
-                try
-                {
-                    await remote.RemoveAsync(key, cancellationToken).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch (CaeriusCacheException)
-                {
-                    throw;
-                }
-                catch (Exception exception)
-                {
-                    throw new CaeriusCacheException("remove", exception);
-                }
+            await InvalidateStrictAsync(context, tags, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is not CaeriusCacheInvalidationException)
+        {
+            throw new CaeriusCacheInvalidationException(exception);
         }
     }
 
@@ -370,7 +443,15 @@ internal static class CaeriusExecutor
         {
             if (parameter.Direction == ParameterDirection.Input)
                 continue;
-            values[parameter.ParameterName] = parameter.Value is DBNull ? null : parameter.Value;
+
+            // Value requests SqlClient's CLR-decimal projection.  That projection overflows for
+            // SQL decimal(29..38), even though SqlValue can faithfully expose the SQL value as a
+            // SqlDecimal.  Do not touch Value for decimals: merely reading it is enough to lose a
+            // perfectly valid output parameter.
+            var value = parameter.SqlDbType == SqlDbType.Decimal
+                ? parameter.SqlValue
+                : parameter.Value;
+            values[parameter.ParameterName] = value is DBNull or INullable { IsNull: true } ? null : value;
         }
 
         return new CaeriusOutputValues(new ReadOnlyDictionary<string, object?>(values));
@@ -393,7 +474,7 @@ internal static class CaeriusExecutor
         StoredProcedureCommand command,
         CancellationToken cancellationToken)
     {
-        if (!await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+        if (!await MoveToNextColumnResultAsync(reader, cancellationToken).ConfigureAwait(false))
             return;
         await DrainRemainingAsync(reader, cancellationToken).ConfigureAwait(false);
         throw new CaeriusContractException(
@@ -404,36 +485,36 @@ internal static class CaeriusExecutor
     {
         if (value is T typed)
             return typed;
-        var target = Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T);
         try
         {
-            if (target.IsEnum)
-            {
-                var underlying = Enum.GetUnderlyingType(target);
-                var numeric = Convert.ChangeType(value, underlying, CultureInfo.InvariantCulture)!;
-                return (T)Enum.ToObject(target, numeric);
-            }
-
-            if (target == typeof(Guid))
-                return (T)(object)(value switch
-                {
-                    Guid guid => guid,
-                    string text => Guid.Parse(text),
-                    byte[] bytes => new Guid(bytes),
-                    _ => throw new InvalidCastException()
-                });
-            if (target == typeof(DateOnly) && value is DateTime date)
-                return (T)(object)DateOnly.FromDateTime(date);
-            if (target == typeof(TimeOnly) && value is TimeSpan time)
-                return (T)(object)TimeOnly.FromTimeSpan(time);
-            return (T)Convert.ChangeType(value, target, CultureInfo.InvariantCulture);
+            return (T)CaeriusValueConverter.Convert(value, typeof(T));
         }
-        catch (Exception exception) when (exception is InvalidCastException or FormatException or OverflowException)
+        catch (Exception exception) when (exception is InvalidCastException or FormatException or OverflowException or
+                                              SqlTypeException)
         {
             throw new CaeriusContractException(
                 $"Scalar from '{command.FullName}' cannot be converted from {value.GetType().FullName} to {typeof(T).FullName}.",
                 exception);
         }
+    }
+
+    internal static async ValueTask<bool> MoveToFirstColumnResultAsync(
+        SqlDataReader reader,
+        CancellationToken cancellationToken)
+    {
+        if (reader.FieldCount > 0)
+            return true;
+        return await MoveToNextColumnResultAsync(reader, cancellationToken).ConfigureAwait(false);
+    }
+
+    internal static async ValueTask<bool> MoveToNextColumnResultAsync(
+        SqlDataReader reader,
+        CancellationToken cancellationToken)
+    {
+        while (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+            if (reader.FieldCount > 0)
+                return true;
+        return false;
     }
 
     internal static T ConvertRequiredScalar<T>(CaeriusScalarRow row, StoredProcedureCommand command)
@@ -460,16 +541,43 @@ internal static class CaeriusExecutor
 
         return ConvertScalar<T>(value, command);
     }
+
+    private static async ValueTask DisposeWithoutMaskingAsync(IAsyncDisposable disposable)
+    {
+        try
+        {
+            await disposable.DisposeAsync().ConfigureAwait(false);
+        }
+        catch
+        {
+            // Cleanup is best effort. A closed/broken pooled connection is discarded by SqlClient;
+            // it must not make a durable-write outcome or its cache-invalidation exception ambiguous.
+        }
+    }
+
+    private static void DisposeInstrumentationWithoutMasking(CaeriusInstrumentation.Operation instrumentation)
+    {
+        try
+        {
+            instrumentation.Dispose();
+        }
+        catch
+        {
+            // Observability is deliberately non-authoritative for database correctness.
+        }
+    }
 }
 
 internal readonly record struct RedisReadThroughState<TValue, TState>(
-    ICaeriusExecutionContext Context,
+    IServiceScopeFactory ScopeFactory,
+    string ContextName,
+    bool IsKeyed,
     StoredProcedureCommand Command,
     string Key,
     TimeSpan? Expiration,
     ICaeriusCacheCodec<TValue> Codec,
     TState FactoryState,
-    Func<TState, CancellationToken, ValueTask<TValue>> SqlFactory)
+    Func<ICaeriusExecutionContext, TState, CancellationToken, ValueTask<TValue>> SqlFactory)
     where TValue : notnull;
 
 internal readonly record struct CaeriusScalarRow(bool HasRow, object? Value)

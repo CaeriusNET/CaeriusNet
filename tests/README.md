@@ -7,13 +7,13 @@ integration tests against a real SQL Server instance.
 
 ## Test Projects
 
-| Project                     | Type        | Framework                 |
-|-----------------------------|-------------|---------------------------|
-| CaeriusNet.Tests            | Unit        | xUnit v3                  |
-| CaeriusNet.Analyzer.Tests   | Analyzer    | xUnit v3 + Roslyn         |
-| CaeriusNet.Generator.Tests  | Generator   | xUnit v3 + Roslyn         |
-| CaeriusNet.IntegrationTests | Integration | xUnit v3 + Testcontainers |
-| CaeriusNet.Packaging.Tests  | Packaging   | xUnit v3 + local NuGet    |
+| Project                     | Type        | Framework / runner                                     |
+|-----------------------------|-------------|--------------------------------------------------------|
+| CaeriusNet.Tests            | Unit        | xUnit v3 / Microsoft.Testing.Platform                  |
+| CaeriusNet.Analyzer.Tests   | Analyzer    | xUnit v3 + Roslyn / Microsoft.Testing.Platform         |
+| CaeriusNet.Generator.Tests  | Generator   | xUnit v3 + Roslyn / Microsoft.Testing.Platform         |
+| CaeriusNet.IntegrationTests | Integration | xUnit v3 + Testcontainers / Microsoft.Testing.Platform |
+| CaeriusNet.Packaging.Tests  | Packaging   | xUnit v3 + local NuGet / Microsoft.Testing.Platform    |
 
 ## Prerequisites
 
@@ -37,38 +37,38 @@ reported as skipped rather than silently starting infrastructure.
 ### All tests except integration
 
 ```bash
-dotnet test CaeriusNet.slnx --configuration Release --filter "FullyQualifiedName!~CaeriusNet.IntegrationTests"
+dotnet test --solution CaeriusNet.slnx --configuration Release --filter "FullyQualifiedName!~CaeriusNet.IntegrationTests" --report-trx --coverage
 ```
 
 ### Unit tests only
 
 ```bash
-dotnet test tests/CaeriusNet.Tests/CaeriusNet.Tests.csproj --configuration Release
+dotnet test --project tests/CaeriusNet.Tests/CaeriusNet.Tests.csproj --configuration Release --report-trx --coverage
 ```
 
 ### Generator tests only
 
 ```bash
-dotnet test tests/CaeriusNet.Generator.Tests/CaeriusNet.Generator.Tests.csproj --configuration Release
+dotnet test --project tests/CaeriusNet.Generator.Tests/CaeriusNet.Generator.Tests.csproj --configuration Release --report-trx --coverage
 ```
 
 ### Analyzer tests only
 
 ```bash
-dotnet test tests/CaeriusNet.Analyzer.Tests/CaeriusNet.Analyzer.Tests.csproj --configuration Release
+dotnet test --project tests/CaeriusNet.Analyzer.Tests/CaeriusNet.Analyzer.Tests.csproj --configuration Release --report-trx --coverage
 ```
 
 ### Integration tests
 
 ```bash
 $env:CAERIUS_RUN_CONTAINERS = 'true'
-dotnet test tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj --configuration Release
+dotnet test --project tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj --configuration Release --report-trx --coverage
 ```
 
 ### All tests
 
 ```bash
-dotnet test CaeriusNet.slnx --configuration Release
+dotnet test --solution CaeriusNet.slnx --configuration Release --report-trx --coverage
 ```
 
 ## Test Categories
@@ -116,5 +116,8 @@ separately maintained static schema file.
 
 ## CI/CD
 
-Unit and generator tests run in the main `CI` workflow on every push and pull request. Integration tests run in the
-separate `Integration Tests` workflow with Docker support.
+All five projects use Microsoft.Testing.Platform natively. `--report-trx` is provided by
+`Microsoft.Testing.Extensions.TrxReport` and `--coverage` by `Microsoft.Testing.Extensions.CodeCoverage`; Coverlet is
+not required. `Microsoft.NET.Test.Sdk` and `xunit.runner.visualstudio` remain temporarily for Rider discovery. Unit and
+generator tests run in the main `CI` workflow on every push and pull request. Integration tests run in the separate
+`Integration Tests` workflow with Docker support.

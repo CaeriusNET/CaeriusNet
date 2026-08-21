@@ -8,7 +8,7 @@ public static class CaeriusNetServiceCollectionExtensions
         this IServiceCollection services,
         Action<CaeriusNetOptions> configure)
     {
-        return AddCaeriusNetCore(services, Microsoft.Extensions.Options.Options.DefaultName, configure, false);
+        return AddCaeriusNetCore(services, Options.Options.DefaultName, configure, false);
     }
 
     public static IServiceCollection AddCaeriusNet(
@@ -82,6 +82,7 @@ public static class CaeriusNetServiceCollectionExtensions
         services.TryAddSingleton<IInMemoryCacheManager, InMemoryCacheManager>();
         services.TryAddSingleton<IFrozenCacheManager, FrozenCacheManager>();
         services.TryAddSingleton<RedisReadThroughCoordinator>();
+        services.TryAddSingleton<CacheTagVersionRegistry>();
         services.TryAddSingleton<CaeriusInstrumentation>();
 
         if (keyed)
@@ -89,7 +90,7 @@ public static class CaeriusNetServiceCollectionExtensions
                 CaeriusNetDbContext.Create(provider, name));
         else
             services.TryAddScoped<ICaeriusNetDbContext>(provider =>
-                CaeriusNetDbContext.Create(provider, Microsoft.Extensions.Options.Options.DefaultName));
+                CaeriusNetDbContext.Create(provider, Options.Options.DefaultName));
 
         return services;
     }

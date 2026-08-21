@@ -11,6 +11,9 @@ services.AddCaeriusNet("reporting", options => options.UseSqlServer(reportingCon
 
 Resolve the intended `ICaeriusNetDbContext` with `[FromKeyedServices("reporting")]`. Each host has its own options, cache managers and diagnostics pipeline.
 
+Production connection strings require `Encrypt=Strict;TrustServerCertificate=False` and a certificate trusted by the
+application host. Do not relax certificate validation merely to make a deployment connect.
+
 When a named database is configured through a connection or lease factory and uses Redis, make its cache isolation explicit. `UseSqlServer(string)` derives this automatically, but a factory does not expose a safe stable endpoint until the connection is opened:
 
 ```csharp

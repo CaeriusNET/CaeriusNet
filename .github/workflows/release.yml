@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'NuGet version for all CaeriusNet packages (for example 12.0.0)'
+        description: 'NuGet version for all CaeriusNet packages (for example 11.2.0)'
         required: true
-        default: '12.0.0'
+        default: '11.2.0'
         type: string
       release_notes:
         description: 'Release notes (leave empty to generate them from commits)'
@@ -56,6 +56,9 @@ jobs:
       - name: Display .NET SDK info
         run: dotnet --info
 
+      - name: Set deterministic package timestamp
+        run: echo "SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct)" >> "$GITHUB_ENV"
+
       - name: Cache NuGet packages
         uses: actions/cache@v6
         with:
@@ -88,12 +91,23 @@ jobs:
 
       - name: Test unit and compiler projects
         run: |
-          dotnet test CaeriusNet.slnx \
-            --configuration Release \
-            --no-restore \
-            --no-build \
-            --filter "FullyQualifiedName!~IntegrationTests&FullyQualifiedName!~Packaging.Tests" \
-            --logger "console;verbosity=normal"
+          set -euo pipefail
+          for test_project in \
+            tests/CaeriusNet.Tests/CaeriusNet.Tests.csproj \
+            tests/CaeriusNet.Analyzer.Tests/CaeriusNet.Analyzer.Tests.csproj \
+            tests/CaeriusNet.Generator.Tests/CaeriusNet.Generator.Tests.csproj; do
+            test_name=$(basename "$(dirname "$test_project")")
+            dotnet test --project "$test_project" \
+              --configuration Release \
+              --no-restore \
+              --no-build \
+              --results-directory ./artifacts/test-results \
+              --report-trx \
+              --report-trx-filename "$test_name.trx" \
+              --coverage \
+              --coverage-output "$test_name.coverage.cobertura.xml" \
+              --coverage-output-format cobertura
+          done
 
       - name: Pack exact release artifacts once
         run: |
@@ -105,13 +119,31 @@ jobs:
           dotnet pack src/CaeriusNet.Aspire/CaeriusNet.Aspire.csproj --configuration Release --no-build --output "$package_directory"
           dotnet pack src/CaeriusNet.Contracts/CaeriusNet.Contracts.csproj --configuration Release --no-build --output "$package_directory"
 
+          repro_directory="$RUNNER_TEMP/caeriusnet-packages-repro"
+          mkdir -p "$repro_directory"
+          for project in \
+            src/CaeriusNet/CaeriusNet.csproj \
+            src/CaeriusNet.Redis/CaeriusNet.Redis.csproj \
+            src/CaeriusNet.Aspire/CaeriusNet.Aspire.csproj \
+            src/CaeriusNet.Contracts/CaeriusNet.Contracts.csproj; do
+            dotnet pack "$project" --configuration Release --no-build --output "$repro_directory"
+          done
+          for artifact in "$package_directory"/*.nupkg "$package_directory"/*.snupkg; do
+            cmp --silent "$artifact" "$repro_directory/$(basename "$artifact")"
+          done
+
       - name: Exercise packaging acceptance tests from the exact release artifacts
         run: |
-          dotnet test tests/CaeriusNet.Packaging.Tests/CaeriusNet.Packaging.Tests.csproj \
+          dotnet test --project tests/CaeriusNet.Packaging.Tests/CaeriusNet.Packaging.Tests.csproj \
             --configuration Release \
             --no-restore \
             --no-build \
-            --logger "console;verbosity=normal"
+            --results-directory ./artifacts/test-results/packaging \
+            --report-trx \
+            --report-trx-filename packaging-results.trx \
+            --coverage \
+            --coverage-output packaging.coverage.cobertura.xml \
+            --coverage-output-format cobertura
 
       - name: Validate exact release package layout, symbols and package validation
         shell: pwsh
@@ -125,7 +157,9 @@ jobs:
       - name: Verify Source Link for release binaries
         shell: pwsh
         run: |
-          & ./.github/scripts/ValidateSourceLink.ps1 -Configuration Release
+          & ./.github/scripts/ValidateSourceLink.ps1 `
+            -Configuration Release `
+            -PackageDirectory "$env:GITHUB_WORKSPACE/artifacts/packages"
 
       - name: Restore four isolated consumers from the exact release packages
         run: bash ./.github/scripts/ValidatePackageConsumers.sh "$GITHUB_WORKSPACE/artifacts/packages" "$RUNNER_TEMP/caeriusnet-release-consumers"
@@ -135,11 +169,16 @@ jobs:
           CAERIUS_RUN_CONTAINERS: 'true'
           CAERIUS_PACKAGE_DIRECTORY: ${{ github.workspace }}/artifacts/packages
         run: |
-          dotnet test tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj \
+          dotnet test --project tests/CaeriusNet.IntegrationTests/CaeriusNet.IntegrationTests.csproj \
             --configuration Release \
             --no-restore \
             --no-build \
-            --logger "console;verbosity=normal"
+            --results-directory ./artifacts/test-results/integration \
+            --report-trx \
+            --report-trx-filename integration-results.trx \
+            --coverage \
+            --coverage-output integration.coverage.cobertura.xml \
+            --coverage-output-format cobertura
 
       - name: Record exact release artifact hashes
         run: |

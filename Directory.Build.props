@@ -23,7 +23,7 @@
         <NoWarn>$(NoWarn);CS1591</NoWarn>
         <NoWarn Condition="'$(CaeriusDistributionPackage)' == 'true'">$(NoWarn);RS0050;RS0051;RS0052;RS0053;RS0054;RS0055;RS0056;RS0057;RS0058;RS0059;RS0060;RS0061</NoWarn>
 
-        <Version>12.0.0</Version>
+        <Version>11.2.0</Version>
         <Authors>AriusII &amp; CaeriusNet</Authors>
         <Company>CaeriusNet</Company>
         <Copyright>Copyright © CaeriusNet 2026</Copyright>
@@ -37,7 +37,7 @@
         <PackageReadmeFile>README.md</PackageReadmeFile>
         <GenerateDocumentationFile Condition="'$(CaeriusDistributionPackage)' == 'true'">true</GenerateDocumentationFile>
         <EnablePackageValidation Condition="'$(CaeriusDistributionPackage)' == 'true'">true</EnablePackageValidation>
-        <PackageValidationBaselineVersion Condition="'$(CaeriusDistributionPackage)' == 'true' and '$(Version)' != '12.0.0'">12.0.0</PackageValidationBaselineVersion>
+        <PackageValidationBaselineVersion Condition="'$(CaeriusDistributionPackage)' == 'true' and '$(Version)' != '11.2.0'">11.2.0</PackageValidationBaselineVersion>
         <NuGetAuditLevel>moderate</NuGetAuditLevel>
         <NuGetAuditMode>all</NuGetAuditMode>
         <!-- The committed lock graph makes every CI restore reproducible. Local restore
@@ -46,15 +46,23 @@
         <RestoreLockedMode Condition="'$(CI)' == 'true'">true</RestoreLockedMode>
     </PropertyGroup>
 
+    <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('Tests'))">
+        <OutputType>Exe</OutputType>
+        <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+    </PropertyGroup>
+
+    <ItemGroup Condition="$(MSBuildProjectName.EndsWith('Tests'))">
+        <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" PrivateAssets="all"/>
+        <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" PrivateAssets="all"/>
+    </ItemGroup>
+
     <ItemGroup Condition="'$(CaeriusDistributionPackage)' == 'true'">
         <None Include="$(MSBuildThisFileDirectory)LICENSE" Pack="true" PackagePath="" Visible="false"/>
         <None Include="$(MSBuildThisFileDirectory)assets\icon.png" Pack="true" PackagePath="" Visible="false"/>
         <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all"/>
     </ItemGroup>
 
-    <!-- Roslyn components are build-time assemblies only: Source Link adds restore and
-         evaluation work but produces no consumer-facing package benefit for them. -->
-    <ItemGroup Condition="'$(MSBuildProjectName)' != 'CaeriusNet.Generator' and '$(MSBuildProjectName)' != 'CaeriusNet.Analyzer' and '$(MSBuildProjectName)' != 'CaeriusNet.MultiResultApiGenerator'">
+    <ItemGroup>
         <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="all"/>
     </ItemGroup>
 

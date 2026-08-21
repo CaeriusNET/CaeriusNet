@@ -473,12 +473,14 @@ public sealed class DtoSourceGeneratorTests
                               public sealed partial record ItemDto(int Id, Status Status);
                               """;
 
-        var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
+        var (result, compilation) = SourceGeneratorTestHelper.RunGeneratorWithCompilation<DtoSourceGenerator>(source);
 
         Assert.Single(result.GeneratedTrees);
         var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
         Assert.Contains("reader.GetInt32(1)", generated);
-        Assert.Contains("(Test.Models.Status)", generated);
+        Assert.Contains("(global::Test.Models.Status)", generated);
+        Assert.Empty(compilation.GetDiagnostics(TestContext.Current.CancellationToken).Where(static diagnostic =>
+            diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Id != "CS0009"));
     }
 
     [Fact]
@@ -511,7 +513,7 @@ public sealed class DtoSourceGeneratorTests
         Assert.Single(result.GeneratedTrees);
         var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
         Assert.Contains("GetFloat", generated);
-        Assert.Contains("(Half)", generated);
+        Assert.Contains("checked((global::System.Half)reader.GetFloat(1))", generated);
     }
 
     [Fact]
@@ -529,7 +531,7 @@ public sealed class DtoSourceGeneratorTests
         Assert.Single(result.GeneratedTrees);
         var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
         Assert.Contains("reader.IsDBNull(1)", generated);
-        Assert.Contains("(Half)", generated);
+        Assert.Contains("checked((global::System.Half)reader.GetFloat(1))", generated);
         Assert.Contains("GetFloat", generated);
     }
 
@@ -584,8 +586,8 @@ public sealed class DtoSourceGeneratorTests
         var result = SourceGeneratorTestHelper.RunGenerator<DtoSourceGenerator>(source);
 
         var generated = result.GeneratedTrees[0].GetText(TestContext.Current.CancellationToken).ToString();
-        Assert.Contains("[GeneratedCode(\"CaeriusNet.Generator\"", generated);
-        Assert.Contains("\"12.0.0\")]", generated);
+        Assert.Contains("[global::System.CodeDom.Compiler.GeneratedCode(\"CaeriusNet.Generator\"", generated);
+        Assert.Contains("\"11.2.0\")]", generated);
     }
 
     [Fact]
@@ -653,7 +655,7 @@ public sealed class DtoSourceGeneratorTests
         Assert.Null(Assert.Single(result.Results).Exception);
         var generated = Assert.Single(result.GeneratedTrees).GetText(TestContext.Current.CancellationToken).ToString();
         Assert.Contains("namespace @event;", generated);
-        Assert.Contains("partial record @class : ISpMapper<@class>", generated);
+        Assert.Contains("partial record @class : global::CaeriusNet.Mappers.ISpMapper<@class>", generated);
         Assert.Contains("value.foo", generated);
         Assert.Contains("value.Foo", generated);
         Assert.Contains("ColumnOrdinal0", generated);
@@ -661,5 +663,80 @@ public sealed class DtoSourceGeneratorTests
         Assert.DoesNotContain("ColumnOrdinalfoo", generated, StringComparison.Ordinal);
         Assert.Empty(compilation.GetDiagnostics(TestContext.Current.CancellationToken).Where(static diagnostic =>
             diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Id != "CS0009"));
+    }
+
+    [Fact]
+    public void SqlDecimal_Dto_Uses_GetSqlDecimal_And_Compiles()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record LedgerDto(System.Data.SqlTypes.SqlDecimal Amount);
+                              """;
+
+        var (result, compilation) =
+            SourceGeneratorTestHelper.RunGeneratorWithCompilation<DtoSourceGenerator>(source);
+
+        Assert.Null(Assert.Single(result.Results).Exception);
+        var generated = Assert.Single(result.GeneratedTrees).GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.Contains("reader.GetSqlDecimal(0)", generated);
+        Assert.Contains("binary.WriteSqlDecimal(value.Amount)", generated);
+        Assert.Contains("binary.ReadSqlDecimal()", generated);
+        Assert.Empty(compilation.GetDiagnostics(TestContext.Current.CancellationToken).Where(static diagnostic =>
+            diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Id != "CS0009"));
+    }
+
+    [Fact]
+    public void GeneratedDto_Uses_GlobalQualified_FrameworkReferences_And_Compiles()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              public sealed class SqlDataReader;
+                              public sealed class DateOnly;
+                              public sealed class TimeOnly;
+                              public sealed class Half;
+                              [GenerateDto]
+                              public sealed partial record FrameworkNamesDto(
+                                  System.DateOnly Date,
+                                  System.TimeOnly Time,
+                                  System.Half Ratio,
+                                  char Initial);
+                              """;
+
+        var (result, compilation) =
+            SourceGeneratorTestHelper.RunGeneratorWithCompilation<DtoSourceGenerator>(source);
+
+        Assert.Null(Assert.Single(result.Results).Exception);
+        var generated = Assert.Single(result.GeneratedTrees).GetText(TestContext.Current.CancellationToken).ToString();
+        Assert.DoesNotContain("\nusing ", generated, StringComparison.Ordinal);
+        Assert.Contains("global::Microsoft.Data.SqlClient.SqlDataReader", generated);
+        Assert.Contains("global::System.DateOnly.FromDateTime", generated);
+        Assert.Contains("global::System.TimeOnly.FromTimeSpan", generated);
+        Assert.Contains("checked((global::System.Half)reader.GetFloat(2))", generated);
+        Assert.Contains("binary.WriteChar(value.Initial)", generated);
+        Assert.DoesNotContain("char.ToString", generated, StringComparison.Ordinal);
+        Assert.Empty(compilation.GetDiagnostics(TestContext.Current.CancellationToken).Where(static diagnostic =>
+            diagnostic.Severity == DiagnosticSeverity.Error && diagnostic.Id != "CS0009"));
+    }
+
+    [Fact]
+    public void Unsupported_Dto_Type_Does_Not_Throw_Or_Emit_Source()
+    {
+        const string source = """
+                              using CaeriusNet;
+                              namespace Test.Models;
+                              [GenerateDto]
+                              public sealed partial record InvalidDto(System.Uri Endpoint);
+                              """;
+
+        var (result, compilation) =
+            SourceGeneratorTestHelper.RunGeneratorWithCompilation<DtoSourceGenerator>(source);
+
+        Assert.Null(Assert.Single(result.Results).Exception);
+        Assert.Empty(result.GeneratedTrees);
+        Assert.DoesNotContain(compilation.GetDiagnostics(TestContext.Current.CancellationToken), static diagnostic =>
+            diagnostic.Id is "CS8784" or "CS8785");
     }
 }

@@ -99,6 +99,9 @@ internal static class ContractHasher
         AppendValue(builder, column.MaxLength);
         AppendValue(builder, column.Precision);
         AppendValue(builder, column.Scale);
+        AppendValue(builder, column.LocaleId);
+        AppendValue(builder, column.SqlCompareOptions);
+        AppendValue(builder, column.Collation);
     }
 
     private static void AppendValue(StringBuilder builder, string? value)

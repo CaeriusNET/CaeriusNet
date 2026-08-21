@@ -12,7 +12,7 @@ public sealed partial class UsersRepository
 
     public async Task<IReadOnlyCollection<UserDto>> GetUsersByTvpInt(CancellationToken cancellationToken = default)
     {
-        IEnumerable<UsersIntTvp> ids = [new(1), new(2), new(3), new(4)];
+        IReadOnlyCollection<UsersIntTvp> ids = [new(1), new(2), new(3), new(4)];
 
         var command = new StoredProcedureCommandBuilder("Users", "usp_Get_Users_From_TvpInt", 5)
             .AddTvpParameter("tvp", ids)
@@ -25,7 +25,7 @@ public sealed partial class UsersRepository
 
     public async Task<ImmutableArray<UserDto>> GetUsersByTvpGuid(CancellationToken cancellationToken = default)
     {
-        IEnumerable<UsersGuidTvp> guids =
+        IReadOnlyCollection<UsersGuidTvp> guids =
         [
             new(Guid.Parse("11111111-1111-1111-1111-111111111111")),
             new(Guid.Parse("33333333-3333-3333-3333-333333333333")),
@@ -43,7 +43,7 @@ public sealed partial class UsersRepository
 
     public async Task<IEnumerable<UserDto>> GetUsersByTvpIntGuid(CancellationToken cancellationToken = default)
     {
-        IEnumerable<UsersIntGuidTvp> pairs =
+        IReadOnlyCollection<UsersIntGuidTvp> pairs =
         [
             new(1, Guid.Parse("11111111-1111-1111-1111-111111111111")),
             new(2, Guid.Parse("22222222-2222-2222-2222-222222222222")),

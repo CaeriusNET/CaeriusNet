@@ -8,6 +8,8 @@ fi
 
 package_directory="$(cd "$1" && pwd)"
 consumer_root="$2"
+script_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repository_root="$(cd "$script_directory/../.." && pwd)"
 
 if [[ ! -d "$package_directory" ]]; then
   echo "Package directory does not exist: $package_directory" >&2
@@ -28,6 +30,9 @@ fi
 version="$core_package"
 
 mkdir -p "$consumer_root"
+# The package-only consumers must resolve the same .NET 10 SDK policy as the release build.  This also
+# prevents a globally installed preview SDK from silently changing analyzer or generator behavior.
+cp "$repository_root/global.json" "$consumer_root/global.json"
 printf '<Project />\n' > "$consumer_root/Directory.Build.props"
 printf '<Project />\n' > "$consumer_root/Directory.Build.targets"
 printf '<Project />\n' > "$consumer_root/Directory.Packages.props"

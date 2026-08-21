@@ -3,8 +3,6 @@ using CaeriusNet.Benchmark.Infrastructure;
 namespace CaeriusNet.Benchmark.ResultMaterialization;
 
 [MemoryDiagnoser]
-[WarmupCount(3)]
-[IterationCount(10)]
 [BenchmarkCategory("mapping", "scalar", "collections")]
 public class MaterializationBenchmarks
 {

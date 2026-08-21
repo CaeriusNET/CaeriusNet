@@ -20,11 +20,7 @@
         <None Include="Build\CaeriusNet.Contracts.props" Pack="true" PackagePath="buildTransitive\CaeriusNet.Contracts.props"/>
         <None Include="Build\CaeriusNet.Contracts.targets" Pack="true" PackagePath="buildTransitive\CaeriusNet.Contracts.targets"/>
     </ItemGroup>
-    <Target Name="BuildCaeriusContractsToolForPackage" Condition="'$(NoBuild)' != 'true'">
-        <MSBuild Projects="..\..\tools\CaeriusNet.SqlServer.Contracts\CaeriusNet.SqlServer.Contracts.csproj"
-                 Targets="Build" Properties="Configuration=$(Configuration);NoRestore=$(NoRestore)"/>
-    </Target>
-    <Target Name="CaeriusPackContractsTool" DependsOnTargets="BuildCaeriusContractsToolForPackage">
+    <Target Name="CaeriusPackContractsTool">
         <PropertyGroup>
             <CaeriusContractsToolOutputDirectory>$(MSBuildProjectDirectory)\..\..\tools\CaeriusNet.SqlServer.Contracts\bin\$(Configuration)\net10.0\</CaeriusContractsToolOutputDirectory>
             <CaeriusContractsToolAssembly>$(CaeriusContractsToolOutputDirectory)CaeriusNet.SqlServer.Contracts.dll</CaeriusContractsToolAssembly>
@@ -33,7 +29,7 @@
                Text="AutoContracts tool output is missing. Build the tool before packing or omit --no-build."/>
         <ItemGroup>
             <TfmSpecificPackageFile Include="$(CaeriusContractsToolOutputDirectory)**\*.*"
-                                    Exclude="$(CaeriusContractsToolOutputDirectory)publish\**\*.*"
+                                    Exclude="$(CaeriusContractsToolOutputDirectory)publish\**\*.*;$(CaeriusContractsToolOutputDirectory)CaeriusNet.SqlServer.Contracts.exe;$(CaeriusContractsToolOutputDirectory)**\*.pdb"
                                     PackagePath="tools/net10.0/any/%(RecursiveDir)%(Filename)%(Extension)"/>
         </ItemGroup>
     </Target>

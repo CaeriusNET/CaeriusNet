@@ -1,5 +1,3 @@
-using CaeriusNet;
-
 namespace CaeriusNet.Examples.Common.Models.Dtos;
 
 [GenerateDto]

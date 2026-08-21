@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Data.SqlClient;
 
 namespace CaeriusNet.SqlServer.Contracts;
 
@@ -54,7 +55,9 @@ internal static class Program
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine(ex.Message);
+            Console.Error.WriteLine(ex is SqlException sqlException
+                ? $"SQL Server contract operation failed (error {sqlException.Number}, state {sqlException.State})."
+                : $"Contract operation failed ({ex.GetType().Name}).");
             return 1;
         }
         finally
@@ -71,10 +74,16 @@ internal static class Program
             .ConfigureAwait(false);
         ContractDiagnosticWriter.Write(diagnostics);
 
+        if (diagnostics.HasErrors)
+        {
+            Console.Error.WriteLine("Manifest was not replaced because contract discovery reported errors.");
+            return 1;
+        }
+
         await WriteManifestAsync(output, manifest, cancellationToken).ConfigureAwait(false);
         Console.WriteLine($"Wrote {output}");
 
-        return diagnostics.HasErrors ? 1 : 0;
+        return 0;
     }
 
     private static async Task<int> VerifyAsync(CommandLineOptions options, CancellationToken cancellationToken)
@@ -95,7 +104,8 @@ internal static class Program
             .ConfigureAwait(false);
         ContractDiagnosticWriter.Write(diagnostics);
 
-        if (!ReportVerifyDiagnostics(existingManifest, discovered))
+        var hasInvalidStoredHashes = ReportStoredHashDiagnostics(existingManifest);
+        if (!hasInvalidStoredHashes && !ReportVerifyDiagnostics(existingManifest, discovered))
         {
             Console.WriteLine("Contract manifest is up to date.");
             return diagnostics.HasErrors ? 1 : 0;
@@ -123,8 +133,8 @@ internal static class Program
             var json = JsonSerializer.Serialize(manifest, ManifestJsonOptions);
             await File.WriteAllTextAsync(
                     tempPath,
-                    json + Environment.NewLine,
-                    Encoding.UTF8,
+                    json + "\n",
+                    new UTF8Encoding(false),
                     cancellationToken)
                 .ConfigureAwait(false);
 
@@ -154,10 +164,71 @@ internal static class Program
                 $"CAERIUS209 error: Contract manifest namespace mismatch. Expected '{discovered.Namespace}', found '{existing.Namespace}'.");
         }
 
+        if (existing.ServerMajor != discovered.ServerMajor)
+        {
+            hasDifferences = true;
+            Console.Error.WriteLine(
+                $"CAERIUS209 error: Contract manifest server-major mismatch. Expected '{discovered.ServerMajor}', found '{existing.ServerMajor}'.");
+        }
+
+        var existingFeatures =
+            (existing.Features ?? []).OrderBy(static value => value, StringComparer.OrdinalIgnoreCase);
+        var discoveredFeatures =
+            (discovered.Features ?? []).OrderBy(static value => value, StringComparer.OrdinalIgnoreCase);
+        if (!existingFeatures.SequenceEqual(discoveredFeatures, StringComparer.OrdinalIgnoreCase))
+        {
+            hasDifferences = true;
+            Console.Error.WriteLine("CAERIUS209 error: Contract manifest feature set mismatch.");
+        }
+
         hasDifferences |= ReportTableTypeDiagnostics(existing, discovered);
         hasDifferences |= ReportProcedureDiagnostics(existing, discovered);
 
         return hasDifferences;
+    }
+
+    private static bool ReportStoredHashDiagnostics(ContractManifest manifest)
+    {
+        var invalid = false;
+        foreach (var tableType in manifest.TableTypes)
+        {
+            var expected = ContractHasher.HashTableType(
+                tableType.Schema, tableType.Name, tableType.ClrName, tableType.Columns);
+            if (string.Equals(expected, tableType.ContractHash, StringComparison.Ordinal))
+                continue;
+            invalid = true;
+            Console.Error.WriteLine(
+                $"CAERIUS209 error: Stored hash does not match the semantic content of table type '{BuildFullName(tableType.Schema, tableType.Name)}'.");
+        }
+
+        foreach (var procedure in manifest.Procedures)
+        {
+            foreach (var resultSet in procedure.ResultSets)
+            {
+                var expectedResult = ContractHasher.HashResultSet(
+                    resultSet.Index, resultSet.ClrName, resultSet.Status, resultSet.ErrorMessage, resultSet.Columns);
+                if (string.Equals(expectedResult, resultSet.ContractHash, StringComparison.Ordinal))
+                    continue;
+                invalid = true;
+                Console.Error.WriteLine(
+                    $"CAERIUS209 error: Stored hash does not match result set {resultSet.Index} of '{BuildFullName(procedure.Schema, procedure.Name)}'.");
+            }
+
+            var expectedProcedure = ContractHasher.HashProcedure(
+                procedure.Schema,
+                procedure.Name,
+                procedure.ClrName,
+                procedure.ParametersClrName,
+                procedure.Parameters,
+                procedure.ResultSets);
+            if (string.Equals(expectedProcedure, procedure.ContractHash, StringComparison.Ordinal))
+                continue;
+            invalid = true;
+            Console.Error.WriteLine(
+                $"CAERIUS209 error: Stored hash does not match the semantic content of procedure '{BuildFullName(procedure.Schema, procedure.Name)}'.");
+        }
+
+        return invalid;
     }
 
     private static bool ReportTableTypeDiagnostics(ContractManifest existing, ContractManifest discovered)

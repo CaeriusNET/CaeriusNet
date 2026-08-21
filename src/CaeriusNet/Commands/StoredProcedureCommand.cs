@@ -1,5 +1,7 @@
 using System.Collections;
+using System.Data.SqlTypes;
 using CaeriusNet.Mappers;
+using Microsoft.Data.SqlTypes;
 
 namespace CaeriusNet.Commands;
 
@@ -52,15 +54,19 @@ public sealed record StoredProcedureParameterDescriptor
 
 public sealed class StoredProcedureCommand
 {
+    public const int UnspecifiedResultSetCapacity = -1;
+    private string? _contractHash;
+
     internal StoredProcedureCommand(
         string schemaName,
         string procedureName,
         int commandTimeout,
         ImmutableArray<StoredProcedureParameterDescriptor> parameters,
         ImmutableArray<int> resultSetCapacities,
-        string contractHash,
+        string? contractHash,
         CaeriusCachePolicy? cachePolicy,
-        ImmutableArray<string> invalidationKeys)
+        ImmutableArray<string> dependencyTags,
+        ImmutableArray<string> invalidationTags)
     {
         SchemaName = schemaName;
         ProcedureName = procedureName;
@@ -68,9 +74,10 @@ public sealed class StoredProcedureCommand
         CommandTimeout = commandTimeout;
         Parameters = parameters;
         ResultSetCapacities = resultSetCapacities;
-        ContractHash = contractHash;
+        _contractHash = contractHash;
         CachePolicy = cachePolicy;
-        InvalidationKeys = invalidationKeys;
+        DependencyTags = dependencyTags;
+        InvalidationTags = invalidationTags;
     }
 
     public string SchemaName { get; }
@@ -79,11 +86,20 @@ public sealed class StoredProcedureCommand
     public int CommandTimeout { get; }
     public ImmutableArray<StoredProcedureParameterDescriptor> Parameters { get; }
     public ImmutableArray<int> ResultSetCapacities { get; }
-    public string ContractHash { get; }
-    public CaeriusCachePolicy? CachePolicy { get; }
-    public ImmutableArray<string> InvalidationKeys { get; }
 
-    internal SqlCommand CreateSqlCommand(SqlConnection connection, SqlTransaction? transaction = null)
+    public string ContractHash => _contractHash ??= CaeriusCacheKeyBuilder.HashContract(
+        SchemaName,
+        ProcedureName,
+        Parameters);
+
+    public CaeriusCachePolicy? CachePolicy { get; }
+    public ImmutableArray<string> DependencyTags { get; }
+    public ImmutableArray<string> InvalidationTags { get; }
+
+    internal SqlCommand CreateSqlCommand(
+        SqlConnection connection,
+        SqlTransaction? transaction = null,
+        CancellationToken cancellationToken = default)
     {
         var command = connection.CreateCommand();
         command.CommandText = FullName;
@@ -95,15 +111,28 @@ public sealed class StoredProcedureCommand
         {
             var parameter = new SqlParameter(descriptor.Name, descriptor.DbType)
             {
-                Direction = descriptor.Direction,
-                Value = descriptor.Value switch
-                {
-                    null when descriptor.DbType == SqlDbType.Structured => null,
-                    null => DBNull.Value,
-                    ITvpParameterValue tvp => tvp.CreateValue(),
-                    var value => value
-                }
+                Direction = descriptor.Direction
             };
+
+            var value = descriptor.Value switch
+            {
+                null when descriptor.DbType == SqlDbType.Structured => null,
+                null when descriptor.DbType == SqlDbType.Vector && descriptor.Size is { } vectorDimensions =>
+                    SqlVector<float>.CreateNull(vectorDimensions),
+                // SqlClient's Value property is a CLR-decimal projection.  It cannot carry a
+                // decimal(29..38) output, whereas the SqlValue path preserves SqlDecimal's four
+                // SQL data words.  Supplying SqlDecimal.Null gives the provider the same native
+                // representation for output-only decimal parameters.
+                null when descriptor.DbType == SqlDbType.Decimal => SqlDecimal.Null,
+                null => DBNull.Value,
+                ITvpParameterValue tvp => tvp.CreateValue(cancellationToken),
+                var parameterValue => parameterValue
+            };
+
+            if (descriptor.DbType == SqlDbType.Decimal && value is SqlDecimal)
+                parameter.SqlValue = value;
+            else
+                parameter.Value = value;
 
             if (descriptor.Size is { } size)
                 parameter.Size = size;
@@ -123,68 +152,32 @@ public sealed class StoredProcedureCommand
 
 internal interface ITvpParameterValue
 {
-    object? CreateValue();
+    bool IsCacheable { get; }
+    object? CreateValue(CancellationToken cancellationToken);
     void AppendCacheKey(IncrementalHash hash);
 }
 
-internal sealed class TvpParameterValue<T> : ITvpParameterValue
+internal sealed class ReplayableTvpParameterValue<T> : ITvpParameterValue
     where T : ITvpMapper<T>
 {
-    private readonly object _gate = new();
-    private T[]? _materializedRows;
-    private IEnumerable<T> _rows;
+    private readonly IReadOnlyCollection<T> _rows;
 
-    internal TvpParameterValue(IEnumerable<T> rows)
+    internal ReplayableTvpParameterValue(IReadOnlyCollection<T> rows)
     {
         _rows = rows;
-        if (rows.TryGetNonEnumeratedCount(out var count) && count == 0)
-            _materializedRows = [];
     }
 
-    public object CreateValue()
+    public bool IsCacheable => true;
+
+    public object? CreateValue(CancellationToken cancellationToken)
     {
-        lock (_gate)
-        {
-            if (_materializedRows is { } materialized)
-                return materialized.Length == 0 ? null! : new TvpRecordEnumerable<T>(materialized);
-
-            // Microsoft.Data.SqlClient requires a null value for an empty TVP; it rejects an empty
-            // IEnumerable<SqlDataRecord> because there is no record from which to read provider metadata.
-            // Counted collections take the zero-allocation path. For an unknown, potentially very large
-            // stream, peek just one source row and replay it through a record enumerable: no full buffering,
-            // no dependency on a "first row" for the static TVP metadata, and empty streams still become null.
-            if (_rows.TryGetNonEnumeratedCount(out var count))
-                return count == 0 ? null! : new TvpRecordEnumerable<T>(_rows);
-
-            var enumerator = _rows.GetEnumerator();
-            try
-            {
-                if (!enumerator.MoveNext())
-                {
-                    enumerator.Dispose();
-                    return null!;
-                }
-
-                return new TvpRecordEnumerable<T>(enumerator, enumerator.Current);
-            }
-            catch
-            {
-                enumerator.Dispose();
-                throw;
-            }
-        }
+        cancellationToken.ThrowIfCancellationRequested();
+        return _rows.Count == 0 ? null : new TvpRecordEnumerable<T>(_rows);
     }
 
     public void AppendCacheKey(IncrementalHash hash)
     {
         ArgumentNullException.ThrowIfNull(hash);
-
-        T[] rows;
-        lock (_gate)
-        {
-            rows = _materializedRows ??= _rows.ToArray();
-            _rows = rows;
-        }
 
         CaeriusCacheKeyBuilder.AppendCanonicalValue(hash, "tvp:" + T.SqlTypeName);
         CaeriusCacheKeyBuilder.AppendCanonicalValue(hash, T.Metadata.Length);
@@ -195,16 +188,53 @@ internal sealed class TvpParameterValue<T> : ITvpParameterValue
             CaeriusCacheKeyBuilder.AppendCanonicalValue(hash, metadata.MaxLength);
             CaeriusCacheKeyBuilder.AppendCanonicalValue(hash, metadata.Precision);
             CaeriusCacheKeyBuilder.AppendCanonicalValue(hash, metadata.Scale);
+            CaeriusCacheKeyBuilder.AppendCanonicalValue(hash, metadata.LocaleId);
+            CaeriusCacheKeyBuilder.AppendCanonicalValue(hash, (int)metadata.CompareOptions);
         }
 
-        CaeriusCacheKeyBuilder.AppendCanonicalValue(hash, rows.Length);
+        CaeriusCacheKeyBuilder.AppendCanonicalValue(hash, _rows.Count);
         var record = T.CreateRecord();
-        foreach (var row in rows)
+        foreach (var row in _rows)
         {
             T.WriteRow(record, row);
             for (var ordinal = 0; ordinal < record.FieldCount; ordinal++)
                 CaeriusCacheKeyBuilder.AppendCanonicalValue(hash, record.GetValue(ordinal));
         }
+    }
+}
+
+internal sealed class StreamingTvpParameterValue<T>(Func<CancellationToken, IEnumerable<T>> rowsFactory)
+    : ITvpParameterValue
+    where T : ITvpMapper<T>
+{
+    public bool IsCacheable => false;
+
+    public object? CreateValue(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var rows = rowsFactory(cancellationToken) ??
+                   throw new CaeriusContractException("The streaming TVP factory returned null.");
+        var enumerator = rows.GetEnumerator();
+        try
+        {
+            if (!enumerator.MoveNext())
+            {
+                enumerator.Dispose();
+                return null;
+            }
+
+            return new TvpRecordEnumerable<T>(enumerator, enumerator.Current);
+        }
+        catch
+        {
+            enumerator.Dispose();
+            throw;
+        }
+    }
+
+    public void AppendCacheKey(IncrementalHash hash)
+    {
+        throw new CaeriusContractException("Streaming TVP parameters cannot participate in a cache key.");
     }
 }
 

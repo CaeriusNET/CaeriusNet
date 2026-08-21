@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Security;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using CaeriusNet.IntegrationTests.Infrastructure;
 using DotNet.Testcontainers.Builders;
 using Xunit.Sdk;
@@ -15,7 +16,7 @@ public sealed class ContractsPackageAcceptanceTests
 {
     [Theory]
     [MemberData(nameof(ContainerTestGate.SqlServerImages), MemberType = typeof(ContainerTestGate))]
-    public async Task PackedToolPullsV2ManifestAndVerifyReportsDriftWithoutLeakingConnectionSecrets(string image)
+    public async Task PackedToolPullsV3ManifestAndVerifyReportsDriftWithoutLeakingConnectionSecrets(string image)
     {
         ContainerTestGate.RequireEnabled();
         var cancellationToken = TestContext.Current.CancellationToken;
@@ -78,10 +79,39 @@ public sealed class ContractsPackageAcceptanceTests
         Assert.True(pull.ExitCode == 0, pull.ToString());
         Assert.False(ContainsSecret(pull, connectionString),
             "Pull diagnostics must never contain the connection string.");
-        Assert.True(File.Exists(manifest), "The packaged Pull target must create the v2 manifest.");
-        Assert.DoesNotContain(connectionString, await File.ReadAllTextAsync(manifest, cancellationToken),
+        Assert.True(File.Exists(manifest), "The packaged Pull target must create the v3 manifest.");
+        var originalManifest = await File.ReadAllTextAsync(manifest, cancellationToken);
+        Assert.DoesNotContain(connectionString, originalManifest,
             StringComparison.Ordinal);
-        await AssertV2ManifestAsync(manifest, cancellationToken);
+        await AssertV3ManifestAsync(manifest, cancellationToken);
+
+        var tamperedManifest = JsonNode.Parse(originalManifest)?.AsObject()
+                               ?? throw new InvalidOperationException("The pulled manifest is not a JSON object.");
+        var firstProcedure = tamperedManifest["procedures"]?.AsArray().FirstOrDefault()?.AsObject()
+                             ?? throw new InvalidOperationException("The pulled manifest has no procedure.");
+        var firstColumn = firstProcedure["resultSets"]?.AsArray().FirstOrDefault()?["columns"]?.AsArray()
+                              .FirstOrDefault()?.AsObject()
+                          ?? throw new InvalidOperationException("The pulled manifest has no result column.");
+        firstColumn["clrType"] = "long";
+        await File.WriteAllTextAsync(manifest, tamperedManifest.ToJsonString(), cancellationToken);
+
+        var staleHashVerify = await RunDotnetAsync(
+            consumerDirectory,
+            environment,
+            cancellationToken,
+            "build",
+            consumerProject,
+            "--configuration",
+            "Release",
+            "--no-restore",
+            "--nologo",
+            "-p:CaeriusContractsMode=Verify");
+
+        Assert.NotEqual(0, staleHashVerify.ExitCode);
+        Assert.Contains("Stored hash does not match", staleHashVerify.AllOutput, StringComparison.Ordinal);
+        Assert.False(ContainsSecret(staleHashVerify, connectionString),
+            "Stored-hash diagnostics must never contain the connection string.");
+        await File.WriteAllTextAsync(manifest, originalManifest, cancellationToken);
 
         await AlterContractAsync(connectionString, cancellationToken);
         var verify = await RunDotnetAsync(
@@ -139,13 +169,15 @@ public sealed class ContractsPackageAcceptanceTests
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
-    private static async Task AssertV2ManifestAsync(string manifest, CancellationToken cancellationToken)
+    private static async Task AssertV3ManifestAsync(string manifest, CancellationToken cancellationToken)
     {
         await using var stream = File.OpenRead(manifest);
         using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
         var root = document.RootElement;
-        Assert.Equal(2, root.GetProperty("version").GetInt32());
+        Assert.Equal(3, root.GetProperty("version").GetInt32());
         Assert.Equal("CaeriusNet.Generated", root.GetProperty("namespace").GetString());
+        Assert.True(root.GetProperty("serverMajor").GetInt32() is 16 or 17);
+        Assert.Equal(JsonValueKind.Array, root.GetProperty("features").ValueKind);
         Assert.Contains(
             root.GetProperty("procedures").EnumerateArray(),
             static procedure => procedure.GetProperty("schema").GetString() == "dbo" &&

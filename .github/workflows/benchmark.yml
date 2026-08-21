@@ -23,7 +23,11 @@ on:
           - command
           - tvp
           - materialization
+          - multi-result
           - cache
+          - sql-server
+          - redis
+          - generator
       mode:
         description: 'Run one category, compare the full suite, or record a full-suite candidate baseline artifact.'
         required: true
@@ -34,9 +38,9 @@ on:
           - compare
           - record
       baseline_version:
-        description: 'Committed release baseline to compare (for example 12.0.0).'
+        description: 'Committed release baseline to compare (for example 11.2.0).'
         required: true
-        default: 12.0.0
+        default: 11.2.0
         type: string
 
 permissions:
@@ -69,6 +73,9 @@ jobs:
         with:
           global-json-file: global.json
 
+      - name: Capture SDK for the benchmark environment manifest
+        run: echo "CAERIUS_BENCHMARK_SDK_VERSION=$(dotnet --version)" >> "$GITHUB_ENV"
+
       - name: Cache NuGet packages
         uses: actions/cache@v6
         with:
@@ -95,15 +102,19 @@ jobs:
           RESULTS="$BENCHMARK_ARTIFACTS_PATH/results"
           test -d "$RESULTS"
           test -n "$(find "$RESULTS" -type f -name '*-report-full*.json' -print -quit)"
+          # This records checksums for reports that BenchmarkDotNet has already declared successful. It does not
+          # create a synthetic timing baseline, and compare/record reject a result set without this manifest.
+          dotnet run --project benchmarks/CaeriusNet.Benchmark.csproj --configuration Release --no-build -- \
+            --write-environment "$RESULTS" "$CATEGORY"
           echo "results=$RESULTS" >> "$GITHUB_OUTPUT"
 
       - name: Validate baseline version input
         if: inputs.mode != 'run'
         id: baseline
         run: |
-          VERSION="${{ inputs.baseline_version || '12.0.0' }}"
+          VERSION="${{ inputs.baseline_version || '11.2.0' }}"
           if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "baseline_version must be a version such as 12.0.0; got '$VERSION'." >&2
+            echo "baseline_version must be a version such as 11.2.0; got '$VERSION'." >&2
             exit 64
           fi
           echo "directory=$GITHUB_WORKSPACE/benchmarks/baselines/$VERSION" >> "$GITHUB_OUTPUT"
@@ -125,7 +136,8 @@ jobs:
           CANDIDATE_DIRECTORY: ${{ steps.run.outputs.results }}
         run: |
           # A missing baseline is intentionally an error. Bootstrap it with workflow_dispatch mode=record,
-          # review the artifact, then commit its JSON under benchmarks/baselines/12.0.0.
+          # review the measured reports and caerius-benchmark-environment.v1.json, then commit them under
+          # benchmarks/baselines/11.2.0. The comparator rejects a different runner/runtime/job fingerprint.
           dotnet run --project benchmarks/CaeriusNet.Benchmark.csproj --configuration Release --no-build -- \
             --compare "$BASELINE_DIRECTORY" "$CANDIDATE_DIRECTORY" --max-time-regression 5
 

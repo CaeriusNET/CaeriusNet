@@ -5,15 +5,15 @@
 
 ## Cause
 
-A type decorated with `[GenerateDto]` or `[GenerateTvp]` is either a generic type or a nested
-type. CaeriusNet generators currently only support non-generic, top-level types.
+A generator target is generic/nested or has a shape that CaeriusNet cannot generate safely. Targets must be non-generic
+top-level partial types. `[GenerateDto]` is a sealed reference type; `[GenerateTvp]` is either a sealed positional
+record class or a readonly positional record struct. An ordinary class with a primary constructor is not a TVP target.
 
 ## Why
 
 The source generators emit companion `partial` declarations that must be placed in a well-known
-namespace without additional type parameters. Generic and nested types would require reproducing
-the enclosing type hierarchy and all type parameters in the generated output, which is not
-currently supported.
+namespace without additional type parameters. Generic/nested types would require reproducing the enclosing hierarchy
+and type parameters. Allowing other TVP shapes would make static SQL row metadata ambiguous. Neither is generated.
 
 ## How to fix
 
@@ -35,3 +35,5 @@ public sealed partial record FooDto<T>(int Id, T Value);
 [GenerateDto]
 public sealed partial record FooDto(int Id, string Name);
 ```
+
+For a value-type TVP, use `public readonly partial record struct FooTvp(int Id);`.

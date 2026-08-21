@@ -94,7 +94,7 @@ public sealed partial record UsersIntGuidTvp(int UserId, Guid UserGuid);
 public async Task<IReadOnlyCollection<UserDto>> GetUsersByTvpIntAsync(
     CancellationToken ct)
 {
-    IEnumerable<UsersIntTvp> ids = [new(1), new(2), new(3), new(4)];
+    IReadOnlyCollection<UsersIntTvp> ids = [new(1), new(2), new(3), new(4)];
 
     var command = new StoredProcedureCommandBuilder(
             "Users", "usp_Get_Users_From_TvpInt")
@@ -116,7 +116,7 @@ The client span identifies the stored procedure but does not include TVP values 
 public async Task<ImmutableArray<UserDto>> GetUsersByTvpGuidAsync(
     CancellationToken ct)
 {
-    IEnumerable<UsersGuidTvp> guids =
+    IReadOnlyCollection<UsersGuidTvp> guids =
     [
         new(Guid.Parse("11111111-1111-1111-1111-111111111111")),
         new(Guid.Parse("33333333-3333-3333-3333-333333333333")),
@@ -138,7 +138,7 @@ public async Task<ImmutableArray<UserDto>> GetUsersByTvpGuidAsync(
 public async Task<IEnumerable<UserDto>> GetUsersByTvpIntGuidAsync(
     CancellationToken ct)
 {
-    IEnumerable<UsersIntGuidTvp> pairs =
+    IReadOnlyCollection<UsersIntGuidTvp> pairs =
     [
         new(1, Guid.Parse("11111111-1111-1111-1111-111111111111")),
         new(2, Guid.Parse("22222222-2222-2222-2222-222222222222")),
@@ -185,7 +185,7 @@ public async Task<int> CreateBatchOrdersAsync(
 {
     if (userIds.Count == 0) return 0;
 
-    IEnumerable<UsersIntTvp> targetUserIds = userIds.Select(id => new UsersIntTvp(id));
+    IReadOnlyCollection<UsersIntTvp> targetUserIds = userIds.Select(static id => new UsersIntTvp(id)).ToArray();
 
     var command = new StoredProcedureCommandBuilder("Users", "usp_Create_Orders_For_Users")
         .AddTvpParameter("tvp",     targetUserIds)
@@ -204,6 +204,7 @@ public async Task<int> CreateBatchOrdersAsync(
 - CaeriusNet sends TVP rows without requiring a `DataTable`.
 - TVP rows and parameter values are not exported to telemetry. Capture of parameter values is disabled unless an explicit development allowlist/redaction policy is configured.
 - Empty TVPs are supported on SQL Server 2022 and 2025. The generator declares immutable metadata and the runtime creates one reusable `SqlDataRecord`, so it never needs to infer metadata from a first row.
+- `IReadOnlyCollection<T>` expresses a replayable input. For a one-pass producer, call `AddTvpParameter("tvp", static ct => ProduceRows(ct))`; it streams without materializing but the command cannot be cached.
 
 ---
 

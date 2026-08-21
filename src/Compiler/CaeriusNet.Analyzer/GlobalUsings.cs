@@ -8,6 +8,7 @@ global using System.Text;
 global using System.Threading;
 global using CaeriusNet.Analyzer.Diagnostics;
 global using CaeriusNet.Analyzer.Helpers;
+global using CaeriusNet.Analyzer.Roslyn;
 global using Microsoft.CodeAnalysis;
 global using Microsoft.CodeAnalysis.CSharp;
 global using Microsoft.CodeAnalysis.CSharp.Syntax;

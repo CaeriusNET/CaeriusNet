@@ -27,7 +27,7 @@ internal static class AutoContractsSourceNames
                 hash *= prime;
             }
 
-            return hash.ToString("x8", System.Globalization.CultureInfo.InvariantCulture);
+            return hash.ToString("x8", CultureInfo.InvariantCulture);
         }
     }
 }

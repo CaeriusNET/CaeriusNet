@@ -12,7 +12,7 @@ internal static class ColumnExtractor
     /// <param name="parameter">The constructor parameter symbol resolved from the semantic model.</param>
     /// <param name="ordinal">The zero-based ordinal of the parameter (drives column index).</param>
     /// <returns>An immutable, value-equatable model ready to flow through the incremental pipeline.</returns>
-    internal static ColumnModel Extract(IParameterSymbol parameter, int ordinal)
+    internal static ColumnModel? Extract(IParameterSymbol parameter, int ordinal)
     {
         var parameterType = parameter.Type;
         var typeDisplay = parameterType.ToDisplayString();
@@ -35,8 +35,12 @@ internal static class ColumnExtractor
         }
 
         var sqlType = TypeDetector.GetSqlType(sqlMappingType);
+        if (sqlType.Length == 0)
+            return null;
         var readerMethod = TypeDetector.GetReaderMethodForSqlType(sqlType);
         var sqlMetaDataCtor = SqlMetaDataExpressionBuilder.Build(parameter.Name, sqlType);
+        if (readerMethod.Length == 0 || sqlMetaDataCtor is null)
+            return null;
 
         return new ColumnModel(
             parameter.Name,
@@ -83,6 +87,8 @@ internal static class ColumnExtractor
             "System.DateOnly" => ColumnKind.DateOnly,
             "System.TimeOnly" => ColumnKind.TimeOnly,
             "System.Half" => ColumnKind.Half,
+            "System.Data.SqlTypes.SqlDecimal" => ColumnKind.SqlDecimal,
+            "ulong" or "System.UInt64" => ColumnKind.UInt64,
             _ => ColumnKind.Standard
         };
     }

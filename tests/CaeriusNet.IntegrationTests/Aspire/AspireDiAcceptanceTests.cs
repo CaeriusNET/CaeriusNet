@@ -1,5 +1,4 @@
 using CaeriusNet.Aspire;
-using CaeriusNet;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;

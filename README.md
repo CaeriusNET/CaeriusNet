@@ -8,9 +8,9 @@
   <img src="https://img.shields.io/badge/license-MIT-blue?style=flat" alt="MIT">
 </p>
 
-CaeriusNet 12 is a stored-procedure-only data-access runtime for .NET 10 and C# 14. It maps result rows without reflection, supports table-valued parameters (TVPs), cardinality-aware reads, transactions, typed cache codecs, and SQL Server 2022/2025.
+CaeriusNet 12 is a stored-procedure-only data-access runtime for .NET 10 and C# 14. It maps result rows without reflection, supports table-valued parameters (TVPs), cardinality-aware reads, transactions, typed cache codecs, and SQL Server 2022/2025. Building v12 requires the .NET SDK `10.0.400` (patch roll-forward) and Roslyn `5.9` or later.
 
-Version 12 is intentionally a major release. It replaces the v11 builder and its global state with dependency injection; read the [v11 to v12 migration guide](MIGRATION-v11-v12.md) before upgrading. Maintainers can follow the complete invariants, evidence and release gates in the [12.0.0 engineering contract](docs/engineering/caeriusnet-v12-release-engineering-contract.md).
+The v12 architecture is distributed as package version 11.2.0. It replaces the earlier v11 builder and its global state with dependency injection; read the [v11 to v12 migration guide](docs/MIGRATION-v11-v12.md) before upgrading. Maintainers can follow the complete invariants, evidence and release gates in the [11.2.0 engineering contract](docs/engineering/caeriusnet-v12-release-engineering-contract.md).
 
 ## Packages
 
@@ -21,10 +21,14 @@ Version 12 is intentionally a major release. It replaces the v11 builder and its
 | [`CaeriusNet.Aspire`](src/CaeriusNet.Aspire/README.md) | Aspire SQL Server/Redis clients, health checks, configuration and telemetry wiring. |
 | [`CaeriusNet.Contracts`](src/CaeriusNet.Contracts/README.md) | Opt-in AutoContracts discovery tool and `buildTransitive` integration. |
 
+The `CaeriusNet` package ships only its Analyzer and Generator under `analyzers/dotnet/cs`, alongside their Source Link
+PDBs. The multi-result API is already compiled into `CaeriusNet.dll`; no consumer-facing MultiResultApiGenerator is
+packaged. Release packaging validates the extracted PDBs and requires two consecutive packs to be bit-for-bit identical.
+
 ## Install and configure
 
 ```bash
-dotnet add package CaeriusNet --version 12.0.0
+dotnet add package CaeriusNet --version 11.2.0
 ```
 
 ```csharp
@@ -33,7 +37,7 @@ using CaeriusNet.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
 
 services.AddCaeriusNet(options =>
-    options.UseSqlServer("Server=.;Database=Orders;Integrated Security=true;TrustServerCertificate=true"));
+    options.UseSqlServer("Server=.;Database=Orders;Integrated Security=true;Encrypt=Strict;TrustServerCertificate=False"));
 ```
 
 For a second database, add a keyed context and request it through normal .NET keyed DI:
@@ -94,8 +98,10 @@ Both scalar APIs keep an existing SQL `NULL` distinct from an absent row: nullab
 [GenerateTvp(Schema = "dbo", TvpName = "OrderLineType")]
 public sealed partial record OrderLine(int ProductId, int Quantity);
 
+IReadOnlyCollection<OrderLine> lines = [new(42, 2)];
+
 var command = new StoredProcedureCommandBuilder("dbo", "usp_Order_AddLines")
-    .AddTvpParameter("Lines", lines)      // empty, small and large sequences are supported
+    .AddTvpParameter("Lines", lines)      // replayable and eligible for caching
     .AddOutputParameter("OrderId", SqlDbType.Int)
     .Build();
 
@@ -103,15 +109,30 @@ var result = await database.ExecuteWithOutputsAsync(command, ct);
 var orderId = result.Output.Get<int>("OrderId");
 ```
 
+Use the other TVP overload for a truly streaming producer:
+
+```csharp
+.AddTvpParameter("Lines", static cancellationToken => ReadLines(cancellationToken))
+```
+
+The factory is never materialized by CaeriusNet and a command containing it cannot use a read-through cache. Manual TVP contracts must place `SqlServerTvpColumnAttribute` on every positional parameter so its SQL name, ordinal, type, nullability and required facets remain explicit.
+
 Multi-result calls are generated for arities 2 through 10 and for `IEnumerable<T>`, `ReadOnlyCollection<T>` and `ImmutableArray<T>`. They require the announced result-set count by default; opt into `CaeriusResultSetCountPolicy.AllowMissing` or `AllowAdditional` only for deliberately variable procedures.
 
 ## Caching and transactions
 
-Local memory and Frozen snapshot caches are part of `CaeriusNet`; Redis requires the separate `CaeriusNet.Redis` package and an `ICaeriusCacheCodec<T>`. Cache keys are centrally derived from the application namespace, procedure contract, result shape and canonical parameters—do not construct keys per procedure.
+Local memory and Frozen snapshot caches are part of `CaeriusNet`; Redis requires the separate `CaeriusNet.Redis` package and an `ICaeriusCacheCodec<T>`. Cache keys are centrally derived from the application namespace, procedure contract, result shape and canonical parameters—do not construct keys per procedure. The external key is a length-prefixed binary identity hashed as `caerius:v2:<sha256>`.
 
 ```csharp
 var cached = new StoredProcedureCommandBuilder("dbo", "usp_Product_List")
+    .DependsOn("product", "catalog")
     .UseInMemoryCache(TimeSpan.FromMinutes(2), slidingExpiration: true)
+    .Build();
+
+var write = new StoredProcedureCommandBuilder("dbo", "usp_Product_Rename")
+    .AddParameter("Id", productId, SqlDbType.Int)
+    .AddParameter("Name", name, SqlDbType.NVarChar, size: 200)
+    .Invalidates("product", "catalog")
     .Build();
 ```
 
@@ -123,13 +144,13 @@ await transaction.ExecuteNonQueryAsync(command, ct);
 await transaction.CommitAsync(ct);
 ```
 
-The same materialized single- and multi-result APIs (all arities 2–10 and collection families) are available on a transaction, including `ExecuteWithOutputsAsync`, `ExecuteNonQueryWithOutputsAsync`, and `Query…WithOutputsAsync`. Outputs are read only after every result set has been consumed and its reader disposed; invalidations run only after `CommitAsync` succeeds. `transaction.StreamAsync<T>` retains the command slot for the lifetime of its enumeration—consume it fully before committing, or roll the transaction back. `CommitAsync` and `RollbackAsync` observe cancellation before their terminal SQL operation begins; after that cutoff, they finish without the caller token so a cancelled request cannot turn an already-sent commit into an ambiguous cache state.
+The same materialized single- and multi-result APIs (all arities 2–10 and collection families) are available on a transaction, including `ExecuteWithOutputsAsync`, `ExecuteNonQueryWithOutputsAsync`, and `Query…WithOutputsAsync`. Outputs are read only after every result set has been consumed and its reader disposed; invalidations run only after `CommitAsync` succeeds. `transaction.StreamAsync<T>` retains the command slot for the lifetime of its enumeration—consume it fully before committing, or roll the transaction back. `CommitAsync` and `RollbackAsync` observe cancellation before their terminal SQL operation begins; after that cutoff, they finish without the caller token so a cancelled request cannot turn an already-sent commit into an ambiguous cache state. If the durable SQL write succeeds but an invalidation fails, `CaeriusCacheInvalidationException` has `SqlWasCommitted == true`: investigate/reconcile the cache; do not blindly retry a non-idempotent procedure.
 
 ## Documentation and support
 
 - [Documentation site](https://caerius.net)
 - [Getting started](https://caerius.net/quickstart/getting-started)
-- [Migration from v11](MIGRATION-v11-v12.md)
+- [Migration from v11](docs/MIGRATION-v11-v12.md)
 - [Issues](https://github.com/CaeriusNET/CaeriusNet/issues)
 - [Contributing](CONTRIBUTING.md)
 

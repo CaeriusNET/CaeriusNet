@@ -62,6 +62,17 @@ public readonly record struct CaeriusCacheLookup<T>(bool Found, T? Value)
     }
 }
 
+public sealed class CaeriusCacheTagSnapshot
+{
+    public CaeriusCacheTagSnapshot(ImmutableArray<long> generations)
+    {
+        Generations = generations;
+    }
+
+    public ImmutableArray<long> Generations { get; }
+    public static CaeriusCacheTagSnapshot Empty { get; } = new([]);
+}
+
 public interface IInMemoryCacheManager
 {
     bool TryGet<T>(string key, out T? value);
@@ -109,4 +120,43 @@ public interface ICaeriusRemoteCacheManager
         CancellationToken cancellationToken = default) where T : notnull;
 
     ValueTask RemoveAsync(string key, CancellationToken cancellationToken = default);
+
+    ValueTask<CaeriusCacheTagSnapshot> CaptureTagSnapshotAsync(
+        IReadOnlyList<string> tags,
+        CancellationToken cancellationToken = default)
+    {
+        return ValueTask.FromResult(tags.Count == 0
+            ? CaeriusCacheTagSnapshot.Empty
+            : new CaeriusCacheTagSnapshot(ImmutableArray.CreateRange(Enumerable.Repeat(0L, tags.Count))));
+    }
+
+    ValueTask<CaeriusCacheLookup<T>> TryGetAsync<T>(
+        string key,
+        IReadOnlyList<string> tags,
+        ICaeriusCacheCodec<T> codec,
+        CancellationToken cancellationToken = default)
+    {
+        return TryGetAsync(key, codec, cancellationToken);
+    }
+
+    async ValueTask<bool> SetIfTagSnapshotUnchangedAsync<T>(
+        string key,
+        T value,
+        IReadOnlyList<string> tags,
+        CaeriusCacheTagSnapshot snapshot,
+        ICaeriusCacheCodec<T> codec,
+        TimeSpan? expiration,
+        CancellationToken cancellationToken = default) where T : notnull
+    {
+        await SetAsync(key, value, codec, expiration, cancellationToken).ConfigureAwait(false);
+        return true;
+    }
+
+    async ValueTask InvalidateTagsAsync(
+        IReadOnlyList<string> tags,
+        CancellationToken cancellationToken = default)
+    {
+        foreach (var tag in tags)
+            await RemoveAsync(tag, cancellationToken).ConfigureAwait(false);
+    }
 }

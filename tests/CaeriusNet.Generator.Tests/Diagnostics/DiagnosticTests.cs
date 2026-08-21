@@ -175,13 +175,15 @@ public sealed class DiagnosticTests
     }
 
     [Fact]
-    public void Tvp_Valid_Reports_NoCaeriusDiagnostic()
+    public void Tvp_ValidExplicitContract_Reports_NoCaeriusDiagnostic()
     {
         const string source = """
                               using CaeriusNet;
                               namespace TestNs;
                               [GenerateTvp(TvpName = "tvp_Foo")]
-                              public sealed partial record FooTvp(int Id, string Name);
+                              public sealed partial record FooTvp(
+                                  [SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id,
+                                  [SqlServerTvpColumn("Name", 1, global::System.Data.SqlDbType.NVarChar, false, MaxLength = 128, LocaleId = 1033, CompareOptions = global::System.Data.SqlTypes.SqlCompareOptions.None)] string Name);
                               """;
 
         var diagnostics = RunTvp(source).ToList();
@@ -207,19 +209,22 @@ public sealed class DiagnosticTests
     }
 
     [Fact]
-    public void Tvp_UnsupportedType_Reports_NoCaeriusDiagnostic()
+    public void Tvp_UnsupportedType_Reports_CAERIUS005_And_Does_Not_Generate()
     {
         const string source = """
                               using CaeriusNet;
                               namespace TestNs;
                               [GenerateTvp(TvpName = "tvp_Foo")]
-                              public sealed partial record FooTvp(int Id, System.Uri Endpoint);
+                              public sealed partial record FooTvp(
+                                  [SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id,
+                                  [SqlServerTvpColumn("Endpoint", 1, global::System.Data.SqlDbType.NVarChar, false, MaxLength = 128, LocaleId = 1033, CompareOptions = global::System.Data.SqlTypes.SqlCompareOptions.None)] System.Uri Endpoint);
                               """;
 
         var diagnostics = RunTvp(source).ToList();
 
-        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id.StartsWith("CAERIUS", StringComparison.Ordinal));
-        Assert.NotEmpty(RunTvpFull(source).GeneratedTrees);
+        Assert.Contains(diagnostics, diagnostic => diagnostic.Id == "CAERIUS005" &&
+                                                   diagnostic.Severity == DiagnosticSeverity.Error);
+        Assert.Empty(RunTvpFull(source).GeneratedTrees);
     }
 
     [Fact]
@@ -239,18 +244,21 @@ public sealed class DiagnosticTests
     }
 
     [Fact]
-    public void Tvp_Int128_Property_Reports_NoCaeriusDiagnostic()
+    public void Tvp_Int128_Property_Reports_CAERIUS005_And_Does_Not_Generate()
     {
         const string source = """
                               using CaeriusNet;
                               namespace TestNs;
                               [GenerateTvp(TvpName = "tvp_BigNum")]
-                              public sealed partial record BigNumTvp(int Id, System.Int128 BigValue);
+                              public sealed partial record BigNumTvp(
+                                  [SqlServerTvpColumn("Id", 0, global::System.Data.SqlDbType.Int, false)] int Id,
+                                  [SqlServerTvpColumn("BigValue", 1, global::System.Data.SqlDbType.Decimal, false, Precision = 38, Scale = 0)] System.Int128 BigValue);
                               """;
 
         var diagnostics = RunTvp(source).ToList();
 
-        Assert.DoesNotContain(diagnostics, diagnostic => diagnostic.Id.StartsWith("CAERIUS", StringComparison.Ordinal));
-        Assert.NotEmpty(RunTvpFull(source).GeneratedTrees);
+        Assert.Contains(diagnostics, diagnostic => diagnostic.Id == "CAERIUS005" &&
+                                                   diagnostic.Severity == DiagnosticSeverity.Error);
+        Assert.Empty(RunTvpFull(source).GeneratedTrees);
     }
 }

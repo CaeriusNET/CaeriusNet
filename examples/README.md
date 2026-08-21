@@ -16,7 +16,7 @@ directory.
 
 ## Prerequisites
 
-- .NET SDK `10.0.303` or a later patch accepted by [global.json](../global.json)
+- .NET SDK `10.0.400` or a later patch accepted by [global.json](../global.json)
 - SQL Server 2022 (major version 16) or SQL Server 2025 (major version 17)
 - Docker Desktop or Podman for the Aspire application
 
@@ -31,7 +31,8 @@ dotnet run --project examples/StoredProcedures.Console/CaeriusNet.Examples.Store
 
 Update the console project's `appsettings.json` first:
 
-- Set `ConnectionStrings:DefaultConnection` to a supported SQL Server instance.
+- Set `ConnectionStrings:DefaultConnection` to a supported SQL Server instance. Production strings must use
+  `Encrypt=Strict;TrustServerCertificate=False` and a certificate trusted by the host.
 - Optionally set `ConnectionStrings:Redis`; leaving it empty demonstrates the SQL fallback path.
 
 ## Run the Aspire example
@@ -70,7 +71,7 @@ Both applications exercise the same repository behavior:
 - CaeriusNet telemetry with parameter, connection-string, TVP-value, and cache-key capture disabled.
 
 For package APIs, see the repository [README](../README.md) and
-the [v11 to v12 migration guide](../MIGRATION-v11-v12.md).
+the [v11 to v12 migration guide](../docs/MIGRATION-v11-v12.md).
 
 ## Layout
 

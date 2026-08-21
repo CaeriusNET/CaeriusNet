@@ -33,10 +33,10 @@ public sealed class SqlMetaDataExpressionBuilderTests
     }
 
     [Fact]
-    public void Build_Falls_Back_To_Variant_For_Unknown_Type()
+    public void Build_Rejects_Unknown_Type()
     {
         var result = SqlMetaDataExpressionBuilder.Build("Whatever", "money");
-        Assert.Equal("new SqlMetaData(\"Whatever\", SqlDbType.Variant)", result);
+        Assert.Null(result);
     }
 
     [Fact]

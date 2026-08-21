@@ -121,7 +121,7 @@ public async ValueTask<(IReadOnlyCollection<UserDto> Users, IReadOnlyCollection<
 {
     if (userIds.Count == 0) return ([], []);
 
-    IEnumerable<UsersIntTvp> tvp = userIds.Select(id => new UsersIntTvp(id));
+    IReadOnlyCollection<UsersIntTvp> tvp = userIds.Select(static id => new UsersIntTvp(id)).ToArray();
 
     var command = new StoredProcedureCommandBuilder(
             "Users", "usp_Get_Users_With_Orders_By_Tvp")
@@ -142,6 +142,9 @@ public async ValueTask<(IReadOnlyCollection<UserDto> Users, IReadOnlyCollection<
 ::: tip Telemetry tags
 TVP values are not exported in traces or metrics.
 :::
+
+For a non-replayable producer, use `AddTvpParameter("tvp", static ct => ProduceRows(ct))`. That overload streams
+without materialization and deliberately makes the command non-cacheable.
 
 ## Available method families
 

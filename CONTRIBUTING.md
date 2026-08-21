@@ -6,7 +6,7 @@ and transactions. This document explains how to set up, the conventions we follo
 and how to get a PR merged efficiently.
 
 Changes targeting the major release must also preserve the invariants and evidence
-listed in the [12.0.0 engineering contract](docs/engineering/caeriusnet-v12-release-engineering-contract.md).
+listed in the [11.2.0 engineering contract](docs/engineering/caeriusnet-v12-release-engineering-contract.md).
 
 ## Table of Contents
 

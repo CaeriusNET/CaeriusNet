@@ -9,7 +9,7 @@
 /// </remarks>
 internal static class SqlMetaDataExpressionBuilder
 {
-    internal static string Build(string columnName, string sqlType)
+    internal static string? Build(string columnName, string sqlType)
     {
         return sqlType switch
         {
@@ -32,7 +32,7 @@ internal static class SqlMetaDataExpressionBuilder
             "datetimeoffset" => $"new SqlMetaData(\"{columnName}\", SqlDbType.DateTimeOffset, 7, 7)",
             "uniqueidentifier" => $"new SqlMetaData(\"{columnName}\", SqlDbType.UniqueIdentifier)",
             "varbinary" => $"new SqlMetaData(\"{columnName}\", SqlDbType.VarBinary, SqlMetaData.Max)",
-            _ => $"new SqlMetaData(\"{columnName}\", SqlDbType.Variant)"
+            _ => null
         };
     }
 }

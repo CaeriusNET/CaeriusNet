@@ -80,14 +80,14 @@ public static class CaeriusNetCommandExtensions
         where T : class, ISpMapper<T>
     {
         var execution = CaeriusExecutor.GetContext(context);
-        var state = new QueryCacheState(execution, command, capacity);
+        var state = new QueryCacheState(command, capacity);
         var value = await CaeriusExecutor.CachedAsync<T[], QueryCacheState>(
             execution,
             command,
             $"enumerable:{typeof(T).FullName}",
             state,
-            static (cacheState, token) => ReadArrayAsync<T>(
-                cacheState.Execution,
+            static (activeContext, cacheState, token) => ReadArrayAsync<T>(
+                activeContext,
                 cacheState.Command,
                 cacheState.Capacity,
                 null,
@@ -108,8 +108,8 @@ public static class CaeriusNetCommandExtensions
             execution,
             command,
             $"readonly:{typeof(T).FullName}",
-            new QueryCacheState(execution, command, capacity),
-            static (state, token) => ReadReadOnlyCollectionCachedAsync<T>(state, token),
+            new QueryCacheState(command, capacity),
+            static (activeContext, state, token) => ReadReadOnlyCollectionCachedAsync<T>(activeContext, state, token),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -125,8 +125,8 @@ public static class CaeriusNetCommandExtensions
             execution,
             command,
             $"immutable:{typeof(T).FullName}",
-            new QueryCacheState(execution, command, capacity),
-            static (state, token) => ReadImmutableArrayCachedAsync<T>(state, token),
+            new QueryCacheState(command, capacity),
+            static (activeContext, state, token) => ReadImmutableArrayCachedAsync<T>(activeContext, state, token),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -136,6 +136,8 @@ public static class CaeriusNetCommandExtensions
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
         where T : class, ISpMapper<T>
     {
+        CaeriusExecutor.EnsureStreamHasNoOutputs(command);
+        cancellationToken.ThrowIfCancellationRequested();
         var execution = CaeriusExecutor.GetContext(context);
         ICaeriusSqlConnectionLease? lease = null;
         SqlCommand? sqlCommand = null;
@@ -149,7 +151,7 @@ public static class CaeriusNetCommandExtensions
             try
             {
                 lease = await execution.OpenLeaseAsync(cancellationToken).ConfigureAwait(false);
-                sqlCommand = command.CreateSqlCommand(lease.Connection);
+                sqlCommand = command.CreateSqlCommand(lease.Connection, cancellationToken: cancellationToken);
                 instrumentation = execution.Instrumentation.Start(
                     command,
                     lease.Connection,
@@ -157,6 +159,15 @@ public static class CaeriusNetCommandExtensions
                     execution.Options);
                 reader = await sqlCommand.ExecuteReaderAsync(CommandBehavior.Default, cancellationToken)
                     .ConfigureAwait(false);
+                if (!await CaeriusExecutor.MoveToFirstColumnResultAsync(reader, cancellationToken)
+                        .ConfigureAwait(false))
+                {
+                    await CaeriusExecutor.InvalidateAfterDurableSqlAsync(execution, command.InvalidationTags)
+                        .ConfigureAwait(false);
+                    instrumentation.Success();
+                    succeeded = true;
+                    yield break;
+                }
             }
             catch (OperationCanceledException exception)
             {
@@ -249,6 +260,8 @@ public static class CaeriusNetCommandExtensions
                 throw contractException;
             }
 
+            await CaeriusExecutor.InvalidateAfterDurableSqlAsync(execution, command.InvalidationTags)
+                .ConfigureAwait(false);
             instrumentation.Success();
             succeeded = true;
         }
@@ -289,7 +302,9 @@ public static class CaeriusNetCommandExtensions
                 long row = 0;
                 try
                 {
-                    while (await reader.ReadAsync(token).ConfigureAwait(false))
+                    var hasResultSet = await CaeriusExecutor.MoveToFirstColumnResultAsync(reader, token)
+                        .ConfigureAwait(false);
+                    while (hasResultSet && await reader.ReadAsync(token).ConfigureAwait(false))
                     {
                         try
                         {
@@ -317,8 +332,6 @@ public static class CaeriusNetCommandExtensions
             },
             null,
             cancellationToken).ConfigureAwait(false);
-        await CaeriusExecutor.InvalidateStrictAsync(execution, command.InvalidationKeys, cancellationToken)
-            .ConfigureAwait(false);
         return result;
     }
 
@@ -334,8 +347,6 @@ public static class CaeriusNetCommandExtensions
             async (sqlCommand, token) => await sqlCommand.ExecuteNonQueryAsync(token).ConfigureAwait(false),
             null,
             cancellationToken).ConfigureAwait(false);
-        await CaeriusExecutor.InvalidateStrictAsync(execution, command.InvalidationKeys, cancellationToken)
-            .ConfigureAwait(false);
         return affected;
     }
 
@@ -355,8 +366,6 @@ public static class CaeriusNetCommandExtensions
             },
             null,
             cancellationToken).ConfigureAwait(false);
-        await CaeriusExecutor.InvalidateStrictAsync(execution, command.InvalidationKeys, cancellationToken)
-            .ConfigureAwait(false);
     }
 
     public static async ValueTask<CaeriusCommandResult<CaeriusOutputValues>> ExecuteWithOutputsAsync(
@@ -375,8 +384,6 @@ public static class CaeriusNetCommandExtensions
             },
             null,
             cancellationToken).ConfigureAwait(false);
-        await CaeriusExecutor.InvalidateStrictAsync(execution, command.InvalidationKeys, cancellationToken)
-            .ConfigureAwait(false);
         return new CaeriusCommandResult<CaeriusOutputValues>(output);
     }
 
@@ -397,8 +404,6 @@ public static class CaeriusNetCommandExtensions
             },
             null,
             cancellationToken).ConfigureAwait(false);
-        await CaeriusExecutor.InvalidateStrictAsync(execution, command.InvalidationKeys, cancellationToken)
-            .ConfigureAwait(false);
         return result;
     }
 
@@ -418,7 +423,9 @@ public static class CaeriusNetCommandExtensions
             {
                 await using var reader = await sqlCommand.ExecuteReaderAsync(CommandBehavior.Default, token)
                     .ConfigureAwait(false);
-                if (!await reader.ReadAsync(token).ConfigureAwait(false))
+                var hasResultSet = await CaeriusExecutor.MoveToFirstColumnResultAsync(reader, token)
+                    .ConfigureAwait(false);
+                if (!hasResultSet || !await reader.ReadAsync(token).ConfigureAwait(false))
                 {
                     await CaeriusExecutor.EnsureNoAdditionalResultSetsAsync(reader, command, token)
                         .ConfigureAwait(false);
@@ -472,7 +479,9 @@ public static class CaeriusNetCommandExtensions
                     .ConfigureAwait(false);
                 var result = new List<T>(ResolveCapacity(command, capacity, 0));
                 long row = 0;
-                while (await reader.ReadAsync(token).ConfigureAwait(false))
+                var hasResultSet = await CaeriusExecutor.MoveToFirstColumnResultAsync(reader, token)
+                    .ConfigureAwait(false);
+                while (hasResultSet && await reader.ReadAsync(token).ConfigureAwait(false))
                 {
                     try
                     {
@@ -507,21 +516,24 @@ public static class CaeriusNetCommandExtensions
 
     internal static int ResolveCapacity(StoredProcedureCommand command, int? capacity, int resultSetIndex)
     {
-        var value = capacity ?? (command.ResultSetCapacities.Length > resultSetIndex
+        var requested = capacity ?? StoredProcedureCommand.UnspecifiedResultSetCapacity;
+        var commandCapacity = command.ResultSetCapacities.Length > resultSetIndex
             ? command.ResultSetCapacities[resultSetIndex]
-            : 16);
-        if (value < 0)
+            : StoredProcedureCommand.UnspecifiedResultSetCapacity;
+        var value = requested >= 0 ? requested : commandCapacity >= 0 ? commandCapacity : 16;
+        if (requested < StoredProcedureCommand.UnspecifiedResultSetCapacity)
             throw new ArgumentOutOfRangeException(nameof(capacity));
         return value;
     }
 
     private static async ValueTask<ReadOnlyCollection<T>> ReadReadOnlyCollectionCachedAsync<T>(
+        ICaeriusExecutionContext execution,
         QueryCacheState state,
         CancellationToken cancellationToken)
         where T : class, ISpMapper<T>
     {
         return new ReadOnlyCollection<T>(await ReadListAsync<T>(
-            state.Execution,
+            execution,
             state.Command,
             state.Capacity,
             null,
@@ -529,12 +541,13 @@ public static class CaeriusNetCommandExtensions
     }
 
     private static async ValueTask<ImmutableArray<T>> ReadImmutableArrayCachedAsync<T>(
+        ICaeriusExecutionContext execution,
         QueryCacheState state,
         CancellationToken cancellationToken)
         where T : class, ISpMapper<T>
     {
         return (await ReadListAsync<T>(
-            state.Execution,
+            execution,
             state.Command,
             state.Capacity,
             null,
@@ -564,7 +577,13 @@ public static class CaeriusNetCommandExtensions
     {
         try
         {
-            return await reader.NextResultAsync(cancellationToken).ConfigureAwait(false);
+            // SQL Server can expose row-count/status frames when a procedure does not use
+            // SET NOCOUNT ON.  They are not business result sets.  In particular, treating
+            // one as an extra result set would make StreamAsync depend on NOCOUNT.
+            while (await reader.NextResultAsync(cancellationToken).ConfigureAwait(false))
+                if (reader.FieldCount > 0)
+                    return true;
+            return false;
         }
         catch (SqlException exception)
         {
@@ -601,7 +620,6 @@ public static class CaeriusNetCommandExtensions
     }
 
     private readonly record struct QueryCacheState(
-        ICaeriusExecutionContext Execution,
         StoredProcedureCommand Command,
         int? Capacity);
 }

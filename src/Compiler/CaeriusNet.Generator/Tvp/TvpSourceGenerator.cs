@@ -30,8 +30,16 @@ public sealed class TvpSourceGenerator : IIncrementalGenerator
 
         context.RegisterImplementationSourceOutput(tvpCandidates, static (spc, model) =>
         {
-            if (model is { Columns.Count: > 0 })
-                spc.AddSource(HintNameBuilder.Build(model.Namespace, model.TypeName, "Tvp"), TvpEmitter.Emit(model));
+            foreach (var issue in model.Issues)
+                spc.ReportDiagnostic(Diagnostic.Create(
+                    TvpGeneratorDiagnostics.GetDescriptor(issue.DiagnosticId),
+                    Location.None,
+                    issue.ParameterName,
+                    issue.Message));
+
+            if (model.Model is { Columns.Count: > 0 } tvpModel)
+                spc.AddSource(HintNameBuilder.Build(tvpModel.Namespace, tvpModel.TypeName, "Tvp"),
+                    TvpEmitter.Emit(tvpModel));
         });
     }
 }

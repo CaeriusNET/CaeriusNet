@@ -6,18 +6,17 @@ using System.Data.SqlTypes;
 using System.Diagnostics;
 using System.Reflection;
 using CaeriusNet.Abstractions;
-using CaeriusNet;
 using CaeriusNet.Caching;
 using CaeriusNet.Commands;
-using Microsoft.Extensions.DependencyInjection;
 using CaeriusNet.Exceptions;
 using CaeriusNet.Execution;
 using CaeriusNet.Internal;
 using CaeriusNet.Results;
-using CaeriusNet.Telemetry;
 using CaeriusNet.Tests.Observability;
 using Microsoft.Data.SqlClient;
 using Microsoft.Data.SqlClient.Server;
+using Microsoft.Data.SqlTypes;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Xunit;
 
@@ -26,6 +25,100 @@ namespace CaeriusNet.Tests.Runtime;
 [Collection(TelemetryTestScope.Name)]
 public sealed class RuntimeContractTests
 {
+    [Fact]
+    public void OutputValuesUseTheSameSqlAwareConversionsAsScalars()
+    {
+        var guid = Guid.NewGuid();
+        var wideDecimal = SqlDecimal.Parse("123456789012345678901234567890.12345678");
+        var values = new CaeriusOutputValues(new Dictionary<string, object?>
+        {
+            ["@date"] = new DateTime(2026, 8, 21),
+            ["@time"] = TimeSpan.FromHours(12.5),
+            ["@id"] = guid.ToByteArray(),
+            ["@state"] = (short)7,
+            ["@wide"] = wideDecimal,
+            ["@tooLarge"] = 256
+        });
+
+        Assert.Equal(new DateOnly(2026, 8, 21), values.Get<DateOnly>("date"));
+        Assert.Equal(new TimeOnly(12, 30), values.Get<TimeOnly>("time"));
+        Assert.Equal(guid, values.Get<Guid>("id"));
+        Assert.Equal(OutputState.Ready, values.Get<OutputState>("state"));
+        Assert.Equal(wideDecimal, values.Get<SqlDecimal>("wide"));
+
+        var overflow = Assert.Throws<CaeriusContractException>(() => values.Get<byte>("tooLarge"));
+        Assert.IsType<OverflowException>(overflow.InnerException);
+    }
+
+    [Fact]
+    public void DecimalOutputAndInputOutputUseSqlValueWithoutNarrowingSqlDecimal()
+    {
+        var wideDecimal = SqlDecimal.Parse("1234567890123456789012345678.1234567890");
+        var contract = new StoredProcedureCommandBuilder("dbo", "WideDecimal")
+            .AddOutputParameter("output", SqlDbType.Decimal, precision: 38, scale: 10)
+            .AddInputOutputParameter("inputOutput", wideDecimal, SqlDbType.Decimal, precision: 38, scale: 10)
+            .Build();
+
+        using var connection = new SqlConnection();
+        using var command = contract.CreateSqlCommand(
+            connection,
+            cancellationToken: TestContext.Current.CancellationToken);
+        var outputParameter = command.Parameters["@output"];
+        var inputOutputParameter = command.Parameters["@inputOutput"];
+
+        Assert.True(((SqlDecimal)outputParameter.SqlValue).IsNull);
+        Assert.Equal(wideDecimal.ToString(), ((SqlDecimal)inputOutputParameter.SqlValue).ToString());
+
+        // Simulate the native values SqlClient assigns after the reader has been closed.  In
+        // particular, do not access Value here: it is the CLR decimal projection that overflows
+        // above precision 28 and was the production failure.
+        outputParameter.SqlValue = wideDecimal;
+        inputOutputParameter.SqlValue = wideDecimal;
+
+        var output = CaeriusExecutor.ReadOutputs(command);
+
+        Assert.Equal(wideDecimal.ToString(), output.Get<SqlDecimal>("output").ToString());
+        Assert.Equal(wideDecimal.ToString(), output.Get<SqlDecimal>("inputOutput").ToString());
+        Assert.IsType<SqlDecimal>(output.Values["@output"]);
+        Assert.IsType<SqlDecimal>(output.Values["@inputOutput"]);
+    }
+
+    [Fact]
+    public void ScalarNumericNarrowingUsesCheckedCastSemantics()
+    {
+        var command = new StoredProcedureCommandBuilder("dbo", "Narrowing").Build();
+
+        Assert.Equal(1, CaeriusExecutor.ConvertScalar<int>(1.9m, command));
+        Assert.Throws<CaeriusContractException>(() => CaeriusExecutor.ConvertScalar<byte>(256, command));
+    }
+
+    [Fact]
+    public void ResultSetCapacityUsesExplicitThenCommandThenDefaultPrecedence()
+    {
+        var command = new StoredProcedureCommandBuilder("dbo", "Capacity")
+            .WithResultSetCapacities(32, StoredProcedureCommand.UnspecifiedResultSetCapacity)
+            .Build();
+
+        Assert.Equal(4, CaeriusNetCommandExtensions.ResolveCapacity(command, 4, 0));
+        Assert.Equal(32, CaeriusNetCommandExtensions.ResolveCapacity(command, -1, 0));
+        Assert.Equal(16, CaeriusNetCommandExtensions.ResolveCapacity(command, -1, 1));
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            CaeriusNetCommandExtensions.ResolveCapacity(command, -2, 0));
+    }
+
+    [Fact]
+    public void StreamingRejectsOutputContractsBeforeAnyIo()
+    {
+        var command = new StoredProcedureCommandBuilder("dbo", "StreamWithOutput")
+            .AddOutputParameter("count", SqlDbType.Int)
+            .Build();
+
+        var exception = Assert.Throws<CaeriusContractException>(() =>
+            CaeriusExecutor.EnsureStreamHasNoOutputs(command));
+
+        Assert.Contains("StreamAsync", exception.Message, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void BuilderCreatesAnImmutableStoredProcedureContract()
     {
@@ -115,7 +208,7 @@ public sealed class RuntimeContractTests
     public void GeneratedTvpContractSupportsAnEmptySequence()
     {
         var command = new StoredProcedureCommandBuilder("dbo", "ConsumeRows")
-            .AddTvpParameter("rows", Array.Empty<GeneratedTvpRow>(), ordinal: 0)
+            .AddTvpParameter("rows", Array.Empty<GeneratedTvpRow>(), 0)
             .Build();
 
         Assert.Equal("dbo.GeneratedRows", GeneratedTvpRow.SqlTypeName);
@@ -125,7 +218,7 @@ public sealed class RuntimeContractTests
     }
 
     [Fact]
-    public void CacheKeysIncludeCanonicalTvpRowsAndReplayOneShotSequences()
+    public void CacheKeysIncludeCanonicalReplayableTvpRowsAndRejectStreamingTvpCaching()
     {
         var enumerationCount = 0;
 
@@ -136,7 +229,7 @@ public sealed class RuntimeContractTests
         }
 
         var first = new StoredProcedureCommandBuilder("dbo", "ConsumeRows")
-            .AddTvpParameter("rows", Rows(1))
+            .AddTvpParameter("rows", new[] { new GeneratedTvpRow(1) })
             .UseRedisCache()
             .Build();
         var second = new StoredProcedureCommandBuilder("dbo", "ConsumeRows")
@@ -158,12 +251,30 @@ public sealed class RuntimeContractTests
             CaeriusCacheKeyBuilder.Create("tests", "default", first, "immutable-array"));
 
         using var connection = new SqlConnection();
-        using var sqlCommand = first.CreateSqlCommand(connection);
+        using var sqlCommand = first.CreateSqlCommand(
+            connection,
+            cancellationToken: TestContext.Current.CancellationToken);
         var records = Assert.IsAssignableFrom<IEnumerable<SqlDataRecord>>(sqlCommand.Parameters[0].Value);
         Assert.Equal(1, Assert.Single(records).GetInt32(0));
 
-        using var emptySqlCommand = empty.CreateSqlCommand(connection);
+        using var emptySqlCommand = empty.CreateSqlCommand(
+            connection,
+            cancellationToken: TestContext.Current.CancellationToken);
         Assert.Null(emptySqlCommand.Parameters[0].Value);
+
+        var streaming = new StoredProcedureCommandBuilder("dbo", "ConsumeRows")
+            .AddTvpParameter<GeneratedTvpRow>("rows", _ => Rows(1));
+        Assert.Throws<CaeriusContractException>(() => streaming.UseRedisCache().Build());
+
+        var uncachedStreaming = new StoredProcedureCommandBuilder("dbo", "ConsumeRows")
+            .AddTvpParameter<GeneratedTvpRow>("rows", _ => Rows(1))
+            .Build();
+        using var streamingCommand = uncachedStreaming.CreateSqlCommand(
+            connection,
+            cancellationToken: TestContext.Current.CancellationToken);
+        var streamingRecords =
+            Assert.IsAssignableFrom<IEnumerable<SqlDataRecord>>(streamingCommand.Parameters[0].Value);
+        Assert.Equal(1, Assert.Single(streamingRecords).GetInt32(0));
         Assert.Equal(1, enumerationCount);
     }
 
@@ -207,6 +318,19 @@ public sealed class RuntimeContractTests
     }
 
     [Fact]
+    public void CacheKeyRejectsInvalidUtf16InsteadOfReplacingItDuringUtf8Encoding()
+    {
+        var command = new StoredProcedureCommandBuilder("dbo", "InvalidUtf16")
+            .AddParameter("value", "\uD800", SqlDbType.NVarChar)
+            .Build();
+
+        var exception = Assert.Throws<CaeriusContractException>(() =>
+            CaeriusCacheKeyBuilder.Create("tests", "cache", command, "immutable-array"));
+
+        Assert.Contains("valid UTF-16", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void GeneratedCodecRoundtripsNullableValuesAndCollections()
     {
         var codec = new GeneratedDtoCaeriusCacheCodec();
@@ -238,6 +362,42 @@ public sealed class RuntimeContractTests
         Assert.Equal(expectedGuid, reader.ReadGuid());
         Assert.Equal(expectedDecimal, reader.ReadDecimal());
         Assert.Equal(0, reader.Remaining);
+    }
+
+    [Fact]
+    public void SqlServer2025FloatVectorsRoundtripAndBindTypedOutputDimensions()
+    {
+        var vector = new SqlVector<float>(new[] { 0.25f, -1.5f, 3.75f });
+        var payload = new ArrayBufferWriter<byte>();
+        new CaeriusBinaryWriter(payload).WriteSqlVector(vector);
+        var decoded = new CaeriusBinaryReader(payload.WrittenSpan).ReadSqlVector();
+        Assert.Equal(vector.Memory.ToArray(), decoded.Memory.ToArray());
+
+        var input = new StoredProcedureCommandBuilder("dbo", "SearchEmbeddings")
+            .AddParameter("embedding", vector, SqlDbType.Vector, ordinal: 0)
+            .UseInMemoryCache(TimeSpan.FromMinutes(1))
+            .Build();
+        var changedInput = new StoredProcedureCommandBuilder("dbo", "SearchEmbeddings")
+            .AddParameter("embedding", new SqlVector<float>(new[] { 0.25f, -1.5f, 4f }), SqlDbType.Vector,
+                ordinal: 0)
+            .UseInMemoryCache(TimeSpan.FromMinutes(1))
+            .Build();
+        Assert.NotEqual(
+            CaeriusCacheKeyBuilder.Create("tests", "sql", input, "vectors"),
+            CaeriusCacheKeyBuilder.Create("tests", "sql", changedInput, "vectors"));
+
+        var output = new StoredProcedureCommandBuilder("dbo", "SearchEmbeddings")
+            .AddParameter("embedding", null, SqlDbType.Vector, ParameterDirection.Output, 3, ordinal: 0)
+            .Build();
+        using var connection = new SqlConnection();
+        using var command =
+            output.CreateSqlCommand(connection, cancellationToken: TestContext.Current.CancellationToken);
+        var outputValue = Assert.IsType<SqlVector<float>>(command.Parameters[0].Value);
+        Assert.True(outputValue.IsNull);
+        Assert.Equal(3, outputValue.Length);
+
+        var outputs = new CaeriusOutputValues(new Dictionary<string, object?> { ["@embedding"] = vector });
+        Assert.Equal(vector.Memory.ToArray(), outputs.Get<SqlVector<float>>("embedding")!.Memory.ToArray());
     }
 
     [Fact]
@@ -398,14 +558,14 @@ public sealed class RuntimeContractTests
             command,
             "query:ManualCacheDto",
             new ManualCacheDto(1),
-            static (value, _) => ValueTask.FromResult(value),
+            static (_, value, _) => ValueTask.FromResult(value),
             TestContext.Current.CancellationToken);
         var second = await CaeriusExecutor.CachedAsync<ManualCacheDto, ManualCacheDto>(
             secondContext,
             command,
             "query:ManualCacheDto",
             new ManualCacheDto(2),
-            static (value, _) => ValueTask.FromResult(value),
+            static (_, value, _) => ValueTask.FromResult(value),
             TestContext.Current.CancellationToken);
 
         Assert.Equal(1, first.Id);
@@ -437,7 +597,7 @@ public sealed class RuntimeContractTests
                 command,
                 "query:ManualCacheDto",
                 new ManualCacheDto(1),
-                static (value, _) => ValueTask.FromResult(value),
+                static (_, value, _) => ValueTask.FromResult(value),
                 TestContext.Current.CancellationToken).AsTask());
 
         Assert.Contains("CacheDatabaseIdentity", exception.Message, StringComparison.Ordinal);
@@ -541,7 +701,7 @@ public sealed class RuntimeContractTests
         async ValueTask<int> Factory(CancellationToken token)
         {
             Interlocked.Increment(ref calls);
-            Assert.False(token.CanBeCanceled);
+            Assert.True(token.CanBeCanceled);
             started.TrySetResult();
             await release.Task;
             return 42;
@@ -688,5 +848,10 @@ public sealed class RuntimeContractTests
         services.AddCaeriusCacheCodec<ManualCacheDto, ManualCacheDtoCodec>();
         services.AddSingleton<ICaeriusRemoteCacheManager>(remote);
         return services.BuildServiceProvider();
+    }
+
+    private enum OutputState : short
+    {
+        Ready = 7
     }
 }

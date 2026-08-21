@@ -1,3 +1,5 @@
+using System.Reflection;
+
 namespace CaeriusNet.Generator.Helpers;
 
 /// <summary>
@@ -16,12 +18,12 @@ internal static class GeneratorMetadata
     private static string GetBuildVersion()
     {
         var informationalVersion = typeof(GeneratorMetadata).Assembly
-            .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), inherit: false)
-            .OfType<System.Reflection.AssemblyInformationalVersionAttribute>()
+            .GetCustomAttributes(typeof(AssemblyInformationalVersionAttribute), false)
+            .OfType<AssemblyInformationalVersionAttribute>()
             .FirstOrDefault()?.InformationalVersion;
 
         if (informationalVersion is null || string.IsNullOrWhiteSpace(informationalVersion))
-            return "12.0.0";
+            return "11.2.0";
 
         var sourceRevisionSeparator = informationalVersion.IndexOf('+');
         return sourceRevisionSeparator < 0

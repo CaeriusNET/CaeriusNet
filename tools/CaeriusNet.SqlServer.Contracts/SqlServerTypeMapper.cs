@@ -13,6 +13,7 @@ internal static class SqlServerTypeMapper
             "bigint" => "long",
             "real" => "float",
             "float" => "double",
+            "decimal" or "numeric" when GetPrecision(sqlType) > 28 => "System.Data.SqlTypes.SqlDecimal",
             "decimal" or "numeric" or "money" or "smallmoney" => "decimal",
             "date" => "DateOnly",
             "time" => "TimeOnly",
@@ -21,6 +22,8 @@ internal static class SqlServerTypeMapper
             "uniqueidentifier" => "Guid",
             "nvarchar" or "varchar" or "nchar" or "char" => "string",
             "binary" or "varbinary" => "byte[]",
+            "json" => "string",
+            "vector" => "global::Microsoft.Data.SqlTypes.SqlVector<float>",
             _ => "object"
         };
 
@@ -38,7 +41,7 @@ internal static class SqlServerTypeMapper
                 "real" or "float" or "decimal" or "numeric" or "money" or "smallmoney" or
                 "date" or "time" or "datetime" or "datetime2" or "smalldatetime" or "datetimeoffset" or
                 "uniqueidentifier" or "nvarchar" or "varchar" or "nchar" or "char" or
-                "varbinary" or "binary" => true,
+                "varbinary" or "binary" or "json" or "vector" => true,
             _ => false
         };
     }
@@ -55,5 +58,19 @@ internal static class SqlServerTypeMapper
             span = span[(dot + 1)..];
 
         return span.ToString().ToLowerInvariant();
+    }
+
+    private static int GetPrecision(string sqlType)
+    {
+        var open = sqlType.IndexOf('(', StringComparison.Ordinal);
+        if (open < 0)
+            return 0;
+        var commaOffset = sqlType.AsSpan(open + 1).IndexOf(',');
+        if (commaOffset < 0)
+            return 0;
+        var comma = open + 1 + commaOffset;
+        return int.TryParse(sqlType.AsSpan(open + 1, comma - open - 1), out var precision)
+            ? precision
+            : 0;
     }
 }

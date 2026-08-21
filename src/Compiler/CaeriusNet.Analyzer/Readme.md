@@ -17,9 +17,16 @@ incremental generators deterministic and keeps all user-facing diagnostics in on
 | CAERIUS002     | Error           | Target type must be `partial`                                  |
 | CAERIUS003     | Error           | Target type must declare a primary constructor with parameters |
 | CAERIUS004     | Error           | `[GenerateTvp]` requires a non-empty `TvpName`                 |
-| CAERIUS005     | Warning         | A constructor parameter falls back to `sql_variant`            |
+| CAERIUS005     | Error           | A constructor parameter has no faithful SQL Server mapping     |
 | CAERIUS006     | Error           | Generator target must be a supported top-level type            |
-| CAERIUS200-210 | Error / Warning | AutoContracts manifest and SQL contract diagnostics            |
+| CAERIUS007     | Error           | Manual TVP column metadata must be explicit and faithful       |
+| CAERIUS008     | Error           | DTO emission stopped before an internal generator exception    |
+| CAERIUS200-210 | Error / Warning | AutoContracts v3 manifest and SQL contract diagnostics         |
+
+`CAERIUS005` blocks source emission; it is not suppressible as a `sql_variant` fallback. `CAERIUS206` accepts valid
+`Input`, `Output`, `InputOutput`, and `ReturnValue` directions (TVPs remain input-only). `CAERIUS208` is a warning that
+the generated CLR member is nullable. `CAERIUS210` is a warning for dynamic SQL, temporary tables, ambiguous
+projections, or another shape that requires an explicit override or exclusion.
 
 ## Tests
 

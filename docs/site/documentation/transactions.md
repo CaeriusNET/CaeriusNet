@@ -19,6 +19,10 @@ abort that races an already-sent `COMMIT` from reporting a false cancellation or
 invalidations. If the token was already cancelled, `OperationCanceledException` is thrown and the transaction
 remains active so it can be rolled back (or disposed) explicitly.
 
+After the durable SQL commit succeeds, declared cache-tag invalidations run with `CancellationToken.None`. If one fails,
+`CaeriusCacheInvalidationException.SqlWasCommitted` is `true`: the database change is real and a blind retry of a
+non-idempotent procedure can duplicate it. Reconcile/repair the cache instead.
+
 ## Constraints
 
 - Do not use a transaction concurrently from several tasks.

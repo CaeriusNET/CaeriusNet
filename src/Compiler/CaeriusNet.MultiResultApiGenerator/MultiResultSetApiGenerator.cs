@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace CaeriusNet.MultiResults.Generator;
 
 [Generator(LanguageNames.CSharp)]
@@ -98,7 +100,7 @@ public sealed class MultiResultSetApiGenerator : IIncrementalGenerator
             .AppendLine();
         source.AppendLine("        global::CaeriusNet.Commands.StoredProcedureCommand command,");
         for (var index = 1; index <= arity; index++)
-            source.Append("        int capacity").Append(index).AppendLine(" = 16,");
+            source.Append("        int capacity").Append(index).AppendLine(" = -1,");
         source.AppendLine(
             "        global::CaeriusNet.Results.CaeriusResultSetCountPolicy countPolicy = global::CaeriusNet.Results.CaeriusResultSetCountPolicy.Exactly,");
         source.AppendLine("        global::System.Threading.CancellationToken cancellationToken = default)");
@@ -111,7 +113,7 @@ public sealed class MultiResultSetApiGenerator : IIncrementalGenerator
             .Append(transactional
                 ? "(transaction, command, global::CaeriusNet.Execution.MultiResultSetCapacities.Create"
                 : "(context, command, global::CaeriusNet.Execution.MultiResultSetCapacities.Create")
-            .Append(arity.ToString(global::System.Globalization.CultureInfo.InvariantCulture))
+            .Append(arity.ToString(CultureInfo.InvariantCulture))
             .Append('(');
         for (var index = 1; index <= arity; index++)
         {
@@ -185,7 +187,7 @@ public sealed class MultiResultSetApiGenerator : IIncrementalGenerator
         source.AppendLine("            {");
         for (var index = 1; index <= arity; index++)
             source.Append("                typeof(").Append(runtimeType.Replace("{0}",
-                index.ToString(global::System.Globalization.CultureInfo.InvariantCulture))).AppendLine("),");
+                index.ToString(CultureInfo.InvariantCulture))).AppendLine("),");
         source.AppendLine("            },");
         source.Append("            \"").Append(shape).Append(':').Append(arity).Append(":\" + TypeName<T1>.Value");
         for (var index = 2; index <= arity; index++)

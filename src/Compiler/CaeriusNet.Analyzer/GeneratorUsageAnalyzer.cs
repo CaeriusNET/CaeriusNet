@@ -1,5 +1,3 @@
-using CaeriusNet.Analyzer.Roslyn;
-
 namespace CaeriusNet.Analyzer;
 
 /// <summary>
@@ -18,7 +16,8 @@ public sealed class GeneratorUsageAnalyzer : DiagnosticAnalyzer
         DiagnosticDescriptors.MustHavePrimaryConstructor,
         DiagnosticDescriptors.TvpNameMustNotBeEmpty,
         DiagnosticDescriptors.UnsupportedSqlMapping,
-        DiagnosticDescriptors.UnsupportedGeneratorTarget
+        DiagnosticDescriptors.UnsupportedGeneratorTarget,
+        DiagnosticDescriptors.InvalidManualTvpColumn
     ];
 
     public override void Initialize(AnalysisContext context)
@@ -91,7 +90,8 @@ public sealed class GeneratorUsageAnalyzer : DiagnosticAnalyzer
     {
         var validation = TypeStructureValidator.Validate(typeSymbol);
         var hasFatal = ReportStructureDiagnostics(context, typeSymbol, validation, attributeDisplayName);
-        hasFatal |= extraValidation(context, typeSymbol, attributeData, validation, attributeDisplayName);
+        if (!hasFatal)
+            hasFatal |= extraValidation(context, typeSymbol, attributeData, validation, attributeDisplayName);
 
         if (hasFatal || validation.PrimaryConstructorDeclaration is null)
             return;
@@ -107,26 +107,83 @@ public sealed class GeneratorUsageAnalyzer : DiagnosticAnalyzer
         SymbolAnalysisContext context,
         INamedTypeSymbol typeSymbol,
         AttributeData attributeData,
-        TypeStructureValidator.ValidationResult _,
-        string _1)
+        TypeStructureValidator.ValidationResult validation,
+        string attributeDisplayName)
     {
-        if (!TryGetNamedArgument(attributeData, "TvpName", out var tvpNameConstant) ||
-            tvpNameConstant.Value is not string tvpName ||
-            !string.IsNullOrWhiteSpace(tvpName))
+        if (!typeSymbol.IsRecord ||
+            (typeSymbol.TypeKind == TypeKind.Class && !typeSymbol.IsSealed) ||
+            (typeSymbol.TypeKind == TypeKind.Struct && !typeSymbol.IsReadOnly))
+        {
+            context.ReportDiagnostic(
+                Diagnostic.Create(
+                    DiagnosticDescriptors.UnsupportedGeneratorTarget,
+                    TypeStructureValidator.GetIdentifierLocation(typeSymbol),
+                    typeSymbol.Name,
+                    attributeDisplayName));
+            return true;
+        }
+
+        if (TryGetNamedArgument(attributeData, "TvpName", out var tvpNameConstant) &&
+            tvpNameConstant.Value is string tvpName && string.IsNullOrWhiteSpace(tvpName))
+        {
+            var location = TryGetNamedArgumentSyntax(attributeData, "TvpName", out var argumentSyntax,
+                context.CancellationToken)
+                ? argumentSyntax.Expression.GetLocation()
+                : TypeStructureValidator.GetIdentifierLocation(typeSymbol);
+
+            context.ReportDiagnostic(
+                Diagnostic.Create(
+                    DiagnosticDescriptors.TvpNameMustNotBeEmpty,
+                    location,
+                    typeSymbol.Name));
+
+            return true;
+        }
+
+        if (validation.PrimaryConstructor is null || validation.PrimaryConstructorDeclaration is null)
             return false;
 
-        var location = TryGetNamedArgumentSyntax(attributeData, "TvpName", out var argumentSyntax,
-            context.CancellationToken)
-            ? argumentSyntax.Expression.GetLocation()
-            : TypeStructureValidator.GetIdentifierLocation(typeSymbol);
+        var columnValidation = ManualTvpColumnValidator.Validate(
+            validation.PrimaryConstructor,
+            context.CancellationToken);
+        foreach (var issue in columnValidation.Issues)
+        {
+            IParameterSymbol? parameter = null;
+            if (issue.ParameterIndex >= 0 && issue.ParameterIndex < validation.PrimaryConstructor.Parameters.Length)
+                parameter = validation.PrimaryConstructor.Parameters[issue.ParameterIndex];
+            var parameterLocation = GetParameterLocation(validation.PrimaryConstructorDeclaration, issue.ParameterIndex)
+                                    ?? TypeStructureValidator.GetIdentifierLocation(typeSymbol);
 
-        context.ReportDiagnostic(
-            Diagnostic.Create(
-                DiagnosticDescriptors.TvpNameMustNotBeEmpty,
-                location,
-                typeSymbol.Name));
+            if (string.Equals(issue.DiagnosticId, "CAERIUS005", StringComparison.Ordinal))
+                context.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.UnsupportedSqlMapping,
+                    parameterLocation,
+                    issue.ParameterName,
+                    parameter?.Type.ToDisplayString() ?? "<unknown>",
+                    typeSymbol.Name));
+            else
+                context.ReportDiagnostic(Diagnostic.Create(
+                    DiagnosticDescriptors.InvalidManualTvpColumn,
+                    parameterLocation,
+                    issue.ParameterName,
+                    issue.Message));
+        }
 
-        return true;
+        return columnValidation.Issues.Count != 0;
+    }
+
+    private static Location? GetParameterLocation(TypeDeclarationSyntax declaration, int parameterIndex)
+    {
+        var parameters = declaration switch
+        {
+            RecordDeclarationSyntax record => record.ParameterList?.Parameters,
+            ClassDeclarationSyntax @class => @class.ParameterList?.Parameters,
+            _ => null
+        };
+
+        return parameters is not null && parameterIndex >= 0 && parameterIndex < parameters.Value.Count
+            ? parameters.Value[parameterIndex].GetLocation()
+            : null;
     }
 
     private static bool ReportStructureDiagnostics(
@@ -138,7 +195,8 @@ public sealed class GeneratorUsageAnalyzer : DiagnosticAnalyzer
         var hasFatal = false;
         var location = TypeStructureValidator.GetIdentifierLocation(typeSymbol);
 
-        if (!validation.IsSealed)
+        var requiresSealed = attributeDisplayName != "[GenerateTvp]" || typeSymbol.TypeKind != TypeKind.Struct;
+        if (requiresSealed && !validation.IsSealed)
         {
             context.ReportDiagnostic(
                 Diagnostic.Create(
@@ -207,7 +265,7 @@ public sealed class GeneratorUsageAnalyzer : DiagnosticAnalyzer
             var parameter = primaryConstructor.Parameters[i];
             var parameterType = parameter.Type;
             if (parameterType.TypeKind == TypeKind.Error ||
-                !string.Equals(SqlTypeDetector.GetSqlType(parameterType), "sql_variant", StringComparison.Ordinal))
+                SqlTypeDetector.GetSqlType(parameterType).Length != 0)
                 continue;
 
             var parameterSyntax = parameterList.Parameters[i];

@@ -1,20 +1,19 @@
-# CAERIUS206 — OUTPUT parameters are not supported
+# CAERIUS206 — Parameter direction is not supported
 
 **Severity**: Error
 **Category**: CaeriusNet.AutoContracts
 
 ## Cause
 
-The stored procedure declares one or more `OUTPUT` parameters. AutoContracts currently generates
-read-only stored procedure contracts from input parameters and result sets; `OUTPUT` parameters are
-not part of that generated surface.
+The manifest declares an invalid direction, or a direction/type combination that cannot be generated safely. v12
+AutoContracts supports `Input`, `Output`, `InputOutput`, and `ReturnValue`; table-valued parameters are always
+`Input` only. A return value must be `SqlDbType.Int` at ordinal 0.
 
 ## How to fix
 
-Return values through the first result set instead of `OUTPUT` parameters. AutoContracts scans the
-application schemas in the selected database, so a procedure with `OUTPUT` parameters in that
-database is considered an incompatible contract until it is changed or moved out of that database's
-generated contract boundary.
+Correct the direction in the SQL contract or its permitted v3 override. Generated output records expose `Output`,
+`InputOutput`, and `ReturnValue` only after the reader has been consumed and closed. Do not change a TVP to output or
+input/output: SQL Server TVPs are input-only.
 
 After changing the procedure contract, run `Pull` and review the refreshed
 `caerius.contracts.json`.

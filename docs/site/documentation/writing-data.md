@@ -6,7 +6,7 @@ Use an immutable `StoredProcedureCommand` for every write. `ExecuteAsync` is an 
 var command = new StoredProcedureCommandBuilder("dbo", "usp_User_UpdateName")
     .AddParameter("Id", id, SqlDbType.Int)
     .AddParameter("Name", name, SqlDbType.NVarChar, size: 200)
-    .Invalidate("users")
+    .Invalidates("users")
     .Build();
 
 var affected = await database.ExecuteNonQueryAsync(command, ct);

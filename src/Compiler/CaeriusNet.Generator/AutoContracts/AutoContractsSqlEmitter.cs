@@ -30,7 +30,9 @@ internal static class AutoContractsSqlEmitter
             "char" => "SqlDbType.Char",
             "varbinary" => "SqlDbType.VarBinary",
             "binary" => "SqlDbType.Binary",
-            _ => "SqlDbType.Variant"
+            "json" => "SqlDbType.Json",
+            "vector" => "SqlDbType.Vector",
+            _ => throw new InvalidOperationException("Unsupported AutoContracts SQL type: " + sqlType)
         };
     }
 
@@ -48,6 +50,8 @@ internal static class AutoContractsSqlEmitter
             "bigint" => $"{nullablePrefix}reader.GetInt64({readerOrdinal})",
             "real" => $"{nullablePrefix}reader.GetFloat({readerOrdinal})",
             "float" => $"{nullablePrefix}reader.GetDouble({readerOrdinal})",
+            "decimal" or "numeric" when AutoContractsClrTypes.IsSqlDecimal(column.ClrType) =>
+                $"{nullablePrefix}reader.GetSqlDecimal({readerOrdinal})",
             "decimal" or "numeric" or "money" or "smallmoney" =>
                 $"{nullablePrefix}reader.GetDecimal({readerOrdinal})",
             "date" => $"{nullablePrefix}DateOnly.FromDateTime(reader.GetDateTime({readerOrdinal}))",
@@ -60,7 +64,9 @@ internal static class AutoContractsSqlEmitter
                 $"{nullablePrefix}reader.GetString({readerOrdinal})",
             "varbinary" or "binary" =>
                 $"{nullablePrefix}reader.GetFieldValue<byte[]>({readerOrdinal})",
-            _ => $"{nullablePrefix}({ToNullableClrType(column)})reader.GetValue({readerOrdinal})"
+            "json" => $"{nullablePrefix}reader.GetString({readerOrdinal})",
+            "vector" => $"{nullablePrefix}reader.GetSqlVector<float>({readerOrdinal})",
+            _ => throw new InvalidOperationException("Unsupported AutoContracts SQL type: " + column.SqlType)
         };
     }
 
@@ -91,19 +97,19 @@ internal static class AutoContractsSqlEmitter
             "datetimeoffset" =>
                 $"new SqlMetaData({columnName}, SqlDbType.DateTimeOffset, {column.Scale ?? 7}, {column.Scale ?? 7})",
             "uniqueidentifier" => $"new SqlMetaData({columnName}, SqlDbType.UniqueIdentifier)",
-            "nvarchar" =>
-                $"new SqlMetaData({columnName}, SqlDbType.NVarChar, {AutoContractsSqlFacets.BuildColumnLength(column, true)})",
-            "nchar" =>
-                $"new SqlMetaData({columnName}, SqlDbType.NChar, {AutoContractsSqlFacets.BuildColumnLength(column, true)})",
-            "varchar" =>
-                $"new SqlMetaData({columnName}, SqlDbType.VarChar, {AutoContractsSqlFacets.BuildColumnLength(column, false)})",
-            "char" =>
-                $"new SqlMetaData({columnName}, SqlDbType.Char, {AutoContractsSqlFacets.BuildColumnLength(column, false)})",
+            "nvarchar" => BuildStringSqlMetaData(
+                column, columnName, "SqlDbType.NVarChar", AutoContractsSqlFacets.BuildColumnLength(column, true)),
+            "nchar" => BuildStringSqlMetaData(
+                column, columnName, "SqlDbType.NChar", AutoContractsSqlFacets.BuildColumnLength(column, true)),
+            "varchar" => BuildStringSqlMetaData(
+                column, columnName, "SqlDbType.VarChar", AutoContractsSqlFacets.BuildColumnLength(column, false)),
+            "char" => BuildStringSqlMetaData(
+                column, columnName, "SqlDbType.Char", AutoContractsSqlFacets.BuildColumnLength(column, false)),
             "varbinary" =>
                 $"new SqlMetaData({columnName}, SqlDbType.VarBinary, {AutoContractsSqlFacets.BuildColumnLength(column, false)})",
             "binary" =>
                 $"new SqlMetaData({columnName}, SqlDbType.Binary, {AutoContractsSqlFacets.BuildColumnLength(column, false)})",
-            _ => $"new SqlMetaData({columnName}, SqlDbType.Variant)"
+            _ => throw new InvalidOperationException("Unsupported AutoContracts SQL type: " + column.SqlType)
         };
     }
 
@@ -124,6 +130,8 @@ internal static class AutoContractsSqlEmitter
             "bigint" => $"record.SetInt64({ordinal}, {value})",
             "real" => $"record.SetFloat({ordinal}, {value})",
             "float" => $"record.SetDouble({ordinal}, {value})",
+            "decimal" or "numeric" when AutoContractsClrTypes.IsSqlDecimal(column.ClrType) =>
+                $"record.SetSqlDecimal({ordinal}, {value})",
             "decimal" or "numeric" or "money" or "smallmoney" => $"record.SetDecimal({ordinal}, {value})",
             "date" => $"record.SetDateTime({ordinal}, {value}.ToDateTime(TimeOnly.MinValue))",
             "time" => $"record.SetTimeSpan({ordinal}, {value}.ToTimeSpan())",
@@ -132,7 +140,7 @@ internal static class AutoContractsSqlEmitter
             "uniqueidentifier" => $"record.SetGuid({ordinal}, {value})",
             "nvarchar" or "varchar" or "nchar" or "char" => $"record.SetString({ordinal}, {value})",
             "varbinary" or "binary" => $"record.SetValue({ordinal}, {value})",
-            _ => $"record.SetValue({ordinal}, {value})"
+            _ => throw new InvalidOperationException("Unsupported AutoContracts SQL type: " + column.SqlType)
         };
     }
 
@@ -186,7 +194,7 @@ internal static class AutoContractsSqlEmitter
                 default:
                     if (char.IsControl(ch))
                         sb.Append(@"\u")
-                            .Append(((int)ch).ToString("x4", System.Globalization.CultureInfo.InvariantCulture));
+                            .Append(((int)ch).ToString("x4", CultureInfo.InvariantCulture));
                     else
                         sb.Append(ch);
                     break;
@@ -199,5 +207,18 @@ internal static class AutoContractsSqlEmitter
     internal static string NormalizeSqlType(string sqlType)
     {
         return AutoContractsNaming.NormalizeSqlType(sqlType);
+    }
+
+    private static string BuildStringSqlMetaData(
+        AutoContractsColumn column,
+        string columnName,
+        string sqlDbType,
+        string length)
+    {
+        if (column.LocaleId is not { } localeId || column.SqlCompareOptions is not { } compareOptions)
+            return $"new SqlMetaData({columnName}, {sqlDbType}, {length})";
+
+        return $"new SqlMetaData({columnName}, {sqlDbType}, {length}, {localeId}, " +
+               $"(global::System.Data.SqlTypes.SqlCompareOptions){compareOptions})";
     }
 }

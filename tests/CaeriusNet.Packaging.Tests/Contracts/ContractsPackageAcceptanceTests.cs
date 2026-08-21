@@ -41,11 +41,12 @@ public sealed class ContractsPackageAcceptanceTests
             StringComparison.Ordinal);
         Assert.Contains("<Exec EchoOff=\"true\"", targets, StringComparison.Ordinal);
         Assert.Contains("--connection-env", targets, StringComparison.Ordinal);
-        Assert.Contains("CaeriusContractsConnectionString is deprecated", targets, StringComparison.Ordinal);
-
-        // The raw connection-string mode stays available only as the documented, deprecated escape hatch;
-        // the target must not promote it to the recommended default path.
         Assert.Contains("--connection-name", targets, StringComparison.Ordinal);
+        Assert.Contains("--configuration-base-path", targets, StringComparison.Ordinal);
+        Assert.Contains("--user-secrets-id", targets, StringComparison.Ordinal);
+        Assert.DoesNotContain("--connection-string", targets, StringComparison.Ordinal);
+        Assert.DoesNotContain("$(CaeriusContractsConnectionString)", targets, StringComparison.Ordinal);
+        Assert.DoesNotContain("CaeriusContractsConnectionArguments", targets, StringComparison.Ordinal);
         Assert.DoesNotContain("<CaeriusContractsMode>Pull</CaeriusContractsMode>", props,
             StringComparison.Ordinal);
     }

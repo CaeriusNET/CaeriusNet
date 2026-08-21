@@ -1,5 +1,3 @@
-using CaeriusNet.Analyzer.Roslyn;
-
 namespace CaeriusNet.Generator.Models;
 
 /// <summary>
@@ -14,7 +12,7 @@ internal sealed record TvpModel(
     string Namespace,
     string TypeName,
     string AccessibilityKeyword,
-    string TypeKindKeyword,
+    string DeclarationKeywords,
     string Schema,
     string TvpName,
     EquatableArray<ColumnModel> Columns);

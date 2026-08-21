@@ -42,7 +42,11 @@
     <ItemGroup>
         <None Include="..\Compiler\CaeriusNet.Generator\bin\$(Configuration)\netstandard2.0\CaeriusNet.Generator.dll"
               Pack="true" PackagePath="analyzers/dotnet/cs/" Visible="false"/>
+        <None Include="..\Compiler\CaeriusNet.Generator\bin\$(Configuration)\netstandard2.0\CaeriusNet.Generator.pdb"
+              Pack="true" PackagePath="analyzers/dotnet/cs/" Visible="false"/>
         <None Include="..\Compiler\CaeriusNet.Analyzer\bin\$(Configuration)\netstandard2.0\CaeriusNet.Analyzer.dll"
+              Pack="true" PackagePath="analyzers/dotnet/cs/" Visible="false"/>
+        <None Include="..\Compiler\CaeriusNet.Analyzer\bin\$(Configuration)\netstandard2.0\CaeriusNet.Analyzer.pdb"
               Pack="true" PackagePath="analyzers/dotnet/cs/" Visible="false"/>
     </ItemGroup>
 </Project>

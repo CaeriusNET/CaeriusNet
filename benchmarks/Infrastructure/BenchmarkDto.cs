@@ -1,5 +1,3 @@
-using CaeriusNet;
-
 namespace CaeriusNet.Benchmark.Infrastructure;
 
 /// <summary>
