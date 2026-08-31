@@ -683,8 +683,8 @@
       "caeriusnet.aspire": {
         "type": "Project",
         "dependencies": {
-          "Aspire.Microsoft.Data.SqlClient": "[13.5.1, )",
-          "Aspire.StackExchange.Redis": "[13.5.1, )",
+          "Aspire.Microsoft.Data.SqlClient": "[13.5.3, )",
+          "Aspire.StackExchange.Redis": "[13.5.3, )",
           "CaeriusNet": "[11.2.0, )",
           "CaeriusNet.Redis": "[11.2.0, )",
           "Microsoft.Extensions.Diagnostics.HealthChecks": "[10.0.11, )",
@@ -723,9 +723,9 @@
       },
       "Aspire.Microsoft.Data.SqlClient": {
         "type": "CentralTransitive",
-        "requested": "[13.5.1, )",
-        "resolved": "13.5.1",
-        "contentHash": "nFwZzYqXAxPhwtZt2DfhgitEfWMDbeB+j34Vf4Im0wYP1Mx47CC5odHaNkq3vuRcQzLi/g1NXq3ZtilIAqSG3w==",
+        "requested": "[13.5.3, )",
+        "resolved": "13.5.3",
+        "contentHash": "0KnufWOZnsJd72/3HLBfpg+b3cOfVP4qkZ61Rldv6kVunnIWhVsLrjUraLfh5R9gyyRMOPj7Z7M4M5FQL4PQ/w==",
         "dependencies": {
           "AspNetCore.HealthChecks.SqlServer": "9.0.0",
           "Azure.Core": "1.57.0",
@@ -749,9 +749,9 @@
       },
       "Aspire.StackExchange.Redis": {
         "type": "CentralTransitive",
-        "requested": "[13.5.1, )",
-        "resolved": "13.5.1",
-        "contentHash": "AootiAEWPwXmLhZaVcjBMqIIhDJtVRKd2dg/xJjMdaUEIJQHpQHu80Yph5BxNNNDDun7LPzHPo3dRf3Plc+oxQ==",
+        "requested": "[13.5.3, )",
+        "resolved": "13.5.3",
+        "contentHash": "B0mJpW8715pp8ecZ5RXh3pG78ncg8EKMM1pOZO2X10z0RLqTLerhyW4i2RrxOZMkx00BDRrZT+43e6GHmvdjUQ==",
         "dependencies": {
           "AspNetCore.HealthChecks.Redis": "9.0.0",
           "Microsoft.Extensions.Configuration.Abstractions": "10.0.11",
