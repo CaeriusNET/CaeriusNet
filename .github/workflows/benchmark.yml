@@ -182,7 +182,7 @@ jobs:
 
       - name: Upload benchmark reports
         if: always()
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: benchmark-reports-${{ github.run_number }}
           path: ${{ steps.run.outputs.results }}
@@ -191,7 +191,7 @@ jobs:
 
       - name: Upload baseline candidate
         if: always() && steps.mode.outputs.value == 'record'
-        uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: benchmark-baseline-candidate-${{ github.run_number }}
           path: ${{ steps.record.outputs.directory }}
