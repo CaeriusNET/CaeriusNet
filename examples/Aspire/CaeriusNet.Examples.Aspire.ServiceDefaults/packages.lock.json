@@ -70,11 +70,11 @@
       },
       "OpenTelemetry.Instrumentation.Runtime": {
         "type": "Direct",
-        "requested": "[1.17.0, )",
-        "resolved": "1.17.0",
-        "contentHash": "HyYenisDn/xdtyVXdjImsCl+RNC2gq01N0rvSR7tsYAylXR2sxX/YgMsyTajMXA27+r1vB7lNU8cWRhV0fwL+Q==",
+        "requested": "[1.20.1, )",
+        "resolved": "1.20.1",
+        "contentHash": "1ngVOV2ZYqFy38g2g+vZ50poeF66GJtinITBDB7TNRP4fmrDxYYyPfs1uGrPHkhJJRV5I7mElPFOctvlatu41w==",
         "dependencies": {
-          "OpenTelemetry.Api": "[1.17.0, 2.0.0)"
+          "OpenTelemetry.Api": "[1.20.1, 2.0.0)"
         }
       },
       "Microsoft.Build.Tasks.Git": {
@@ -162,8 +162,8 @@
       },
       "OpenTelemetry.Api": {
         "type": "Transitive",
-        "resolved": "1.18.0",
-        "contentHash": "Dhzm5oughIY9EWckt2J1yXcEbXpki5WCL2q7prJoYxzH6C7jdkfGtPMTkUVZZ4AhjJKzQnlC+kLSIlmIVwC4Vw=="
+        "resolved": "1.20.1",
+        "contentHash": "QO9hlwadOdJGR4vDpJyDnl9B62v7epIBSTIHUA4C+bCtrRaB4TWmYSnu3QVOIe7caH8dt7NaHRei6zebESJJyw=="
       },
       "OpenTelemetry.Api.ProviderBuilderExtensions": {
         "type": "Transitive",
