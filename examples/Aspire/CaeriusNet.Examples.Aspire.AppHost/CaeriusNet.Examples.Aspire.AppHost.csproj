@@ -16,6 +16,9 @@
         <PackageReference Include="Aspire.Hosting.Redis"/>
         <PackageReference Include="Aspire.Hosting.SqlServer"/>
         <PackageReference Include="Aspire.StackExchange.Redis"/>
+        <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
+        <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
+        <PackageReference Include="Microsoft.Extensions.Hosting" />
     </ItemGroup>
 
     <ItemGroup>
